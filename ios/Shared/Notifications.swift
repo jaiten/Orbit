@@ -1,0 +1,58 @@
+import Foundation
+import UserNotifications
+import SwiftData
+
+actor NotificationScheduler {
+    static let shared = NotificationScheduler()
+    private let center = UNUserNotificationCenter.current()
+
+    func requestPermission() async throws -> Bool {
+        try await center.requestAuthorization(options: [.alert, .sound, .badge])
+    }
+
+    struct Reminder: Sendable {
+        let id: String
+        let title: String
+        let body: String
+        let date: Date
+    }
+
+    /// iOS limits pending requests; keep the nearest 60 and refill on every foreground/edit.
+    /// Storage has no reminder cap. Only DayOS-owned pending notifications are replaced.
+    func replace(with reminders: [Reminder]) async throws {
+        let settings = await center.notificationSettings()
+        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
+        let pending = await center.pendingNotificationRequests()
+        center.removePendingNotificationRequests(withIdentifiers: pending.filter { $0.identifier.hasPrefix("dayos.") }.map(\.identifier))
+        for reminder in reminders.filter({ $0.date > .now }).sorted(by: { $0.date < $1.date }).prefix(60) {
+            let content = UNMutableNotificationContent()
+            content.title = reminder.title; content.body = reminder.body; content.sound = .default
+            let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: reminder.date)
+            try await center.add(UNNotificationRequest(identifier: reminder.id, content: content,
+                trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)))
+        }
+    }
+
+    @MainActor static func reminders(context: ModelContext, now: Date = .now) throws -> [Reminder] {
+        let tasks = try context.fetch(FetchDescriptor<PlannerTask>())
+        let habits = try context.fetch(FetchDescriptor<Habit>())
+        let logs = try context.fetch(FetchDescriptor<HabitLog>())
+        var result = tasks.filter { $0.completedAt == nil }.flatMap { task in
+            task.reminders.enumerated().map { index, date in
+                Reminder(id: "dayos.task.\(task.id).\(index)", title: task.title, body: "A little space for what matters.", date: date)
+            }
+        }
+        for habit in habits {
+            for offset in 0..<7 {
+                let day = Calendar.current.date(byAdding: .day, value: offset, to: now)!
+                if PlannerLogic.progress(habit, logs: logs, at: day) >= habit.target { continue }
+                for (kind, minutes) in [("reminder", habit.reminderMinutes), ("nudge", habit.nudgeMinutes)] {
+                    guard let minutes, let date = Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: day) else { continue }
+                    result.append(Reminder(id: "dayos.habit.\(habit.id).\(offset).\(kind)", title: habit.title,
+                        body: kind == "nudge" ? "Still time for a small step. No pressure." : "Make a moment for yourself.", date: date))
+                }
+            }
+        }
+        return result
+    }
+}

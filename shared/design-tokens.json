@@ -1,0 +1,18 @@
+{
+  "colors": {
+    "sage": "#617A5C",
+    "clay": "#B86E52",
+    "lavender": "#9180AB",
+    "honey": "#B3873B",
+    "canvasLight": "#F7F5ED",
+    "canvasDark": "#171A17"
+  },
+  "spacing": [4, 8, 12, 16, 20, 24, 32, 48],
+  "radii": { "input": 16, "card": 20 },
+  "type": {
+    "display": { "ios": "New York via system serif", "windows": "Georgia", "size": 34 },
+    "body": { "ios": "SF Pro via system", "windows": "Segoe UI Variable", "size": 17 },
+    "caption": { "size": 12 }
+  },
+  "motion": { "standardMilliseconds": 200, "respectReducedMotion": true }
+}

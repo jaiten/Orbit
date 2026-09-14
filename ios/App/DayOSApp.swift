@@ -1,0 +1,65 @@
+import SwiftUI
+import SwiftData
+
+@main struct DayOSApp: App {
+    private let container: ModelContainer?
+    private let startupError: String?
+    init() {
+        do { container = try Persistence.makeContainer(); startupError = nil }
+        catch { container = nil; startupError = error.localizedDescription }
+    }
+    var body: some Scene {
+        WindowGroup {
+            if let container { RootView().modelContainer(container) }
+            else {
+                ContentUnavailableView("Your planner couldn’t open", systemImage: "externaldrive.badge.exclamationmark",
+                    description: Text(startupError ?? "Please reopen DayOS."))
+            }
+        }
+    }
+}
+
+struct RootView: View {
+    @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var phase
+    @AppStorage("appearance") private var appearance = "system"
+    @State private var selectedTab = 0
+    @State private var errorMessage: String?
+    var body: some View {
+        TabView(selection: $selectedTab) {
+            TodayView().tabItem { Label("Today", systemImage: "sun.max") }.tag(0)
+            CalendarView().tabItem { Label("Plan", systemImage: "calendar") }.tag(1)
+            TasksView().tabItem { Label("Tasks", systemImage: "checklist") }.tag(2)
+            HabitsView().tabItem { Label("Habits", systemImage: "leaf") }.tag(3)
+            SettingsView().tabItem { Label("You", systemImage: "person.crop.circle") }.tag(4)
+        }
+        .tint(DayTheme.sage)
+        .preferredColorScheme(appearance == "system" ? nil : (appearance == "dark" ? .dark : .light))
+        .onOpenURL { _ in selectedTab = 0 }
+        .task { await refreshNotifications() }
+        .onChange(of: phase) { _, value in
+            if value == .active { Task { await refreshNotifications() } }
+        }
+        .alert("Reminder scheduling failed", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button("OK") { errorMessage = nil }
+        } message: { Text(errorMessage ?? "") }
+    }
+    private func refreshNotifications() async {
+        do { try await NotificationScheduler.shared.replace(with: NotificationScheduler.reminders(context: context)) }
+        catch { errorMessage = error.localizedDescription }
+    }
+}
+
+/// All edits share persistence error reporting and reminder refresh.
+struct MutationErrorModifier: ViewModifier {
+    @Binding var error: String?
+    func body(content: Content) -> some View {
+        content.alert("Couldn’t finish that change", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+            Button("OK") { error = nil }
+        } message: { Text(error ?? "") }
+    }
+}
+
+@MainActor func refreshReminders(_ context: ModelContext) async throws {
+    try await NotificationScheduler.shared.replace(with: NotificationScheduler.reminders(context: context))
+}
