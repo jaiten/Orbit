@@ -29,6 +29,11 @@ targets:
       properties:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
         OrbitAppGroup: $(ORBIT_APP_GROUP)
         CFBundleURLTypes:
           - CFBundleURLSchemes: [orbit]
@@ -47,11 +52,13 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jaiten.orbit.widgets
+        INFOPLIST_KEY_CFBundleDisplayName: Orbit Widgets
         GENERATE_INFOPLIST_FILE: YES
         SKIP_INSTALL: YES
     info:
       path: Widgets/Info.plist
       properties:
+        CFBundleDisplayName: Orbit Widgets
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         OrbitAppGroup: $(ORBIT_APP_GROUP)
