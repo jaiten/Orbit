@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-@main struct DayOSApp: App {
+@main struct OrbitApp: App {
     private let container: ModelContainer?
     private let startupError: String?
     init() {
@@ -13,7 +13,7 @@ import SwiftData
             if let container { RootView().modelContainer(container) }
             else {
                 ContentUnavailableView("Your planner couldn’t open", systemImage: "externaldrive.badge.exclamationmark",
-                    description: Text(startupError ?? "Please reopen DayOS."))
+                    description: Text(startupError ?? "Please reopen Orbit."))
             }
         }
     }

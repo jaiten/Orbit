@@ -8,15 +8,15 @@ capture tasks, choose a manageable day, and keep small daily habits.
 - Windows: run `windows/dist/Orbit-0.2.0.exe`, or download the `Orbit-Windows`
   artifact from the GitHub Windows workflow. See [Windows setup](windows/README.md).
 - iOS: on a Mac, install XcodeGen, run `cd ios && xcodegen generate`, then open
-  `DayOS.xcodeproj`. Choose the DayOS scheme and your simulator or signing team.
-  The visible app name is Orbit. Existing DayOS bundle/storage identifiers remain
+  `Orbit.xcodeproj`. Choose the Orbit scheme and your simulator or signing team.
+  The visible app name is Orbit. Existing Orbit bundle/storage identifiers remain
   stable so the update does not rename your local data store.
 - Sync: create/confirm an account in Windows **Settings & sync**, then sign in
   on iPhone in **Settings → Across your devices**. Use the same account on both.
   Local items are imported into that account; offline storage remains available.
 
 For a physical iPhone, configure your Apple team, unique bundle IDs and matching
-App Group on both targets. Update `DAYOS_APP_GROUP` in `ios/project.yml`. The full
+App Group on both targets. Update `ORBIT_APP_GROUP` in `ios/project.yml`. The full
 SwiftData app currently requires Xcode; WSL/xtool is not yet supported.
 
 ## Implemented

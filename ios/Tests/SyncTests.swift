@@ -1,6 +1,6 @@
 import XCTest
 import SwiftData
-@testable import DayOS
+@testable import Orbit
 
 @MainActor final class SyncTests: XCTestCase {
     func testMutationAndTombstoneArePersistedTogether() throws {
@@ -12,7 +12,7 @@ import SwiftData
         XCTAssertEqual(entries.count, 1); XCTAssertTrue(entries[0].dirty)
         let mutation = entries[0].mutation
         context.delete(task); try Mutations.save(context)
-        XCTAssertTrue(entries[0].deleted); XCTAssertNotEqual(entries[0].mutation, mutation)
+        XCTAssertTrue(entries[0].tombstone); XCTAssertNotEqual(entries[0].mutation, mutation)
     }
     func testRemoteTaskPreservesLocalDayAndSubtasks() throws {
         let container = try Persistence.makeContainer(inMemory: true)

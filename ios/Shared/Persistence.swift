@@ -8,13 +8,13 @@ enum Persistence {
         if inMemory {
             return try ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)])
         }
-        guard let group = Bundle.main.object(forInfoDictionaryKey: "DayOSAppGroup") as? String,
+        guard let group = Bundle.main.object(forInfoDictionaryKey: "OrbitAppGroup") as? String,
               let directory = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group) else {
             throw CocoaError(.fileNoSuchFile, userInfo: [NSLocalizedDescriptionKey:
-                "The shared DayOS container is unavailable. Check App Groups in Signing & Capabilities for both targets."])
+                "The shared Orbit container is unavailable. Check App Groups in Signing & Capabilities for both targets."])
         }
-        let config = ModelConfiguration("DayOS", schema: schema,
-            url: directory.appendingPathComponent("DayOS.store"), cloudKitDatabase: .none)
+        let config = ModelConfiguration("Orbit", schema: schema,
+            url: directory.appendingPathComponent("Orbit.store"), cloudKitDatabase: .none)
         return try ModelContainer(for: schema, configurations: [config])
     }
 }

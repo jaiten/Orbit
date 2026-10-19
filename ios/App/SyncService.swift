@@ -64,7 +64,7 @@ import WidgetKit
             let pending = try context.fetch(FetchDescriptor<SyncEntry>()).filter { $0.dirty && $0.conflict == nil && $0.key != "owner" }
             for entry in pending {
                 let mutation = entry.mutation
-                let body: [String: Any] = ["p_key": entry.key, "p_payload": try SyncRecords.object(entry.payload), "p_deleted": entry.deleted, "p_base": entry.revision, "p_mutation": mutation]
+                let body: [String: Any] = ["p_key": entry.key, "p_payload": try SyncRecords.object(entry.payload), "p_deleted": entry.tombstone, "p_base": entry.revision, "p_mutation": mutation]
                 guard let response = try await request("/rest/v1/rpc/orbit_put", body: body) as? [String: Any], let record = response["record"] as? [String: Any] else { throw CocoaError(.coderReadCorrupt) }
                 if response["accepted"] as? Bool == true { entry.revision = record["revision"] as? Int ?? entry.revision; if entry.mutation == mutation { entry.dirty = false; entry.conflict = nil }; try context.save() }
                 else { try receive(record, context: context) }
@@ -87,7 +87,7 @@ import WidgetKit
         let old = try context.fetch(FetchDescriptor<SyncEntry>()).first { $0.key == key }
         if let old, old.dirty {
             if revision > old.revision {
-                if old.payload == value && old.deleted == deleted { old.revision = revision; old.dirty = false; old.conflict = nil }
+                if old.payload == value && old.tombstone == deleted { old.revision = revision; old.dirty = false; old.conflict = nil }
                 else { old.conflict = try SyncRecords.json(record) }; try context.save()
             }; return
         }
@@ -96,7 +96,7 @@ import WidgetKit
             try SyncRecords.apply(record, context: context)
             let entry = old ?? SyncEntry(key: key, payload: value); if old == nil { context.insert(entry) }
             // Use the local canonical representation to avoid spurious re-uploads.
-            entry.payload = try SyncRecords.snapshots(context)[key] ?? value; entry.deleted = deleted; entry.revision = revision; entry.dirty = false; entry.conflict = nil; entry.mutation = record["mutation"] as? String ?? UUID().uuidString.lowercased(); try context.save()
+            entry.payload = try SyncRecords.snapshots(context)[key] ?? value; entry.tombstone = deleted; entry.revision = revision; entry.dirty = false; entry.conflict = nil; entry.mutation = record["mutation"] as? String ?? UUID().uuidString.lowercased(); try context.save()
         } catch { context.rollback(); throw error }
     }
     func resolve(_ entry: SyncEntry, local: Bool, context: ModelContext) async throws {

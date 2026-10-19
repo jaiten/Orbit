@@ -5,13 +5,13 @@ import SwiftData
 @Model final class SyncEntry {
     @Attribute(.unique) var key: String
     var payload: String
-    var deleted: Bool
+    var tombstone: Bool
     var revision: Int
     var mutation: String
     var dirty: Bool
     var conflict: String?
     init(key: String, payload: String) {
-        self.key = key; self.payload = payload; deleted = false; revision = 0
+        self.key = key; self.payload = payload; tombstone = false; revision = 0
         mutation = UUID().uuidString.lowercased(); dirty = true
     }
 }
@@ -27,20 +27,21 @@ import SwiftData
     static func stamp(_ date: Date?) -> Any { date.map { $0.timeIntervalSince1970 * 1000 } ?? NSNull() }
     static func id(_ uuid: UUID?) -> Any { uuid.map { $0.uuidString.lowercased() } ?? NSNull() }
     static func snapshots(_ context: ModelContext) throws -> [String: String] {
+        let pendingDeletions = Set(context.deletedModelsArray.map(\.persistentModelID))
         var result: [String: String] = [:]
         func add(_ entity: String, _ key: String, _ value: [String: Any]) throws { result[entity + "/" + key] = try json(value) }
-        for t in try context.fetch(FetchDescriptor<PlannerTask>()).filter({ !$0.isDeleted }) {
+        for t in try context.fetch(FetchDescriptor<PlannerTask>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) {
             try add("tasks", t.id.uuidString.lowercased(), ["id": id(t.id), "title": t.title, "notes": t.notes, "listID": id(t.listID), "dueDate": t.hasTime ? stamp(t.dueDate) : NSNull(), "localDate": t.dueDate.map { PlannerLogic.dayKey($0) } ?? NSNull() as Any, "hasTime": t.hasTime, "durationMinutes": t.durationMinutes, "reminders": t.reminders.map { $0.timeIntervalSince1970 * 1000 }, "recurrenceRule": t.recurrenceRule, "priority": t.priority, "tags": t.tags, "subtasks": t.subtasks.map { ["id": id($0.id), "title": $0.title, "completed": $0.completed] }, "completedAt": stamp(t.completedAt), "nextOccurrenceID": id(t.nextOccurrenceID), "sortOrder": t.sortOrder, "updatedAt": stamp(t.updatedAt)])
         }
-        for h in try context.fetch(FetchDescriptor<Habit>()).filter({ !$0.isDeleted }) {
+        for h in try context.fetch(FetchDescriptor<Habit>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) {
             try add("habits", h.id.uuidString.lowercased(), ["id": id(h.id), "title": h.title, "frequencyRule": h.frequencyRule, "target": h.target, "color": h.color, "icon": h.icon, "reminderMinutes": h.reminderMinutes ?? NSNull() as Any, "nudgeMinutes": h.nudgeMinutes ?? NSNull() as Any, "createdAt": stamp(h.createdAt), "updatedAt": stamp(h.updatedAt)])
         }
-        for l in try context.fetch(FetchDescriptor<HabitLog>()).filter({ !$0.isDeleted }) {
+        for l in try context.fetch(FetchDescriptor<HabitLog>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) {
             // The stable key makes independent check-ins on two devices conflict safely.
             try add("habit_logs", l.habitID.uuidString.lowercased() + "-" + l.dayKey, ["id": id(l.id), "habitID": id(l.habitID), "dayKey": l.dayKey, "count": l.count, "updatedAt": stamp(l.updatedAt)])
         }
-        for l in try context.fetch(FetchDescriptor<TaskList>()).filter({ !$0.isDeleted }) { try add("lists", l.id.uuidString.lowercased(), ["id": id(l.id), "name": l.name, "color": l.color, "sortOrder": l.sortOrder, "updatedAt": stamp(l.updatedAt)]) }
-        for i in try context.fetch(FetchDescriptor<IdeaPrompt>()).filter({ !$0.isDeleted }) { try add("idea_prompts", i.id.uuidString.lowercased(), ["id": id(i.id), "text": i.text, "shownAt": stamp(i.shownAt), "dismissed": i.dismissed, "updatedAt": stamp(i.updatedAt)]) }
+        for l in try context.fetch(FetchDescriptor<TaskList>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) { try add("lists", l.id.uuidString.lowercased(), ["id": id(l.id), "name": l.name, "color": l.color, "sortOrder": l.sortOrder, "updatedAt": stamp(l.updatedAt)]) }
+        for i in try context.fetch(FetchDescriptor<IdeaPrompt>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) { try add("idea_prompts", i.id.uuidString.lowercased(), ["id": id(i.id), "text": i.text, "shownAt": stamp(i.shownAt), "dismissed": i.dismissed, "updatedAt": stamp(i.updatedAt)]) }
         return result
     }
     static func capture(_ context: ModelContext) throws {
@@ -49,10 +50,10 @@ import SwiftData
         let existing = Dictionary(uniqueKeysWithValues: entries.map { ($0.key, $0) })
         for (key, payload) in snapshots {
             if let entry = existing[key] {
-                if entry.payload != payload || entry.deleted { entry.payload = payload; entry.deleted = false; entry.dirty = true; entry.mutation = UUID().uuidString.lowercased() }
+                if entry.payload != payload || entry.tombstone { entry.payload = payload; entry.tombstone = false; entry.dirty = true; entry.mutation = UUID().uuidString.lowercased() }
             } else { context.insert(SyncEntry(key: key, payload: payload)) }
         }
-        for entry in entries where snapshots[entry.key] == nil && !entry.deleted { entry.deleted = true; entry.dirty = true; entry.mutation = UUID().uuidString.lowercased() }
+        for entry in entries where snapshots[entry.key] == nil && !entry.tombstone { entry.tombstone = true; entry.dirty = true; entry.mutation = UUID().uuidString.lowercased() }
     }
     static func bind(_ user: String, context: ModelContext) throws {
         let entries = try context.fetch(FetchDescriptor<SyncEntry>())

@@ -77,7 +77,7 @@ create table public.idea_prompts (
 
 -- Server timestamps allow incremental pull ordering. Phase 2 must use a revision
 -- checked RPC to resolve queued offline writes; ordinary upsert is not sufficient.
-create function public.dayos_stamp_update() returns trigger
+create function public.orbit_stamp_update() returns trigger
 language plpgsql set search_path = '' as $$
 begin
   new.updated_at = clock_timestamp();
@@ -97,7 +97,7 @@ begin
     execute format('revoke all on public.%I from anon, authenticated', table_name);
     execute format('grant select, insert, update on public.%I to authenticated', table_name);
     execute format('create index on public.%I (user_id, updated_at, id)', table_name);
-    execute format('create trigger stamp_update before insert or update on public.%I for each row execute function public.dayos_stamp_update()', table_name);
+    execute format('create trigger stamp_update before insert or update on public.%I for each row execute function public.orbit_stamp_update()', table_name);
     execute format('alter publication supabase_realtime add table public.%I', table_name);
   end loop;
 end $$;
