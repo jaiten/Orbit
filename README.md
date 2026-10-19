@@ -1,4 +1,4 @@
-# DayOS
+# Orbit
 
 A calm, local-first daily planner for iPhone and iPad. This repository starts with
 the native **iOS 17+ prototype**, as requested. It uses SwiftUI, SwiftData and
@@ -13,14 +13,14 @@ Requirements: Xcode 16 or newer, an iOS simulator, and
 brew install xcodegen
 cd ios
 xcodegen generate
-open DayOS.xcodeproj
+open Orbit.xcodeproj
 ```
 
-Select the **DayOS** scheme and an iPhone simulator, then Run. For a physical
+Select the **Orbit** scheme and an iPhone simulator, then Run. For a physical
 device, choose your Apple signing team on both targets, change the bundle IDs to
 your own, and register the same App Group for the app and widget extension.
-Update `DAYOS_APP_GROUP` in `ios/project.yml` before regenerating. The default is
-`group.com.dayos.shared`. Both targets must resolve the same group identifier.
+Update `ORBIT_APP_GROUP` in `ios/project.yml` before regenerating. The default is
+`group.com.orbit.shared`. Both targets must resolve the same group identifier.
 
 The app intentionally shows a recovery message if its shared persistent store
 cannot open. It never silently replaces an unreadable database with an empty one.
@@ -51,7 +51,7 @@ there are no tasks or habits. Add your own suggestions under **Try something new
 
 ## Widget setup
 
-Run the app once, then add **DayOS → Your daily rhythm** from the Home Screen
+Run the app once, then add **Orbit → Your daily rhythm** from the Home Screen
 widget gallery. Lock Screen widgets are available in the Lock Screen editor.
 The large widget shows up to seven items, followed by a remaining-item count;
 widgets cannot display an unbounded scrollable checklist. Tap the surrounding
@@ -73,7 +73,7 @@ On a Mac, use Product → Test or:
 
 ```sh
 cd ios
-xcodebuild test -project DayOS.xcodeproj -scheme DayOS \
+xcodebuild test -project Orbit.xcodeproj -scheme Orbit \
   -destination 'platform=iOS Simulator,name=YOUR_INSTALLED_IPHONE_SIMULATOR' \
   CODE_SIGNING_ALLOWED=NO
 ```
@@ -104,7 +104,7 @@ Use [the device checklist](docs/validation.md) for behavior and visual review.
 | Realtime/offline reconciliation | Contract and implementation plan only; disconnected |
 | Windows app | Architecture boundary only; no executable yet |
 
-The schema is in `supabase/migrations/0001_dayos.sql`. The sync contract and
+The schema is in `supabase/migrations/0001_orbit.sql`. The sync contract and
 [implementation plan](docs/sync-plan.md) reserve the next phase. The
 [Windows plan](windows/README.md) follows UX validation and shared sync work.
 

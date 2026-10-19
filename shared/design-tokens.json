@@ -1,16 +1,17 @@
 {
   "colors": {
-    "sage": "#617A5C",
-    "clay": "#B86E52",
-    "lavender": "#9180AB",
-    "honey": "#B3873B",
-    "canvasLight": "#F7F5ED",
-    "canvasDark": "#171A17"
+    "accent": "#E87359",
+    "sage": "#6E8C78",
+    "clay": "#D97A66",
+    "lavender": "#8C85BF",
+    "honey": "#D19E4D",
+    "canvasLight": "#F5F5F7",
+    "canvasDark": "#141416"
   },
   "spacing": [4, 8, 12, 16, 20, 24, 32, 48],
-  "radii": { "input": 16, "card": 20 },
+  "radii": { "input": 16, "card": 18 },
   "type": {
-    "display": { "ios": "New York via system serif", "windows": "Georgia", "size": 34 },
+    "display": { "ios": "SF Pro Rounded via system", "windows": "Segoe UI Variable", "size": 34 },
     "body": { "ios": "SF Pro via system", "windows": "Segoe UI Variable", "size": 17 },
     "caption": { "size": 12 }
   },

@@ -36,8 +36,8 @@ struct TodayView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()).uppercased())
                             .font(.caption.weight(.semibold)).tracking(1.5).foregroundStyle(.secondary)
-                        Text("A little more intentional.").font(.system(.largeTitle, design: .serif)).fontWeight(.medium)
-                        Text("Make room for what matters today.").foregroundStyle(.secondary)
+                        Text("Today").font(.largeTitle.weight(.semibold))
+                        Text("Make room for what matters.").foregroundStyle(.secondary)
                     }
                     DayCard {
                         HStack {
@@ -46,16 +46,16 @@ struct TodayView: View {
                                 Text("\(completed + habitCompleted) of \(todayTasks.count + habits.count) complete").font(.title3.weight(.medium))
                             }
                             Spacer()
-                            Image(systemName: "sun.max.fill").font(.largeTitle).foregroundStyle(DayTheme.honey)
+                            Image(systemName: "sun.max.fill").font(.largeTitle).foregroundStyle(DayTheme.accent)
                         }
                         ProgressView(value: Double(completed + habitCompleted), total: Double(max(1, todayTasks.count + habits.count)))
-                            .tint(DayTheme.sage)
+                            .tint(DayTheme.accent)
                     }
                     HStack {
-                        Image(systemName: "plus").foregroundStyle(DayTheme.sage)
+                        Image(systemName: "plus").foregroundStyle(DayTheme.accent)
                         TextField("Add a task · gym tomorrow 6am", text: $quickText).submitLabel(.done).onSubmit(quickAdd)
                         if !quickText.isEmpty { Button(action: quickAdd) { Image(systemName: "arrow.up.circle.fill") }.accessibilityLabel("Add task") }
-                    }.padding(16).background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16))
+                    }.padding(16).background(.background, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     if !overdue.isEmpty {
                         taskSection("A fresh start", detail: "\(overdue.count) overdue", items: overdue)
                     }
@@ -68,8 +68,8 @@ struct TodayView: View {
                     }
                     if let idea {
                         DayCard {
-                            Label("A LITTLE OUTSIDE THE USUAL", systemImage: "sparkles").font(.caption.weight(.semibold)).foregroundStyle(DayTheme.clay)
-                            Text(idea.text).font(.system(.title3, design: .serif))
+                            Label("A LITTLE OUTSIDE THE USUAL", systemImage: "sparkles").font(.caption.weight(.semibold)).foregroundStyle(DayTheme.accent)
+                            Text(idea.text).font(.title3)
                             Button("Done with this idea") {
                                 idea.dismissed = true; idea.shownAt = .now; idea.updatedAt = .now
                                 do { try Mutations.save(context) } catch { self.error = error.localizedDescription }
@@ -136,7 +136,7 @@ struct TaskRow: View {
                 } catch { self.error = error.localizedDescription }
             } label: {
                 Image(systemName: task.completedAt == nil ? "circle" : "checkmark.circle.fill").font(.title2)
-                    .foregroundStyle(task.completedAt == nil ? DayTheme.sage.opacity(0.55) : DayTheme.sage)
+                    .foregroundStyle(task.completedAt == nil ? DayTheme.accent.opacity(0.55) : DayTheme.accent)
                     .frame(width: 44, height: 44)
             }.buttonStyle(.plain).accessibilityLabel(task.completedAt == nil ? "Complete \(task.title)" : "Reopen \(task.title)")
             Button(action: edit) {
@@ -147,13 +147,13 @@ struct TaskRow: View {
                             Text(date.formatted(date: .omitted, time: .shortened))
                             Text("· \(task.durationMinutes) min")
                         }
-                        if task.priority > 0 { Image(systemName: "flag.fill").foregroundStyle(DayTheme.clay) }
+                        if task.priority > 0 { Image(systemName: "flag.fill").foregroundStyle(DayTheme.accent) }
                         if !task.recurrenceRule.isEmpty { Image(systemName: "repeat") }
                         if !task.subtasks.isEmpty { Text("\(task.subtasks.filter(\.completed).count)/\(task.subtasks.count)") }
                     }.font(.caption).foregroundStyle(.secondary)
                 }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
             }.buttonStyle(.plain)
-        }.padding(8).background(.background.opacity(0.65), in: RoundedRectangle(cornerRadius: 16))
+        }.padding(8).background(.background, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
     }
 }

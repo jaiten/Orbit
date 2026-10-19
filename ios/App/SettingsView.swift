@@ -13,9 +13,9 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("DayOS").font(.system(.largeTitle, design: .serif))
-                    Text("Your day, on your terms.").foregroundStyle(.secondary)
-                    Label("Saved on this device", systemImage: "internaldrive").foregroundStyle(DayTheme.sage)
+                    Text("Orbit").font(.largeTitle)
+                    Text("Your day, simplified.").foregroundStyle(.secondary)
+                    Label("Saved on this device", systemImage: "internaldrive").foregroundStyle(DayTheme.accent)
                 }
                 Section("Make yourself at home") {
                     Picker("Appearance", selection: $appearance) {
@@ -26,7 +26,7 @@ struct SettingsView: View {
                             do {
                                 let granted = try await NotificationScheduler.shared.requestPermission()
                                 if granted { try await refreshReminders(context) }
-                                message = granted ? "Reminders are enabled." : "Notifications are off. You can enable them in iOS Settings → DayOS → Notifications."
+                                message = granted ? "Reminders are enabled." : "Notifications are off. You can enable them in iOS Settings → Orbit → Notifications."
                             } catch { message = error.localizedDescription }
                         }
                     }
@@ -60,7 +60,7 @@ struct SettingsView: View {
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }.navigationTitle("A space for you")
-                .alert("DayOS", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
+                .alert("Orbit", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
                     Button("OK") { message = nil }
                 } message: { Text(message ?? "") }
         }

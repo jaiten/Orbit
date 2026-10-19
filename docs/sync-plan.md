@@ -1,7 +1,7 @@
 # Sync implementation boundary
 
 No network requests or account credentials are used by the iOS prototype.
-`supabase/migrations/0001_dayos.sql` is a future schema scaffold, not a deployed
+`supabase/migrations/0001_orbit.sql` is a future schema scaffold, not a deployed
 backend. `shared/SyncContract.swift` defines the future transport boundary.
 
 ## Before enabling sync

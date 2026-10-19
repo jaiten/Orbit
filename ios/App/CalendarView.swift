@@ -30,7 +30,7 @@ struct CalendarView: View {
                     HStack {
                         Button { move(-1) } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }.accessibilityLabel("Previous \(mode.lowercased())")
                         Spacer()
-                        Text(selected.formatted(.dateTime.month(.wide).year())).font(.system(.title2, design: .serif))
+                        Text(selected.formatted(.dateTime.month(.wide).year())).font(.title2)
                         Spacer()
                         Button { move(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }.accessibilityLabel("Next \(mode.lowercased())")
                     }
@@ -40,9 +40,9 @@ struct CalendarView: View {
                                 VStack(spacing: 8) {
                                     Text(day.formatted(.dateTime.weekday(.narrow))).font(.caption2)
                                     Text(day.formatted(.dateTime.day())).font(.subheadline.weight(.semibold))
-                                    Circle().fill(tasks.contains { $0.dueDate.map { calendar.isDate($0, inSameDayAs: day) } ?? false } ? DayTheme.sage : .clear).frame(width: 4, height: 4)
+                                    Circle().fill(tasks.contains { $0.dueDate.map { calendar.isDate($0, inSameDayAs: day) } ?? false } ? DayTheme.accent : .clear).frame(width: 4, height: 4)
                                 }.frame(maxWidth: .infinity).padding(.vertical, 10)
-                                    .background(calendar.isDate(day, inSameDayAs: selected) ? DayTheme.sage.opacity(0.18) : .clear, in: RoundedRectangle(cornerRadius: 14))
+                                    .background(calendar.isDate(day, inSameDayAs: selected) ? DayTheme.accent.opacity(0.18) : .clear, in: RoundedRectangle(cornerRadius: 14))
                             }.buttonStyle(.plain).accessibilityLabel(day.formatted(date: .complete, time: .omitted))
                                 .dropDestination(for: String.self) { ids, _ in reschedule(ids, to: day) }
                         }

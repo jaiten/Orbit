@@ -1,6 +1,6 @@
 import XCTest
 import SwiftData
-@testable import DayOS
+@testable import Orbit
 
 @MainActor final class PlannerTests: XCTestCase {
     private var calendar: Calendar {
