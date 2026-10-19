@@ -47,7 +47,7 @@ import WidgetKit
     func signIn(email: String, password: String, create: Bool, context: ModelContext) async throws -> String {
         guard !busy else { return "Sync is finishing. Please try again." }
         let path = create ? "/auth/v1/signup?redirect_to=orbit%3A%2F%2Fauth" : "/auth/v1/token?grant_type=password"
-        guard let result = try await request(path, body: ["email": email, "password": password], authenticated: false) as? [String: Any] else { throw CocoaError(.coderReadCorrupt) }
+        guard let result = try await request(path, body: ["email": email.trimmingCharacters(in: .whitespacesAndNewlines), "password": password], authenticated: false) as? [String: Any] else { throw CocoaError(.coderReadCorrupt) }
         guard result["access_token"] != nil else { return "Open the newest confirmation email, tap its link, then sign in here." }
         guard let user = result["user"] as? [String: Any], let id = user["id"] as? String else { throw CocoaError(.coderReadCorrupt) }
         try SyncRecords.bind(id, context: context); try saveSession(result); await run(context); return "Signed in"

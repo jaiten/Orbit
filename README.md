@@ -24,10 +24,10 @@ SwiftData app currently requires Xcode; WSL/xtool is not yet supported.
 
 | Area | Current behavior |
 | --- | --- |
-| iOS | Habit-first Today, week/month calendar, task/list/habit CRUD, notes, tags, subtasks, reminders, recurrence, heatmaps |
-| Windows | Two-column Today, lists, next seven days, task/habit editors, natural-language quick-add, priority, time blocks, recurrence, completion, habit history |
+| iOS | Compact checklist Today, swipe delete/move, week/month calendar, task/list/habit CRUD, notes, tags, subtasks, reminders, recurrence, heatmaps |
+| Windows | Compact checklist Today, to-do/habit conversion, lists, next seven days, task/habit editors, natural-language quick-add, priority, time blocks, recurrence, completion, habit history |
 | Sync | Separate Supabase backend, email/password accounts, durable outbox, tombstones, revision checks, conflict review, reconnect catch-up |
-| Widgets | Home Screen and Lock Screen widgets, shared local store, interactive completion |
+| Widgets | Home Screen and Lock Screen widgets, interactive completion, focus Live Activity for Lock Screen and Dynamic Island |
 | Brand | Vector mark/wordmark, Windows/iOS icons, [brand guide](shared/brand/README.md) |
 
 Desktop preserves iOS-only task fields when editing but does not yet expose all
@@ -35,6 +35,23 @@ their editors. Windows reminders, automatic updates, custom recurrence rules,
 background sync services, and account recovery UI remain follow-up work. iOS
 reminders schedule the nearest 60 requests and refill on app interaction; OS
 delivery and widget refresh policies apply. Task/habit counts have no product caps.
+
+## Calendars and focus
+
+On iPhone, **Settings → Calendars → Connect calendars** shows today's events from
+accounts in Apple Calendar, including configured Google accounts. Touch and hold a
+to-do for **Send to calendar**; the native editor lets you choose a writable calendar
+and confirm saving. Repeat sends reopen the same event where its identifier is still
+valid. Edits to calendar events do not update the original task. Calendar event
+access currently runs on iPhone; Windows does not connect directly to calendar providers.
+
+Touch and hold a to-do for **Start focus timer**. The timer uses the task duration
+(5–240 minutes) and appears in Today and as a Lock Screen Live Activity; compatible
+phones also show Dynamic Island. Stop it from Today. Live Activities must be enabled
+in iPhone Settings. A completed timer becomes stale; reopening Orbit clears it.
+
+Email setup and recovery: [confirmation guide](docs/email-confirmation.md).
+TestFlight uploads follow successful iOS checks on main: [release guide](docs/testflight.md).
 
 ## Data
 
@@ -50,7 +67,7 @@ anonymous access and enforces owner-scoped reads and revision-checked writes.
 GitHub builds the iOS app/widget and runs simulator XCTest. Windows unit tests cover
 offline persistence, tombstones, acknowledgment races, conflicts, account isolation,
 and network failure. Electron smoke tests cover list assignment, task create/edit/complete,
-habit log/undo, compact dark layout, settings, and offline restart. Hosted integration checks exercised two
+habit log/undo, conversion round trips, compact dark layout, settings, and offline restart. iOS UI tests exercise swipe conversion and deletion. Hosted integration checks exercised two
 clients and a second isolated account.
 
 ```powershell

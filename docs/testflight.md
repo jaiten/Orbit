@@ -27,12 +27,17 @@ Team: `5T6K789X4T`. App: `com.jaiten.orbit`. Widget:
 Do not commit any signing material or paste it in chat. The public CSR can be
 uploaded to Apple's certificate form; it does not contain the private key.
 
-After normal iOS CI passes for the intended commit, run **Actions → TestFlight →
-Run workflow**, selecting `main`. This signs and uploads the build, but does not
-submit it for public App Store review or automatically invite testers. Wait for
-Apple processing, answer any export compliance questions accurately, then add the
-build to your internal testing group in App Store Connect.
+A successful **iOS prototype** check for a push to `main` automatically starts
+**TestFlight** for that tested commit. Pull requests and failed checks do not upload.
+You can also use **Actions → TestFlight → Run workflow** on `main` for a manual retry.
+The workflow signs and uploads through an ephemeral keychain. Build numbers increase
+with every upload run and retry.
 
-The workflow is restricted to manual runs on main and uses an ephemeral keychain.
-Signed archive/export and Apple's processing cannot be verified until credentials
-are configured. Build numbers increase with each workflow run and retry.
+This does not submit the app for public App Store review or invite testers. Apple
+still processes every uploaded build. Internal groups configured to include new
+builds automatically will receive the update after processing. Other groups may
+need the build added in App Store Connect.
+
+The app declares that it does not use non-exempt encryption: current networking
+uses operating-system HTTPS and credentials use Keychain. Revisit that declaration
+if encryption features change.

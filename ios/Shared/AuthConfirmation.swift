@@ -4,7 +4,7 @@ import Foundation
 /// deliberately ignored; users sign in with their password on each device.
 enum AuthConfirmation {
     static func notice(for url: URL) -> String? {
-        guard url.scheme?.lowercased() == "orbit", url.host?.lowercased() == "auth", url.path.isEmpty || url.path == "/" else { return nil }
+        guard url.scheme?.lowercased() == "orbit", url.host?.lowercased() == "auth", url.user == nil, url.password == nil, url.path.isEmpty || url.path == "/" else { return nil }
         let fragment = URLComponents(string: "?" + (url.fragment ?? ""))?.queryItems ?? []
         let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
         if (fragment + query).contains(where: { $0.name == "error" || $0.name == "error_code" }) {

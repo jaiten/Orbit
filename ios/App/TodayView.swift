@@ -10,6 +10,7 @@ struct TodayView: View {
     @Query(sort: \PlannerTask.sortOrder) private var tasks: [PlannerTask]
     @Query(sort: \Habit.createdAt) private var habits: [Habit]
     @Query private var logs: [HabitLog]
+    @Query private var ideas: [IdeaPrompt]
     @State private var editing: PlannerTask?
     @State private var editingHabit: Habit?
     @State private var addingTask = false
@@ -25,6 +26,12 @@ struct TodayView: View {
     }
     private var done: Int { relevant.filter { $0.completedAt != nil }.count + habits.filter { PlannerLogic.progress($0, logs: logs, at: day) >= $0.target }.count }
     private var total: Int { relevant.count + habits.count }
+    private var idea: IdeaPrompt? {
+        let active = ideas.filter { !$0.dismissed }.sorted { $0.id.uuidString < $1.id.uuidString }
+        guard !active.isEmpty else { return nil }
+        let index = Calendar.current.ordinality(of: .day, in: .era, for: day) ?? 0
+        return active[index % active.count]
+    }
     var body: some View {
         NavigationStack {
             List {
@@ -84,6 +91,15 @@ struct TodayView: View {
                                 Text(event.isAllDay ? "All day" : event.startDate.formatted(date: .omitted, time: .shortened)).font(.caption).foregroundStyle(.secondary)
                             }.padding(.vertical, 4)
                         }
+                    }
+                }
+                if let idea {
+                    Section("A little outside the usual") {
+                        Text(idea.text)
+                        Button("Done with this idea") {
+                            idea.dismissed = true; idea.shownAt = .now; idea.updatedAt = .now
+                            do { try Mutations.save(context) } catch { self.error = error.localizedDescription }
+                        }.font(.caption)
                     }
                 }
             }
