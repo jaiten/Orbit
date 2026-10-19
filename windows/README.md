@@ -1,23 +1,44 @@
-# Windows client — phase 3
+# Orbit for Windows
 
-The first milestone is the native iOS UX prototype. There is no Windows executable
-yet. This directory reserves the next client boundary; it is not a completed app.
+A dedicated Electron planner with Today, inbox, a seven-day view, task/habit editing,
+recurring tasks, history, and sync. SQLite lives in Electron's userData directory.
+The packaged executable does not need Node or a browser installation.
 
-Use an Electron desktop shell with SQLite persistence and a React UI after the iOS
-design is validated. Share the Supabase wire schema and `shared/design-tokens.json`,
-not the SwiftData database file. The intended views match iOS: Today, Plan (week and
-month), Tasks, Habits, and You.
+## Run and package
 
-Implementation sequence:
+With Node 24:
 
-1. SQLite migrations for the five core entities plus outbox and sync cursor tables.
-2. Repository operations matching `ios/Shared/Mutations.swift`; preserve UUIDs,
-   calendar-day habit keys, reminder arrays, subtasks, ordering, and recurrence IDs.
-3. Context-isolated preload API with validated IPC; renderer has no Node access.
-4. Today, editors, drag scheduling, weekly targets, heatmaps, and theme tokens.
-5. Windows notification adapter and a single nearest-reminder scheduler.
-6. Authenticated Supabase transport, reconnect catch-up, and conflict UI.
-7. Windows installer and tests for offline restart, DST, duplicate delivery, and
-   concurrent changes from iOS.
+```powershell
+cd windows
+npm ci
+npm start
+npm test
+npm run test:desktop
+npm run pack
+```
 
-Do not claim native Windows parity or instant sync until those checks pass.
+If npm disables install scripts, first run `node node_modules/electron/install.js`.
+The portable executable is `dist/Orbit-0.2.0.exe`. Windows CI uploads it as the
+`Orbit-Windows` artifact. This build is unsigned; Windows may show a publisher
+warning. Code signing and automatic updates are not configured.
+
+## Connect iPhone
+
+Open **Settings & sync**, create an account, confirm the email, then sign in.
+In iOS, open **Settings → Across your devices** and use the same credentials.
+Existing local items are added to that account. The local planner stays bound to
+its original account after sign-out to avoid mixing account data. Sign-out keeps
+local records and disconnects sync.
+
+Changes save first, then upload. Desktop subscribes to Realtime and both apps
+catch up every eight seconds while active. Conflicts show a version comparison
+in Settings. Sessions use Windows safeStorage encryption; the renderer cannot
+read credentials or access Node. Only a publishable Supabase key is bundled.
+
+## Scope
+
+Task notes, priorities, dates/times, durations, completion, and daily/weekly/monthly
+recurrence are editable. Existing iOS tags, subtasks, list IDs and reminder values
+survive edits, but their dedicated Windows editors are not included yet. Windows
+notification scheduling, drag rescheduling, custom RRULEs, background service sync,
+and account recovery UI remain follow-up work.
