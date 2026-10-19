@@ -27,7 +27,12 @@ const fs=require('node:fs');const os=require('node:os');const path=require('node
   await p.getByRole('button',{name:'Read for twenty minutes',exact:true}).click();
   if(await p.getByLabel('Notes').inputValue()!=='A small, clear commitment')throw Error('Conversion lost notes');
   await p.getByRole('button',{name:'Save task',exact:true}).click();
-  await p.getByRole('checkbox',{name:'Complete Read for twenty minutes'}).click();await p.getByText('1 completed',{exact:true}).waitFor();
+  // A restored recurring task must not lend its habit backup to future occurrences.
+  const original=await p.evaluate(async()=>{const s=await window.orbit.read();return s.records.find(r=>r.key.startsWith('tasks/')&&!r.deleted);});
+  await p.evaluate(async r=>{await window.orbit.put(r.key,{...r.payload,recurrenceRule:'FREQ=DAILY'});},original);
+  await p.getByRole('checkbox',{name:'Complete Read for twenty minutes'}).click();
+  const next=await p.evaluate(async()=>{const s=await window.orbit.read();return s.records.find(r=>r.key.startsWith('tasks/')&&!r.deleted&&!r.payload.completedAt);});
+  if(!next||next.payload.conversionData)throw Error('Recurring child inherited a different item backup');await p.getByText('1 completed',{exact:true}).waitFor();
   await p.getByRole('button',{name:'Settings & sync',exact:true}).click();await p.getByRole('heading',{name:'Connected, quietly'}).waitFor();
   await p.locator('[data-page="today"]').click();
   await app.evaluate(({app})=>app.emit('second-instance',{},['orbit://auth#error_code=otp_expired']));
