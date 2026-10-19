@@ -1,7 +1,8 @@
 # Orbit for Windows
 
-A dedicated Electron planner with Today, inbox, a seven-day view, task/habit editing,
-recurring tasks, history, and sync. SQLite lives in Electron's userData directory.
+A dedicated Electron planner with a two-column Today view, lists, a seven-day view,
+task/habit editing, recurring tasks, history, and sync. Quick-add understands phrases
+such as `gym tomorrow 6am`. SQLite lives in Electron's userData directory.
 The packaged executable does not need Node or a browser installation.
 
 ## Run and package
@@ -38,7 +39,8 @@ read credentials or access Node. Only a publishable Supabase key is bundled.
 ## Scope
 
 Task notes, priorities, dates/times, durations, completion, and daily/weekly/monthly
-recurrence are editable. Existing iOS tags, subtasks, list IDs and reminder values
+recurrence and list assignment are editable. Lists can be created and renamed.
+Existing iOS tags, subtasks and reminder values
 survive edits, but their dedicated Windows editors are not included yet. Windows
 notification scheduling, drag rescheduling, custom RRULEs, background service sync,
 and account recovery UI remain follow-up work.

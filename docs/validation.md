@@ -1,10 +1,11 @@
 # iOS acceptance checklist
 
-These checks still need a Mac and iOS simulator/device. No boxes below imply a
-completed manual test.
+Automated builds run on GitHub's macOS simulator and Windows runners. Manual
+device checks below remain outstanding; simulator success does not verify physical
+iPhone notifications, widgets or real-device sync.
 
-- [ ] Generate with XcodeGen; build the app and extension without compiler errors.
-- [ ] Run all nine XCTest cases.
+- [x] Generate with XcodeGen; build the app and extension without compiler errors.
+- [x] Run all thirteen XCTest cases, including persisted deletion sync and account isolation.
 - [ ] First launch is empty; sample data is only created by the explicit button.
 - [ ] Quick-add `gym tomorrow 6am`; find it on tomorrow in Plan and after relaunch.
 - [ ] Create/edit/delete a list. Deleting it preserves tasks in Inbox.

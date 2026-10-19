@@ -7,18 +7,29 @@ const fs=require('node:fs');const os=require('node:os');const path=require('node
  try{
   app=await electron.launch(options);const p=await app.firstWindow();const errors=[];p.on('pageerror',e=>errors.push(e.message));
   await p.getByRole('heading',{name:'Today',exact:true}).waitFor();
+  await p.getByRole('button',{name:'+ New list',exact:true}).click();
+  await p.locator('#list-form input[name=name]').fill('Personal');
+  await p.getByRole('button',{name:'Save list',exact:true}).click();
   await p.getByRole('textbox',{name:'Add an intention'}).fill('Read for twenty minutes');
   await p.getByRole('button',{name:'Add',exact:true}).click();
   await p.getByRole('button',{name:'Read for twenty minutes',exact:true}).click();
-  await p.getByLabel('Notes').fill('A small, clear commitment');await p.getByRole('button',{name:'Save task',exact:true}).click();
+  await p.getByLabel('Notes').fill('A small, clear commitment');await p.getByLabel('List',{exact:true}).selectOption({label:'Personal'});await p.getByRole('button',{name:'Save task',exact:true}).click();
+  await p.locator('[data-list]').click();await p.getByRole('heading',{name:'Personal',exact:true}).waitFor();await p.getByRole('button',{name:'Read for twenty minutes',exact:true}).waitFor();
+  await p.locator('[data-page="today"]').click();
   await p.getByRole('button',{name:'+ Habit',exact:true}).click();await p.locator('#habit-form input[name=title]').fill('Morning walk');
   await p.getByRole('button',{name:'Save habit',exact:true}).click();await p.getByRole('button',{name:'Log Morning walk',exact:true}).click();
   await p.getByText('1 / 1 today',{exact:true}).waitFor();await p.getByRole('button',{name:'Undo',exact:true}).click();await p.getByText('0 / 1 today',{exact:true}).waitFor();
   await p.getByRole('checkbox',{name:'Complete Read for twenty minutes'}).click();await p.getByText('1 completed',{exact:true}).waitFor();
   await p.getByRole('button',{name:'Settings & sync',exact:true}).click();await p.getByRole('heading',{name:'Connected, quietly'}).waitFor();
   await p.locator('[data-page="today"]').click();
+  await p.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});
+  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setSize(900,700));
+  if(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Horizontal overflow at compact window size');
+  await p.getByRole('button',{name:'+ Habit',exact:true}).waitFor();
+  await p.emulateMedia({colorScheme:'light'});
+  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setSize(1320,900));
   await p.screenshot({path:path.resolve(__dirname,'../assets/desktop-preview.png'),fullPage:true});
   if(errors.length)throw Error(errors.join('\n'));await app.close();app=await electron.launch(options);const q=await app.firstWindow();await q.getByText('1 completed',{exact:true}).waitFor();await q.getByText('0 / 1 today',{exact:true}).waitFor();
-  console.log('PASS: native desktop create, edit, completion, habit log/undo, settings and offline restart');
+  console.log('PASS: native desktop lists, task editing/completion, habit log/undo, compact dark layout, settings and offline restart');
  }finally{if(app)await app.close();fs.rmSync(folder,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});
