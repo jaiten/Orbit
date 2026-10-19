@@ -19,6 +19,10 @@ import WidgetKit
     }
     private func saveSession(_ value: [String: Any]?) throws {
         let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "OrbitSession"]
+        var value = value
+        if value != nil, value?["expires_at"] == nil, let seconds = value?["expires_in"] as? Double {
+            value?["expires_at"] = Date.now.timeIntervalSince1970 + seconds
+        }
         if let value {
             let data = try JSONSerialization.data(withJSONObject: value)
             let attributes: [String: Any] = [kSecValueData as String: data, kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly]
