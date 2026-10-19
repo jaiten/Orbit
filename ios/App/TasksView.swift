@@ -30,7 +30,7 @@ struct TasksView: View {
                     if filtered.isEmpty { ContentUnavailableView("A clear page", systemImage: "checklist", description: Text("Add a task or change your filters.")) }
                     ForEach(filtered) { task in TaskRow(task: task) { editing = task }.listRowSeparator(.hidden) }
                 }
-            }.searchable(text: $search, prompt: "Search tasks or tags").navigationTitle("Your intentions")
+            }.searchable(text: $search, prompt: "Search tasks or tags").navigationTitle("Tasks")
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) { Button("Lists") { manageLists = true } }
                     ToolbarItem(placement: .topBarTrailing) { Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("New task") }
@@ -62,7 +62,7 @@ struct ListsView: View {
                         do { try Mutations.save(context); name = "" } catch { self.error = error.localizedDescription }
                     }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-            }.navigationTitle("Your lists").toolbar { Button("Done") { dismiss() } }
+            }.navigationTitle("Lists").toolbar { Button("Done") { dismiss() } }
                 .modifier(MutationErrorModifier(error: $error))
                 .confirmationDialog("Delete this list? Its tasks will move to Inbox.", isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }), titleVisibility: .visible) {
                     Button("Delete list", role: .destructive) {

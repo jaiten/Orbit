@@ -10,25 +10,30 @@ struct HabitsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    Text("Consistency, with kindness.").font(.system(.largeTitle, design: .serif))
-                    Text("Tiny rituals. A life that feels like yours.").foregroundStyle(.secondary)
-                    if habits.isEmpty { ContentUnavailableView("Start small", systemImage: "leaf", description: Text("Use + to create your first daily or weekly ritual.")) }
+                VStack(alignment: .leading, spacing: 20) {
+                    if habits.isEmpty {
+                        DayCard {
+                            QuietEmptyState(title: "Your first habit", detail: "Choose something small you want to repeat.", symbol: "repeat")
+                            Button("Add habit", systemImage: "plus") { adding = true }
+                        }
+                    }
                     ForEach(habits) { habit in
                         DayCard {
                             HabitRow(habit: habit, logs: logs, date: .now)
                             HabitHeatmap(habit: habit, logs: logs)
                             HStack {
-                                Text("LAST 12 WEEKS").font(.caption2).tracking(1).foregroundStyle(.secondary)
+                                Text("12-week history").font(.caption).foregroundStyle(.secondary)
                                 Spacer()
-                                Button("Edit") { editing = habit }.font(.caption)
+                                Button("Edit") { editing = habit }.font(.subheadline).frame(minWidth: 44, minHeight: 44)
+                                    .accessibilityLabel("Edit \(habit.title)")
                             }
                         }
                     }
-                }.padding(20).frame(maxWidth: 760).frame(maxWidth: .infinity)
-            }.background(DayTheme.canvas(scheme)).navigationTitle("Your daily roots").navigationBarTitleDisplayMode(.inline)
-                .toolbar { Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("New habit") }
-                .sheet(isPresented: $adding) { HabitEditor() }.sheet(item: $editing) { HabitEditor(habit: $0) }
+                }.padding(20).frame(maxWidth: 700).frame(maxWidth: .infinity)
+            }.background(DayTheme.canvas(scheme)).navigationTitle("Habits")
+                .toolbar { Button { adding = true } label: { Image(systemName: "plus").font(.title3.weight(.medium)) }.accessibilityLabel("New habit") }
+                .sheet(isPresented: $adding) { HabitEditor().presentationDragIndicator(.visible) }
+                .sheet(item: $editing) { HabitEditor(habit: $0).presentationDragIndicator(.visible) }
         }
     }
 }
@@ -36,16 +41,36 @@ struct HabitsView: View {
 struct HabitHeatmap: View {
     let habit: Habit
     let logs: [HabitLog]
-    private var days: [Date] { (-83...0).map { Calendar.current.date(byAdding: .day, value: $0, to: .now)! } }
+    private var days: [Date] {
+        let currentWeek = Calendar.current.dateInterval(of: .weekOfYear, for: .now)!.start
+        let start = Calendar.current.date(byAdding: .weekOfYear, value: -11, to: currentWeek)!
+        return (0..<84).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: start) }
+    }
+    private var counts: [String: Int] {
+        logs.filter { $0.habitID == habit.id }.reduce(into: [:]) { result, log in result[log.dayKey, default: 0] += log.count }
+    }
     var body: some View {
-        LazyHGrid(rows: Array(repeating: GridItem(.fixed(12), spacing: 4), count: 7), spacing: 4) {
-            ForEach(days, id: \.self) { day in
-                let count = logs.filter { $0.habitID == habit.id && $0.dayKey == PlannerLogic.dayKey(day) }.reduce(0) { $0 + $1.count }
-                RoundedRectangle(cornerRadius: 3).fill(DayTheme.color(habit.color).opacity(count == 0 ? 0.10 : min(1, 0.35 + Double(count) / Double(habit.target) * 0.65)))
-                    .frame(width: 12, height: 12)
-                    .accessibilityLabel("\(day.formatted(date: .abbreviated, time: .omitted)): \(count) completions")
+        let history = counts
+        HStack(alignment: .top, spacing: 4) {
+            ForEach(0..<12, id: \.self) { week in
+                VStack(spacing: 4) {
+                    ForEach(0..<7, id: \.self) { weekday in
+                        let day = days[week * 7 + weekday]
+                        let count = history[PlannerLogic.dayKey(day), default: 0]
+                        let future = day > Date.now
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(DayTheme.color(habit.color).opacity(future ? 0.03 : (count == 0 ? 0.10 : min(1, 0.4 + Double(count) / Double(habit.target) * 0.6))))
+                            .aspectRatio(1, contentMode: .fit)
+                            .overlay {
+                                if Calendar.current.isDateInToday(day) {
+                                    RoundedRectangle(cornerRadius: 3).strokeBorder(DayTheme.color(habit.color), lineWidth: 1)
+                                }
+                            }
+                            .accessibilityLabel("\(day.formatted(date: .abbreviated, time: .omitted)): \(future ? "Upcoming" : "\(count) check-ins")")
+                    }
+                }
             }
-        }.frame(height: 108)
+        }.frame(maxWidth: 420)
     }
 }
 
@@ -67,8 +92,8 @@ struct HabitEditor: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Your ritual") {
-                    TextField("Read, move, take a breath…", text: $title)
+                Section("Habit") {
+                    TextField("Habit name", text: $title)
                     Picker("Frequency", selection: $frequency) { Text("Daily").tag("DAILY"); Text("Weekly").tag("WEEKLY") }
                     Stepper("\(target) times per \(frequency == "DAILY" ? "day" : "week")", value: $target, in: 1...1000)
                     Picker("Color", selection: $color) { ForEach(DayTheme.colors, id: \.self) { Text($0.capitalized).tag($0) } }
@@ -81,9 +106,9 @@ struct HabitEditor: View {
                     if reminderEnabled { DatePicker("At", selection: $reminder, displayedComponents: .hourAndMinute) }
                     Toggle("Gentle nudge if unfinished", isOn: $nudgeEnabled)
                     if nudgeEnabled { DatePicker("Nudge at", selection: $nudge, displayedComponents: .hourAndMinute) }
-                } header: { Text("A little encouragement") } footer: { Text("Reminders pause once you reach your period’s target. Enable notifications in You.") }
+                } header: { Text("Reminders") } footer: { Text("Reminders pause once you reach your period’s target. Enable notifications in Settings.") }
                 if habit != nil { Section { Button("Delete habit", role: .destructive) { confirmDelete = true } } }
-            }.navigationTitle(habit == nil ? "Plant a habit" : "Edit habit").navigationBarTitleDisplayMode(.inline)
+            }.navigationTitle(habit == nil ? "New habit" : "Edit habit").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Save", action: save).disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }

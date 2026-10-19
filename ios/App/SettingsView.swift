@@ -13,11 +13,11 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("DayOS").font(.system(.largeTitle, design: .serif))
-                    Text("Your day, on your terms.").foregroundStyle(.secondary)
+                    Text("Orbit").font(.largeTitle.weight(.bold))
+                    Text("Habits. Tasks. A little more focus.").foregroundStyle(.secondary)
                     Label("Saved on this device", systemImage: "internaldrive").foregroundStyle(DayTheme.sage)
                 }
-                Section("Make yourself at home") {
+                Section("Preferences") {
                     Picker("Appearance", selection: $appearance) {
                         Text("System").tag("system"); Text("Light").tag("light"); Text("Dark").tag("dark")
                     }
@@ -26,7 +26,7 @@ struct SettingsView: View {
                             do {
                                 let granted = try await NotificationScheduler.shared.requestPermission()
                                 if granted { try await refreshReminders(context) }
-                                message = granted ? "Reminders are enabled." : "Notifications are off. You can enable them in iOS Settings → DayOS → Notifications."
+                                message = granted ? "Reminders are enabled." : "Notifications are off. You can enable them in iOS Settings → Orbit → Notifications."
                             } catch { message = error.localizedDescription }
                         }
                     }
@@ -59,8 +59,8 @@ struct SettingsView: View {
                     Text("Offline first. No account, subscription, or feature caps. Sync and the Windows client are planned for the next phase.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
-            }.navigationTitle("A space for you")
-                .alert("DayOS", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
+            }.navigationTitle("Settings")
+                .alert("Orbit", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
                     Button("OK") { message = nil }
                 } message: { Text(message ?? "") }
         }

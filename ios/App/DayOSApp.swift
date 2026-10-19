@@ -28,12 +28,12 @@ struct RootView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             TodayView().tabItem { Label("Today", systemImage: "sun.max") }.tag(0)
-            CalendarView().tabItem { Label("Plan", systemImage: "calendar") }.tag(1)
+            CalendarView().tabItem { Label("Calendar", systemImage: "calendar") }.tag(1)
             TasksView().tabItem { Label("Tasks", systemImage: "checklist") }.tag(2)
             HabitsView().tabItem { Label("Habits", systemImage: "leaf") }.tag(3)
-            SettingsView().tabItem { Label("You", systemImage: "person.crop.circle") }.tag(4)
+            SettingsView().tabItem { Label("Settings", systemImage: "gearshape") }.tag(4)
         }
-        .tint(DayTheme.sage)
+        .tint(DayTheme.accent)
         .preferredColorScheme(appearance == "system" ? nil : (appearance == "dark" ? .dark : .light))
         .onOpenURL { _ in selectedTab = 0 }
         .task { await refreshNotifications() }

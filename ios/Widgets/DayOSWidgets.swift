@@ -63,7 +63,7 @@ struct DayProvider: TimelineProvider {
 }
 
 struct CompleteItemIntent: AppIntent {
-    static var title: LocalizedStringResource = "Complete a DayOS item"
+    static var title: LocalizedStringResource = "Complete an Orbit item"
     static var openAppWhenRun = false
     @Parameter(title: "Item ID") var itemID: String
     @Parameter(title: "Is habit") var isHabit: Bool
@@ -93,7 +93,7 @@ struct DayWidgetView: View {
     var body: some View {
         Group {
             if entry.unavailable {
-                Text("Open DayOS to set up your planner.").font(.caption)
+                Text("Open Orbit to set up your planner.").font(.caption)
             } else {
                 switch family {
                 case .accessoryCircular:
@@ -102,13 +102,13 @@ struct DayWidgetView: View {
                     } currentValueLabel: { Text("\(entry.completedHabits)") }.gaugeStyle(.accessoryCircular)
                 case .accessoryRectangular:
                     VStack(alignment: .leading) {
-                        Text("DAYOS").font(.caption2.bold())
+                        Text("ORBIT").font(.caption2.bold())
                         Text(entry.items.first?.title ?? "Room to breathe").font(.headline).lineLimit(1)
                         Text(entry.items.first?.subtitle ?? "Your day, on your terms").font(.caption)
                     }
                 case .systemSmall:
                     VStack(alignment: .leading, spacing: 10) {
-                        Label("DayOS", systemImage: "sun.max").font(.caption).foregroundStyle(DayTheme.sage)
+                        Label("Orbit", systemImage: "sun.max").font(.caption).foregroundStyle(DayTheme.sage)
                         if let next = entry.items.first(where: { !$0.habit && ($0.date ?? .distantPast) > entry.date }), let date = next.date {
                             Text(date, style: .relative).font(.system(.title2, design: .rounded).bold()).minimumScaleFactor(0.7)
                             Text(next.title).font(.caption).lineLimit(2)
@@ -139,7 +139,7 @@ struct DayWidgetView: View {
                         }
                         Spacer(minLength: 0)
                         if entry.items.count > (family == .systemLarge ? 7 : 3) {
-                            Text("+\(entry.items.count - (family == .systemLarge ? 7 : 3)) more in DayOS").font(.caption2).foregroundStyle(.secondary)
+                            Text("+\(entry.items.count - (family == .systemLarge ? 7 : 3)) more in Orbit").font(.caption2).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -157,7 +157,7 @@ struct DayOSWidget: Widget {
     let kind = "DayOSAgenda"
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: DayProvider()) { DayWidgetView(entry: $0) }
-            .configurationDisplayName("Your daily rhythm")
+            .configurationDisplayName("Orbit")
             .description("Your next intentions and small daily rituals.")
             .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryCircular, .accessoryRectangular])
     }

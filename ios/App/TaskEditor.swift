@@ -26,14 +26,14 @@ struct TaskEditor: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("What would you like to do?", text: $title, axis: .vertical).font(.title3)
+                    TextField("Task name", text: $title, axis: .vertical).font(.title3)
                     TextField("Notes", text: $notes, axis: .vertical).lineLimit(3...8)
                     Picker("List", selection: $listID) {
                         Text("Inbox").tag(nil as UUID?)
                         ForEach(lists) { Text($0.name).tag(Optional($0.id)) }
                     }
                 }
-                Section("Make time") {
+                Section("Schedule") {
                     Toggle("Schedule a day", isOn: $scheduled)
                     if scheduled {
                         DatePicker("Day", selection: $date, displayedComponents: .date)
@@ -54,7 +54,7 @@ struct TaskEditor: View {
                     }
                     TextField("Tags, separated by commas", text: $tags)
                 }
-                Section("Small steps") {
+                Section("Subtasks") {
                     ForEach($subtasks) { $item in
                         HStack {
                             Toggle("Complete", isOn: $item.completed).labelsHidden()
@@ -73,10 +73,10 @@ struct TaskEditor: View {
                     ForEach(reminders.indices, id: \.self) { index in DatePicker("Reminder \(index + 1)", selection: $reminders[index]) }
                         .onDelete { reminders.remove(atOffsets: $0) }
                     Button("Add reminder", systemImage: "bell.badge") { reminders.append(max(date, Date.now.addingTimeInterval(3600))) }
-                } header: { Text("Reminders") } footer: { Text("Enable notifications in You. Swipe a reminder to remove it. Past reminders are saved but won’t fire.") }
+                } header: { Text("Reminders") } footer: { Text("Enable notifications in Settings. Swipe a reminder to remove it. Past reminders are saved but won’t fire.") }
                 if task != nil { Section { Button("Delete task", role: .destructive) { confirmDelete = true } } }
             }
-            .navigationTitle(task == nil ? "A new intention" : "Edit task").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle(task == nil ? "New task" : "Edit task").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) { Button("Save", action: save).disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }

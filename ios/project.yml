@@ -17,7 +17,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.dayos.app
-        INFOPLIST_KEY_CFBundleDisplayName: DayOS
+        INFOPLIST_KEY_CFBundleDisplayName: Orbit
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         GENERATE_INFOPLIST_FILE: YES
     info:

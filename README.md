@@ -1,8 +1,26 @@
-# DayOS
+# Orbit
 
 A calm, local-first daily planner for iPhone and iPad. This repository starts with
 the native **iOS 17+ prototype**, as requested. It uses SwiftUI, SwiftData and
-WidgetKit, with no account or network dependency.
+WidgetKit, with no account or network dependency. The app display name is Orbit;
+existing target names, bundle IDs and storage identifiers remain DayOS to preserve
+the original project and data identity.
+
+## Current interface
+
+Orbit uses a compact calendar structure with daily habits first, a soft coral
+accent, grouped system surfaces and native navigation. Today includes a selectable
+week strip, partial-target progress ring, a separate weekly-habit section, scheduled
+tasks, and a keyboard-aware quick-add field with parsed date feedback. Completed
+tasks are available in a disclosure section. Habit check-ins can be corrected on
+past days; future check-ins are disabled. Daily progress averages each daily habit's
+fraction of its target, so a six-glass water target has the same weight as reading.
+
+The calendar supports week/month browsing, all-day tasks, and timed agenda rows.
+Native navigation/tab bars retain the real system status bar and safe-area handling.
+Date selection, completion and rings use SwiftUI transitions with Reduce Motion
+support. Physical-device checks for keyboard, status bar and large text remain in
+`docs/validation.md`.
 
 ## Run on a Mac
 
@@ -64,7 +82,7 @@ before shipping. See [Apple's interactive widget guidance](https://developer.app
 
 ## Validation
 
-The development host was Windows, with no Swift/Xcode toolchain. **An iOS build,
+The development host is Windows with Swift and xtool in WSL. The full app still uses SwiftData, which requires the Xcode build path until the persistence layer is adapted. **An iOS build,
 XCTest execution, and simulator/device UI review have not been performed here.**
 Source parsing and project structure checks pass; they cannot check SDK types or
 SwiftData macro expansion.
@@ -81,7 +99,7 @@ xcodebuild test -project DayOS.xcodeproj -scheme DayOS \
 The included GitHub Actions workflow generates the Xcode project, chooses an
 available iPhone simulator, builds the app/widget and runs the tests. It will run
 when this repository is pushed to GitHub; it has not been run remotely here.
-Nine XCTest cases cover parsing, DST, streaks, weekly boundaries, idempotent
+XCTest cases cover parsing, DST, streaks, weekly boundaries, idempotent
 recurring generation, habit undo/targets and disk persistence.
 
 For portable syntax checks:

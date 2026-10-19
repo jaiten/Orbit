@@ -32,3 +32,19 @@ completed manual test.
 Known device-validation risks: SwiftData cross-process merge visibility, concurrent
 habit count updates, notification permission behavior from an extension, and OS
 timeline scheduling. Resolve observed failures before calling the prototype verified.
+
+## Orbit interface pass
+
+- [ ] Confirm the Home Screen name, Settings title and widget gallery say Orbit.
+- [ ] Verify the real system status bar remains legible in system/light/dark modes.
+- [ ] Check the large title collapses naturally and the tab bar respects the home indicator.
+- [ ] Open/dismiss the quick-add keyboard; the field and last task remain reachable.
+- [ ] Select a past day, log/undo a habit, and confirm the selected date's history changes.
+- [ ] Select a future date; habit completion must be unavailable.
+- [ ] A partial multi-count daily habit contributes a fraction to the ring; weekly
+      targets must not affect daily completion totals.
+- [ ] At midnight or foreground after a date change, Today follows the new date only
+      if the selected date was the previous current day.
+- [ ] Enable Reduce Motion; date selection, rings and task symbols must not animate.
+- [ ] Check timed agenda rows stack their time labels at accessibility text sizes.
+- [ ] Verify all theme colors and selected dates retain readable contrast in dark mode.
