@@ -179,7 +179,7 @@ struct HabitRow: View {
                     .font(.title2).foregroundStyle(DayTheme.color(habit.color)).frame(width: 44, height: 44)
             }.buttonStyle(.plain)
                 .accessibilityLabel("\(progress >= habit.target ? "Undo" : "Log") \(habit.title), \(progress) of \(habit.target)")
-        }.contentShape(Rectangle()).onTapGesture { edit?() }.modifier(HabitActions(habit: habit))
+        }.contentShape(Rectangle()).modifier(HabitActions(habit: habit))
         .contextMenu {
             Button("Move to to-dos", systemImage: "checklist") {
                 do { try Conversions.toTask(habit, in: context) } catch { context.rollback(); self.error = error.localizedDescription }

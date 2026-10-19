@@ -43,7 +43,7 @@ struct CalendarDraft: Identifiable {
             event.calendar = calendar
         }
         event.title = task.title; event.notes = task.notes
-        event.startDate = task.dueDate ?? .now; event.isAllDay = !task.hasTime
+        event.startDate = task.hasTime ? (task.dueDate ?? .now) : Calendar.current.startOfDay(for: task.dueDate ?? .now); event.isAllDay = !task.hasTime
         event.endDate = task.hasTime ? event.startDate.addingTimeInterval(Double(task.durationMinutes) * 60) : Calendar.current.date(byAdding: .day, value: 1, to: event.startDate)!
         return CalendarDraft(taskID: task.id, event: event)
     }
@@ -63,8 +63,10 @@ struct CalendarEventEditor: UIViewControllerRepresentable {
         let parent: CalendarEventEditor
         init(_ parent: CalendarEventEditor) { self.parent = parent }
         func eventEditViewController(_ controller: EKEventEditViewController, didCompleteWith action: EKEventEditViewAction) {
-            if action == .saved, let id = controller.event?.eventIdentifier { UserDefaults.standard.set(id, forKey: "calendarEvent." + parent.draft.taskID.uuidString) }
-            CalendarBridge.shared.reload(); parent.dismiss()
+            Task { @MainActor in
+                if action == .saved, let id = controller.event?.eventIdentifier { UserDefaults.standard.set(id, forKey: "calendarEvent." + parent.draft.taskID.uuidString) }
+                CalendarBridge.shared.reload(); parent.dismiss()
+            }
         }
     }
 }

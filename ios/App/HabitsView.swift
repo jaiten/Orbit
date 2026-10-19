@@ -16,7 +16,7 @@ struct HabitsView: View {
                     if habits.isEmpty { ContentUnavailableView("Start small", systemImage: "leaf", description: Text("Use + to create your first daily or weekly ritual.")) }
                     ForEach(habits) { habit in
                         DayCard {
-                            HabitRow(habit: habit, logs: logs, date: .now)
+                            HabitRow(habit: habit, logs: logs, date: .now, edit: { editing = habit })
                             HabitHeatmap(habit: habit, logs: logs)
                             HStack {
                                 Text("LAST 12 WEEKS").font(.caption2).tracking(1).foregroundStyle(.secondary)
