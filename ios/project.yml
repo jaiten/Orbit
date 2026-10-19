@@ -8,6 +8,8 @@ settings:
     SWIFT_VERSION: '5.0'
     TARGETED_DEVICE_FAMILY: '1,2'
     CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: '0.1.0'
+    CURRENT_PROJECT_VERSION: '1'
     DAYOS_APP_GROUP: group.com.dayos.shared
 targets:
   DayOS:
@@ -24,6 +26,8 @@ targets:
       path: App/Info.plist
       properties:
         DayOSAppGroup: $(DAYOS_APP_GROUP)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleURLTypes:
           - CFBundleURLSchemes: [dayos]
         UIApplicationSceneManifest:
@@ -47,6 +51,8 @@ targets:
       path: Widgets/Info.plist
       properties:
         DayOSAppGroup: $(DAYOS_APP_GROUP)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     entitlements:
