@@ -1,0 +1,23 @@
+const {app,BrowserWindow,ipcMain,safeStorage,session,protocol,net}=require('electron');
+const path=require('node:path');const fs=require('node:fs');const {pathToFileURL}=require('node:url');const {Store}=require('./store.cjs');const {Sync}=require('./sync.cjs');const {createClient}=require('@supabase/supabase-js');const config=require('./config.json');
+protocol.registerSchemesAsPrivileged([{scheme:'orbit',privileges:{standard:true,secure:true,supportFetchAPI:true}}]);
+if(process.env.ORBIT_TEST_DATA)app.setPath('userData',process.env.ORBIT_TEST_DATA);
+let window,store,sync,client;
+app.whenReady().then(async()=>{store=new Store(path.join(app.getPath('userData'),'orbit.sqlite'));const notify=()=>window?.webContents.send('changed');
+const tokenPath=path.join(app.getPath('userData'),'session.enc');
+const storage={getItem:()=>fs.existsSync(tokenPath)?safeStorage.decryptString(fs.readFileSync(tokenPath)):null,setItem:(_,v)=>{if(!safeStorage.isEncryptionAvailable())throw Error('Windows credential encryption is unavailable');fs.writeFileSync(tokenPath+'.tmp',safeStorage.encryptString(v));fs.renameSync(tokenPath+'.tmp',tokenPath);},removeItem:()=>{if(fs.existsSync(tokenPath))fs.unlinkSync(tokenPath);}};
+if(config.url&&config.publishableKey)client=createClient(config.url,config.publishableKey,{auth:{storage,autoRefreshToken:true,persistSession:true,detectSessionInUrl:false}});
+sync=new Sync(store,client,notify);
+protocol.handle('orbit',request=>{const url=new URL(request.url);const files={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/styles.css':'styles.css','/logo.svg':'logo.svg'};if(url.host!=='app'||!files[url.pathname])return new Response('Not found',{status:404});return net.fetch(pathToFileURL(path.join(__dirname,'ui',files[url.pathname])).href);});
+session.defaultSession.setPermissionRequestHandler((_,__,callback)=>callback(false));
+window=new BrowserWindow({width:1240,height:860,minWidth:820,minHeight:620,title:'Orbit',backgroundColor:'#f8f7f5',icon:path.join(__dirname,'assets','orbit.png'),autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+window.webContents.setWindowOpenHandler(()=>({action:'deny'}));window.webContents.on('will-navigate',e=>e.preventDefault());
+const handle=(name,fn)=>ipcMain.handle(name,async(event,arg)=>{if(event.senderFrame!==window.webContents.mainFrame||!event.senderFrame.url.startsWith('orbit://app/'))throw Error('Invalid sender');return fn(arg);});
+handle('read',async()=>({records:store.rows(),status:sync.status,configured:!!client,email:(await client?.auth.getSession())?.data?.session?.user?.email??null}));
+handle('put',({key,payload,deleted})=>{store.put(key,payload,deleted===true);notify();void sync.run();});
+handle('sync',()=>sync.run());handle('resolve',({key,choice})=>{store.resolve(key,choice);return sync.run();});
+handle('auth',async({mode,email,password})=>{if(!client)throw Error('Sync backend is not configured yet');if(mode==='out'){await client.auth.signOut({scope:'local'});sync.status='Saved on this PC';notify();return;}if(!['in','up'].includes(mode)||typeof email!=='string'||typeof password!=='string')throw Error('Invalid sign-in request');const result=await (mode==='up'?client.auth.signUp({email,password}):client.auth.signInWithPassword({email,password}));if(result.error)throw result.error;if(result.data.session){try{store.bind(result.data.user.id);}catch(e){await client.auth.signOut({scope:'local'});throw e;}await sync.run();}return result.data.session?'Signed in':'Check your email to confirm your account, then sign in.';});
+await window.loadURL('orbit://app');window.on('focus',()=>void sync.run());setInterval(()=>void sync.run(),8000).unref();
+if(client){client.channel('planner').on('postgres_changes',{event:'*',schema:'public',table:'orbit_records'},()=>void sync.run()).subscribe();void sync.run();}
+});
+app.on('window-all-closed',()=>app.quit());app.on('before-quit',()=>store?.close());

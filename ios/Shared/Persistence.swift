@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 enum Persistence {
-    static let schema = Schema([TaskList.self, PlannerTask.self, Habit.self, HabitLog.self, IdeaPrompt.self])
+    static let schema = Schema([TaskList.self, PlannerTask.self, Habit.self, HabitLog.self, IdeaPrompt.self, SyncEntry.self])
 
     static func makeContainer(inMemory: Bool = false) throws -> ModelContainer {
         if inMemory {

@@ -32,7 +32,8 @@ for name, target in spec["targets"].items():
         if dependency["target"] not in spec["targets"]:
             failures.append(f"{name}: missing target dependency")
 for path in root.rglob("*.json"):
-    json.loads(path.read_text())
+    if not any(part in {"node_modules", "dist", ".git"} for part in path.parts):
+        json.loads(path.read_text(encoding="utf-8"))
 if failures:
     print("\n".join(failures))
     sys.exit(1)

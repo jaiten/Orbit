@@ -4,7 +4,7 @@ import WidgetKit
 
 @MainActor enum Mutations {
     static func save(_ context: ModelContext) throws {
-        do { try context.save(); WidgetCenter.shared.reloadAllTimelines() }
+        do { try SyncRecords.capture(context); try context.save(); WidgetCenter.shared.reloadAllTimelines(); NotificationCenter.default.post(name: .init("OrbitLocalChange"), object: nil) }
         catch { context.rollback(); throw error }
     }
 

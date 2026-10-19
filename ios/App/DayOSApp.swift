@@ -37,6 +37,15 @@ struct RootView: View {
         .preferredColorScheme(appearance == "system" ? nil : (appearance == "dark" ? .dark : .light))
         .onOpenURL { _ in selectedTab = 0 }
         .task { await refreshNotifications() }
+        .task {
+            while !Task.isCancelled {
+                if phase == .active { await SyncService.shared.run(context) }
+                try? await Task.sleep(for: .seconds(8))
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .init("OrbitLocalChange"))) { _ in
+            Task { await SyncService.shared.run(context) }
+        }
         .onChange(of: phase) { _, value in
             if value == .active { Task { await refreshNotifications() } }
         }

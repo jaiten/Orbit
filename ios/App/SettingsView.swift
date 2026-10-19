@@ -9,13 +9,42 @@ struct SettingsView: View {
     @Query(sort: \IdeaPrompt.updatedAt) private var ideas: [IdeaPrompt]
     @State private var ideaText = ""
     @State private var message: String?
+    @ObservedObject private var sync = SyncService.shared
+    @Query private var syncEntries: [SyncEntry]
+    @State private var email = ""
+    @State private var password = ""
+    @State private var signingIn = false
     var body: some View {
         NavigationStack {
             Form {
                 Section {
                     Text("Orbit").font(.largeTitle.weight(.bold))
-                    Text("Habits. Tasks. A little more focus.").foregroundStyle(.secondary)
-                    Label("Saved on this device", systemImage: "internaldrive").foregroundStyle(DayTheme.sage)
+                    Text("A little space for what matters.").foregroundStyle(.secondary)
+                    Label(sync.status, systemImage: "arrow.triangle.2.circlepath").font(.footnote).foregroundStyle(.secondary)
+                }
+                Section("Across your devices") {
+                    if let account = sync.email {
+                        Text(account)
+                        Button("Sync now") { Task { await sync.run(context) } }
+                        Button("Sign out") { do { try sync.signOut() } catch { message = error.localizedDescription } }
+                    } else {
+                        TextField("Email", text: $email).textContentType(.emailAddress).keyboardType(.emailAddress).textInputAutocapitalization(.never).autocorrectionDisabled()
+                        SecureField("Password", text: $password).textContentType(.password)
+                        Button("Sign in") { authenticate(create: false) }.disabled(signingIn || email.isEmpty || password.isEmpty)
+                        Button("Create account") { authenticate(create: true) }.disabled(signingIn || email.isEmpty || password.count < 8)
+                        Text("Sign in on your PC with the same account. Your existing planner will be added to that account and stay available offline.").font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
+                ForEach(syncEntries.filter { $0.conflict != nil }) { entry in
+                    Section("Choose which change to keep") {
+                        Text((try? SyncRecords.object(entry.payload)["title"] as? String) ?? entry.key)
+                        DisclosureGroup("Compare versions") {
+                            Text("This device: " + entry.payload).font(.caption)
+                            Text("Other device: " + (entry.conflict ?? "")).font(.caption)
+                        }
+                        Button("Keep this device") { resolve(entry, local: true) }
+                        Button("Keep other device") { resolve(entry, local: false) }
+                    }
                 }
                 Section("Preferences") {
                     Picker("Appearance", selection: $appearance) {
@@ -56,7 +85,7 @@ struct SettingsView: View {
                     Section { Button("Explore with sample data", action: seed) }
                 }
                 Section("About this prototype") {
-                    Text("Offline first. No account, subscription, or feature caps. Sync and the Windows client are planned for the next phase.")
+                    Text("Offline first. Sign in to share your planner with Orbit for Windows. Sync runs while the app is open; widget changes sync when you reopen Orbit.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }.navigationTitle("Settings")
@@ -64,6 +93,17 @@ struct SettingsView: View {
                     Button("OK") { message = nil }
                 } message: { Text(message ?? "") }
         }
+    }
+    private func authenticate(create: Bool) {
+        signingIn = true
+        Task {
+            defer { signingIn = false }
+            do { message = try await sync.signIn(email: email, password: password, create: create, context: context); password = "" }
+            catch { message = error.localizedDescription }
+        }
+    }
+    private func resolve(_ entry: SyncEntry, local: Bool) {
+        Task { do { try await sync.resolve(entry, local: local, context: context) } catch { message = error.localizedDescription } }
     }
     private func seed() {
         let personal = TaskList(name: "Personal", color: "sage")
