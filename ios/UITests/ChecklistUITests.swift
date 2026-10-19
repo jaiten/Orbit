@@ -14,12 +14,15 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap(); field.typeText("Read a few pages")
         app.navigationBars.buttons["Save"].tap()
-        let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Read a few pages")).firstMatch
+        let row = app.descendants(matching: .any).matching(identifier: "checklist-title").firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5), app.debugDescription)
         row.swipeRight()
         let makeHabit = app.buttons["Make non-negotiable"]
         XCTAssertTrue(makeHabit.waitForExistence(timeout: 5)); makeHabit.tap()
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Log Read a few pages")).firstMatch.waitForExistence(timeout: 5))
+        row.tap()
+        XCTAssertTrue(app.textFields["habit-title-input"].waitForExistence(timeout: 5))
+        app.navigationBars.buttons["Cancel"].tap()
         row.swipeRight()
         let makeTask = app.buttons["Make to-do"]
         XCTAssertTrue(makeTask.waitForExistence(timeout: 5)); makeTask.tap()

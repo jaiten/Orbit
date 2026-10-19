@@ -68,7 +68,7 @@ struct HabitEditor: View {
         NavigationStack {
             Form {
                 Section("Your ritual") {
-                    TextField("Read, move, take a breath…", text: $title)
+                    TextField("Read, move, take a breath…", text: $title).accessibilityIdentifier("habit-title-input")
                     Picker("Frequency", selection: $frequency) { Text("Daily").tag("DAILY"); Text("Weekly").tag("WEEKLY") }
                     Stepper("\(target) times per \(frequency == "DAILY" ? "day" : "week")", value: $target, in: 1...1000)
                     Picker("Color", selection: $color) { ForEach(DayTheme.colors, id: \.self) { Text($0.capitalized).tag($0) } }

@@ -160,7 +160,7 @@ struct TaskRow: View {
                         if !task.subtasks.isEmpty { Text("\(task.subtasks.filter(\.completed).count)/\(task.subtasks.count)") }
                     }.font(.caption).foregroundStyle(.secondary)
                 }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
-            }.buttonStyle(.plain)
+            }.buttonStyle(.plain).accessibilityLabel("Edit " + task.title).accessibilityIdentifier("checklist-title")
         }.padding(8).background(.background, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .modifier(TaskActions(task: task))
             .modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
@@ -180,11 +180,13 @@ struct HabitRow: View {
         HStack(spacing: 14) {
             Image(systemName: habit.icon).font(.title3).foregroundStyle(DayTheme.color(habit.color))
                 .frame(width: 44, height: 44).background(DayTheme.color(habit.color).opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
-            VStack(alignment: .leading, spacing: 4) {
-                Text(habit.title).font(.subheadline.weight(.medium))
-                Text("\(progress)/\(habit.target) this \(habit.frequencyRule == "WEEKLY" ? "week" : "day") · \(PlannerLogic.streak(habit, logs: logs, at: date)) period streak")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
+            Button { edit?() } label: {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(habit.title).font(.subheadline.weight(.medium))
+                    Text("\(progress)/\(habit.target) this \(habit.frequencyRule == "WEEKLY" ? "week" : "day") · \(PlannerLogic.streak(habit, logs: logs, at: date)) period streak")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }.buttonStyle(.plain).accessibilityLabel("Edit " + habit.title).accessibilityIdentifier("checklist-title")
             Spacer(minLength: 0)
             Button {
                 do { if progress >= habit.target { try Mutations.undoLog(habit, at: date, in: context) } else { try Mutations.log(habit, at: date, in: context) }; feedback += 1
