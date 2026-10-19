@@ -30,6 +30,11 @@ const fs=require('node:fs');const os=require('node:os');const path=require('node
   await p.getByRole('checkbox',{name:'Complete Read for twenty minutes'}).click();await p.getByText('1 completed',{exact:true}).waitFor();
   await p.getByRole('button',{name:'Settings & sync',exact:true}).click();await p.getByRole('heading',{name:'Connected, quietly'}).waitFor();
   await p.locator('[data-page="today"]').click();
+  await app.evaluate(({app})=>app.emit('second-instance',{},['orbit://auth#error_code=otp_expired']));
+  await p.getByText('That confirmation link is invalid or expired. Request a fresh email in Settings and use the newest link.',{exact:true}).waitFor();
+  await p.getByRole('heading',{name:'Connected, quietly'}).waitFor();
+  await p.getByRole('button',{name:'Dismiss message'}).click();
+  await p.locator('[data-page="today"]').click();
   await p.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});
   await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setSize(900,700));
   if(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Horizontal overflow at compact window size');

@@ -2,6 +2,7 @@ import XCTest
 
 final class ChecklistUITests: XCTestCase {
     func testSwipeConversionAndDelete() {
+        continueAfterFailure = false
         let app = XCUIApplication()
         app.launchArguments = ["--ui-testing"]
         app.launch()

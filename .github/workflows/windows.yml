@@ -2,13 +2,16 @@ name: Windows app
 on:
   push:
     branches: [main]
+    paths: ['windows/**', '.github/workflows/windows.yml']
   pull_request:
+    paths: ['windows/**', '.github/workflows/windows.yml']
   workflow_dispatch:
 concurrency:
   group: windows-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   build-and-test:
+    timeout-minutes: 25
     runs-on: windows-latest
     defaults:
       run:

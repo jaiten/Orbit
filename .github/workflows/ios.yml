@@ -2,13 +2,16 @@ name: iOS prototype
 on:
   push:
     branches: [main]
+    paths: ['ios/**', '.github/workflows/ios.yml', '.github/workflows/testflight.yml', 'scripts/prepare_testflight.py']
   pull_request:
+    paths: ['ios/**', '.github/workflows/ios.yml', '.github/workflows/testflight.yml', 'scripts/prepare_testflight.py']
   workflow_dispatch:
 concurrency:
   group: ios-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   build-and-test:
+    timeout-minutes: 25
     runs-on: macos-15
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
