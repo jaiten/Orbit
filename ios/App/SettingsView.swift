@@ -13,7 +13,7 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("Orbit").font(.largeTitle)
+                    Text("Orbit").font(.largeTitle.weight(.semibold))
                     Text("Your day, simplified.").foregroundStyle(.secondary)
                     Label("Saved on this device", systemImage: "internaldrive").foregroundStyle(DayTheme.accent)
                 }

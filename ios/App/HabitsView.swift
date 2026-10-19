@@ -11,7 +11,7 @@ struct HabitsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    Text("Consistency, with kindness.").font(.largeTitle)
+                    Text("Consistency, with kindness.").font(.largeTitle.weight(.semibold))
                     Text("Tiny rituals. A life that feels like yours.").foregroundStyle(.secondary)
                     if habits.isEmpty { ContentUnavailableView("Start small", systemImage: "leaf", description: Text("Use + to create your first daily or weekly ritual.")) }
                     ForEach(habits) { habit in
