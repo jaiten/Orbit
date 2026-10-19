@@ -9,3 +9,9 @@ node_modules/
 dist/
 supabase/.temp/
 windows/assets/desktop-preview.png
+*.p12
+*.p8
+*.mobileprovision
+*.key.pem
+ios/signing-project.json
+__pycache__/
