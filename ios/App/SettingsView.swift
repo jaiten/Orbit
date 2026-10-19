@@ -35,13 +35,14 @@ struct SettingsView: View {
                         SecureField("Password", text: $password).textContentType(.password)
                         Button("Sign in") { authenticate(create: false) }.disabled(signingIn || email.isEmpty || password.isEmpty)
                         Button("Create account") { authenticate(create: true) }.disabled(signingIn || email.isEmpty || password.count < 8)
-                        DisclosureGroup("Confirm an account or resend a code") {
-                            TextField("Confirmation code", text: $confirmationCode)
+                        DisclosureGroup("Email confirmation") {
+                            Text("Open the newest confirmation email and tap its link, then sign in above. If you have a confirmation code, you can enter it below.").font(.footnote).foregroundStyle(.secondary)
+                            TextField("Confirmation code (if provided)", text: $confirmationCode)
                                 .textContentType(.oneTimeCode).keyboardType(.numberPad)
                             Button("Confirm account") { confirmAccount() }
                                 .disabled(signingIn || email.isEmpty || confirmationCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                             TimelineView(.periodic(from: .now, by: 1)) { timeline in
-                                Button(timeline.date < resendAfter ? "Resend available shortly" : "Resend code") { resendCode() }
+                                Button(timeline.date < resendAfter ? "Resend available shortly" : "Resend confirmation email") { resendCode() }
                                     .disabled(signingIn || email.isEmpty || timeline.date < resendAfter)
                             }
                             Text("Enter the newest code from your email. Expired links cannot be reused.").font(.footnote).foregroundStyle(.secondary)
@@ -140,7 +141,7 @@ struct SettingsView: View {
         signingIn = true
         Task {
             defer { signingIn = false }
-            do { try await sync.resendConfirmation(email: email); resendAfter = .now.addingTimeInterval(60); message = "If this account needs confirmation, a fresh code is on its way." }
+            do { try await sync.resendConfirmation(email: email); resendAfter = .now.addingTimeInterval(60); message = "If this account needs confirmation, a fresh confirmation email is on its way." }
             catch { message = error.localizedDescription }
         }
     }

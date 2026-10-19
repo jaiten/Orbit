@@ -1,6 +1,10 @@
 name: TestFlight
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: [iOS prototype]
+    types: [completed]
+    branches: [main]
 permissions:
   contents: read
 concurrency:
@@ -8,7 +12,12 @@ concurrency:
   cancel-in-progress: false
 jobs:
   upload:
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: macos-15
     timeout-minutes: 45
     env:
@@ -22,6 +31,8 @@ jobs:
       ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - name: Check required credentials
         run: |
           for name in CERTIFICATE_P12_BASE64 P12_PASSWORD APP_PROFILE_BASE64 WIDGET_PROFILE_BASE64 ASC_KEY_ID ASC_ISSUER_ID ASC_PRIVATE_KEY; do

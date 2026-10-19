@@ -5,7 +5,14 @@ import SwiftData
     private let container: ModelContainer?
     private let startupError: String?
     init() {
-        do { container = try Persistence.makeContainer(); startupError = nil }
+        do {
+            #if DEBUG
+            container = try Persistence.makeContainer(inMemory: ProcessInfo.processInfo.arguments.contains("--ui-testing"))
+            #else
+            container = try Persistence.makeContainer()
+            #endif
+            startupError = nil
+        }
         catch { container = nil; startupError = error.localizedDescription }
     }
     var body: some Scene {
@@ -35,7 +42,10 @@ struct RootView: View {
         }
         .tint(DayTheme.accent)
         .preferredColorScheme(appearance == "system" ? nil : (appearance == "dark" ? .dark : .light))
-        .onOpenURL { _ in selectedTab = 0 }
+        .onOpenURL { url in
+            if let notice = AuthConfirmation.notice(for: url) { selectedTab = 4; errorMessage = notice }
+            else { selectedTab = 0 }
+        }
         .task { await refreshNotifications() }
         .task {
             while !Task.isCancelled {
@@ -49,7 +59,7 @@ struct RootView: View {
         .onChange(of: phase) { _, value in
             if value == .active { Task { await refreshNotifications() } }
         }
-        .alert("Reminder scheduling failed", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+        .alert("Orbit", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("OK") { errorMessage = nil }
         } message: { Text(errorMessage ?? "") }
     }

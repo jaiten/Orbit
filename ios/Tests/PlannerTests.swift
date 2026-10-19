@@ -101,6 +101,14 @@ import SwiftData
         XCTAssertEqual(restored.target, 4)
         XCTAssertEqual(try context.fetch(FetchDescriptor<HabitLog>()).first?.dayKey, "2026-09-01")
     }
+    func testEmailCallbackDoesNotImportOrExposeTokens() {
+        XCTAssertNil(AuthConfirmation.notice(for: URL(string: "orbit://auth.evil/")!))
+        XCTAssertNil(AuthConfirmation.notice(for: URL(string: "https://auth/")!))
+        let notice = AuthConfirmation.notice(for: URL(string: "orbit://auth#access_token=private")!)
+        XCTAssertTrue(notice?.contains("Sign in") == true)
+        XCTAssertFalse(notice?.contains("private") == true)
+        XCTAssertTrue(AuthConfirmation.notice(for: URL(string: "orbit://auth#error_code=otp_expired")!)?.contains("fresh email") == true)
+    }
     func testDiskRoundTrip() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

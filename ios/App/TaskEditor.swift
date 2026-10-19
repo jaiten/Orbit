@@ -26,7 +26,7 @@ struct TaskEditor: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Task name", text: $title, axis: .vertical).font(.title3)
+                    TextField("Task name", text: $title, axis: .vertical).font(.title3).accessibilityIdentifier("task-title-input")
                     TextField("Notes", text: $notes, axis: .vertical).lineLimit(3...8)
                     Picker("List", selection: $listID) {
                         Text("Inbox").tag(nil as UUID?)

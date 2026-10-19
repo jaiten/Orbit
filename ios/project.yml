@@ -80,10 +80,19 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
+  OrbitUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
+    dependencies:
+      - target: Orbit
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
 schemes:
   Orbit:
     build:
       targets:
         Orbit: all
     test:
-      targets: [OrbitTests]
+      targets: [OrbitTests, OrbitUITests]
