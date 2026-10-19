@@ -9,8 +9,9 @@ capture tasks, choose a manageable day, and keep small daily habits.
   artifact from the GitHub Windows workflow. See [Windows setup](windows/README.md).
 - iOS: on a Mac, install XcodeGen, run `cd ios && xcodegen generate`, then open
   `Orbit.xcodeproj`. Choose the Orbit scheme and your simulator or signing team.
-  The visible app name is Orbit. Existing Orbit bundle/storage identifiers remain
-  stable so the update does not rename your local data store.
+  The targets, bundle identifiers and shared store now use Orbit. Importing data
+  from an older DayOS installation is not implemented; preserve that installation
+  if it contains records you need.
 - Sync: create/confirm an account in Windows **Settings & sync**, then sign in
   on iPhone in **Settings → Across your devices**. Use the same account on both.
   Local items are imported into that account; offline storage remains available.
@@ -24,7 +25,7 @@ SwiftData app currently requires Xcode; WSL/xtool is not yet supported.
 | Area | Current behavior |
 | --- | --- |
 | iOS | Habit-first Today, week/month calendar, task/list/habit CRUD, notes, tags, subtasks, reminders, recurrence, heatmaps |
-| Windows | Today, inbox, next seven days, task/habit editors, priority, time blocks, recurrence, completion, habit history |
+| Windows | Two-column Today, lists, next seven days, task/habit editors, natural-language quick-add, priority, time blocks, recurrence, completion, habit history |
 | Sync | Separate Supabase backend, email/password accounts, durable outbox, tombstones, revision checks, conflict review, reconnect catch-up |
 | Widgets | Home Screen and Lock Screen widgets, shared local store, interactive completion |
 | Brand | Vector mark/wordmark, Windows/iOS icons, [brand guide](shared/brand/README.md) |
@@ -48,8 +49,8 @@ anonymous access and enforces owner-scoped reads and revision-checked writes.
 
 GitHub builds the iOS app/widget and runs simulator XCTest. Windows unit tests cover
 offline persistence, tombstones, acknowledgment races, conflicts, account isolation,
-and network failure. Electron smoke tests cover task create/edit/complete, habit
-log/undo, settings, and offline restart. Hosted integration checks exercised two
+and network failure. Electron smoke tests cover list assignment, task create/edit/complete,
+habit log/undo, compact dark layout, settings, and offline restart. Hosted integration checks exercised two
 clients and a second isolated account.
 
 ```powershell
