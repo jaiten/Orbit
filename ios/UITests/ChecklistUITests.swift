@@ -14,8 +14,8 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap(); field.typeText("Read a few pages")
         app.navigationBars.buttons["Save"].tap()
-        let row = app.cells.containing(.staticText, identifier: "Read a few pages").firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Read a few pages")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5), app.debugDescription)
         row.swipeRight()
         let makeHabit = app.buttons["Make non-negotiable"]
         XCTAssertTrue(makeHabit.waitForExistence(timeout: 5)); makeHabit.tap()
@@ -29,6 +29,6 @@ final class ChecklistUITests: XCTestCase {
         row.swipeLeft()
         let delete = app.buttons["Delete"]
         XCTAssertTrue(delete.waitForExistence(timeout: 5)); delete.tap()
-        XCTAssertFalse(app.staticTexts["Read a few pages"].waitForExistence(timeout: 2))
+        XCTAssertFalse(row.waitForExistence(timeout: 2))
     }
 }
