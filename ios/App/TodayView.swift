@@ -1,125 +1,116 @@
 import SwiftUI
 import SwiftData
+import EventKit
 
 struct TodayView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var phase
     @Query(sort: \PlannerTask.sortOrder) private var tasks: [PlannerTask]
     @Query(sort: \Habit.createdAt) private var habits: [Habit]
     @Query private var logs: [HabitLog]
-    @Query private var ideas: [IdeaPrompt]
-    @State private var quickText = ""
     @State private var editing: PlannerTask?
-    @State private var adding = false
+    @State private var editingHabit: Habit?
+    @State private var addingTask = false
+    @State private var addingHabit = false
+    @State private var completedExpanded = false
     @State private var error: String?
-    @State private var feedback = 0
-
-    private var todayTasks: [PlannerTask] {
-        tasks.filter { $0.dueDate.map { Calendar.current.isDateInToday($0) } ?? true }
+    @State private var day = Calendar.current.startOfDay(for: .now)
+    @ObservedObject private var calendars = CalendarBridge.shared
+    @ObservedObject private var focus = FocusSession.shared
+    private var relevant: [PlannerTask] {
+        tasks.filter { $0.dueDate.map { $0 < Calendar.current.date(byAdding: .day, value: 1, to: day)! } ?? true }
+            .filter { $0.completedAt == nil || $0.completedAt.map { Calendar.current.isDate($0, inSameDayAs: day) } == true }
     }
-    private var overdue: [PlannerTask] {
-        tasks.filter { $0.completedAt == nil && ($0.dueDate.map { $0 < Calendar.current.startOfDay(for: .now) } ?? false) }
-    }
-    private var completed: Int { todayTasks.filter { $0.completedAt != nil }.count }
-    private var habitCompleted: Int { habits.filter { PlannerLogic.progress($0, logs: logs, at: .now) >= $0.target }.count }
-    private var idea: IdeaPrompt? {
-        // One curated suggestion per day; reading the screen does not mutate the queue.
-        let active = ideas.filter { !$0.dismissed }.sorted { $0.id.uuidString < $1.id.uuidString }
-        guard !active.isEmpty else { return nil }
-        let day = Calendar.current.ordinality(of: .day, in: .era, for: .now) ?? 0
-        return active[day % active.count]
-    }
+    private var done: Int { relevant.filter { $0.completedAt != nil }.count + habits.filter { PlannerLogic.progress($0, logs: logs, at: day) >= $0.target }.count }
+    private var total: Int { relevant.count + habits.count }
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+            List {
+                Section {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()).uppercased())
-                            .font(.caption.weight(.semibold)).tracking(1.5).foregroundStyle(.secondary)
-                        Text("Today").font(.largeTitle.weight(.semibold))
-                        Text("Make room for what matters.").foregroundStyle(.secondary)
-                    }
-                    DayCard {
                         HStack {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("YOUR DAILY RHYTHM").font(.caption2.weight(.bold)).tracking(1.5)
-                                Text("\(completed + habitCompleted) of \(todayTasks.count + habits.count) complete").font(.title3.weight(.medium))
-                            }
+                            Text(day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())).foregroundStyle(.secondary)
                             Spacer()
-                            Image(systemName: "sun.max.fill").font(.largeTitle).foregroundStyle(DayTheme.accent)
-                        }
-                        ProgressView(value: Double(completed + habitCompleted), total: Double(max(1, todayTasks.count + habits.count)))
-                            .tint(DayTheme.accent)
-                    }
-                    HStack {
-                        Image(systemName: "plus").foregroundStyle(DayTheme.accent)
-                        TextField("Add a task · gym tomorrow 6am", text: $quickText).submitLabel(.done).onSubmit(quickAdd)
-                        if !quickText.isEmpty { Button(action: quickAdd) { Image(systemName: "arrow.up.circle.fill") }.accessibilityLabel("Add task") }
-                    }.padding(16).background(.background, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    if !overdue.isEmpty {
-                        taskSection("A fresh start", detail: "\(overdue.count) overdue", items: overdue)
-                    }
-                    taskSection("On the agenda", detail: "TIME BLOCKS", items: todayTasks.filter { $0.hasTime }.sorted { ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture) })
-                    taskSection("At your own pace", detail: "TO-DOS", items: todayTasks.filter { !$0.hasTime })
-                    VStack(spacing: 12) {
-                        SectionHeading(title: "Non-negotiables", detail: "\(habitCompleted)/\(habits.count)")
-                        if habits.isEmpty { empty("Small steps add up. Create your first habit in Habits.") }
-                        ForEach(habits) { habit in HabitRow(habit: habit, logs: logs, date: .now) }
-                    }
-                    if let idea {
-                        DayCard {
-                            Label("A LITTLE OUTSIDE THE USUAL", systemImage: "sparkles").font(.caption.weight(.semibold)).foregroundStyle(DayTheme.accent)
-                            Text(idea.text).font(.title3)
-                            Button("Done with this idea") {
-                                idea.dismissed = true; idea.shownAt = .now; idea.updatedAt = .now
-                                do { try Mutations.save(context) } catch { self.error = error.localizedDescription }
-                            }.font(.caption)
+                            Text("\(done)/\(total)").monospacedDigit().foregroundStyle(.secondary)
+                        }.font(.caption)
+                        ProgressView(value: Double(done), total: Double(max(1, total))).tint(DayTheme.accent)
+                    }.padding(.vertical, 4)
+                }.listRowBackground(Color.clear).listRowSeparator(.hidden)
+                if let title = focus.title, let end = focus.endsAt {
+                    Section {
+                        HStack {
+                            Image(systemName: "timer").foregroundStyle(DayTheme.accent)
+                            Text(title).lineLimit(1)
+                            Spacer()
+                            if end > .now { Text(timerInterval: focus.startedAt...end, countsDown: true).monospacedDigit().frame(width: 70) }
+                            else { Text("Finished").font(.caption) }
+                            Button("Stop") { Task { await focus.stop() } }.font(.caption)
                         }
                     }
-                }.padding(20).frame(maxWidth: 760)
-                    .frame(maxWidth: .infinity)
+                }
+                Section("To-dos") {
+                    if relevant.allSatisfy({ $0.completedAt != nil }) { Text("A clear checklist. Add something with +.").foregroundStyle(.secondary).font(.subheadline) }
+                    ForEach(relevant.filter { $0.completedAt == nil }) { task in
+                        TaskRow(task: task) { editing = task }.listRowInsets(EdgeInsets(top: 2, leading: 8, bottom: 2, trailing: 12))
+                    }
+                }
+                Section("Non-negotiables") {
+                    if habits.isEmpty { Text("Choose one small thing to return to.").foregroundStyle(.secondary).font(.subheadline) }
+                    ForEach(habits) { habit in
+                        HabitRow(habit: habit, logs: logs, date: day, edit: { editingHabit = habit })
+                            .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 12))
+                    }
+                }
+                if relevant.contains(where: { $0.completedAt != nil }) {
+                    Section {
+                        DisclosureGroup("Completed", isExpanded: $completedExpanded) {
+                            ForEach(relevant.filter { $0.completedAt != nil }) { task in TaskRow(task: task) { editing = task } }
+                        }
+                    }
+                }
+                if calendars.connected {
+                    Section("From your calendars") {
+                        if calendars.events.isEmpty { Text("No events today").foregroundStyle(.secondary) }
+                        ForEach(calendars.events, id: \.calendarItemIdentifier) { event in
+                            HStack {
+                                RoundedRectangle(cornerRadius: 2).fill(Color(cgColor: event.calendar.cgColor)).frame(width: 3)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(event.title ?? "Event").font(.subheadline)
+                                    Text(event.calendar.title).font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Text(event.isAllDay ? "All day" : event.startDate.formatted(date: .omitted, time: .shortened)).font(.caption).foregroundStyle(.secondary)
+                            }.padding(.vertical, 4)
+                        }
+                    }
+                }
             }
+            .listStyle(.insetGrouped).scrollContentBackground(.hidden)
             .background(DayTheme.canvas(scheme))
-            .navigationTitle("Today").navigationBarTitleDisplayMode(.inline)
-            .toolbar { Button { adding = true } label: { Image(systemName: "plus.circle") }.accessibilityLabel("New task") }
-            .sheet(isPresented: $adding) { TaskEditor() }
-            .sheet(item: $editing) { TaskEditor(task: $0) }
-            .modifier(MutationErrorModifier(error: $error))
-            .sensoryFeedback(.success, trigger: feedback)
-        }
-    }
-    private func empty(_ text: String) -> some View {
-        Text(text).font(.subheadline).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 12)
-    }
-    private func taskSection(_ title: String, detail: String, items: [PlannerTask]) -> some View {
-        VStack(spacing: 12) {
-            SectionHeading(title: title, detail: detail)
-            if items.isEmpty { empty("Nothing here. Leave some breathing room.") }
-            ForEach(items) { task in
-                TaskRow(task: task) { editing = task }
-                    .draggable(task.id.uuidString)
-                    .dropDestination(for: String.self) { ids, _ in
-                        guard !task.hasTime, let id = ids.first,
-                              let source = tasks.first(where: { $0.id.uuidString == id }),
-                              !source.hasTime, source.id != task.id else { return false }
-                        var ordered = tasks.filter { $0.id != source.id }
-                        guard let index = ordered.firstIndex(where: { $0.id == task.id }) else { return false }
-                        ordered.insert(source, at: index)
-                        for (index, item) in ordered.enumerated() { item.sortOrder = index; item.updatedAt = .now }
-                        do { try Mutations.save(context); return true } catch { self.error = error.localizedDescription; return false }
-                    }
+            .navigationTitle("Today").navigationBarTitleDisplayMode(.large)
+            .safeAreaInset(edge: .bottom, alignment: .trailing, spacing: 0) {
+                Menu {
+                    Button("To-do", systemImage: "checklist") { addingTask = true }
+                    Button("Non-negotiable", systemImage: "repeat") { addingHabit = true }
+                } label: {
+                    Image(systemName: "plus").font(.title2.weight(.medium)).foregroundStyle(.white)
+                        .frame(width: 54, height: 54).background(DayTheme.accent, in: Circle())
+                        .shadow(color: .black.opacity(0.13), radius: 10, y: 4)
+                }.accessibilityLabel("Add to-do or non-negotiable").padding(.trailing, 20).padding(.bottom, 10)
             }
+            .sheet(isPresented: $addingTask) { TaskEditor(initialDate: day) }
+            .sheet(isPresented: $addingHabit) { HabitEditor() }
+            .sheet(item: $editing) { TaskEditor(task: $0) }
+            .sheet(item: $editingHabit) { HabitEditor(habit: $0) }
+            .animation(reduceMotion ? nil : .snappy(duration: 0.22), value: done)
+            .modifier(MutationErrorModifier(error: $error))
+            .task { refresh(); while !Task.isCancelled { try? await Task.sleep(for: .seconds(60)); if !Task.isCancelled { refresh() } } }
+            .onChange(of: phase) { _, value in if value == .active { refresh() } }
         }
     }
-    private func quickAdd() {
-        let parsed = QuickAdd.parse(quickText)
-        guard !parsed.title.isEmpty else { error = "Add a task title, for example: gym tomorrow 6am."; return }
-        let task = PlannerTask(title: parsed.title, dueDate: parsed.date, hasTime: parsed.hasTime)
-        task.sortOrder = (tasks.map(\.sortOrder).max() ?? -1) + 1
-        context.insert(task)
-        do { try Mutations.save(context); quickText = ""; feedback += 1 }
-        catch { self.error = error.localizedDescription }
-    }
+    private func refresh() { day = Calendar.current.startOfDay(for: .now); calendars.reload(); focus.restore() }
 }
 
 struct TaskRow: View {
@@ -132,6 +123,7 @@ struct TaskRow: View {
         HStack(spacing: 14) {
             Button {
                 do { try Mutations.toggle(task, in: context); feedback += 1
+                    if task.completedAt != nil { Task { await FocusSession.shared.stopIfMatching(task.id) } }
                     Task { do { try await refreshReminders(context) } catch { self.error = error.localizedDescription } }
                 } catch { self.error = error.localizedDescription }
             } label: {
@@ -154,6 +146,7 @@ struct TaskRow: View {
                 }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
             }.buttonStyle(.plain)
         }.padding(8).background(.background, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .modifier(TaskActions(task: task))
             .modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
     }
 }
@@ -163,6 +156,7 @@ struct HabitRow: View {
     let habit: Habit
     let logs: [HabitLog]
     let date: Date
+    var edit: (() -> Void)? = nil
     @State private var error: String?
     @State private var feedback = 0
     private var progress: Int { PlannerLogic.progress(habit, logs: logs, at: date) }
@@ -177,15 +171,22 @@ struct HabitRow: View {
             }
             Spacer(minLength: 0)
             Button {
-                do { try Mutations.log(habit, at: date, in: context); feedback += 1
+                do { if progress >= habit.target { try Mutations.undoLog(habit, at: date, in: context) } else { try Mutations.log(habit, at: date, in: context) }; feedback += 1
                     Task { do { try await refreshReminders(context) } catch { self.error = error.localizedDescription } }
                 } catch { self.error = error.localizedDescription }
             } label: {
-                Image(systemName: progress >= habit.target ? "checkmark.circle.fill" : "plus.circle")
+                Image(systemName: progress >= habit.target ? "checkmark.circle.fill" : "circle")
                     .font(.title2).foregroundStyle(DayTheme.color(habit.color)).frame(width: 44, height: 44)
-            }.buttonStyle(.plain).disabled(progress >= habit.target)
-                .accessibilityLabel("Log \(habit.title), \(progress) of \(habit.target)")
-        }.contextMenu {
+            }.buttonStyle(.plain)
+                .accessibilityLabel("\(progress >= habit.target ? "Undo" : "Log") \(habit.title), \(progress) of \(habit.target)")
+        }.contentShape(Rectangle()).onTapGesture { edit?() }.modifier(HabitActions(habit: habit))
+        .contextMenu {
+            Button("Move to to-dos", systemImage: "checklist") {
+                do { try Conversions.toTask(habit, in: context) } catch { context.rollback(); self.error = error.localizedDescription }
+            }
+            Button("Delete", systemImage: "xmark", role: .destructive) {
+                do { try Conversions.remove(habit, in: context) } catch { context.rollback(); self.error = error.localizedDescription }
+            }
             Button("Undo one log today", systemImage: "arrow.uturn.backward") {
                 do { try Mutations.undoLog(habit, at: date, in: context)
                     Task { do { try await refreshReminders(context) } catch { self.error = error.localizedDescription } }

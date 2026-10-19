@@ -15,3 +15,4 @@ windows/assets/desktop-preview.png
 *.key.pem
 ios/signing-project.json
 __pycache__/
+/Keys/

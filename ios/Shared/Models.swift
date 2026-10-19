@@ -14,6 +14,7 @@ import SwiftData
 }
 
 @Model final class PlannerTask {
+    var conversionData: String? = nil
     @Attribute(.unique) var id: UUID
     var title: String
     var notes: String
@@ -45,6 +46,7 @@ struct Subtask: Codable, Identifiable, Equatable {
 }
 
 @Model final class Habit {
+    var conversionData: String? = nil
     @Attribute(.unique) var id: UUID
     var title: String
     /// DAILY or WEEKLY; target is completions in the calendar period.

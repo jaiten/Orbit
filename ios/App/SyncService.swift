@@ -48,9 +48,18 @@ import WidgetKit
         guard !busy else { return "Sync is finishing. Please try again." }
         let path = create ? "/auth/v1/signup" : "/auth/v1/token?grant_type=password"
         guard let result = try await request(path, body: ["email": email, "password": password], authenticated: false) as? [String: Any] else { throw CocoaError(.coderReadCorrupt) }
-        guard result["access_token"] != nil else { return "Check your email to confirm your account, then sign in." }
+        guard result["access_token"] != nil else { return "Check your email and enter the confirmation code below." }
         guard let user = result["user"] as? [String: Any], let id = user["id"] as? String else { throw CocoaError(.coderReadCorrupt) }
         try SyncRecords.bind(id, context: context); try saveSession(result); await run(context); return "Signed in"
+    }
+    func resendConfirmation(email: String) async throws {
+        _ = try await request("/auth/v1/resend", body: ["type": "signup", "email": email.trimmingCharacters(in: .whitespacesAndNewlines)], authenticated: false)
+    }
+    func confirm(email: String, code: String, context: ModelContext) async throws {
+        guard !busy else { throw NSError(domain: "Orbit", code: 1, userInfo: [NSLocalizedDescriptionKey: "Sync is finishing. Please try again."]) }
+        guard let result = try await request("/auth/v1/verify", body: ["type": "email", "email": email.trimmingCharacters(in: .whitespacesAndNewlines), "token": code.trimmingCharacters(in: .whitespacesAndNewlines)], authenticated: false) as? [String: Any],
+              result["access_token"] != nil, let user = result["user"] as? [String: Any], let id = user["id"] as? String else { throw CocoaError(.coderReadCorrupt) }
+        try SyncRecords.bind(id, context: context); try saveSession(result); await run(context)
     }
     func signOut() throws { guard !busy else { return }; try saveSession(nil); status = "Saved on this device" }
     func run(_ context: ModelContext) async {

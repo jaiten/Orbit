@@ -29,6 +29,9 @@ targets:
       properties:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        ITSAppUsesNonExemptEncryption: false
+        NSSupportsLiveActivities: true
+        NSCalendarsFullAccessUsageDescription: Show your calendar events and let you save scheduled tasks to a calendar you choose.
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationPortraitUpsideDown

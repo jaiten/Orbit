@@ -66,6 +66,41 @@ import SwiftData
         logs = try context.fetch(FetchDescriptor<HabitLog>())
         XCTAssertEqual(logs.first?.count, 1)
     }
+    func testTaskConversionPreservesDetailsAndDeletionOutbox() throws {
+        let container = try Persistence.makeContainer(inMemory: true)
+        let context = ModelContext(container)
+        let task = PlannerTask(title: "Read")
+        task.notes = "Chapter two"; task.tags = ["personal"]
+        task.subtasks = [Subtask(title: "Choose a book")]
+        let id = task.id
+        context.insert(task); try Mutations.save(context)
+        try Conversions.toHabit(task, in: context)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<PlannerTask>()), 0)
+        let habit = try XCTUnwrap(context.fetch(FetchDescriptor<Habit>()).first)
+        try Conversions.toTask(habit, in: context)
+        let restored = try XCTUnwrap(context.fetch(FetchDescriptor<PlannerTask>()).first)
+        XCTAssertEqual(restored.id, id)
+        XCTAssertEqual(restored.notes, "Chapter two")
+        XCTAssertEqual(restored.tags, ["personal"])
+        XCTAssertEqual(restored.subtasks.first?.title, "Choose a book")
+        let entries = try context.fetch(FetchDescriptor<SyncEntry>())
+        XCTAssertTrue(try XCTUnwrap(entries.first { $0.key == "habits/" + id.uuidString.lowercased() }).tombstone)
+    }
+    func testHabitConversionRestoresHistory() throws {
+        let container = try Persistence.makeContainer(inMemory: true)
+        let context = ModelContext(container)
+        let habit = Habit(title: "Water", target: 4)
+        context.insert(habit)
+        context.insert(HabitLog(habitID: habit.id, dayKey: "2026-09-01"))
+        try Mutations.save(context)
+        try Conversions.toTask(habit, in: context)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<HabitLog>()), 0)
+        let task = try XCTUnwrap(context.fetch(FetchDescriptor<PlannerTask>()).first)
+        try Conversions.toHabit(task, in: context)
+        let restored = try XCTUnwrap(context.fetch(FetchDescriptor<Habit>()).first)
+        XCTAssertEqual(restored.target, 4)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<HabitLog>()).first?.dayKey, "2026-09-01")
+    }
     func testDiskRoundTrip() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

@@ -9,11 +9,14 @@ struct SettingsView: View {
     @Query(sort: \IdeaPrompt.updatedAt) private var ideas: [IdeaPrompt]
     @State private var ideaText = ""
     @State private var message: String?
+    @ObservedObject private var calendars = CalendarBridge.shared
     @ObservedObject private var sync = SyncService.shared
     @Query private var syncEntries: [SyncEntry]
     @State private var email = ""
     @State private var password = ""
     @State private var signingIn = false
+    @State private var confirmationCode = ""
+    @State private var resendAfter = Date.distantPast
     var body: some View {
         NavigationStack {
             Form {
@@ -32,6 +35,17 @@ struct SettingsView: View {
                         SecureField("Password", text: $password).textContentType(.password)
                         Button("Sign in") { authenticate(create: false) }.disabled(signingIn || email.isEmpty || password.isEmpty)
                         Button("Create account") { authenticate(create: true) }.disabled(signingIn || email.isEmpty || password.count < 8)
+                        DisclosureGroup("Confirm an account or resend a code") {
+                            TextField("Confirmation code", text: $confirmationCode)
+                                .textContentType(.oneTimeCode).keyboardType(.numberPad)
+                            Button("Confirm account") { confirmAccount() }
+                                .disabled(signingIn || email.isEmpty || confirmationCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            TimelineView(.periodic(from: .now, by: 1)) { timeline in
+                                Button(timeline.date < resendAfter ? "Resend available shortly" : "Resend code") { resendCode() }
+                                    .disabled(signingIn || email.isEmpty || timeline.date < resendAfter)
+                            }
+                            Text("Enter the newest code from your email. Expired links cannot be reused.").font(.footnote).foregroundStyle(.secondary)
+                        }
                         Text("Sign in on your PC with the same account. Your existing planner will be added to that account and stay available offline.").font(.footnote).foregroundStyle(.secondary)
                     }
                 }
@@ -45,6 +59,18 @@ struct SettingsView: View {
                         Button("Keep this device") { resolve(entry, local: true) }
                         Button("Keep other device") { resolve(entry, local: false) }
                     }
+                }
+                Section("Calendars") {
+                    if calendars.connected {
+                        Label("Calendars connected", systemImage: "checkmark.circle")
+                        Button("Disconnect calendars") { calendars.disconnect() }
+                    } else {
+                        Button("Connect calendars", systemImage: "calendar") {
+                            Task { do { try await calendars.connect() } catch { message = error.localizedDescription } }
+                        }
+                    }
+                    Text("See events from Apple Calendar and Google accounts added to your iPhone. Touch and hold a to-do to send it to a calendar. Changes to calendar events do not change the original task.")
+                        .font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("Preferences") {
                     Picker("Appearance", selection: $appearance) {
@@ -99,6 +125,22 @@ struct SettingsView: View {
         Task {
             defer { signingIn = false }
             do { message = try await sync.signIn(email: email, password: password, create: create, context: context); password = "" }
+            catch { message = error.localizedDescription }
+        }
+    }
+    private func confirmAccount() {
+        signingIn = true
+        Task {
+            defer { signingIn = false }
+            do { try await sync.confirm(email: email, code: confirmationCode, context: context); confirmationCode = ""; password = "" }
+            catch { message = error.localizedDescription }
+        }
+    }
+    private func resendCode() {
+        signingIn = true
+        Task {
+            defer { signingIn = false }
+            do { try await sync.resendConfirmation(email: email); resendAfter = .now.addingTimeInterval(60); message = "If this account needs confirmation, a fresh code is on its way." }
             catch { message = error.localizedDescription }
         }
     }

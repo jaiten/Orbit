@@ -31,10 +31,10 @@ import SwiftData
         var result: [String: String] = [:]
         func add(_ entity: String, _ key: String, _ value: [String: Any]) throws { result[entity + "/" + key] = try json(value) }
         for t in try context.fetch(FetchDescriptor<PlannerTask>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) {
-            try add("tasks", t.id.uuidString.lowercased(), ["id": id(t.id), "title": t.title, "notes": t.notes, "listID": id(t.listID), "dueDate": t.hasTime ? stamp(t.dueDate) : NSNull(), "localDate": t.dueDate.map { PlannerLogic.dayKey($0) } ?? NSNull() as Any, "hasTime": t.hasTime, "durationMinutes": t.durationMinutes, "reminders": t.reminders.map { $0.timeIntervalSince1970 * 1000 }, "recurrenceRule": t.recurrenceRule, "priority": t.priority, "tags": t.tags, "subtasks": t.subtasks.map { ["id": id($0.id), "title": $0.title, "completed": $0.completed] }, "completedAt": stamp(t.completedAt), "nextOccurrenceID": id(t.nextOccurrenceID), "sortOrder": t.sortOrder, "updatedAt": stamp(t.updatedAt)])
+            try add("tasks", t.id.uuidString.lowercased(), ["conversionData": t.conversionData ?? NSNull() as Any, "id": id(t.id), "title": t.title, "notes": t.notes, "listID": id(t.listID), "dueDate": t.hasTime ? stamp(t.dueDate) : NSNull(), "localDate": t.dueDate.map { PlannerLogic.dayKey($0) } ?? NSNull() as Any, "hasTime": t.hasTime, "durationMinutes": t.durationMinutes, "reminders": t.reminders.map { $0.timeIntervalSince1970 * 1000 }, "recurrenceRule": t.recurrenceRule, "priority": t.priority, "tags": t.tags, "subtasks": t.subtasks.map { ["id": id($0.id), "title": $0.title, "completed": $0.completed] }, "completedAt": stamp(t.completedAt), "nextOccurrenceID": id(t.nextOccurrenceID), "sortOrder": t.sortOrder, "updatedAt": stamp(t.updatedAt)])
         }
         for h in try context.fetch(FetchDescriptor<Habit>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) {
-            try add("habits", h.id.uuidString.lowercased(), ["id": id(h.id), "title": h.title, "frequencyRule": h.frequencyRule, "target": h.target, "color": h.color, "icon": h.icon, "reminderMinutes": h.reminderMinutes ?? NSNull() as Any, "nudgeMinutes": h.nudgeMinutes ?? NSNull() as Any, "createdAt": stamp(h.createdAt), "updatedAt": stamp(h.updatedAt)])
+            try add("habits", h.id.uuidString.lowercased(), ["conversionData": h.conversionData ?? NSNull() as Any, "id": id(h.id), "title": h.title, "frequencyRule": h.frequencyRule, "target": h.target, "color": h.color, "icon": h.icon, "reminderMinutes": h.reminderMinutes ?? NSNull() as Any, "nudgeMinutes": h.nudgeMinutes ?? NSNull() as Any, "createdAt": stamp(h.createdAt), "updatedAt": stamp(h.updatedAt)])
         }
         for l in try context.fetch(FetchDescriptor<HabitLog>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) {
             // The stable key makes independent check-ins on two devices conflict safely.
@@ -71,7 +71,7 @@ import SwiftData
             let old = try context.fetch(FetchDescriptor<PlannerTask>()).first { $0.id == uuid }
             if deleted { if let old { context.delete(old) }; return }
             let t = old ?? PlannerTask(title: p["title"] as? String ?? "Task"); if old == nil { t.id = uuid; context.insert(t) }
-            t.title = p["title"] as? String ?? t.title; t.notes = p["notes"] as? String ?? ""; t.listID = uid("listID"); t.hasTime = p["hasTime"] as? Bool ?? false
+            t.conversionData = p["conversionData"] as? String; t.title = p["title"] as? String ?? t.title; t.notes = p["notes"] as? String ?? ""; t.listID = uid("listID"); t.hasTime = p["hasTime"] as? Bool ?? false
             if t.hasTime { t.dueDate = date("dueDate") } else if let day = p["localDate"] as? String { let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"; t.dueDate = f.date(from: day) } else { t.dueDate = nil }
             t.durationMinutes = p["durationMinutes"] as? Int ?? 30; t.reminders = (p["reminders"] as? [Double] ?? []).map { Date(timeIntervalSince1970: $0 / 1000) }; t.recurrenceRule = p["recurrenceRule"] as? String ?? ""; t.priority = p["priority"] as? Int ?? 0; t.tags = p["tags"] as? [String] ?? []
             t.subtasks = (p["subtasks"] as? [[String: Any]] ?? []).compactMap { s in guard let id = (s["id"] as? String).flatMap(UUID.init(uuidString:)), let title = s["title"] as? String else { return nil }; return Subtask(id: id, title: title, completed: s["completed"] as? Bool ?? false) }
@@ -80,7 +80,7 @@ import SwiftData
             let old = try context.fetch(FetchDescriptor<Habit>()).first { $0.id == uuid }
             if deleted { if let old { context.delete(old) }; return }
             let h = old ?? Habit(title: p["title"] as? String ?? "Habit"); if old == nil { h.id = uuid; context.insert(h) }
-            h.title = p["title"] as? String ?? h.title; h.target = max(1, p["target"] as? Int ?? 1); h.frequencyRule = p["frequencyRule"] as? String ?? "DAILY"; h.color = p["color"] as? String ?? "clay"; h.icon = p["icon"] as? String ?? "leaf"; h.reminderMinutes = p["reminderMinutes"] as? Int; h.nudgeMinutes = p["nudgeMinutes"] as? Int; h.createdAt = date("createdAt") ?? .now; h.updatedAt = date("updatedAt") ?? .now
+            h.conversionData = p["conversionData"] as? String; h.title = p["title"] as? String ?? h.title; h.target = max(1, p["target"] as? Int ?? 1); h.frequencyRule = p["frequencyRule"] as? String ?? "DAILY"; h.color = p["color"] as? String ?? "clay"; h.icon = p["icon"] as? String ?? "leaf"; h.reminderMinutes = p["reminderMinutes"] as? Int; h.nudgeMinutes = p["nudgeMinutes"] as? Int; h.createdAt = date("createdAt") ?? .now; h.updatedAt = date("updatedAt") ?? .now
         case "habit_logs":
             guard let habitID = uid("habitID"), let day = p["dayKey"] as? String else { throw CocoaError(.coderReadCorrupt) }
             let old = try context.fetch(FetchDescriptor<HabitLog>()).first { $0.habitID == habitID && $0.dayKey == day }

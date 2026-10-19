@@ -150,7 +150,10 @@ struct DayWidgetView: View {
 }
 
 @main struct OrbitWidgetBundle: WidgetBundle {
-    var body: some Widget { OrbitWidget() }
+    var body: some Widget {
+        OrbitWidget()
+        FocusLiveActivity()
+    }
 }
 
 struct OrbitWidget: Widget {
