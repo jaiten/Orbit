@@ -26,6 +26,8 @@ enum SyncMerge {
         if let l = left as? [String: Any], let r = right as? [String: Any] { return Set(l.keys).union(r.keys).allSatisfy { equal(l[$0], r[$0]) } }
         return false
     }
+    /// True when two payloads say the same thing (metadata and tiny number noise aside).
+    static func sameContent(_ a: [String: Any], _ b: [String: Any]) -> Bool { equal(clean(a), clean(b)) }
     static func merge(local: [String: Any], remote: [String: Any], base: [String: Any]?) -> [String: Any]? {
         if equal(clean(local), clean(remote)) { return remote }
         guard let base else { return nil }

@@ -111,7 +111,9 @@ enum QuickAdd {
     static func describe(_ result: QuickAddResult, now: Date = .now, calendar: Calendar = .current) -> String {
         guard !result.title.isEmpty else { return "" }
         let clock = result.time.map { minutes in
+            // Time formats may use a narrow no-break space before AM/PM; the chip uses a plain space on both apps.
             calendar.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: now)!.formatted(date: .omitted, time: .shortened)
+                .replacingOccurrences(of: "\u{202F}", with: " ")
         }
         let list = result.list.map { "#" + $0 }
         if result.kind == .habit { return (["Habit", HabitRules.label(result.schedule ?? "DAILY")] + [clock].compactMap { $0 }).joined(separator: " · ") }

@@ -104,10 +104,12 @@ const OrbitPlanning = (() => {
     const clock =
       result.time === null
         ? ""
-        : new Date(2000, 0, 1, Math.floor(result.time / 60), result.time % 60).toLocaleTimeString(locale, {
-            hour: "numeric",
-            minute: "2-digit",
-          });
+        : new Date(2000, 0, 1, Math.floor(result.time / 60), result.time % 60)
+            .toLocaleTimeString(locale, {
+              hour: "numeric",
+              minute: "2-digit",
+            })
+            .replace(/\u202f/g, " "); // Some formats use a narrow no-break space before AM/PM.
     const labels = { DAILY: "Daily", WEEKDAYS: "Weekdays", WEEKENDS: "Weekends", WEEKLY: "Weekly" };
     if (result.kind === "habit") return ["Habit", labels[result.schedule], clock].filter(Boolean).join(" · ");
     if (result.someday) return ["Someday", result.list ? "#" + result.list : ""].filter(Boolean).join(" · ");

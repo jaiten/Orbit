@@ -1,4 +1,5 @@
 import XCTest
+import SwiftData
 @testable import Orbit
 
 /// Runs the cross-platform case tables in shared/test-cases, the same files the Windows tests read.
@@ -76,6 +77,29 @@ final class SharedCaseTests: XCTestCase {
             }
             XCTAssertEqual(HabitRules.consistency(habits, day: c["day"] as! String), c["expect"] as! Double, accuracy: 1e-9, c["name"] as! String)
         }
+    }
+
+    @MainActor func testExportRoundTripAndCSVMatchWindows() throws {
+        let folder = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../shared/test-cases").standardizedFileURL
+        let data = try Data(contentsOf: folder.appendingPathComponent("export-sample.json"))
+        let sample = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? NSDictionary)
+        let original = NSTimeZone.default; defer { NSTimeZone.default = original }
+        NSTimeZone.default = TimeZone(identifier: "UTC")! // The CSV has local times; the sample is checked in UTC.
+        let records = try PlannerBackup.decode(data)
+        let context = ModelContext(try Persistence.makeContainer(inMemory: true))
+        for record in records { try SyncRecords.apply(record, context: context) }
+        let formatter = ISO8601DateFormatter(); formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let exported = try PlannerBackup.encode(SyncRecords.snapshots(context), exportedAt: try XCTUnwrap(formatter.date(from: sample["exportedAt"] as! String)))
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: exported) as? NSDictionary, sample)
+        let csv = try String(contentsOf: folder.appendingPathComponent("export-sample.csv"), encoding: .utf8)
+        XCTAssertEqual(PlannerBackup.tasksCSV(records), csv)
+        // Importing never silently overwrites: the same file again is all "same"; an edit shows as changed.
+        var current = try SyncRecords.snapshots(context)
+        XCTAssertEqual(PlannerBackup.plan(current: current, records: records).same.count, records.count)
+        let key = records[3]["key"] as! String
+        var edited = try SyncRecords.object(current[key]!); edited["title"] = "Edited here"; current[key] = try SyncRecords.json(edited)
+        let plan = PlannerBackup.plan(current: current, records: records)
+        XCTAssertEqual(plan.changed.map { $0["key"] as! String }, [key])
     }
 
     func testCalendarArithmeticIgnoresDaylightSaving() {
