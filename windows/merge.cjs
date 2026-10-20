@@ -6,15 +6,14 @@ function equal(a, b) {
     return [...new Set([...Object.keys(a), ...Object.keys(b)])].every((k) => equal(a[k], b[k]));
   return a === b;
 }
+// Metadata. conversionData is only a restore aid for Make It a Task/Habit, so two devices that
+// converted the same item never need a review just because its encoding differs.
+const IGNORED = ["id", "updatedAt", "conversionData"];
 function visible(payload) {
   return Object.fromEntries(
     Object.entries(payload || {}).filter(
       ([k, v]) =>
-        !["id", "updatedAt"].includes(k) &&
-        v !== null &&
-        v !== undefined &&
-        v !== "" &&
-        !(Array.isArray(v) && v.length === 0),
+        !IGNORED.includes(k) && v !== null && v !== undefined && v !== "" && !(Array.isArray(v) && v.length === 0),
     ),
   );
 }
@@ -23,7 +22,7 @@ function merge(local, remote, base) {
   if (!base) return null;
   const result = { ...remote };
   for (const key of new Set([...Object.keys(local), ...Object.keys(remote), ...Object.keys(base)])) {
-    if (["id", "updatedAt"].includes(key)) continue;
+    if (IGNORED.includes(key)) continue;
     const l = local[key] ?? null,
       r = remote[key] ?? null,
       b = base[key] ?? null;

@@ -16,7 +16,6 @@ struct TaskEditor: View {
     @State private var hasTime = false
     @State private var duration = 30
     @State private var priority = 0
-    @State private var recurrence = ""
     @State private var tags = ""
     @State private var subtasks: [Subtask] = []
     @State private var subtaskTitle = ""
@@ -37,7 +36,7 @@ struct TaskEditor: View {
                         ForEach(lists) { Text($0.name).tag(Optional($0.id)) }
                     }
                 }
-                Section { DisclosureGroup("When & repeat") {
+                Section { DisclosureGroup("Date & Time") {
                     Toggle("Schedule a day", isOn: $scheduled)
                     if scheduled {
                         DatePicker("Day", selection: $date, displayedComponents: .date)
@@ -45,11 +44,6 @@ struct TaskEditor: View {
                         if hasTime {
                             DatePicker("Start", selection: $date, displayedComponents: .hourAndMinute)
                             Stepper("\(duration) minutes", value: $duration, in: 5...1440, step: 5)
-                        }
-                        Picker("Repeat", selection: $recurrence) {
-                            Text("Weekdays").tag("FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"); Text("Weekends").tag("FREQ=WEEKLY;BYDAY=SA,SU")
-                            Text("Never").tag(""); Text("Daily").tag("FREQ=DAILY")
-                            Text("Weekly").tag("FREQ=WEEKLY"); Text("Monthly").tag("FREQ=MONTHLY")
                         }
                     }
                 }
@@ -104,14 +98,14 @@ struct TaskEditor: View {
             .onAppear(perform: populate).modifier(MutationErrorModifier(error: $error))
             .confirmationDialog("Delete this task?", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Delete task", role: .destructive) { guard let task else { return }; context.delete(task); persistAndClose() }
-            } message: { Text("Other recurring occurrences will remain.") }
+            }
         }
     }
     private func populate() {
         guard let task else { if let initialDate { scheduled = true; date = initialDate }; return }
         title = task.title; notes = task.notes; listID = task.listID; scheduled = task.dueDate != nil
         date = task.dueDate ?? .now; hasTime = task.hasTime; duration = task.durationMinutes
-        priority = task.priority; recurrence = task.recurrenceRule; tags = task.tags.joined(separator: ", ")
+        priority = task.priority; tags = task.tags.joined(separator: ", ")
         subtasks = task.subtasks; reminders = task.reminders
     }
     private func save() {
@@ -126,7 +120,7 @@ struct TaskEditor: View {
         item.title = title.trimmingCharacters(in: .whitespacesAndNewlines); item.notes = notes; item.listID = listID
         item.dueDate = scheduled ? (hasTime ? date : Calendar.current.startOfDay(for: date)) : nil
         item.hasTime = scheduled && hasTime; item.durationMinutes = duration
-        item.priority = priority; item.recurrenceRule = scheduled ? recurrence : ""
+        item.priority = priority; item.recurrenceRule = ""
         item.tags = Array(Set(tags.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })).sorted()
         item.subtasks = subtasks.filter { !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         item.reminders = reminders; item.updatedAt = .now

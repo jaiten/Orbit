@@ -35,10 +35,6 @@ import SwiftData
         XCTAssertEqual(PlannerLogic.consistencySeries(habits: [water, read, future], logs: logs, ending: date(2026, 9, 14), days: 30, calendar: calendar).last!, 0.75, accuracy: 0.001)
         XCTAssertEqual(PlannerLogic.dailyConsistency(habits: [], logs: logs, on: earlier), 0)
     }
-    func testWeekdayAndWeekendRecurrence() {
-        XCTAssertEqual(PlannerLogic.nextOccurrence(after: date(2026, 9, 18, 8), rule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR", calendar: calendar), date(2026, 9, 21, 8))
-        XCTAssertEqual(PlannerLogic.nextOccurrence(after: date(2026, 9, 20, 8), rule: "FREQ=WEEKLY;BYDAY=SA,SU", calendar: calendar), date(2026, 9, 26, 8))
-    }
     func testQuickAddTomorrowAndTime() {
         let result = QuickAdd.parse("gym tomorrow 6am", now: date(2026, 9, 14), calendar: calendar)
         XCTAssertEqual(result.title, "gym"); XCTAssertTrue(result.hasTime)
@@ -97,36 +93,41 @@ import SwiftData
         XCTAssertEqual(result.date, date(2026, 9, 15, 6))
         XCTAssertEqual(QuickAdd.parse("Buy 13 apples", now: date(2026, 9, 14), calendar: calendar).title, "Buy 13 apples")
     }
-    func testRecurrenceKeepsWallClockAcrossDST() {
-        let result = PlannerLogic.nextOccurrence(after: date(2026, 3, 7, 8), rule: "FREQ=DAILY", calendar: calendar)
-        XCTAssertEqual(result, date(2026, 3, 8, 8))
-        XCTAssertNil(PlannerLogic.nextOccurrence(after: .now, rule: "FREQ=HOURLY"))
-    }
-    func testStreakAllowsUnfinishedTodayAndBreaksOnGap() {
-        let habit = Habit(title: "Read"); habit.createdAt = date(2026, 9, 1)
-        let logs = [13, 12, 10].map { HabitLog(habitID: habit.id, dayKey: PlannerLogic.dayKey(date(2026, 9, $0), calendar: calendar)) }
-        XCTAssertEqual(PlannerLogic.streak(habit, logs: logs, at: date(2026, 9, 14), calendar: calendar), 2)
-    }
     func testWeeklyTargetUsesCalendarBoundaries() {
         let habit = Habit(title: "Move", frequencyRule: "WEEKLY", target: 3)
         let logs = [13, 14, 15].map { HabitLog(habitID: habit.id, dayKey: PlannerLogic.dayKey(date(2026, 9, $0), calendar: calendar)) }
         XCTAssertEqual(PlannerLogic.progress(habit, logs: logs, at: date(2026, 9, 15), calendar: calendar), 2)
     }
-    func testWeeklyStreakIncludesPartialCreationWeek() {
-        let habit = Habit(title: "Move", frequencyRule: "WEEKLY", target: 1)
-        habit.createdAt = date(2026, 9, 10)
-        let logs = [HabitLog(habitID: habit.id, dayKey: "2026-09-11")]
-        XCTAssertEqual(PlannerLogic.streak(habit, logs: logs, at: date(2026, 9, 14), calendar: calendar), 1)
-    }
-    func testRecurringCompletionDoesNotDuplicateOnReopen() throws {
-        let container = try Persistence.makeContainer(inMemory: true)
-        let context = ModelContext(container)
+    func testCompletingATaskNeverCreatesAnother() throws {
+        let context = ModelContext(try Persistence.makeContainer(inMemory: true))
         let task = PlannerTask(title: "Read", dueDate: .now); task.recurrenceRule = "FREQ=DAILY"
         context.insert(task); try Mutations.save(context)
-        try Mutations.toggle(task, in: context)
-        try Mutations.toggle(task, in: context)
-        try Mutations.toggle(task, in: context)
-        XCTAssertEqual(try context.fetchCount(FetchDescriptor<PlannerTask>()), 2)
+        try Mutations.toggle(task, in: context); try Mutations.toggle(task, in: context); try Mutations.toggle(task, in: context)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<PlannerTask>()), 1)
+    }
+    func testRepeatingTasksMigrateToHabitsWithHistory() throws {
+        let context = ModelContext(try Persistence.makeContainer(inMemory: true))
+        let first = PlannerTask(title: "Stretch", dueDate: date(2026, 10, 17)); first.recurrenceRule = "FREQ=DAILY"; first.completedAt = date(2026, 10, 17, 18)
+        let second = PlannerTask(title: "Stretch", dueDate: date(2026, 10, 18)); second.recurrenceRule = "FREQ=DAILY"; second.completedAt = date(2026, 10, 18, 18)
+        let open = PlannerTask(title: "Stretch", dueDate: date(2026, 10, 19)); open.recurrenceRule = "FREQ=DAILY"
+        first.nextOccurrenceID = second.id; second.nextOccurrenceID = open.id
+        let weekdays = PlannerTask(title: "Gym", dueDate: date(2026, 10, 19)); weekdays.recurrenceRule = "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"
+        let monthly = PlannerTask(title: "Pay rent", dueDate: date(2026, 11, 1)); monthly.recurrenceRule = "FREQ=MONTHLY"
+        for task in [first, second, open, weekdays, monthly] { context.insert(task) }
+        try Mutations.save(context)
+        XCTAssertEqual(try Migrations.run(context), 3)
+        XCTAssertEqual(try Migrations.run(context), 0, "A second run has nothing to do")
+        let habits = try context.fetch(FetchDescriptor<Habit>())
+        let stretch = try XCTUnwrap(habits.first { $0.id == open.id })
+        XCTAssertEqual(stretch.frequencyRule, "DAILY")
+        XCTAssertEqual(habits.first { $0.id == weekdays.id }?.frequencyRule, "WEEKDAYS")
+        let logs = try context.fetch(FetchDescriptor<HabitLog>()).filter { $0.habitID == open.id }
+        XCTAssertEqual(Set(logs.map(\.id)), [first.id, second.id], "Earlier completions become check-ins")
+        let tasks = try context.fetch(FetchDescriptor<PlannerTask>())
+        XCTAssertEqual(tasks.count, 3, "Completed history and the monthly task remain as tasks")
+        XCTAssertEqual(tasks.first { $0.id == monthly.id }?.recurrenceRule, "")
+        try Conversions.toTask(stretch, in: context)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<PlannerTask>()).first { $0.id == open.id }?.recurrenceRule, "", "Make It a Task never brings the repeat back")
     }
     func testHabitLogTargetAndUndo() throws {
         let container = try Persistence.makeContainer(inMemory: true)

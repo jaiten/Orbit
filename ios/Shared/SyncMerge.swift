@@ -2,9 +2,12 @@ import Foundation
 import CoreFoundation
 
 enum SyncMerge {
+    /// Metadata. `conversionData` is only a restore aid for Make It a Task/Habit, so two devices
+    /// that converted the same item never need a review just because its encoding differs.
+    private static let ignored: Set<String> = ["id", "updatedAt", "conversionData"]
     private static func clean(_ value: [String: Any]) -> [String: Any] {
         value.filter { key, item in
-            if key == "id" || key == "updatedAt" || item is NSNull { return false }
+            if ignored.contains(key) || item is NSNull { return false }
             if let text = item as? String, text.isEmpty { return false }
             if let array = item as? [Any], array.isEmpty { return false }
             return true
@@ -27,7 +30,7 @@ enum SyncMerge {
         if equal(clean(local), clean(remote)) { return remote }
         guard let base else { return nil }
         var result = remote
-        for key in Set(local.keys).union(remote.keys).union(base.keys) where key != "id" && key != "updatedAt" {
+        for key in Set(local.keys).union(remote.keys).union(base.keys) where !ignored.contains(key) {
             if equal(local[key], remote[key]) || equal(local[key], base[key]) { continue }
             guard equal(remote[key], base[key]) else { return nil }
             result[key] = local[key]
@@ -41,7 +44,7 @@ enum SyncMerge {
         if let notes = payload["notes"] as? String, !notes.isEmpty { lines.append(notes) }
         if let count = payload["count"] as? Int { lines.append("\(count) check-ins") }
         if let day = payload["localDate"] as? String { lines.append("Planned for " + day) }
-        if let frequency = payload["frequencyRule"] as? String { lines.append("\(payload["target"] as? Int ?? 1) times \(frequency == "WEEKLY" ? "a week" : "a day")") }
+        if let frequency = payload["frequencyRule"] as? String { lines.append("\(HabitRules.label(frequency)), \(payload["target"] as? Int ?? 1) \(frequency == "WEEKLY" ? "a week" : "a day")") }
         if let completed = payload["completedAt"], !(completed is NSNull) { lines.append("Completed") }
         if let priority = payload["priority"] as? Int, priority > 0 { lines.append("Priority: " + ["Normal", "Low", "Medium", "High"][min(priority, 3)]) }
         if let tags = payload["tags"] as? [String], !tags.isEmpty { lines.append("Tags: " + tags.joined(separator: ", ")) }

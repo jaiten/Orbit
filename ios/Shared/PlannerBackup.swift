@@ -19,7 +19,7 @@ import Foundation
             if entity == "tasks" {
                 guard p["notes"] is String, p["hasTime"] is Bool, p["recurrenceRule"] is String, p["reminders"] is [Double], p["tags"] is [String], let steps = p["subtasks"] as? [[String: Any]], steps.allSatisfy({ ($0["id"] as? String).flatMap(UUID.init(uuidString:)) != nil && $0["title"] is String && $0["completed"] is Bool }), let duration = p["durationMinutes"] as? Int, (5...1440).contains(duration), let priority = p["priority"] as? Int, (0...3).contains(priority) else { throw CocoaError(.coderReadCorrupt) }
             }
-            if entity == "habits" { guard let target = p["target"] as? Int, target > 0, ["DAILY", "WEEKLY"].contains(p["frequencyRule"] as? String ?? "") else { throw CocoaError(.coderReadCorrupt) } }
+            if entity == "habits" { guard let target = p["target"] as? Int, target > 0, HabitRules.schedules.contains(p["frequencyRule"] as? String ?? "") else { throw CocoaError(.coderReadCorrupt) } }
         }
         return records
     }

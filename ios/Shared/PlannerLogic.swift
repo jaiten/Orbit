@@ -2,15 +2,16 @@ import Foundation
 
 enum PlannerLogic {
     /// Daily targets are fractional; weekly habits count a check-in on that day.
+    /// Only habits scheduled for that day count, so a weekday habit never lowers a Saturday.
     /// Habits created later never lower an earlier day's score.
     static func dailyConsistency(habits: [Habit], logs: [HabitLog], on day: Date, calendar: Calendar = .current) -> Double {
         let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: day))!
-        let active = habits.filter { $0.createdAt < end }
-        guard !active.isEmpty else { return 0 }
         let key = dayKey(day, calendar: calendar)
+        let active = habits.filter { $0.createdAt < end && HabitRules.scheduledOn(rule: $0.frequencyRule, day: key) }
+        guard !active.isEmpty else { return 0 }
         return active.reduce(0.0) { result, habit in
             let count = logs.filter { $0.habitID == habit.id && $0.dayKey == key }.reduce(0) { $0 + $1.count }
-            return result + min(1, Double(count) / Double(habit.frequencyRule == "WEEKLY" ? 1 : max(1, habit.target)))
+            return result + min(1, Double(count) / Double(dailyTarget(habit)))
         } / Double(active.count)
     }
     static func dayKey(_ date: Date, calendar: Calendar = .current) -> String {
@@ -25,61 +26,40 @@ enum PlannerLogic {
         return (0..<max(0, days)).reversed().map { offset in
             let day = calendar.date(byAdding: .day, value: -offset, to: ending)!
             let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: day))!
-            let active = habits.filter { $0.createdAt < end }
+            let key = dayKey(day, calendar: calendar)
+            let active = habits.filter { $0.createdAt < end && HabitRules.scheduledOn(rule: $0.frequencyRule, day: key) }
             guard !active.isEmpty else { return 0 }
-            let daily = counts[dayKey(day, calendar: calendar)] ?? [:]
+            let daily = counts[key] ?? [:]
             return active.reduce(0.0) { $0 + min(1, Double(daily[$1.id] ?? 0) / Double(dailyTarget($1))) } / Double(active.count)
         }
     }
     static func dailyProgress(_ habit: Habit, logs: [HabitLog], at date: Date, calendar: Calendar = .current) -> Int {
-        logs.filter { $0.habitID == habit.id && $0.dayKey == dayKey(date, calendar: calendar) }.reduce(0) { $0 + $1.count }
+        counts(habit, logs: logs)[dayKey(date, calendar: calendar)] ?? 0
     }
-    static func dailyTarget(_ habit: Habit) -> Int { habit.frequencyRule == "WEEKLY" ? 1 : max(1, habit.target) }
-    static func checkedToday(_ habit: Habit, logs: [HabitLog], at date: Date) -> Bool {
-        dailyProgress(habit, logs: logs, at: date) >= dailyTarget(habit)
+    static func dailyTarget(_ habit: Habit) -> Int { HabitRules.dailyTarget(rule: habit.frequencyRule, target: habit.target) }
+    /// Check-ins for one habit by local day key.
+    static func counts(_ habit: Habit, logs: [HabitLog]) -> [String: Int] {
+        logs.reduce(into: [:]) { result, log in if log.habitID == habit.id { result[log.dayKey, default: 0] += log.count } }
     }
-    static func period(for habit: Habit, at date: Date, calendar: Calendar = .current) -> DateInterval {
-        calendar.dateInterval(of: habit.frequencyRule == "WEEKLY" ? .weekOfYear : .day, for: date)!
+    static func checkedToday(_ habit: Habit, logs: [HabitLog], at date: Date, calendar: Calendar = .current) -> Bool {
+        HabitRules.checked(rule: habit.frequencyRule, target: habit.target, counts: counts(habit, logs: logs), day: dayKey(date, calendar: calendar))
     }
-
+    /// Check-ins in the current period: the day, or the week for weekly habits.
     static func progress(_ habit: Habit, logs: [HabitLog], at date: Date, calendar: Calendar = .current) -> Int {
-        let interval = period(for: habit, at: date, calendar: calendar)
-        let start = dayKey(interval.start, calendar: calendar)
-        let end = dayKey(interval.end, calendar: calendar)
-        return logs.filter { $0.habitID == habit.id && $0.dayKey >= start && $0.dayKey < end }
-            .reduce(0) { $0 + $1.count }
+        HabitRules.periodProgress(rule: habit.frequencyRule, counts: counts(habit, logs: logs), day: dayKey(date, calendar: calendar), weekStart: HabitRules.weekStart(calendar))
     }
-
-    /// An unfinished current period does not break yesterday's streak.
-    static func streak(_ habit: Habit, logs: [HabitLog], at date: Date = .now, calendar: Calendar = .current) -> Int {
-        let component: Calendar.Component = habit.frequencyRule == "WEEKLY" ? .weekOfYear : .day
-        var cursor = date
-        if progress(habit, logs: logs, at: cursor, calendar: calendar) < habit.target {
-            cursor = calendar.date(byAdding: component, value: -1, to: cursor)!
-        }
-        var result = 0
-        while period(for: habit, at: cursor, calendar: calendar).end > habit.createdAt,
-              progress(habit, logs: logs, at: cursor, calendar: calendar) >= habit.target {
-            result += 1
-            cursor = calendar.date(byAdding: component, value: -1, to: cursor)!
-        }
-        return result
+    static func isDue(_ habit: Habit, logs: [HabitLog], at date: Date, calendar: Calendar = .current) -> Bool {
+        HabitRules.due(rule: habit.frequencyRule, target: habit.target, counts: counts(habit, logs: logs), day: dayKey(date, calendar: calendar), weekStart: HabitRules.weekStart(calendar))
     }
-
-    /// Prototype supports these explicit RRULEs. Unsupported rules are never guessed.
-    static func nextOccurrence(after date: Date, rule: String, calendar: Calendar = .current) -> Date? {
-        switch rule {
-        case "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR", "FREQ=WEEKLY;BYDAY=SA,SU":
-            let weekdays = rule.hasSuffix("SA,SU") ? [1, 7] : [2, 3, 4, 5, 6]
-            for offset in 1...7 {
-                if let next = calendar.date(byAdding: .day, value: offset, to: date), weekdays.contains(calendar.component(.weekday, from: next)) { return next }
-            }
-            return nil
-        case "FREQ=DAILY": return calendar.date(byAdding: .day, value: 1, to: date)
-        case "FREQ=WEEKLY": return calendar.date(byAdding: .weekOfYear, value: 1, to: date)
-        case "FREQ=MONTHLY": return calendar.date(byAdding: .month, value: 1, to: date)
-        default: return nil
-        }
+    /// "X of the last 7 days". Missed days are never counted against anything.
+    static func checkedDays(_ habit: Habit, logs: [HabitLog], ending date: Date, days: Int = 7, calendar: Calendar = .current) -> Int {
+        HabitRules.checkedDays(rule: habit.frequencyRule, target: habit.target, counts: counts(habit, logs: logs), day: dayKey(date, calendar: calendar), days: days)
+    }
+    /// For example "Weekdays · 1/1 today" or "2/3 this week".
+    static func detail(_ habit: Habit, logs: [HabitLog], at date: Date) -> String {
+        let schedule = HabitRules.schedule(habit.frequencyRule)
+        let count = "\(progress(habit, logs: logs, at: date))/\(habit.target) \(schedule == "WEEKLY" ? "this week" : "today")"
+        return schedule == "DAILY" || schedule == "WEEKLY" ? count : HabitRules.label(schedule) + " · " + count
     }
 }
 

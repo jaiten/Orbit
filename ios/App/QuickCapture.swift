@@ -27,13 +27,10 @@ struct QuickCapture: View {
                 }
                 Section {
                     Picker("Repeat", selection: $repeatRule) {
-                        Text("Just once").tag("")
-                        Text("Daily habit").tag("DAILY")
-                        Text("Weekly habit").tag("WEEKLY")
-                        Text("Weekdays").tag("FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR")
-                        Text("Weekends").tag("FREQ=WEEKLY;BYDAY=SA,SU")
+                        Text("Never").tag("")
+                        ForEach(HabitRules.schedules, id: \.self) { Text(HabitRules.label($0)).tag($0) }
                     }
-                    if repeatRule != "DAILY" && repeatRule != "WEEKLY" {
+                    if repeatRule.isEmpty {
                         DisclosureGroup("When · \(date.formatted(date: .abbreviated, time: .omitted))") {
                             DatePicker("Day", selection: $date, displayedComponents: .date)
                             Toggle("Set a time", isOn: $timed)
@@ -41,8 +38,8 @@ struct QuickCapture: View {
                         }
                     }
                     DisclosureGroup("More options") {
-                        if repeatRule != "DAILY" && repeatRule != "WEEKLY" { TextField("Notes", text: $notes, axis: .vertical) }
-                        if repeatRule != "DAILY" && repeatRule != "WEEKLY" {
+                        if repeatRule.isEmpty { TextField("Notes", text: $notes, axis: .vertical) }
+                        if repeatRule.isEmpty {
                             Picker("List", selection: $listID) {
                                 Text("Inbox").tag(nil as UUID?)
                                 ForEach(lists) { Text($0.name).tag(Optional($0.id)) }
@@ -63,7 +60,8 @@ struct QuickCapture: View {
     private func save(allowConflict: Bool) {
         let parsed = QuickAdd.parse(title, plannedDay: date)
         guard !parsed.title.isEmpty else { error = "Add a name as well as a time."; return }
-        if repeatRule == "DAILY" || repeatRule == "WEEKLY" {
+        if !repeatRule.isEmpty {
+            // Anything that repeats is a habit.
             let habit = Habit(title: parsed.title, frequencyRule: repeatRule)
             if parsed.hasTime, let date = parsed.date { habit.reminderMinutes = Calendar.current.component(.hour, from: date) * 60 + Calendar.current.component(.minute, from: date) }
             context.insert(habit)
@@ -73,14 +71,13 @@ struct QuickCapture: View {
                 let clock = Calendar.current.dateComponents([.hour, .minute], from: date)
                 planned = Calendar.current.date(bySettingHour: clock.hour!, minute: clock.minute!, second: 0, of: planned)!
             }
-            if !repeatRule.isEmpty, let next = PlannerLogic.nextOccurrence(after: Calendar.current.date(byAdding: .day, value: -1, to: planned)!, rule: repeatRule) { planned = next }
             if !allowConflict && (timed || parsed.hasTime) {
                 do { conflictTitles = CalendarBridge.shared.conflictTitles(start: planned, duration: 30, excluding: nil, tasks: try context.fetch(FetchDescriptor<PlannerTask>())) }
                 catch { self.error = error.localizedDescription; return }
                 if !conflictTitles.isEmpty { confirmConflict = true; return }
             }
             let item = PlannerTask(title: parsed.title, dueDate: timed || parsed.hasTime ? planned : Calendar.current.startOfDay(for: planned), hasTime: timed || parsed.hasTime, listID: listID)
-            item.notes = notes; item.recurrenceRule = repeatRule
+            item.notes = notes
             context.insert(item)
         }
         do { try Mutations.save(context); Task { try? await refreshReminders(context) }; dismiss() }

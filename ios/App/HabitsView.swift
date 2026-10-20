@@ -41,9 +41,12 @@ struct HabitHistoryDetail: View {
     @Query private var logs: [HabitLog]
     var body: some View {
         List {
+            Section {
+                HabitWeekStrip(habit: habit, logs: logs)
+            } header: { Text("\(PlannerLogic.checkedDays(habit, logs: logs, ending: .now)) of the last 7 days") }
             Section("Last 12 weeks") { HabitHeatmap(habit: habit, logs: logs) }
-            Section("Progress") {
-                LabeledContent("Current streak", value: "\(PlannerLogic.streak(habit, logs: logs)) \(habit.frequencyRule == "WEEKLY" ? "weeks" : "days")")
+            Section {
+                LabeledContent("Repeats", value: HabitRules.label(habit.frequencyRule))
                 LabeledContent("Check-ins", value: "\(logs.filter { $0.habitID == habit.id }.reduce(0) { $0 + $1.count })")
             }
             Section("Recent days") {
@@ -52,6 +55,29 @@ struct HabitHistoryDetail: View {
                 }
             }
         }.navigationTitle(habit.title).navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// The last seven days for one habit. Days it isn't scheduled are outlined, never counted as missed.
+struct HabitWeekStrip: View {
+    let habit: Habit
+    let logs: [HabitLog]
+    private var days: [Date] { (-6...0).map { Calendar.current.date(byAdding: .day, value: $0, to: .now)! } }
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(days, id: \.self) { day in
+                let done = PlannerLogic.checkedToday(habit, logs: logs, at: day)
+                let scheduled = HabitRules.scheduledOn(rule: habit.frequencyRule, day: PlannerLogic.dayKey(day))
+                VStack(spacing: 4) {
+                    RoundedRectangle(cornerRadius: 6).fill(done ? DayTheme.color(habit.color) : DayTheme.color(habit.color).opacity(scheduled ? 0.12 : 0))
+                        .overlay { if !scheduled { RoundedRectangle(cornerRadius: 6).strokeBorder(.secondary.opacity(0.4), style: StrokeStyle(lineWidth: 1, dash: [3])) } }
+                        .frame(height: 28)
+                    Text(day.formatted(.dateTime.weekday(.narrow))).font(.caption2).foregroundStyle(.secondary)
+                }.frame(maxWidth: .infinity)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(day.formatted(.dateTime.weekday(.wide))): \(done ? "checked" : scheduled ? "not checked" : "not scheduled")")
+            }
+        }.padding(.vertical, 4)
     }
 }
 
@@ -93,8 +119,8 @@ struct HabitEditor: View {
             Form {
                 Section {
                     TextField("Title", text: $title).accessibilityIdentifier("habit-title-input")
-                    Picker("Frequency", selection: $frequency) { Text("Daily").tag("DAILY"); Text("Weekly").tag("WEEKLY") }
-                    Stepper("\(target) times per \(frequency == "DAILY" ? "day" : "week")", value: $target, in: 1...1000)
+                    Picker("Repeats", selection: $frequency) { ForEach(HabitRules.schedules, id: \.self) { Text(HabitRules.label($0)).tag($0) } }
+                    Stepper("\(target) \(target == 1 ? "time" : "times") a \(frequency == "WEEKLY" ? "week" : "day")", value: $target, in: 1...1000)
                     Picker("Color", selection: $color) { ForEach(DayTheme.colors, id: \.self) { Text($0.capitalized).tag($0) } }
                     Picker("Icon", selection: $icon) {
                         ForEach(["leaf", "book", "figure.walk", "drop", "heart", "moon", "pencil", "sun.max"], id: \.self) { Label($0, systemImage: $0).tag($0) }
@@ -116,7 +142,7 @@ struct HabitEditor: View {
                     ToolbarItem(placement: .confirmationAction) { Button("Save", action: save).disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
                 }.onAppear {
                     guard let habit else { return }
-                    title = habit.title; frequency = habit.frequencyRule; target = habit.target; color = habit.color; icon = habit.icon
+                    title = habit.title; frequency = HabitRules.schedule(habit.frequencyRule); target = habit.target; color = habit.color; icon = habit.icon
                     reminderEnabled = habit.reminderMinutes != nil; nudgeEnabled = habit.nudgeMinutes != nil
                     reminder = time(habit.reminderMinutes ?? 540); nudge = time(habit.nudgeMinutes ?? 1200)
                 }.modifier(MutationErrorModifier(error: $error))

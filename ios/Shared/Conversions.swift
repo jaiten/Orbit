@@ -3,6 +3,10 @@ import SwiftData
 
 /// Keep the source's extra fields so moving back does not discard notes or history.
 @MainActor enum Conversions {
+    /// Repeating tasks from earlier versions map onto habit schedules (as in windows/ui/conversions.js).
+    static let scheduleForRule = ["FREQ=DAILY": "DAILY", "FREQ=WEEKLY": "WEEKLY",
+                                  "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR": "WEEKDAYS", "FREQ=WEEKLY;BYDAY=SA,SU": "WEEKENDS"]
+
     static func remove(_ habit: Habit, in context: ModelContext) throws {
         let id = habit.id
         for log in try context.fetch(FetchDescriptor<HabitLog>()).filter({ $0.habitID == id }) { context.delete(log) }
@@ -10,7 +14,7 @@ import SwiftData
         try Mutations.save(context)
     }
 
-    static func toHabit(_ task: PlannerTask, in context: ModelContext) throws {
+    static func toHabit(_ task: PlannerTask, in context: ModelContext, createdAt: Date? = nil, save: Bool = true) throws {
         let key = "tasks/" + task.id.uuidString.lowercased()
         var payload = try SyncRecords.object(try SyncRecords.snapshots(context)[key]!)
         payload.removeValue(forKey: "conversionData")
@@ -22,8 +26,8 @@ import SwiftData
                 for log in logs { try SyncRecords.apply(["key": "habit_logs/restored", "payload": log], context: context) }
             }
         } else {
-            habit = Habit(title: task.title, frequencyRule: task.recurrenceRule == "FREQ=WEEKLY" ? "WEEKLY" : "DAILY")
-            habit.id = task.id; context.insert(habit)
+            habit = Habit(title: task.title, frequencyRule: scheduleForRule[task.recurrenceRule] ?? "DAILY")
+            habit.id = task.id; habit.createdAt = createdAt ?? .now; context.insert(habit)
             if let reminder = task.reminders.first {
                 habit.reminderMinutes = Calendar.current.component(.hour, from: reminder) * 60 + Calendar.current.component(.minute, from: reminder)
             }
@@ -34,7 +38,7 @@ import SwiftData
         habit.title = task.title; habit.updatedAt = .now
         habit.conversionData = try SyncRecords.json(["source": payload])
         context.delete(task)
-        try Mutations.save(context)
+        if save { try Mutations.save(context) }
     }
 
     static func toTask(_ habit: Habit, in context: ModelContext) throws {
@@ -51,7 +55,8 @@ import SwiftData
             task = PlannerTask(title: habit.title, dueDate: Calendar.current.startOfDay(for: .now))
             task.id = habit.id; context.insert(task)
         }
-        task.title = habit.title; task.updatedAt = .now
+        // Only habits repeat; a restored task is always one-off.
+        task.title = habit.title; task.recurrenceRule = ""; task.nextOccurrenceID = nil; task.updatedAt = .now
         task.completedAt = PlannerLogic.checkedToday(habit, logs: logs, at: .now) ? .now : nil
         task.conversionData = try SyncRecords.json(["source": payload, "logs": history])
         for log in logs { context.delete(log) }

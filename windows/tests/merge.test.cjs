@@ -54,3 +54,15 @@ test("submillisecond date encoding noise is not a competing edit", () => {
     merge({ title: "Gym", reminders: [1792460000000.0002] }, { title: "Gym", reminders: [1792460000000] }, null),
   );
 });
+
+test("two devices converting the same task do not need a review", () => {
+  const local = {
+    id: "a",
+    title: "Stretch",
+    frequencyRule: "DAILY",
+    conversionData: '{"source":{"id":"a","b":1}}',
+    updatedAt: 1,
+  };
+  const remote = { ...local, conversionData: '{"source":{"b":1,"id":"a"}}', updatedAt: 2 };
+  assert.deepEqual(merge(local, remote, null), remote);
+});

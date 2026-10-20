@@ -14,22 +14,9 @@ import WidgetKit
         catch { context.rollback(); throw error }
     }
 
+    /// Tasks are one-off; only habits repeat.
     static func toggle(_ task: PlannerTask, in context: ModelContext) throws {
-        if task.completedAt != nil {
-            task.completedAt = nil
-        } else {
-            task.completedAt = .now
-            if task.nextOccurrenceID == nil, let date = task.dueDate,
-               let next = PlannerLogic.nextOccurrence(after: date, rule: task.recurrenceRule) {
-                let successor = PlannerTask(title: task.title, dueDate: next, hasTime: task.hasTime, listID: task.listID)
-                successor.notes = task.notes; successor.priority = task.priority; successor.tags = task.tags
-                successor.durationMinutes = task.durationMinutes; successor.recurrenceRule = task.recurrenceRule
-                successor.subtasks = task.subtasks.map { Subtask(title: $0.title) }
-                successor.reminders = task.reminders.map { next.addingTimeInterval($0.timeIntervalSince(date)) }
-                task.nextOccurrenceID = successor.id
-                context.insert(successor)
-            }
-        }
+        task.completedAt = task.completedAt == nil ? .now : nil
         task.updatedAt = .now
         try save(context)
     }

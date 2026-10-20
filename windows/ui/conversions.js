@@ -97,7 +97,9 @@
         changes.push({ key: _key || "tasks/" + task.id, payload: { ...payload, recurrenceRule: "", updatedAt: now } });
         continue;
       }
-      const days = new Set();
+      // A habit restored from a backup may already have some of these days.
+      const restored = (task.conversionData ? JSON.parse(task.conversionData).logs : null) || [];
+      const days = new Set(restored.map((l) => l.dayKey));
       const checkIns = [];
       for (let earlier = previous.get(task.id), guard = 0; earlier && guard < 10000; guard++) {
         if (earlier.completedAt) {
@@ -109,7 +111,7 @@
         }
         earlier = previous.get(earlier.id);
       }
-      const firstDay = [...days, task.localDate].filter(Boolean).sort()[0];
+      const firstDay = [...checkIns.map((l) => l.dayKey), task.localDate].filter(Boolean).sort()[0];
       const createdAt = firstDay ? new Date(firstDay + "T00:00:00").getTime() : now;
       changes.push(...convert("tasks", task, [], localKey(new Date(now)), now, { createdAt }));
       for (const l of checkIns) changes.push({ key: "habit_logs/" + task.id + "-" + l.dayKey, payload: l });

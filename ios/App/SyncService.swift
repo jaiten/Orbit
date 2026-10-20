@@ -137,6 +137,8 @@ import UIKit
                 for record in records { try receive(record, context: context) }
                 if records.count < 500 { break }; offset += 500
             }
+            // Records from older devices may still contain repeating tasks.
+            if try Migrations.run(context) > 0 { again = true }
             let entries = try context.fetch(FetchDescriptor<SyncEntry>())
             status = entries.contains { $0.conflict != nil } ? "Changes need review in Settings" : entries.contains { $0.dirty } ? "Changes waiting to sync" : "All changes synced"
             WidgetCenter.shared.reloadAllTimelines()

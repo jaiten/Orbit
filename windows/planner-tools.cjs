@@ -54,7 +54,9 @@ function decodeBackup(data) {
       throw Error("Invalid task details");
     if (
       entity === "habits" &&
-      (!Number.isInteger(p.target) || p.target < 1 || !["DAILY", "WEEKLY"].includes(p.frequencyRule))
+      (!Number.isInteger(p.target) ||
+        p.target < 1 ||
+        !["DAILY", "WEEKDAYS", "WEEKENDS", "WEEKLY"].includes(p.frequencyRule))
     )
       throw Error("Invalid habit goal");
   }

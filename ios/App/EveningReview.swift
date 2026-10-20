@@ -18,7 +18,7 @@ struct EveningReview: View {
                     LabeledContent("Habits checked", value: "\(habits.filter { PlannerLogic.checkedToday($0, logs: logs, at: .now) }.count)")
                 }
                 Section("Pick up to three for tomorrow") {
-                    ForEach(tasks.filter { $0.completedAt == nil && $0.recurrenceRule.isEmpty }.sorted { $0.sortOrder < $1.sortOrder }) { task in
+                    ForEach(tasks.filter { $0.completedAt == nil }.sorted { $0.sortOrder < $1.sortOrder }) { task in
                         Button {
                             if selected.contains(task.id) { selected.remove(task.id) } else if selected.count < 3 { selected.insert(task.id) }
                         } label: { HStack { Text(task.title).foregroundStyle(.primary); Spacer(); Image(systemName: selected.contains(task.id) ? "checkmark.circle.fill" : "circle") } }

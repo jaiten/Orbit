@@ -32,8 +32,10 @@ struct TodayView: View {
         tasks.filter { $0.dueDate.map { $0 < Calendar.current.date(byAdding: .day, value: 1, to: day)! } ?? true }
             .filter { $0.completedAt == nil || $0.completedAt.map { Calendar.current.isDate($0, inSameDayAs: day) } == true }
     }
-    private var done: Int { relevant.filter { $0.completedAt != nil }.count + habits.filter { PlannerLogic.checkedToday($0, logs: logs, at: day) }.count }
-    private var total: Int { relevant.count + habits.count }
+    /// Habits scheduled for the day; a weekly habit drops off once its week is done.
+    private var dueHabits: [Habit] { habits.filter { PlannerLogic.isDue($0, logs: logs, at: day) } }
+    private var done: Int { relevant.filter { $0.completedAt != nil }.count + dueHabits.filter { PlannerLogic.checkedToday($0, logs: logs, at: day) }.count }
+    private var total: Int { relevant.count + dueHabits.count }
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -96,13 +98,13 @@ struct TodayView: View {
                 ProgressView(value: Double(done), total: Double(max(1, total))).tint(DayTheme.accent).frame(maxWidth: 130)
             }
         case "today":
-            checklistSection("Tasks", items: relevant.filter { $0.completedAt == nil && $0.recurrenceRule.isEmpty }.map { TodayItem(task: $0) }, empty: "Nothing planned for today.")
+            checklistSection("Tasks", items: relevant.filter { $0.completedAt == nil }.map { TodayItem(task: $0) }, empty: "Nothing planned for today.")
                 .modifier(HomeDropArea(id: "today"))
         case "routine":
-            checklistSection("Habits", items: relevant.filter { $0.completedAt == nil && !$0.recurrenceRule.isEmpty }.map { TodayItem(task: $0) } + habits.filter { !PlannerLogic.checkedToday($0, logs: logs, at: day) }.map { TodayItem(habit: $0) }, empty: "Hold and drag a to-do here to make it a habit.")
+            checklistSection("Habits", items: dueHabits.filter { !PlannerLogic.checkedToday($0, logs: logs, at: day) }.map { TodayItem(habit: $0) }, empty: "Hold and drag a to-do here to make it a habit.")
                 .modifier(HomeDropArea(id: "routine"))
         case "completed":
-            let completed = relevant.filter { $0.completedAt != nil }.map { TodayItem(task: $0) } + habits.filter { PlannerLogic.checkedToday($0, logs: logs, at: day) }.map { TodayItem(habit: $0) }
+            let completed = relevant.filter { $0.completedAt != nil }.map { TodayItem(task: $0) } + dueHabits.filter { PlannerLogic.checkedToday($0, logs: logs, at: day) }.map { TodayItem(habit: $0) }
             if !completed.isEmpty { DisclosureGroup("Completed · \(completed.count)", isExpanded: $completedExpanded) { checklist(completed).padding(.top, 10) }.font(.subheadline).foregroundStyle(.secondary) }
         case "calendar":
             if calendars.connected {
@@ -121,12 +123,10 @@ struct TodayView: View {
     private func move(_ values: [String], routine: Bool) -> Bool {
         guard let value = values.first else { return false }
         do {
-            if routine, let task = tasks.first(where: { "task:" + $0.id.uuidString == value }), task.recurrenceRule.isEmpty {
+            if routine, let task = tasks.first(where: { "task:" + $0.id.uuidString == value }) {
                 try Conversions.toHabit(task, in: context)
             } else if !routine, let habit = habits.first(where: { "habit:" + $0.id.uuidString == value }) {
                 try Conversions.toTask(habit, in: context)
-            } else if !routine, let task = tasks.first(where: { "task:" + $0.id.uuidString == value }), !task.recurrenceRule.isEmpty {
-                task.recurrenceRule = ""; task.updatedAt = .now; try Mutations.save(context)
             } else { return false }
             Task { try? await refreshReminders(context) }; return true
         } catch { self.error = error.localizedDescription; return false }
@@ -251,7 +251,6 @@ struct TaskRow: View {
     private var subtitle: String {
         var parts: [String] = []
         if task.hasTime, let date = task.dueDate { parts.append(date.formatted(date: .omitted, time: .shortened)) }
-        if !task.recurrenceRule.isEmpty { parts.append(task.recurrenceRule.contains("BYDAY=MO") ? "Weekdays" : task.recurrenceRule.contains("BYDAY=SA") ? "Weekends" : task.recurrenceRule == "FREQ=DAILY" ? "Daily" : task.recurrenceRule == "FREQ=WEEKLY" ? "Weekly" : "Monthly") }
         if !task.subtasks.isEmpty { parts.append("\(task.subtasks.filter(\.completed).count)/\(task.subtasks.count) steps") }
         return parts.joined(separator: " · ")
     }
@@ -276,10 +275,9 @@ struct HabitRow: View {
     var edit: (() -> Void)? = nil
     @State private var error: String?
     @State private var feedback = 0
-    private var progress: Int { PlannerLogic.progress(habit, logs: logs, at: date) }
     private var checked: Bool { PlannerLogic.checkedToday(habit, logs: logs, at: date) }
     var body: some View {
-        CheckTile(title: habit.title, subtitle: habit.frequencyRule == "WEEKLY" ? "\(progress)/\(habit.target) this week · today’s check-in" : "\(progress)/\(habit.target) today", done: checked, color: DayTheme.color(habit.color),
+        CheckTile(title: habit.title, subtitle: PlannerLogic.detail(habit, logs: logs, at: date), done: checked, color: DayTheme.color(habit.color),
             completionLabel: (checked ? "Undo " : "Log ") + habit.title, moveLabel: "Make It a Task",
             toggle: { change { if checked { try Mutations.undoLog(habit, at: date, in: context) } else { try Mutations.log(habit, at: date, in: context) }; feedback += 1 } }, edit: { edit?() },
             remove: { change { try Conversions.remove(habit, in: context) } }, move: { change { try Conversions.toTask(habit, in: context) } })

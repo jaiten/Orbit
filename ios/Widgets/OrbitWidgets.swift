@@ -16,10 +16,9 @@ struct DayEntry: TimelineEntry {
     let items: [WidgetItem]
     let completedHabits: Int
     let totalHabits: Int
-    let streak: Int
     var unavailable = false
     var consistency: [Double] = []
-    static let placeholder = DayEntry(date: .now, items: [WidgetItem(id: "preview", title: "Morning walk", subtitle: "8:00 AM", habit: false, date: nil)], completedHabits: 1, totalHabits: 3, streak: 4)
+    static let placeholder = DayEntry(date: .now, items: [WidgetItem(id: "preview", title: "Morning walk", subtitle: "8:00 AM", habit: false, date: nil)], completedHabits: 1, totalHabits: 3)
 }
 
 struct DayProvider: TimelineProvider {
@@ -35,7 +34,7 @@ struct DayProvider: TimelineProvider {
             completion(Timeline(entries: [entry], policy: .after(refresh)))
         }
     }
-    @MainActor static func read(includeStreak: Bool = true) -> DayEntry {
+    @MainActor static func read() -> DayEntry {
         do {
             let container = try Persistence.makeContainer()
             let context = ModelContext(container)
@@ -46,8 +45,9 @@ struct DayProvider: TimelineProvider {
                     if $0.hasTime { return ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture) }
                     return $0.sortOrder < $1.sortOrder
                 }
-            let habits = try context.fetch(FetchDescriptor<Habit>(sortBy: [SortDescriptor(\Habit.createdAt)]))
+            let allHabits = try context.fetch(FetchDescriptor<Habit>(sortBy: [SortDescriptor(\Habit.createdAt)]))
             let logs = try context.fetch(FetchDescriptor<HabitLog>())
+            let habits = allHabits.filter { PlannerLogic.isDue($0, logs: logs, at: .now) }
             let taskItems = tasks.map { task in
                 WidgetItem(id: task.id.uuidString, title: task.title,
                     subtitle: task.hasTime ? task.dueDate!.formatted(date: .omitted, time: .shortened) : "",
@@ -55,11 +55,11 @@ struct DayProvider: TimelineProvider {
             }
             let habitItems = habits.filter { !PlannerLogic.checkedToday($0, logs: logs, at: .now) }.map {
                 WidgetItem(id: $0.id.uuidString, title: $0.title,
-                    subtitle: "\(PlannerLogic.progress($0, logs: logs, at: .now))/\($0.target)", habit: true, date: nil)
+                    subtitle: PlannerLogic.detail($0, logs: logs, at: .now), habit: true, date: nil)
             }
             return DayEntry(date: .now, items: taskItems + habitItems, completedHabits: habits.count - habitItems.count,
-                totalHabits: habits.count, streak: includeStreak ? (habits.map { PlannerLogic.streak($0, logs: logs) }.max() ?? 0) : 0, consistency: PlannerLogic.consistencySeries(habits: habits, logs: logs, ending: .now, days: 30))
-        } catch { return DayEntry(date: .now, items: [], completedHabits: 0, totalHabits: 0, streak: 0, unavailable: true) }
+                totalHabits: habits.count, consistency: PlannerLogic.consistencySeries(habits: allHabits, logs: logs, ending: .now, days: 30))
+        } catch { return DayEntry(date: .now, items: [], completedHabits: 0, totalHabits: 0, unavailable: true) }
     }
 }
 
@@ -114,11 +114,11 @@ struct DayWidgetView: View {
                             Text(date, style: .relative).font(.system(.title2, design: .rounded).bold()).minimumScaleFactor(0.7)
                             Text(next.title).font(.caption).lineLimit(2)
                         } else {
-                            Text("\(entry.streak)").font(.system(size: 36, weight: .semibold, design: .rounded))
-                            Text("Best current habit streak").font(.caption)
+                            Text("\(entry.completedHabits)/\(entry.totalHabits)").font(.system(size: 36, weight: .semibold, design: .rounded))
+                            Text("Habits done today").font(.caption)
                         }
                         Spacer(minLength: 0)
-                        Text("\(entry.completedHabits)/\(entry.totalHabits) habits complete").font(.caption2).foregroundStyle(.secondary)
+                        Text(entry.items.isEmpty ? "Nothing left today" : "\(entry.items.count) left today").font(.caption2).foregroundStyle(.secondary)
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 default:
                     VStack(alignment: .leading, spacing: 8) {
