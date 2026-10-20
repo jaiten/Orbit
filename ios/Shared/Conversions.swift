@@ -52,7 +52,7 @@ import SwiftData
             task.id = habit.id; context.insert(task)
         }
         task.title = habit.title; task.updatedAt = .now
-        task.completedAt = PlannerLogic.progress(habit, logs: logs, at: .now) >= habit.target ? .now : nil
+        task.completedAt = PlannerLogic.checkedToday(habit, logs: logs, at: .now) ? .now : nil
         task.conversionData = try SyncRecords.json(["source": payload, "logs": history])
         for log in logs { context.delete(log) }
         context.delete(habit)

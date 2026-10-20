@@ -45,7 +45,7 @@ actor NotificationScheduler {
         for habit in habits {
             for offset in 0..<7 {
                 let day = Calendar.current.date(byAdding: .day, value: offset, to: now)!
-                if PlannerLogic.progress(habit, logs: logs, at: day) >= habit.target { continue }
+                if PlannerLogic.checkedToday(habit, logs: logs, at: day) { continue }
                 for (kind, minutes) in [("reminder", habit.reminderMinutes), ("nudge", habit.nudgeMinutes)] {
                     guard let minutes, let date = Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: day) else { continue }
                     result.append(Reminder(id: "orbit.habit.\(habit.id).\(offset).\(kind)", title: habit.title,

@@ -43,6 +43,48 @@ import SwiftData
         XCTAssertEqual(result.title, "gym"); XCTAssertTrue(result.hasTime)
         XCTAssertEqual(result.date, date(2026, 9, 15, 6))
     }
+    func testWeeklyCheckIsDailyAndDoesNotCapTheWeek() throws {
+        let context = ModelContext(try Persistence.makeContainer(inMemory: true))
+        let habit = Habit(title: "Gym", frequencyRule: "WEEKLY", target: 5); context.insert(habit)
+        let today = date(2026, 9, 14)
+        for offset in 0..<6 {
+            let day = calendar.date(byAdding: .day, value: offset, to: today)!
+            try Mutations.log(habit, at: day, in: context)
+            try Mutations.log(habit, at: day, in: context)
+        }
+        let logs = try context.fetch(FetchDescriptor<HabitLog>())
+        XCTAssertEqual(logs.reduce(0) { $0 + $1.count }, 6)
+        XCTAssertTrue(PlannerLogic.checkedToday(habit, logs: logs, at: today))
+        XCTAssertFalse(PlannerLogic.checkedToday(habit, logs: logs, at: date(2026, 9, 20)))
+    }
+    func testUndoDeletionAndRemoteEditProtection() throws {
+        let context = ModelContext(try Persistence.makeContainer(inMemory: true))
+        let task = PlannerTask(title: "Keep me"); context.insert(task); try Mutations.save(context)
+        context.delete(task); try Mutations.save(context); try UndoJournal.shared.undo(in: context)
+        let restored = try XCTUnwrap(context.fetch(FetchDescriptor<PlannerTask>()).first)
+        XCTAssertEqual(restored.title, "Keep me")
+        restored.title = "Local"; try Mutations.save(context)
+        restored.title = "Changed elsewhere"; try context.save()
+        XCTAssertThrowsError(try UndoJournal.shared.undo(in: context))
+        XCTAssertEqual(restored.title, "Changed elsewhere")
+    }
+    func testBackupRoundTripAndInvalidRecordRejection() throws {
+        let context = ModelContext(try Persistence.makeContainer(inMemory: true))
+        let task = PlannerTask(title: "A portable plan"); context.insert(task); try Mutations.save(context)
+        let data = try PlannerBackup.encode(SyncRecords.snapshots(context))
+        let records = try PlannerBackup.decode(data)
+        XCTAssertEqual(records.count, 1)
+        let other = ModelContext(try Persistence.makeContainer(inMemory: true))
+        for record in records { try SyncRecords.apply(record, context: other) }
+        XCTAssertEqual(try other.fetch(FetchDescriptor<PlannerTask>()).first?.title, task.title)
+        XCTAssertThrowsError(try PlannerBackup.decode(Data("{\"format\":\"orbit-backup\",\"version\":1,\"records\":[{\"key\":\"owner\",\"payload\":{}}]}".utf8)))
+    }
+    func testCalendarBoundariesAndRecoveryCallback() {
+        XCTAssertFalse(PlannerLogic.overlaps(date(2026, 9, 14, 9), date(2026, 9, 14, 10), date(2026, 9, 14, 10), date(2026, 9, 14, 11)))
+        XCTAssertTrue(PlannerLogic.overlaps(date(2026, 9, 14, 9), date(2026, 9, 14, 11), date(2026, 9, 14, 10), date(2026, 9, 14, 12)))
+        XCTAssertNil(RecoveryFlow.code(from: URL(string: "orbit://attacker?code=1234567890123456")!))
+        XCTAssertEqual(RecoveryFlow.challenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"), "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
+    }
     func testQuickCaptureKeepsChosenCalendarDay() {
         let result = QuickAdd.parse("Read 6am", now: date(2026, 9, 14), calendar: calendar, plannedDay: date(2026, 9, 20))
         XCTAssertEqual(result.date, date(2026, 9, 20, 6))

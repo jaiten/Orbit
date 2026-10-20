@@ -15,6 +15,7 @@ struct TodayView: View {
     @State private var editingHabit: Habit?
     @State private var addingTask = false
     @State private var customizing = false
+    @State private var reviewing = false
     @AppStorage("homeSections") private var homeSections = "consistency,progress,today,routine,completed,calendar"
     @AppStorage("hiddenHomeSections") private var hiddenSections = ""
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
@@ -31,7 +32,7 @@ struct TodayView: View {
         tasks.filter { $0.dueDate.map { $0 < Calendar.current.date(byAdding: .day, value: 1, to: day)! } ?? true }
             .filter { $0.completedAt == nil || $0.completedAt.map { Calendar.current.isDate($0, inSameDayAs: day) } == true }
     }
-    private var done: Int { relevant.filter { $0.completedAt != nil }.count + habits.filter { PlannerLogic.progress($0, logs: logs, at: day) >= $0.target }.count }
+    private var done: Int { relevant.filter { $0.completedAt != nil }.count + habits.filter { PlannerLogic.checkedToday($0, logs: logs, at: day) }.count }
     private var total: Int { relevant.count + habits.count }
     var body: some View {
         NavigationStack {
@@ -67,7 +68,7 @@ struct TodayView: View {
             .onDisappear { homeDrag.reset(); homeDrag.accept = nil }
             .background(DayTheme.canvas(scheme)).tint(DayTheme.accentColor(accentTheme))
             .navigationTitle("Today").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .topBarLeading) { Button { customizing = true } label: { Image(systemName: "slider.horizontal.3") }.accessibilityLabel("Edit Today") }; ToolbarItem(placement: .topBarTrailing) { SyncIndicator() } }
+            .toolbar { ToolbarItem(placement: .topBarLeading) { Button { customizing = true } label: { Image(systemName: "slider.horizontal.3") }.accessibilityLabel("Edit Today") }; ToolbarItem(placement: .topBarTrailing) { HStack { Button { reviewing = true } label: { Image(systemName: "moon") }.accessibilityLabel("Evening review"); SyncIndicator() } } }
             .safeAreaInset(edge: .bottom, alignment: .trailing, spacing: 0) {
                 Button { addingTask = true } label: {
                     Image(systemName: "plus").font(.title2.weight(.medium)).foregroundStyle(.white)
@@ -76,6 +77,7 @@ struct TodayView: View {
                 }.accessibilityLabel("Add something").padding(.trailing, 20).padding(.bottom, 10)
             }
             .sheet(isPresented: $addingTask) { QuickCapture(initialDate: day) }
+            .sheet(isPresented: $reviewing) { EveningReview() }
             .sheet(isPresented: $customizing) { HomeLayoutEditor() }
             .sheet(item: $editing) { TaskEditor(task: $0) }
             .sheet(item: $editingHabit) { HabitEditor(habit: $0) }
@@ -97,10 +99,10 @@ struct TodayView: View {
             checklistSection("For today", items: relevant.filter { $0.completedAt == nil && $0.recurrenceRule.isEmpty }.map { TodayItem(task: $0) }, empty: "Your one-off plans go here.")
                 .modifier(HomeDropArea(id: "today"))
         case "routine":
-            checklistSection("Your routine", items: relevant.filter { $0.completedAt == nil && !$0.recurrenceRule.isEmpty }.map { TodayItem(task: $0) } + habits.filter { PlannerLogic.progress($0, logs: logs, at: day) < $0.target }.map { TodayItem(habit: $0) }, empty: "Hold and drag a to-do here to make it a habit.")
+            checklistSection("Your routine", items: relevant.filter { $0.completedAt == nil && !$0.recurrenceRule.isEmpty }.map { TodayItem(task: $0) } + habits.filter { !PlannerLogic.checkedToday($0, logs: logs, at: day) }.map { TodayItem(habit: $0) }, empty: "Hold and drag a to-do here to make it a habit.")
                 .modifier(HomeDropArea(id: "routine"))
         case "completed":
-            let completed = relevant.filter { $0.completedAt != nil }.map { TodayItem(task: $0) } + habits.filter { PlannerLogic.progress($0, logs: logs, at: day) >= $0.target }.map { TodayItem(habit: $0) }
+            let completed = relevant.filter { $0.completedAt != nil }.map { TodayItem(task: $0) } + habits.filter { PlannerLogic.checkedToday($0, logs: logs, at: day) }.map { TodayItem(habit: $0) }
             if !completed.isEmpty { DisclosureGroup("Completed · \(completed.count)", isExpanded: $completedExpanded) { checklist(completed).padding(.top, 10) }.font(.subheadline).foregroundStyle(.secondary) }
         case "calendar":
             if calendars.connected {
@@ -275,10 +277,11 @@ struct HabitRow: View {
     @State private var error: String?
     @State private var feedback = 0
     private var progress: Int { PlannerLogic.progress(habit, logs: logs, at: date) }
+    private var checked: Bool { PlannerLogic.checkedToday(habit, logs: logs, at: date) }
     var body: some View {
-        CheckTile(title: habit.title, subtitle: habit.target == 1 ? (habit.frequencyRule == "WEEKLY" ? "Weekly" : "Daily") : "\(progress)/\(habit.target) \(habit.frequencyRule == "WEEKLY" ? "this week" : "today")", done: progress >= habit.target, color: DayTheme.color(habit.color),
-            completionLabel: (progress >= habit.target ? "Undo " : "Log ") + habit.title, moveLabel: "Make to-do",
-            toggle: { change { if progress >= habit.target { try Mutations.undoLog(habit, at: date, in: context) } else { try Mutations.log(habit, at: date, in: context) }; feedback += 1 } }, edit: { edit?() },
+        CheckTile(title: habit.title, subtitle: habit.frequencyRule == "WEEKLY" ? "\(progress)/\(habit.target) this week · today’s check-in" : "\(progress)/\(habit.target) today", done: checked, color: DayTheme.color(habit.color),
+            completionLabel: (checked ? "Undo " : "Log ") + habit.title, moveLabel: "Make to-do",
+            toggle: { change { if checked { try Mutations.undoLog(habit, at: date, in: context) } else { try Mutations.log(habit, at: date, in: context) }; feedback += 1 } }, edit: { edit?() },
             remove: { change { try Conversions.remove(habit, in: context) } }, move: { change { try Conversions.toTask(habit, in: context) } })
             .modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
     }

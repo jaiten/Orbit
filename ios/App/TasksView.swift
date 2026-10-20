@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct TasksView: View {
+    @AppStorage("accentTheme") private var accentTheme = "coral"
     @Query(sort: \PlannerTask.sortOrder) private var tasks: [PlannerTask]
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
     @State private var search = ""
@@ -30,7 +31,7 @@ struct TasksView: View {
                     if filtered.isEmpty { ContentUnavailableView("A clear page", systemImage: "checklist", description: Text("Add a task or change your filters.")) }
                     ForEach(filtered) { task in TaskRow(task: task) { editing = task }.listRowSeparator(.hidden) }
                 }
-            }.searchable(text: $search, prompt: "Search tasks or tags").navigationTitle("Lists")
+            }.tint(DayTheme.accentColor(accentTheme)).searchable(text: $search, prompt: "Search tasks or tags").navigationTitle("Lists")
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) { Button("Manage lists") { manageLists = true } }
                     ToolbarItem(placement: .topBarTrailing) { Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("New task") }
@@ -42,6 +43,7 @@ struct TasksView: View {
 }
 
 struct ListsView: View {
+    @AppStorage("accentTheme") private var accentTheme = "coral"
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
@@ -62,7 +64,7 @@ struct ListsView: View {
                         do { try Mutations.save(context); name = "" } catch { self.error = error.localizedDescription }
                     }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-            }.navigationTitle("Lists").toolbar { Button("Done") { dismiss() } }
+            }.tint(DayTheme.accentColor(accentTheme)).navigationTitle("Lists").toolbar { Button("Done") { dismiss() } }
                 .modifier(MutationErrorModifier(error: $error))
                 .confirmationDialog("Delete this list? Its tasks will move to Inbox.", isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }), titleVisibility: .visible) {
                     Button("Delete list", role: .destructive) {
@@ -80,6 +82,7 @@ struct ListsView: View {
 }
 
 struct ListNameRow: View {
+    @AppStorage("accentTheme") private var accentTheme = "coral"
     @Environment(\.modelContext) private var context
     let list: TaskList
     @State private var name = ""

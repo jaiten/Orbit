@@ -18,6 +18,7 @@ struct DayEntry: TimelineEntry {
     let totalHabits: Int
     let streak: Int
     var unavailable = false
+    var consistency: [Double] = []
     static let placeholder = DayEntry(date: .now, items: [WidgetItem(id: "preview", title: "A moment to reset", subtitle: "Your next intention", habit: false, date: nil)], completedHabits: 1, totalHabits: 3, streak: 4)
 }
 
@@ -25,16 +26,16 @@ struct DayProvider: TimelineProvider {
     func placeholder(in context: Context) -> DayEntry { .placeholder }
     func getSnapshot(in context: Context, completion: @escaping (DayEntry) -> Void) {
         if context.isPreview { completion(.placeholder) }
-        else { Task { @MainActor in completion(load()) } }
+        else { Task { @MainActor in completion(Self.read()) } }
     }
     func getTimeline(in context: Context, completion: @escaping (Timeline<DayEntry>) -> Void) {
         Task { @MainActor in
-            let entry = load()
+            let entry = Self.read()
             let refresh = min(Date.now.addingTimeInterval(900), Calendar.current.startOfDay(for: Calendar.current.date(byAdding: .day, value: 1, to: .now)!))
             completion(Timeline(entries: [entry], policy: .after(refresh)))
         }
     }
-    @MainActor private func load() -> DayEntry {
+    @MainActor static func read() -> DayEntry {
         do {
             let container = try Persistence.makeContainer()
             let context = ModelContext(container)
@@ -52,12 +53,12 @@ struct DayProvider: TimelineProvider {
                     subtitle: task.hasTime ? task.dueDate!.formatted(date: .omitted, time: .shortened) : "At your own pace",
                     habit: false, date: task.hasTime ? task.dueDate : nil)
             }
-            let habitItems = habits.filter { PlannerLogic.progress($0, logs: logs, at: .now) < $0.target }.map {
+            let habitItems = habits.filter { !PlannerLogic.checkedToday($0, logs: logs, at: .now) }.map {
                 WidgetItem(id: $0.id.uuidString, title: $0.title,
                     subtitle: "\(PlannerLogic.progress($0, logs: logs, at: .now))/\($0.target)", habit: true, date: nil)
             }
             return DayEntry(date: .now, items: taskItems + habitItems, completedHabits: habits.count - habitItems.count,
-                totalHabits: habits.count, streak: habits.map { PlannerLogic.streak($0, logs: logs) }.max() ?? 0)
+                totalHabits: habits.count, streak: habits.map { PlannerLogic.streak($0, logs: logs) }.max() ?? 0, consistency: (-29...0).map { PlannerLogic.dailyConsistency(habits: habits, logs: logs, on: Calendar.current.date(byAdding: .day, value: $0, to: .now)!) })
         } catch { return DayEntry(date: .now, items: [], completedHabits: 0, totalHabits: 0, streak: 0, unavailable: true) }
     }
 }
@@ -126,8 +127,9 @@ struct DayWidgetView: View {
                             Spacer()
                             Image(systemName: "sun.max").foregroundStyle(DayTheme.accent)
                         }
+                        ConsistencyWidgetGrid(values: Array(entry.consistency.suffix(DayTheme.sharedDefaults?.integer(forKey: "consistencyRange") == 30 ? 30 : 7)), compact: true)
                         if entry.items.isEmpty { Text("All clear. Enjoy a little breathing room.").font(.subheadline).foregroundStyle(.secondary) }
-                        ForEach(entry.items.prefix(family == .systemLarge ? 7 : 3)) { item in
+                        ForEach(entry.items.prefix(family == .systemLarge ? 5 : 2)) { item in
                             HStack(spacing: 8) {
                                 Button(intent: CompleteItemIntent(itemID: item.id, isHabit: item.habit)) {
                                     Image(systemName: item.habit ? "plus.circle" : "circle").font(.title3).foregroundStyle(DayTheme.accent)
@@ -138,8 +140,8 @@ struct DayWidgetView: View {
                             }
                         }
                         Spacer(minLength: 0)
-                        if entry.items.count > (family == .systemLarge ? 7 : 3) {
-                            Text("+\(entry.items.count - (family == .systemLarge ? 7 : 3)) more in Orbit").font(.caption2).foregroundStyle(.secondary)
+                        if entry.items.count > (family == .systemLarge ? 5 : 2) {
+                            Text("+\(entry.items.count - (family == .systemLarge ? 5 : 2)) more in Orbit").font(.caption2).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -152,6 +154,7 @@ struct DayWidgetView: View {
 @main struct OrbitWidgetBundle: WidgetBundle {
     var body: some Widget {
         OrbitWidget()
+        HabitConsistencyWidget()
         FocusLiveActivity()
     }
 }

@@ -1,8 +1,10 @@
 import SwiftUI
 import SwiftData
+import WidgetKit
 
 /// Home layout is a device preference, never a destructive edit to planner data.
 struct HomeLayoutEditor: View {
+    @AppStorage("accentTheme") private var accentTheme = "coral"
     @AppStorage("homeSections") private var stored = "consistency,progress,today,routine,completed,calendar"
     @AppStorage("hiddenHomeSections") private var hidden = ""
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
@@ -75,8 +77,9 @@ struct ConsistencyStrip: View {
                 }
             }
             if habits.isEmpty { Text("Your habit check-ins will grow here.").font(.caption).foregroundStyle(.secondary) }
-        }
+        }.onAppear { shareRange() }.onChange(of: range) { _, _ in shareRange() }
     }
+    private func shareRange() { DayTheme.sharedDefaults?.set(range, forKey: "consistencyRange"); WidgetCenter.shared.reloadAllTimelines() }
 }
 
 struct OrbitMark: View {

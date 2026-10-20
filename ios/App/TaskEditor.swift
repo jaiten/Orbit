@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct TaskEditor: View {
+    @AppStorage("accentTheme") private var accentTheme = "coral"
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
@@ -22,6 +23,8 @@ struct TaskEditor: View {
     @State private var reminders: [Date] = []
     @State private var error: String?
     @State private var confirmDelete = false
+    @State private var conflicts: [String] = []
+    @State private var confirmConflict = false
     @State private var calendarDraft: CalendarDraft?
     var body: some View {
         NavigationStack {
@@ -94,6 +97,10 @@ struct TaskEditor: View {
                 ToolbarItem(placement: .confirmationAction) { Button("Save", action: save).disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
             }
             .sheet(item: $calendarDraft) { CalendarEventEditor(draft: $0) }
+            .confirmationDialog("This time overlaps another plan", isPresented: $confirmConflict, titleVisibility: .visible) {
+                Button("Save anyway", action: saveConfirmed)
+                Button("Change time", role: .cancel) {}
+            } message: { Text(conflicts.joined(separator: ", ")) }
             .onAppear(perform: populate).modifier(MutationErrorModifier(error: $error))
             .confirmationDialog("Delete this task?", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Delete task", role: .destructive) { guard let task else { return }; context.delete(task); persistAndClose() }
@@ -108,6 +115,12 @@ struct TaskEditor: View {
         subtasks = task.subtasks; reminders = task.reminders
     }
     private func save() {
+        do {
+            conflicts = scheduled && hasTime ? CalendarBridge.shared.conflictTitles(start: date, duration: duration, excluding: task?.id, tasks: try context.fetch(FetchDescriptor<PlannerTask>())) : []
+            if !conflicts.isEmpty { confirmConflict = true } else { saveConfirmed() }
+        } catch { self.error = error.localizedDescription }
+    }
+    private func saveConfirmed() {
         let item = task ?? PlannerTask(title: title)
         if task == nil { context.insert(item) }
         item.title = title.trimmingCharacters(in: .whitespacesAndNewlines); item.notes = notes; item.listID = listID

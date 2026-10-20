@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct QuickCapture: View {
+    @AppStorage("accentTheme") private var accentTheme = "coral"
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
@@ -13,6 +14,8 @@ struct QuickCapture: View {
     @State private var listID: UUID?
     @State private var notes = ""
     @State private var error: String?
+    @State private var confirmConflict = false
+    @State private var conflictTitles: [String] = []
     @FocusState private var focused: Bool
     var body: some View {
         NavigationStack {
@@ -48,14 +51,16 @@ struct QuickCapture: View {
                         Text("You can add reminders, steps and other details using the pencil after saving.").font(.footnote).foregroundStyle(.secondary)
                     }
                 }
-            }.navigationTitle("Make a little room").navigationBarTitleDisplayMode(.inline)
+            }.tint(DayTheme.accentColor(accentTheme)).navigationTitle("Make a little room").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Save", action: save).disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
-                }.onAppear { date = initialDate; focused = true }.modifier(MutationErrorModifier(error: $error))
+                }.confirmationDialog("This time overlaps another plan", isPresented: $confirmConflict, titleVisibility: .visible) { Button("Save anyway") { save(allowConflict: true) }; Button("Change time", role: .cancel) {} } message: { Text(conflictTitles.joined(separator: ", ")) }
+                .onAppear { date = initialDate; focused = true }.modifier(MutationErrorModifier(error: $error))
         }
     }
-    private func save() {
+    private func save() { save(allowConflict: false) }
+    private func save(allowConflict: Bool) {
         let parsed = QuickAdd.parse(title, plannedDay: date)
         guard !parsed.title.isEmpty else { error = "Add a name as well as a time."; return }
         if repeatRule == "DAILY" || repeatRule == "WEEKLY" {
@@ -67,6 +72,11 @@ struct QuickCapture: View {
             if timed && !parsed.hasTime {
                 let clock = Calendar.current.dateComponents([.hour, .minute], from: date)
                 planned = Calendar.current.date(bySettingHour: clock.hour!, minute: clock.minute!, second: 0, of: planned)!
+            }
+            if !allowConflict && (timed || parsed.hasTime) {
+                do { conflictTitles = CalendarBridge.shared.conflictTitles(start: planned, duration: 30, excluding: nil, tasks: try context.fetch(FetchDescriptor<PlannerTask>())) }
+                catch { self.error = error.localizedDescription; return }
+                if !conflictTitles.isEmpty { confirmConflict = true; return }
             }
             let item = PlannerTask(title: parsed.title, dueDate: timed || parsed.hasTime ? planned : Calendar.current.startOfDay(for: planned), hasTime: timed || parsed.hasTime, listID: listID)
             item.notes = notes; item.recurrenceRule = repeatRule

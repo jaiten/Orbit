@@ -30,6 +30,8 @@ final class ChecklistUITests: XCTestCase {
         let delete = app.buttons["Delete"]
         XCTAssertTrue(delete.waitForExistence(timeout: 5)); delete.tap()
         XCTAssertFalse(row.waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["Undo"].waitForExistence(timeout: 2)); app.buttons["Undo"].tap()
+        XCTAssertTrue(app.buttons["Complete Read a few pages"].waitForExistence(timeout: 5))
     }
     func testLargeTapTargetAndCompletedPlacement() {
         continueAfterFailure = false

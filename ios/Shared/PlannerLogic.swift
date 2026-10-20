@@ -18,6 +18,14 @@ enum PlannerLogic {
         return String(format: "%04d-%02d-%02d", c.year!, c.month!, c.day!)
     }
 
+    static func overlaps(_ start: Date, _ end: Date, _ otherStart: Date, _ otherEnd: Date) -> Bool { start < otherEnd && otherStart < end }
+    static func dailyProgress(_ habit: Habit, logs: [HabitLog], at date: Date, calendar: Calendar = .current) -> Int {
+        logs.filter { $0.habitID == habit.id && $0.dayKey == dayKey(date, calendar: calendar) }.reduce(0) { $0 + $1.count }
+    }
+    static func dailyTarget(_ habit: Habit) -> Int { habit.frequencyRule == "WEEKLY" ? 1 : max(1, habit.target) }
+    static func checkedToday(_ habit: Habit, logs: [HabitLog], at date: Date) -> Bool {
+        dailyProgress(habit, logs: logs, at: date) >= dailyTarget(habit)
+    }
     static func period(for habit: Habit, at date: Date, calendar: Calendar = .current) -> DateInterval {
         calendar.dateInterval(of: habit.frequencyRule == "WEEKLY" ? .weekOfYear : .day, for: date)!
     }

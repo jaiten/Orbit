@@ -44,6 +44,15 @@ struct CalendarDraft: Identifiable {
         guard connected else { return [] }
         return store.events(matching: store.predicateForEvents(withStart: start, end: end, calendars: nil)).sorted { $0.startDate < $1.startDate }
     }
+    func conflictTitles(start: Date, duration: Int, excluding id: UUID?, tasks: [PlannerTask]) -> [String] {
+        let end = start.addingTimeInterval(Double(duration) * 60)
+        let ownEvent = id.flatMap { UserDefaults.standard.string(forKey: "calendarEvent." + $0.uuidString) }
+        let calendarConflicts = events(from: start, to: end).filter { !$0.isAllDay && $0.availability != .free && $0.eventIdentifier != ownEvent }.map { $0.title ?? "Calendar event" }
+        let taskConflicts = tasks.filter { candidate in
+            candidate.id != id && candidate.hasTime && candidate.completedAt == nil && candidate.dueDate.map { PlannerLogic.overlaps(start, end, $0, $0.addingTimeInterval(Double(candidate.durationMinutes) * 60)) } == true
+        }.map(\.title)
+        return Array(Set(calendarConflicts + taskConflicts)).sorted()
+    }
     func draft(for task: PlannerTask) async throws -> CalendarDraft {
         if !connected { try await connect() }
         let previous = UserDefaults.standard.string(forKey: "calendarEvent." + task.id.uuidString).flatMap { store.event(withIdentifier: $0) }

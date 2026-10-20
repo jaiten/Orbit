@@ -30,6 +30,7 @@ struct SettingsView: View {
                 Section("Across your devices") {
                     if let account = sync.email {
                         Text(account)
+                        NavigationLink("Change password") { PasswordChangeView() }
                         NavigationLink("Devices & active sign-ins") { DevicesView() }
                         Button("Sync now") { Task { await sync.run(context) } }
                         Button("Sign out") { Task { do { try await sync.signOut() } catch { message = error.localizedDescription } } }
@@ -37,6 +38,10 @@ struct SettingsView: View {
                         TextField("Email", text: $email).textContentType(.emailAddress).keyboardType(.emailAddress).textInputAutocapitalization(.never).autocorrectionDisabled()
                         SecureField("Password", text: $password).textContentType(.password)
                         Button("Sign in") { authenticate(create: false) }.disabled(signingIn || email.isEmpty || password.isEmpty)
+                        Button("Forgot password?") {
+                            signingIn = true
+                            Task { defer { signingIn = false }; do { try await sync.requestRecovery(email: email); message = "If this account exists, a recovery email is on its way. Open its newest link on this same device." } catch { message = error.localizedDescription } }
+                        }.disabled(signingIn || email.isEmpty)
                         Button("Create account") { authenticate(create: true) }.disabled(signingIn || email.isEmpty || password.count < 8)
                         DisclosureGroup("Email confirmation") {
                             Text("Open the newest confirmation email and tap its link, then sign in above. If you have a confirmation code, you can enter it below.").font(.footnote).foregroundStyle(.secondary)
@@ -96,7 +101,7 @@ struct SettingsView: View {
                 Section("Preferences") {
                     Picker("Appearance", selection: $appearance) {
                         Text("System").tag("system"); Text("Light").tag("light"); Text("Dark").tag("dark")
-                    }
+                    }.tint(DayTheme.accentColor(accentTheme))
                     Button("Enable reminders", systemImage: "bell") {
                         Task {
                             do {
@@ -124,11 +129,12 @@ struct SettingsView: View {
                 if tasks.isEmpty && habits.isEmpty {
                     Section { Button("Explore with sample data", action: seed) }
                 }
-                Section("About this prototype") {
+                Section("Your data") { NavigationLink("Backup & restore") { BackupView() } }
+                Section("About Orbit") {
                     Text("Offline first. Sign in to share your planner with Orbit for Windows. Sync runs while the app is open; widget changes sync when you reopen Orbit.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
-            }.navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
+            }.tint(DayTheme.accentColor(accentTheme)).navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .topBarTrailing) { SyncIndicator() } }
                 .alert("Orbit", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
                     Button("OK") { message = nil }

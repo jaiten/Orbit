@@ -32,6 +32,8 @@ struct RootView: View {
     @Environment(\.scenePhase) private var phase
     @AppStorage("appearance") private var appearance = "system"
     @AppStorage("accentTheme") private var accentTheme = "coral"
+    @ObservedObject private var undo = UndoJournal.shared
+    @ObservedObject private var sync = SyncService.shared
     @State private var selectedTab = 0
     @State private var errorMessage: String?
     var body: some View {
@@ -42,12 +44,27 @@ struct RootView: View {
             HabitsView().tabItem { Label("Habits", systemImage: "leaf") }.tag(3)
             SettingsView().tabItem { Label("Settings", systemImage: "gearshape") }.tag(4)
         }
+        .overlay(alignment: .bottom) {
+            if let change = undo.change {
+                HStack {
+                    Text("Change saved").font(.subheadline)
+                    Button("Undo") { do { try undo.undo(in: context); Task { try? await refreshReminders(context) } } catch { errorMessage = error.localizedDescription } }.font(.subheadline.weight(.semibold))
+                    Button { undo.dismiss() } label: { Image(systemName: "xmark").font(.caption) }.accessibilityLabel("Dismiss Undo")
+                }.padding(14).background(.regularMaterial, in: Capsule()).padding(.bottom, 100)
+                    .task(id: change.created) { try? await Task.sleep(for: .seconds(8)); if undo.change?.created == change.created { undo.dismiss() } }
+            }
+        }
         .tint(DayTheme.accentColor(accentTheme))
         .preferredColorScheme(appearance == "system" ? nil : (appearance == "dark" ? .dark : .light))
         .onOpenURL { url in
-            if let notice = AuthConfirmation.notice(for: url) { selectedTab = 4; errorMessage = notice }
+            if let code = RecoveryFlow.code(from: url) {
+                selectedTab = 4
+                Task { do { try await sync.acceptRecovery(code: code, context: context) } catch { errorMessage = error.localizedDescription } }
+            }
+            else if let notice = AuthConfirmation.notice(for: url) { selectedTab = 4; errorMessage = notice }
             else { selectedTab = 0 }
         }
+        .sheet(isPresented: $sync.recoveryReady) { NavigationStack { PasswordChangeView() } }
         .task { DayTheme.sharedDefaults?.set(accentTheme, forKey: "accentTheme"); UsageSignals.recordVisit(); await refreshNotifications() }
         .onChange(of: accentTheme) { _, theme in DayTheme.sharedDefaults?.set(theme, forKey: "accentTheme"); WidgetCenter.shared.reloadAllTimelines() }
         .task {

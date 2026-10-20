@@ -13,6 +13,7 @@ struct ConnectedDevice: Identifiable {
 }
 
 struct DevicesView: View {
+    @AppStorage("accentTheme") private var accentTheme = "coral"
     @State private var devices: [ConnectedDevice] = []
     @State private var loading = true
     @State private var error: String?
@@ -36,7 +37,7 @@ struct DevicesView: View {
             } header: { Text("\(devices.count) active sign-ins") } footer: {
                 Text("A device can have multiple sign-ins. Removing one immediately blocks that sign-in from Orbit sync. Downloaded data stays on that device. To regain access, it must sign in again.")
             }
-        }.navigationTitle("Devices").navigationBarTitleDisplayMode(.inline)
+        }.tint(DayTheme.accentColor(accentTheme)).navigationTitle("Devices").navigationBarTitleDisplayMode(.inline)
             .task { await reload() }.refreshable { await reload() }
             .confirmationDialog("Remove this device’s sync access?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), titleVisibility: .visible) {
                 Button("Remove access", role: .destructive) { if let device = removing { Task { do { try await SyncService.shared.removeDevice(device.id); await reload() } catch { self.error = error.localizedDescription } } }; removing = nil }

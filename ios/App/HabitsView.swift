@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct HabitsView: View {
+    @AppStorage("accentTheme") private var accentTheme = "coral"
     @Environment(\.colorScheme) private var scheme
     @Query(sort: \Habit.createdAt) private var habits: [Habit]
     @Query private var logs: [HabitLog]
@@ -15,22 +16,49 @@ struct HabitsView: View {
                     Text("Tiny rituals. A life that feels like yours.").foregroundStyle(.secondary)
                     if habits.isEmpty { ContentUnavailableView("Start small", systemImage: "leaf", description: Text("Use + to create your first daily or weekly ritual.")) }
                     ForEach(habits) { habit in
-                        DayCard {
-                            HabitRow(habit: habit, logs: logs, date: .now, edit: { editing = habit })
-                            DisclosureGroup("History · last 12 weeks") {
-                                HabitHeatmap(habit: habit, logs: logs).padding(.top, 8)
-                            }.font(.caption).foregroundStyle(.secondary)
-                        }
+                        HabitRow(habit: habit, logs: logs, date: .now, edit: { editing = habit })
+                    }
+                    if !habits.isEmpty {
+                        NavigationLink { HabitHistoryIndex() } label: {
+                            Label("Habit history", systemImage: "chart.bar.xaxis").frame(maxWidth: .infinity, alignment: .leading).padding(16)
+                        }.background(.background, in: RoundedRectangle(cornerRadius: 16))
                     }
                 }.padding(20).frame(maxWidth: 760).frame(maxWidth: .infinity)
-            }.background(DayTheme.canvas(scheme)).navigationTitle("Your daily roots").navigationBarTitleDisplayMode(.inline)
+            }.background(DayTheme.canvas(scheme)).navigationTitle("Routine").navigationBarTitleDisplayMode(.inline)
                 .toolbar { Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("New habit") }
                 .sheet(isPresented: $adding) { HabitEditor() }.sheet(item: $editing) { HabitEditor(habit: $0) }
         }
     }
 }
 
+struct HabitHistoryIndex: View {
+    @Query(sort: \Habit.createdAt) private var habits: [Habit]
+    var body: some View {
+        List(habits) { habit in NavigationLink(habit.title) { HabitHistoryDetail(habit: habit) } }
+            .navigationTitle("Habit history").navigationBarTitleDisplayMode(.inline)
+    }
+}
+struct HabitHistoryDetail: View {
+    let habit: Habit
+    @Query private var logs: [HabitLog]
+    var body: some View {
+        List {
+            Section("Last 12 weeks") { HabitHeatmap(habit: habit, logs: logs) }
+            Section("Progress") {
+                LabeledContent("Current streak", value: "\(PlannerLogic.streak(habit, logs: logs)) \(habit.frequencyRule == "WEEKLY" ? "weeks" : "days")")
+                LabeledContent("Check-ins", value: "\(logs.filter { $0.habitID == habit.id }.reduce(0) { $0 + $1.count })")
+            }
+            Section("Recent days") {
+                ForEach(logs.filter { $0.habitID == habit.id && $0.count > 0 }.sorted { $0.dayKey > $1.dayKey }.prefix(90)) { log in
+                    LabeledContent(log.dayKey, value: "\(log.count) check-in\(log.count == 1 ? "" : "s")")
+                }
+            }
+        }.navigationTitle(habit.title).navigationBarTitleDisplayMode(.inline)
+    }
+}
+
 struct HabitHeatmap: View {
+    @AppStorage("accentTheme") private var accentTheme = "coral"
     let habit: Habit
     let logs: [HabitLog]
     private var days: [Date] { (-83...0).map { Calendar.current.date(byAdding: .day, value: $0, to: .now)! } }
@@ -47,6 +75,7 @@ struct HabitHeatmap: View {
 }
 
 struct HabitEditor: View {
+    @AppStorage("accentTheme") private var accentTheme = "coral"
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     var habit: Habit?
@@ -78,12 +107,12 @@ struct HabitEditor: View {
                     if reminderEnabled { DatePicker("At", selection: $reminder, displayedComponents: .hourAndMinute) }
                     Toggle("Gentle nudge if unfinished", isOn: $nudgeEnabled)
                     if nudgeEnabled { DatePicker("Nudge at", selection: $nudge, displayedComponents: .hourAndMinute) }
-                } header: { Text("A little encouragement") } footer: { Text("Reminders pause once you reach your period’s target. Enable notifications in You.") }
+                } header: { Text("A little encouragement") } footer: { Text("Reminders pause after today’s check-in. Weekly goals count toward your week; the check is for today.") }
                 if let habit { Section { Button("Make a to-do", systemImage: "checklist") {
                     do { try Conversions.toTask(habit, in: context); finish() } catch { self.error = error.localizedDescription }
                 } } }
                 if habit != nil { Section { Button("Delete habit", role: .destructive) { confirmDelete = true } } }
-            }.navigationTitle(habit == nil ? "Plant a habit" : "Edit habit").navigationBarTitleDisplayMode(.inline)
+            }.tint(DayTheme.accentColor(accentTheme)).navigationTitle(habit == nil ? "Plant a habit" : "Edit habit").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Save", action: save).disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }

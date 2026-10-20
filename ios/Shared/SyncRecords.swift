@@ -45,8 +45,8 @@ import SwiftData
         for i in try context.fetch(FetchDescriptor<IdeaPrompt>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) { try add("idea_prompts", i.id.uuidString.lowercased(), ["id": id(i.id), "text": i.text, "shownAt": stamp(i.shownAt), "dismissed": i.dismissed, "updatedAt": stamp(i.updatedAt)]) }
         return result
     }
-    static func capture(_ context: ModelContext) throws {
-        let snapshots = try snapshots(context)
+    static func capture(_ context: ModelContext, snapshots supplied: [String: String]? = nil) throws {
+        let snapshots = try supplied ?? snapshots(context)
         let entries = try context.fetch(FetchDescriptor<SyncEntry>()).filter { $0.key != "owner" }
         let existing = Dictionary(uniqueKeysWithValues: entries.map { ($0.key, $0) })
         for (key, payload) in snapshots {
