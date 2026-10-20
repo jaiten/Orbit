@@ -42,3 +42,22 @@ Verified on the hosted database: first write, duplicate retry, stale rejection,
 cross-user isolation. Two authenticated clients also tested bidirectional sync,
 conflicting offline edits, conflict resolution and remote deletion. Temporary test
 users and their records were removed. Physical iPhone-to-PC testing is outstanding.
+
+## Realtime and review
+
+Both foreground clients subscribe to owner-filtered Postgres change notifications;
+the authenticated REST catch-up remains the source of records and revisions.
+The iPhone socket stops in the background and reconnects on foreground. Both clients
+catch up after joining/rejoining and use a twenty-second fallback while open.
+Local edits made during an in-flight sync queue another pass instead of being dropped.
+
+A local baseline makes independent field changes mergeable. Metadata-only differences
+and submillisecond date round-trip noise do not require a choice. Competing edits to
+the same field, or removal versus editing, still retain both versions for explicit
+review. Review shows readable content instead of raw JSON or unexplained device labels.
+Existing conflicts without a baseline are only resolved automatically when their
+meaningful content agrees; previous edits are never guessed away.
+
+Desktop sync-status notifications update only the icon. Planner content renders only
+when record content changes; open add menus and editors defer that render. Completion
+uses the large tile area, and the pencil is reserved for editing.

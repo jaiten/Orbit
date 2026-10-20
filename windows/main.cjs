@@ -38,6 +38,6 @@ handle('auth',async({mode,email,password})=>{
  return result.data.session?'Signed in':'Open the newest confirmation email, tap its link, then sign in here.';
 });
 await window.loadURL('orbit://app');window.on('focus',()=>void sync.run());setInterval(()=>void sync.run(),20000).unref();
-if(client){client.channel('planner').on('postgres_changes',{event:'*',schema:'public',table:'orbit_records'},()=>void sync.run()).subscribe();void sync.run();}
+if(client){client.channel('planner').on('postgres_changes',{event:'*',schema:'public',table:'orbit_records'},()=>void sync.run()).subscribe(status=>{if(status==='SUBSCRIBED')void sync.run();});void sync.run();}
 });
 app.on('window-all-closed',()=>app.quit());app.on('before-quit',()=>store?.close());

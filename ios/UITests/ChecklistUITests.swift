@@ -42,6 +42,15 @@ final class ChecklistUITests: XCTestCase {
         let field = app.descendants(matching: .any).matching(identifier: "task-title-input").firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5)); field.tap(); field.typeText("Clean the car")
         app.navigationBars.buttons["Save"].tap()
+        for title in ["Call Mom", "Wash car"] {
+            addButton.tap(); app.buttons["To-do"].tap()
+            let input = app.descendants(matching: .any).matching(identifier: "task-title-input").firstMatch
+            XCTAssertTrue(input.waitForExistence(timeout: 5)); input.tap(); input.typeText(title)
+            app.navigationBars.buttons["Save"].tap()
+            XCTAssertTrue(app.buttons["Complete " + title].waitForExistence(timeout: 5))
+        }
+        XCTAssertEqual(app.buttons["Complete Clean the car"].frame.minY, app.buttons["Complete Call Mom"].frame.minY, accuracy: 2)
+        XCTAssertGreaterThan(abs(app.buttons["Complete Clean the car"].frame.minX - app.buttons["Complete Call Mom"].frame.minX), 20)
         let toggle = app.buttons["Complete Clean the car"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
         toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.5)).tap()

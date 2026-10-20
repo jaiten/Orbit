@@ -117,6 +117,7 @@ import SwiftData
         XCTAssertEqual(merged["title"] as? String, "Read more")
         XCTAssertEqual(merged["notes"] as? String, "Second")
         XCTAssertNotNil(SyncMerge.merge(local: ["id": "a", "title": "Read", "updatedAt": 1, "conversionData": NSNull()], remote: ["id": "a", "title": "Read", "updatedAt": 2], base: nil))
+        XCTAssertNotNil(SyncMerge.merge(local: ["title": "Gym", "reminders": [1792460000000.0002]], remote: ["title": "Gym", "reminders": [1792460000000.0]], base: nil))
         XCTAssertNil(SyncMerge.merge(local: ["title": "Gym"], remote: ["title": "Walk"], base: ["title": "Read"]))
     }
     func testDiskRoundTrip() throws {

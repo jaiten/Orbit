@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 
 enum SyncMerge {
     private static func clean(_ value: [String: Any]) -> [String: Any] {
@@ -10,9 +11,17 @@ enum SyncMerge {
         }
     }
     private static func equal(_ a: Any?, _ b: Any?) -> Bool {
-        let left = (try? JSONSerialization.data(withJSONObject: [a ?? NSNull()], options: [.sortedKeys]))
-        let right = (try? JSONSerialization.data(withJSONObject: [b ?? NSNull()], options: [.sortedKeys]))
-        return left == right
+        let left = a ?? NSNull(), right = b ?? NSNull()
+        if left is NSNull || right is NSNull { return left is NSNull && right is NSNull }
+        if let l = left as? NSNumber, let r = right as? NSNumber {
+            guard (CFGetTypeID(l) == CFBooleanGetTypeID()) == (CFGetTypeID(r) == CFBooleanGetTypeID()) else { return false }
+            // Date/JSON round trips can differ by a fraction of a millisecond.
+            return abs(l.doubleValue - r.doubleValue) < 0.001
+        }
+        if let l = left as? String, let r = right as? String { return l == r }
+        if let l = left as? [Any], let r = right as? [Any] { return l.count == r.count && zip(l, r).allSatisfy { equal($0.0, $0.1) } }
+        if let l = left as? [String: Any], let r = right as? [String: Any] { return Set(l.keys).union(r.keys).allSatisfy { equal(l[$0], r[$0]) } }
+        return false
     }
     static func merge(local: [String: Any], remote: [String: Any], base: [String: Any]?) -> [String: Any]? {
         if equal(clean(local), clean(remote)) { return remote }
