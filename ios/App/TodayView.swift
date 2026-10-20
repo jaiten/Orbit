@@ -17,7 +17,8 @@ struct TodayView: View {
     @State private var addingHabit = false
     @State private var completedExpanded = true
     @Environment(\.dynamicTypeSize) private var typeSize
-    @ScaledMetric(relativeTo: .body) private var tileWidth = 150.0
+    @ScaledMetric(relativeTo: .body) private var tileWidth: CGFloat = 150
+    @State private var contentWidth: CGFloat = 0
     @State private var error: String?
     @State private var day = Calendar.current.startOfDay(for: .now)
     @ObservedObject private var calendars = CalendarBridge.shared
@@ -93,7 +94,12 @@ struct TodayView: View {
                         }.font(.caption)
                     }
                 }
-                }.padding(.horizontal, 20).padding(.bottom, 16).frame(maxWidth: 760).frame(maxWidth: .infinity)
+                }
+                .background(GeometryReader { proxy in
+                    Color.clear.onAppear { contentWidth = proxy.size.width }
+                        .onChange(of: proxy.size.width) { _, width in contentWidth = width }
+                })
+                .padding(.horizontal, 20).padding(.bottom, 16).frame(maxWidth: 760).frame(maxWidth: .infinity)
             }
 
             .background(DayTheme.canvas(scheme))
@@ -128,13 +134,10 @@ struct TodayView: View {
     }
     private func checklist(_ items: [TodayItem]) -> some View {
         VStack(spacing: 10) {
-            ForEach(TodayGroup.groups(items, compact: !typeSize.isAccessibilitySize)) { group in
+            ForEach(TodayGroup.groups(items, compact: !typeSize.isAccessibilitySize && contentWidth >= tileWidth * 2 + 10)) { group in
                 if group.items.count == 2 {
-                    ViewThatFits(in: .horizontal) {
-                        HStack(alignment: .top, spacing: 10) {
-                            ForEach(group.items) { item in itemView(item).frame(minWidth: tileWidth, maxWidth: .infinity) }
-                        }
-                        VStack(spacing: 10) { ForEach(group.items) { item in itemView(item) } }
+                    HStack(alignment: .top, spacing: 10) {
+                        ForEach(group.items) { item in itemView(item).frame(maxWidth: .infinity) }
                     }
                 } else { itemView(group.items[0]) }
             }
