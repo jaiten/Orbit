@@ -2,6 +2,14 @@ const { _electron: electron } = require("playwright");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+// Windows can hold the database open briefly after the app quits; cleanup must never hide a real failure.
+const remove = (folder) => {
+  try {
+    fs.rmSync(folder, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+  } catch (e) {
+    console.warn("Could not remove", folder, e.code);
+  }
+};
 (async () => {
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), "orbit-ui-"));
   const options = {
@@ -362,6 +370,7 @@ const path = require("node:path");
 
     // First launch: onboarding is skipped above; here it is switched on for fresh data folders.
     const fresh = fs.mkdtempSync(path.join(os.tmpdir(), "orbit-first-"));
+    const folders = [fresh];
     const firstRun = { ...options, env: { ...options.env, ORBIT_TEST_DATA: fresh, ORBIT_ONBOARDING: "1" } };
     try {
       app = await electron.launch(firstRun);
@@ -386,9 +395,9 @@ const path = require("node:path");
       if (await w.locator("#onboarding").isVisible()) throw Error("Onboarding showed twice");
       await app.close();
 
-      fs.rmSync(fresh, { recursive: true, force: true });
-      fs.mkdirSync(fresh);
-      app = await electron.launch(firstRun);
+      const another = fs.mkdtempSync(path.join(os.tmpdir(), "orbit-examples-"));
+      folders.push(another);
+      app = await electron.launch({ ...firstRun, env: { ...firstRun.env, ORBIT_TEST_DATA: another } });
       w = await app.firstWindow();
       await w.getByRole("button", { name: "Start with Examples", exact: true }).click();
       await w.getByRole("button", { name: "Skip", exact: true }).click();
@@ -406,14 +415,16 @@ const path = require("node:path");
       );
       if (left.length) throw Error("Examples left behind: " + left.map((r) => r.key).join(", "));
     } finally {
-      fs.rmSync(fresh, { recursive: true, force: true });
+      if (app) await app.close();
+      app = null;
+      folders.forEach(remove);
     }
     console.log(
       "PASS: onboarding, examples, conversion round trip,  native desktop lists, task editing/completion, habit log/undo, compact dark layout, settings and offline restart",
     );
   } finally {
     if (app) await app.close();
-    fs.rmSync(folder, { recursive: true, force: true });
+    remove(folder);
   }
 })().catch((e) => {
   console.error(e);
