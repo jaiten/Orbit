@@ -53,7 +53,7 @@ struct CheckTile: View {
         }
         .background(revealed ? Color.red : Color.clear, in: shape).clipShape(shape)
         .contentShape(Rectangle())
-        .simultaneousGesture(swipe)
+        .modifier(SwipeToReveal(changed: swipeChanged, ended: swipeEnded, legacy: swipe))
         .onChange(of: gestureActive) { _, active in
             if !active { dragOffset = 0; Task { try? await Task.sleep(for: .milliseconds(150)); gestureMoved = false } }
         }
@@ -94,6 +94,21 @@ struct CheckTile: View {
         }.padding(.leading, 14).padding(.vertical, 16).frame(maxWidth: .infinity, minHeight: 72, alignment: .leading).contentShape(Rectangle())
     }
 
+    private func swipeChanged(_ x: CGFloat) {
+        gestureMoved = true
+        if homeDrag.item == nil { dragOffset = x }
+    }
+    private func swipeEnded(_ x: CGFloat) {
+        if homeDrag.item == nil {
+            withAnimation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85)) {
+                actionEdge = CGFloat(actionEdge == -1 ? -70 : 0) + x < -32 ? -1 : 0
+                dragOffset = 0
+            }
+        } else { dragOffset = 0 }
+        Task { try? await Task.sleep(for: .milliseconds(150)); gestureMoved = false }
+    }
+
+    /// iOS 17 only; iOS 18 and later use `SidewaysPan`, which leaves vertical drags to the scroll view.
     private var swipe: some Gesture {
         // Starts later than the page's own scrolling (about 10 pt), so vertical movement scrolls
         // and only a clearly sideways swipe reveals Delete.
@@ -110,6 +125,17 @@ struct CheckTile: View {
                     dragOffset = 0
                 }
             }
+    }
+}
+
+/// The left swipe that reveals Delete: a UIKit pan on iOS 18 and later, the SwiftUI gesture on iOS 17.
+private struct SwipeToReveal<Legacy: Gesture>: ViewModifier {
+    var changed: (CGFloat) -> Void
+    var ended: (CGFloat) -> Void
+    var legacy: Legacy
+    func body(content: Content) -> some View {
+        if #available(iOS 18.0, *) { content.gesture(SidewaysPan(changed: changed, ended: ended)) }
+        else { content.simultaneousGesture(legacy) }
     }
 }
 

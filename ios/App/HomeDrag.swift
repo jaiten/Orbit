@@ -21,10 +21,11 @@ import UIKit
         item = id
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
-    func update(_ value: DragGesture.Value) {
-        if source == nil { source = frames.first { $0.value.contains(value.startLocation) }?.key }
-        translation = value.translation
-        target = frames.first { $0.value.contains(value.location) }?.key
+    func update(_ value: DragGesture.Value) { update(start: value.startLocation, location: value.location) }
+    func update(start: CGPoint, location: CGPoint) {
+        if source == nil { source = frames.first { $0.value.contains(start) }?.key }
+        translation = CGSize(width: location.x - start.x, height: location.y - start.y)
+        target = frames.first { $0.value.contains(location) }?.key
     }
     func finish(at point: CGPoint) {
         let source = item
@@ -58,11 +59,26 @@ struct HomeDragSource: ViewModifier {
     @GestureState private var holding = false
     private var lifted: Bool { drag.item == id }
     func body(content: Content) -> some View {
-        content
+        let tile = content
             .scaleEffect(lifted && !reduceMotion ? 1.025 : 1)
             .shadow(color: .black.opacity(lifted ? 0.12 : 0), radius: 12, y: 6)
             .offset(lifted ? drag.translation : .zero)
             .zIndex(lifted ? 100 : 0)
+        if #available(iOS 18.0, *) {
+            tile.gesture(HoldToDrag(began: { drag.lift(id) }, moved: { drag.update(start: $0, location: $1) }, ended: { point in
+                withAnimation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85)) {
+                    if let point { drag.finish(at: point) } else { drag.reset() }
+                }
+            }))
+            .onDisappear { if lifted { drag.reset() } }
+        } else {
+            legacy(tile).onDisappear { if lifted { drag.reset() } }
+        }
+    }
+
+    /// iOS 17: SwiftUI gestures, which can compete with scrolling.
+    private func legacy(_ tile: some View) -> some View {
+        tile
             .simultaneousGesture(LongPressGesture(minimumDuration: HomeDrag.holdDuration, maximumDistance: HomeDrag.holdTolerance)
                 .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
                 .updating($holding) { value, state, _ in
@@ -83,6 +99,5 @@ struct HomeDragSource: ViewModifier {
             .onChange(of: holding) { _, value in
                 if !value && lifted { Task { try? await Task.sleep(for: .milliseconds(100)); if !holding && drag.item == id { drag.reset() } } }
             }
-            .onDisappear { if lifted { drag.reset() } }
     }
 }
