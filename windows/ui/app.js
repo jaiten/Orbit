@@ -47,11 +47,15 @@ api.onSyncStatus((value) => {
 });
 void load();
 
-// Keep "today" current when the app stays open across midnight.
-let lastCalendarDay = dayKey(new Date());
+// Keep "today" current when the app stays open across midnight, sleeps, or the time zone changes.
+const zoneSignature = () => Intl.DateTimeFormat().resolvedOptions().timeZone + new Date().getTimezoneOffset();
+let lastCalendarDay = dayKey(new Date()),
+  lastZone = zoneSignature();
 function refreshCalendarDay() {
   const now = dayKey(new Date());
-  if (now === lastCalendarDay) return;
+  const zoneChanged = zoneSignature() !== lastZone;
+  lastZone = zoneSignature();
+  if (now === lastCalendarDay && !zoneChanged) return;
   if (selected === lastCalendarDay) selected = now;
   lastCalendarDay = now;
   if (interacting()) pendingRender = true;

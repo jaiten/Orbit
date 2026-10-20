@@ -19,7 +19,10 @@ import SwiftData
     var title: String
     var notes: String
     var listID: UUID?
+    /// Timed tasks: the absolute start. All-day tasks: local midnight of `localDate`, kept as a cache.
     var dueDate: Date?
+    /// All-day tasks: the floating local calendar day ("YYYY-MM-DD") from the device that set it.
+    var localDate: String? = nil
     var hasTime: Bool
     var durationMinutes: Int
     var reminders: [Date]
@@ -34,6 +37,7 @@ import SwiftData
     init(title: String, dueDate: Date? = nil, hasTime: Bool = false, listID: UUID? = nil) {
         id = UUID(); self.title = title; notes = ""; self.listID = listID
         self.dueDate = dueDate; self.hasTime = hasTime; durationMinutes = 30
+        if !hasTime { localDate = dueDate.map { PlannerLogic.dayKey($0) } }
         reminders = []; recurrenceRule = ""; priority = 0; tags = []; subtasks = []
         completedAt = nil; sortOrder = 0; updatedAt = .now
     }
@@ -92,5 +96,18 @@ struct Subtask: Codable, Identifiable, Equatable {
 
 extension PlannerTask {
     /// The task's local calendar day ("YYYY-MM-DD"), or nil when it has no date.
-    var day: String? { dueDate.map { PlannerLogic.dayKey($0) } }
+    /// All-day tasks keep their floating day in any time zone; timed tasks use the local day of their instant.
+    var day: String? { hasTime ? dueDate.map { PlannerLogic.dayKey($0) } : localDate ?? dueDate.map { PlannerLogic.dayKey($0) } }
+
+    /// Sets the date: an instant when `hasTime`, otherwise the local calendar day of `date`.
+    func schedule(_ date: Date?, hasTime: Bool, calendar: Calendar = .current) {
+        guard let date else { dueDate = nil; localDate = nil; self.hasTime = false; return }
+        self.hasTime = hasTime
+        dueDate = hasTime ? date : calendar.startOfDay(for: date)
+        localDate = hasTime ? nil : PlannerLogic.dayKey(date, calendar: calendar)
+    }
+    /// Sets a floating all-day date.
+    func schedule(day: String, calendar: Calendar = .current) {
+        hasTime = false; localDate = day; dueDate = QuickAdd.start(of: day, time: nil, calendar: calendar)
+    }
 }

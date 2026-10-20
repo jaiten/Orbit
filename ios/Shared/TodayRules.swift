@@ -47,14 +47,14 @@ enum TodayRules {
             let clock = calendar.dateComponents([.hour, .minute], from: old)
             let next = calendar.date(bySettingHour: clock.hour ?? 0, minute: clock.minute ?? 0, second: 0, of: start)!
             task.reminders = task.reminders.map { next.addingTimeInterval($0.timeIntervalSince(old)) }
-            task.dueDate = next
-        } else { task.dueDate = start; task.hasTime = false }
+            task.schedule(next, hasTime: true)
+        } else { task.schedule(start, hasTime: false, calendar: calendar) }
         if task.listID == somedayID { task.listID = nil }
         task.updatedAt = .now
     }
     /// Later: no date, so it waits in its list until it is added to Today again.
     static func moveLater(_ task: PlannerTask) {
-        task.dueDate = nil; task.hasTime = false; task.reminders = []; task.updatedAt = .now
+        task.schedule(nil, hasTime: false); task.reminders = []; task.updatedAt = .now
     }
     /// Someday: no date, no reminders, never on Today.
     static func moveToSomeday(_ task: PlannerTask, in context: ModelContext) throws {

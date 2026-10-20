@@ -1,6 +1,8 @@
 import SwiftUI
 import SwiftData
 import EventKit
+import UIKit
+import Combine
 
 struct TodayView: View {
     @AppStorage("accentTheme") private var accentTheme = "coral"
@@ -88,6 +90,7 @@ struct TodayView: View {
             .modifier(MutationErrorModifier(error: $error))
             .task { refresh(); while !Task.isCancelled { try? await Task.sleep(for: .seconds(60)); if !Task.isCancelled { refresh() } } }
             .onChange(of: phase) { _, value in if value == .active { refresh() } }
+            .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange).merge(with: NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification))) { _ in refresh() }
         }
     }
     @ViewBuilder private func homeSection(_ id: String) -> some View {

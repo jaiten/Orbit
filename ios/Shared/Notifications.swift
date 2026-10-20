@@ -15,6 +15,8 @@ actor NotificationScheduler {
         let title: String
         let body: String
         let date: Date
+        /// Habit and check-in reminders follow local time; task reminders are fixed instants.
+        var floating = false
     }
 
     /// iOS limits pending requests; keep the nearest 60 and refill on every foreground/edit.
@@ -27,7 +29,8 @@ actor NotificationScheduler {
         for reminder in reminders.filter({ $0.date > .now }).sorted(by: { $0.date < $1.date }).prefix(60) {
             let content = UNMutableNotificationContent()
             content.title = reminder.title; content.body = reminder.body; content.sound = .default
-            let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: reminder.date)
+            var components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: reminder.date)
+            if !reminder.floating { components.timeZone = Calendar.current.timeZone }
             try await center.add(UNNotificationRequest(identifier: reminder.id, content: content,
                 trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)))
         }
@@ -49,7 +52,7 @@ actor NotificationScheduler {
                 for (kind, minutes) in [("reminder", habit.reminderMinutes), ("nudge", habit.nudgeMinutes)] {
                     guard let minutes, let date = Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: day) else { continue }
                     result.append(Reminder(id: "orbit.habit.\(habit.id).\(offset).\(kind)", title: habit.title,
-                        body: kind == "nudge" ? "Not checked yet today." : "Habit reminder", date: date))
+                        body: kind == "nudge" ? "Not checked yet today." : "Habit reminder", date: date, floating: true))
                 }
             }
         }
@@ -58,7 +61,7 @@ actor NotificationScheduler {
             for offset in 0..<7 {
                 let day = Calendar.current.date(byAdding: .day, value: offset, to: now)!
                 if let date = Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: day) {
-                    result.append(Reminder(id: "orbit.checkin.\(offset)", title: "Daily check-in", body: "Take a minute to plan your day.", date: date))
+                    result.append(Reminder(id: "orbit.checkin.\(offset)", title: "Daily check-in", body: "Take a minute to plan your day.", date: date, floating: true))
                 }
             }
         }

@@ -8,6 +8,7 @@ import SwiftData
     /// The result depends only on the records, matching windows/ui/conversions.js `migrateRecurring`,
     /// so two devices migrating the same data agree. Records awaiting conflict review are skipped.
     @discardableResult static func run(_ context: ModelContext) throws -> Int {
+        let anchored = try anchorAllDayTasks(context)
         let conflicted = Set(try context.fetch(FetchDescriptor<SyncEntry>()).filter { $0.conflict != nil }.map(\.key))
         let tasks = try context.fetch(FetchDescriptor<PlannerTask>())
         let previous = Dictionary(tasks.compactMap { task in task.nextOccurrenceID.map { ($0, task) } }, uniquingKeysWith: { first, _ in first })
@@ -38,7 +39,20 @@ import SwiftData
                 let log = HabitLog(habitID: id, dayKey: checkIn.day); log.id = checkIn.id; context.insert(log)
             }
         }
-        if changed > 0 { try Mutations.save(context, undoable: false) }
+        if changed > 0 || anchored { try Mutations.save(context, undoable: false) }
+        return changed
+    }
+
+    /// All-day tasks are floating calendar days. Fills `localDate` for records saved by older versions
+    /// and moves the cached midnight into the current time zone (after travel). The synced payload
+    /// is unchanged, so nothing is re-uploaded.
+    static func anchorAllDayTasks(_ context: ModelContext, calendar: Calendar = .current) throws -> Bool {
+        var changed = false
+        for task in try context.fetch(FetchDescriptor<PlannerTask>()) where !task.hasTime && task.dueDate != nil {
+            let day = task.localDate ?? PlannerLogic.dayKey(task.dueDate!, calendar: calendar)
+            let start = QuickAdd.start(of: day, time: nil, calendar: calendar)
+            if task.localDate != day || task.dueDate != start { task.localDate = day; task.dueDate = start; changed = true }
+        }
         return changed
     }
     private static func localStart(_ key: String) -> Date? {

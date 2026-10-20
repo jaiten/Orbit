@@ -61,3 +61,39 @@ meaningful content agrees; previous edits are never guessed away.
 Desktop sync-status notifications update only the icon. Planner content renders only
 when record content changes; open add menus and editors defer that render. Completion
 uses the large tile area, and the pencil is reserved for editing.
+
+## Time zones
+
+There are no time-zone settings. Each kind of date follows one rule on both apps
+(tests: `ios/Tests/TimeZoneTests.swift`, `windows/tests/time-zones.test.cjs`):
+
+| Kind | Stored as | Behaviour after travel |
+| --- | --- | --- |
+| All-day task | `localDate` "YYYY-MM-DD", `dueDate` null | Stays on the same calendar day everywhere. iOS keeps a cached local midnight and re-anchors it on launch and on time-zone change; the payload does not change, so nothing re-uploads. |
+| Habit check-in | key `habit_logs/<habit>-<YYYY-MM-DD>` | The local day of the device that recorded it. A check-in at 23:30 in Vancouver is the 20th on every device, even where it is already the 21st. |
+| Habit reminder | `reminderMinutes` after midnight | Follows the device's current zone: 7:00 means 7:00 local wherever you are. |
+| Timed task | `dueDate` Unix ms (plus `localDate` of that instant for older clients) | An instant, shown in each device's local time: a 3pm New York call shows at noon in Los Angeles. Its reminders keep their instant. |
+
+Moving a timed task to another day keeps its wall-clock time and reminder lead, across
+daylight-saving changes. Habit day arithmetic uses calendar dates, never 24-hour steps.
+
+Midnight rollover and reminders re-evaluate when the zone changes: iOS listens for
+`NSSystemTimeZoneDidChange` and `significantTimeChangeNotification`; Windows checks the
+day and zone on focus, resume/unlock and every minute.
+
+## Habit schedules and migration
+
+`frequencyRule` is `DAILY`, `WEEKDAYS`, `WEEKENDS` or `WEEKLY`; `target` counts per day
+(per week for `WEEKLY`). Clients older than this change read unknown values as daily.
+Only habits repeat. On launch and after each sync both apps turn open repeating tasks into
+habits with the same ID (`Migrations.run` on iOS, `migrateRecurring` on Windows): earlier
+completed occurrences become check-ins and their task records stay; monthly and custom
+rules become one-off tasks on their date. The output depends only on the records, and
+`conversionData` (a restore aid) is ignored when comparing versions, so two devices
+migrating the same data agree without a review.
+
+## Someday
+
+The built-in Someday list has the fixed ID `00000000-0000-4000-8000-000000000001` and is
+created the first time something moves there, so two devices create identical records.
+Someday items have no date and no reminders and never appear on Today.

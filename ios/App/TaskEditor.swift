@@ -120,8 +120,7 @@ struct TaskEditor: View {
         let item = task ?? PlannerTask(title: title)
         if task == nil { context.insert(item) }
         item.title = title.trimmingCharacters(in: .whitespacesAndNewlines); item.notes = notes; item.listID = listID
-        item.dueDate = scheduled ? (hasTime ? date : Calendar.current.startOfDay(for: date)) : nil
-        item.hasTime = scheduled && hasTime; item.durationMinutes = duration
+        item.schedule(scheduled ? date : nil, hasTime: hasTime); item.durationMinutes = duration
         item.priority = priority; item.recurrenceRule = ""
         item.tags = Array(Set(tags.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })).sorted()
         item.subtasks = subtasks.filter { !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }

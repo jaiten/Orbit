@@ -22,7 +22,7 @@ struct CalendarView: View {
         return result
     }
     private var selectedTasks: [PlannerTask] {
-        tasks.filter { $0.dueDate.map { calendar.isDate($0, inSameDayAs: selected) } ?? false }
+        tasks.filter { $0.day == PlannerLogic.dayKey(selected) }
             .sorted { ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture) }
     }
     var body: some View {
@@ -44,7 +44,7 @@ struct CalendarView: View {
                                 VStack(spacing: 8) {
                                     Text(day.formatted(.dateTime.weekday(.narrow))).font(.caption2)
                                     Text(day.formatted(.dateTime.day())).font(.subheadline.weight(.semibold))
-                                    Circle().fill((tasks.contains { $0.dueDate.map { calendar.isDate($0, inSameDayAs: day) } ?? false } || visibleEvents.contains { $0.startDate < calendar.date(byAdding: .day, value: 1, to: day)! && $0.endDate > day }) ? DayTheme.accent : .clear).frame(width: 4, height: 4)
+                                    Circle().fill((tasks.contains { $0.day == PlannerLogic.dayKey(day) } || visibleEvents.contains { $0.startDate < calendar.date(byAdding: .day, value: 1, to: day)! && $0.endDate > day }) ? DayTheme.accent : .clear).frame(width: 4, height: 4)
                                 }.frame(maxWidth: .infinity).padding(.vertical, 10)
                                     .background(calendar.isDate(day, inSameDayAs: selected) ? DayTheme.accent.opacity(0.18) : .clear, in: RoundedRectangle(cornerRadius: 14))
                             }.buttonStyle(.plain).accessibilityLabel(day.formatted(date: .complete, time: .omitted))
@@ -90,7 +90,7 @@ struct CalendarView: View {
         let old = task.dueDate
         let time = calendar.dateComponents([.hour, .minute], from: old ?? day)
         let new = calendar.date(bySettingHour: task.hasTime ? time.hour! : 0, minute: task.hasTime ? time.minute! : 0, second: 0, of: day)!
-        task.dueDate = new; task.updatedAt = .now
+        task.schedule(new, hasTime: task.hasTime); task.updatedAt = .now
         if let old { task.reminders = task.reminders.map { new.addingTimeInterval($0.timeIntervalSince(old)) } }
         do { try Mutations.save(context)
             Task { do { try await refreshReminders(context) } catch { self.error = error.localizedDescription } }

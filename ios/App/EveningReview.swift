@@ -37,7 +37,7 @@ struct EveningReview: View {
             let old = task.dueDate
             let clock = Calendar.current.dateComponents([.hour, .minute], from: old ?? tomorrow)
             let next = task.hasTime ? Calendar.current.date(bySettingHour: clock.hour!, minute: clock.minute!, second: 0, of: tomorrow)! : tomorrow
-            task.dueDate = next; task.updatedAt = .now
+            task.schedule(next, hasTime: task.hasTime); task.updatedAt = .now
             if let old { task.reminders = task.reminders.map { next.addingTimeInterval($0.timeIntervalSince(old)) } }
         }
         do { try Mutations.save(context); Task { try? await refreshReminders(context) }; dismiss() } catch { self.error = error.localizedDescription }

@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import WidgetKit
 import UIKit
+import Combine
 
 @main struct OrbitApp: App {
     private let container: ModelContainer?
@@ -75,6 +76,12 @@ struct RootView: View {
                 if phase == .active { await SyncService.shared.run(context) }
                 try? await Task.sleep(for: .seconds(20))
             }
+        }
+        // Travel or midnight: all-day dates stay on their day, habit reminders follow local time,
+        // and timed reminders keep their instant.
+        .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange).merge(with: NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification))) { _ in
+            do { try Migrations.run(context) } catch { errorMessage = error.localizedDescription }
+            Task { await refreshNotifications() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .init("OrbitLocalChange"))) { _ in
             Task { await SyncService.shared.run(context) }
