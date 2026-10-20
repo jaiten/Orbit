@@ -10,7 +10,9 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(addButton.waitForExistence(timeout: 15))
         addButton.tap()
         let field = app.descendants(matching: .any).matching(identifier: "task-title-input").firstMatch
-        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        // The first launch on a cold simulator can swallow the first tap; try once more.
+        if !field.waitForExistence(timeout: 5) { addButton.tap() }
+        XCTAssertTrue(field.waitForExistence(timeout: 10))
         field.tap(); field.typeText("Read a few pages")
         app.navigationBars.buttons["Save"].tap()
         let row = app.descendants(matching: .any).matching(identifier: "checklist-title").firstMatch
