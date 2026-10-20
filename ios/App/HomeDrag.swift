@@ -14,7 +14,10 @@ import UIKit
     @Published var translation: CGSize = .zero
     @Published private(set) var target: String?
     @Published private(set) var source: String?
+    /// Drop areas and tiles, in `.global` (window) coordinates.
     var frames: [String: CGRect] = [:]
+    var tiles: [String: CGRect] = [:]
+    func tile(at point: CGPoint) -> String? { tiles.first { $0.value.contains(point) }?.key }
     var accept: ((String, Bool) -> Void)?
     func lift(_ id: String) {
         guard item != id else { return }
@@ -52,52 +55,25 @@ struct HomeDropArea: ViewModifier {
     }
 }
 
+struct HomeTileFrames: PreferenceKey {
+    static var defaultValue: [String: CGRect] = [:]
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) { value.merge(nextValue(), uniquingKeysWith: { _, new in new }) }
+}
+
+/// A tile that can be held and moved. The hold itself is `TileHoldInstaller`, one recognizer on the
+/// scroll view; this reports where the tile is and draws it lifted.
 struct HomeDragSource: ViewModifier {
     let id: String
     @ObservedObject private var drag = HomeDrag.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @GestureState private var holding = false
     private var lifted: Bool { drag.item == id }
     func body(content: Content) -> some View {
-        let tile = content
+        content
+            .background(GeometryReader { proxy in Color.clear.preference(key: HomeTileFrames.self, value: [id: proxy.frame(in: .global)]) })
             .scaleEffect(lifted && !reduceMotion ? 1.025 : 1)
             .shadow(color: .black.opacity(lifted ? 0.12 : 0), radius: 12, y: 6)
             .offset(lifted ? drag.translation : .zero)
             .zIndex(lifted ? 100 : 0)
-        if #available(iOS 18.0, *) {
-            tile.gesture(HoldToDrag(began: { drag.lift(id) }, moved: { drag.update(start: $0, location: $1) }, ended: { point in
-                withAnimation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85)) {
-                    if let point { drag.finish(at: point) } else { drag.reset() }
-                }
-            }))
             .onDisappear { if lifted { drag.reset() } }
-        } else {
-            legacy(tile).onDisappear { if lifted { drag.reset() } }
-        }
-    }
-
-    /// iOS 17: SwiftUI gestures, which can compete with scrolling.
-    private func legacy(_ tile: some View) -> some View {
-        tile
-            .simultaneousGesture(LongPressGesture(minimumDuration: HomeDrag.holdDuration, maximumDistance: HomeDrag.holdTolerance)
-                .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
-                .updating($holding) { value, state, _ in
-                    switch value { case .second(true, _): state = true; default: break }
-                }
-                .onChanged { value in
-                    if case .second(true, let movement) = value {
-                        drag.lift(id)
-                        if let movement { drag.update(movement) }
-                    }
-                }
-                .onEnded { value in
-                    withAnimation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85)) {
-                        if case .second(true, let movement?) = value { drag.finish(at: movement.location) }
-                        else { drag.reset() }
-                    }
-                })
-            .onChange(of: holding) { _, value in
-                if !value && lifted { Task { try? await Task.sleep(for: .milliseconds(100)); if !holding && drag.item == id { drag.reset() } } }
-            }
     }
 }

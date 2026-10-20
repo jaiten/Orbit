@@ -34,33 +34,55 @@ struct SidewaysPan: UIGestureRecognizerRepresentable {
     }
 }
 
-/// Lifts a tile after a still hold, then follows the finger. Points are in window coordinates,
-/// the same space as SwiftUI's `.global` frames used for the drop areas.
-@available(iOS 18.0, *)
-struct HoldToDrag: UIGestureRecognizerRepresentable {
-    var began: () -> Void
-    var moved: (_ start: CGPoint, _ location: CGPoint) -> Void
-    /// The drop point, or nil when the hold was cancelled.
-    var ended: (CGPoint?) -> Void
-    func makeUIGestureRecognizer(context: Context) -> UILongPressGestureRecognizer {
-        let hold = UILongPressGestureRecognizer()
-        hold.minimumPressDuration = HomeDrag.holdDuration
-        hold.allowableMovement = HomeDrag.holdTolerance
-        return hold
-    }
-    func handleUIGestureRecognizerAction(_ hold: UILongPressGestureRecognizer, context: Context) {
-        let point = hold.location(in: nil)
-        switch hold.state {
-        case .began:
-            context.coordinator.start = point
-            began()
-            moved(point, point)
-        case .changed: moved(context.coordinator.start, point)
-        case .ended: ended(point)
-        case .cancelled, .failed: ended(nil)
-        default: break
+/// Lifts a Today tile after a still hold, then follows the finger. It is one UIKit recognizer on the
+/// page's scroll view rather than a gesture on each tile, so the tiles' own buttons and swipe can't
+/// hold it up, and any movement before the hold completes simply scrolls the page.
+/// Place it in the background of the scroll view's content.
+struct TileHoldInstaller: UIViewRepresentable {
+    func makeUIView(context: Context) -> InstallerView { InstallerView() }
+    func updateUIView(_ view: InstallerView, context: Context) {}
+    static func dismantleUIView(_ view: InstallerView, coordinator: ()) { view.uninstall() }
+
+    final class InstallerView: UIView, UIGestureRecognizerDelegate {
+        private var hold: UILongPressGestureRecognizer?
+        private weak var host: UIScrollView?
+        private var start: CGPoint = .zero
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            guard window != nil, hold == nil else { return }
+            var view = superview
+            while let current = view, !(current is UIScrollView) { view = current.superview }
+            guard let scroll = view as? UIScrollView else { return }
+            let hold = UILongPressGestureRecognizer(target: self, action: #selector(handle(_:)))
+            hold.minimumPressDuration = HomeDrag.holdDuration
+            hold.allowableMovement = HomeDrag.holdTolerance
+            hold.delegate = self
+            scroll.addGestureRecognizer(hold)
+            self.hold = hold; host = scroll
+        }
+        func uninstall() {
+            if let hold { host?.removeGestureRecognizer(hold) }
+            hold = nil
+        }
+        /// Only a hold that starts on a tile; holding anywhere else does nothing.
+        func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer) -> Bool {
+            HomeDrag.shared.tile(at: recognizer.location(in: nil)) != nil
+        }
+        @objc private func handle(_ hold: UILongPressGestureRecognizer) {
+            // Window coordinates, the same space as the SwiftUI `.global` frames HomeDrag keeps.
+            let point = hold.location(in: nil), drag = HomeDrag.shared
+            let animation: Animation? = UIAccessibility.isReduceMotionEnabled ? nil : .spring(response: 0.3, dampingFraction: 0.85)
+            switch hold.state {
+            case .began:
+                guard let id = drag.tile(at: point) else { return }
+                start = point
+                drag.lift(id)
+                drag.update(start: point, location: point)
+            case .changed: if drag.item != nil { drag.update(start: start, location: point) }
+            case .ended: withAnimation(animation) { drag.finish(at: point) }
+            case .cancelled, .failed: withAnimation(animation) { drag.reset() }
+            default: break
+            }
         }
     }
-    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator { Coordinator() }
-    final class Coordinator { var start: CGPoint = .zero }
 }

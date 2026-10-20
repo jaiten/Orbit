@@ -17,8 +17,16 @@ struct DayEntry: TimelineEntry {
     let completedHabits: Int
     let totalHabits: Int
     var unavailable = false
+    /// Overall habit progress per day, oldest first; enough days for the widest Grid widget.
     var consistency: [Double] = []
-    static let placeholder = DayEntry(date: .now, items: [WidgetItem(id: "preview", title: "Morning walk", subtitle: "8:00 AM", habit: false, date: nil)], completedHabits: 1, totalHabits: 3)
+    /// The first few habits, each with its own days, for the large Grid widget.
+    var grids: [HabitGrid] = []
+    static let gridDays = 245
+    private static let sample = (0..<gridDays).map { Double(($0 * 7 + $0 / 3) % 5) / 4 }
+    static let placeholder = DayEntry(date: .now, items: [WidgetItem(id: "preview", title: "Morning walk", subtitle: "8:00 AM", habit: false, date: nil)], completedHabits: 1, totalHabits: 3,
+        consistency: sample, grids: [HabitGrid(id: "1", title: "Read a few pages", color: "lavender", values: sample),
+                                     HabitGrid(id: "2", title: "Drink water", color: "sage", values: Array(sample.reversed())),
+                                     HabitGrid(id: "3", title: "Move your body", color: "clay", values: sample.map { 1 - $0 })])
 }
 
 struct DayProvider: TimelineProvider {
@@ -58,7 +66,11 @@ struct DayProvider: TimelineProvider {
                     subtitle: PlannerLogic.detail($0, logs: logs, at: .now), habit: true, date: nil)
             }
             return DayEntry(date: .now, items: taskItems + habitItems, completedHabits: habits.count - habitItems.count,
-                totalHabits: habits.count, consistency: PlannerLogic.consistencySeries(habits: allHabits, logs: logs, ending: .now, days: 30))
+                totalHabits: habits.count, consistency: PlannerLogic.consistencySeries(habits: allHabits, logs: logs, ending: .now, days: DayEntry.gridDays),
+                grids: allHabits.prefix(3).map { habit in
+                    HabitGrid(id: habit.id.uuidString, title: habit.title, color: habit.color,
+                              values: PlannerLogic.consistencySeries(habits: [habit], logs: logs, ending: .now, days: DayEntry.gridDays))
+                })
         } catch { return DayEntry(date: .now, items: [], completedHabits: 0, totalHabits: 0, unavailable: true) }
     }
 }
@@ -136,15 +148,16 @@ struct DayWidgetView: View {
     }
 }
 
-/// The Today widget's look: today's progress (the original design) or a checklist with ticks.
+/// The Today widget's look: today's progress (the original design), a checklist with ticks,
+/// or a grid of small boxes showing habit progress by day.
 enum TodayWidgetStyle: String, AppEnum {
-    case progress, checklist
+    case progress, checklist, grid
     static var typeDisplayRepresentation: TypeDisplayRepresentation = "Style"
-    static var caseDisplayRepresentations: [Self: DisplayRepresentation] = [.progress: "Progress", .checklist: "Checklist"]
+    static var caseDisplayRepresentations: [Self: DisplayRepresentation] = [.progress: "Progress", .checklist: "Checklist", .grid: "Grid"]
 }
 struct TodayWidgetConfiguration: WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "Today"
-    static var description = IntentDescription("Show today’s progress, or a checklist you can tick off.")
+    static var description = IntentDescription("Show today’s progress, a checklist you can tick off, or a grid of your habit history.")
     @Parameter(title: "Style", default: .progress) var style: TodayWidgetStyle
 }
 struct TodayWidgetEntry: TimelineEntry {
@@ -171,6 +184,9 @@ struct TodayWidgetView: View {
     var body: some View {
         if entry.style == .checklist && !entry.day.unavailable && [WidgetFamily.systemSmall, .systemMedium, .systemLarge].contains(family) {
             ChecklistWidgetView(entry: entry.day)
+        } else if entry.style == .grid && !entry.day.unavailable && family != .accessoryCircular {
+            // The circular Lock Screen widget is too small for boxes; it keeps the progress ring.
+            GridWidgetView(entry: entry.day)
         } else {
             DayWidgetView(entry: entry.day)
         }
@@ -212,7 +228,7 @@ struct OrbitWidget: Widget {
         // Existing widgets keep the Progress style; choose Checklist with Edit Widget.
         AppIntentConfiguration(kind: kind, intent: TodayWidgetConfiguration.self, provider: TodayWidgetProvider()) { TodayWidgetView(entry: $0) }
             .configurationDisplayName("Today")
-            .description("Today’s progress, or a checklist you can tick off. Hold the widget and choose Edit Widget to switch.")
+            .description("Today’s progress, a checklist, or a grid of your habit history. Hold the widget and choose Edit Widget to switch.")
             .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryCircular, .accessoryRectangular])
     }
 }

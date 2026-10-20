@@ -67,6 +67,7 @@ struct TodayView: View {
         ScrollView { content }
             .scrollDisabled(homeDrag.item != nil)
             .onPreferenceChange(HomeDropFrames.self) { homeDrag.frames = $0 }
+            .onPreferenceChange(HomeTileFrames.self) { homeDrag.tiles = $0 }
             .onAppear { homeDrag.accept = { id, routine in _ = move([id], routine: routine) } }
             .onDisappear { homeDrag.reset(); homeDrag.accept = nil }
             .background(DayTheme.canvas(scheme)).tint(accent.fill)
@@ -91,6 +92,8 @@ struct TodayView: View {
         })
         .padding(.horizontal, CGFloat(DesignTokens.spaceXl)).padding(.bottom, CGFloat(DesignTokens.spaceL))
         .frame(maxWidth: 760).frame(maxWidth: .infinity)
+        // Hold a tile to move it between Tasks and Habits; one recognizer for the whole page.
+        .background(TileHoldInstaller())
     }
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
