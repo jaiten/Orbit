@@ -17,6 +17,7 @@ import SwiftData
             dismiss()
             throw NSError(domain: "Orbit", code: 1, userInfo: [NSLocalizedDescriptionKey: "This item changed on another device. Undo was stopped to preserve those changes."])
         }
+        do {
         for key in change.keys {
             let deleted = change.before[key] == nil
             var payload = try SyncRecords.object(change.before[key] ?? change.after[key]!)
@@ -25,6 +26,7 @@ import SwiftData
         }
         try Mutations.save(context, undoable: false)
         dismiss()
+        } catch { context.rollback(); throw error }
     }
     func dismiss() { change = nil }
 }

@@ -1,7 +1,7 @@
 function renderToday(tasks, habits) {
   const relevant=tasks.filter(t=>(!taskDate(t)||taskDate(t)<=selected)&&(!t.completedAt||dayKey(new Date(t.completedAt))===selected));
-  const active=relevant.filter(t=>!t.completedAt), complete=relevant.filter(t=>t.completedAt),pendingHabits=habits.filter(h=>progress(h)<h.target),doneHabits=habits.filter(h=>progress(h)>=h.target);
-  const done=complete.length+habits.filter(h=>progress(h)>=h.target).length,total=relevant.length+habits.length;
+  const active=relevant.filter(t=>!t.completedAt), complete=relevant.filter(t=>t.completedAt),pendingHabits=habits.filter(h=>!checked(h)),doneHabits=habits.filter(h=>checked(h));
+  const done=complete.length+habits.filter(h=>checked(h)).length,total=relevant.length+habits.length;
   return `<div class="checklist-page">
     <div class="eyebrow">${localDay(selected).toLocaleDateString([],{weekday:'long',month:'long',day:'numeric'}).toUpperCase()}</div>
     <h1>${selected===dayKey(new Date())?'Today':localDay(selected).toLocaleDateString([],{weekday:'long'})}</h1>

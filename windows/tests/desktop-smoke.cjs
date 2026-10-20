@@ -7,6 +7,13 @@ const fs=require('node:fs');const os=require('node:os');const path=require('node
  try{
   app=await electron.launch(options);const p=await app.firstWindow();const errors=[];p.on('pageerror',e=>errors.push(e.message));
   await p.getByRole('heading',{name:'Today',exact:true}).waitFor();
+  const weekly='22222222-2222-4222-8222-222222222222';
+  await p.evaluate(async id=>{const now=new Date(),yesterday=new Date();yesterday.setDate(now.getDate()-1);const key=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;await window.orbit.batch([{key:'habits/'+id,payload:{id,title:'Gym weekly test',frequencyRule:'WEEKLY',target:5,color:'sage',icon:'leaf',createdAt:Date.now(),updatedAt:Date.now()}},{key:'habit_logs/'+id+'-'+key(yesterday),payload:{id:crypto.randomUUID(),habitID:id,dayKey:key(yesterday),count:5,updatedAt:Date.now()}}]);},weekly);
+  await p.getByRole('checkbox',{name:'Log Gym weekly test',exact:true}).click();
+  await p.getByRole('checkbox',{name:'Undo Gym weekly test',exact:true}).waitFor();
+  await p.getByRole('checkbox',{name:'Undo Gym weekly test',exact:true}).click();
+  await p.getByRole('checkbox',{name:'Log Gym weekly test',exact:true}).waitFor();
+  await p.evaluate(async id=>{const all=await window.orbit.read();await window.orbit.batch(all.records.filter(r=>r.payload.id===id||r.payload.habitID===id).map(r=>({key:r.key,payload:r.payload,deleted:true})));},weekly);
   await p.getByRole('button',{name:'+ New list',exact:true}).click();
   await p.locator('#list-form input[name=name]').fill('Personal');
   await p.getByRole('button',{name:'Save list',exact:true}).click();

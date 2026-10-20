@@ -21,10 +21,7 @@ struct TasksView: View {
         NavigationStack {
             List {
                 Section {
-                    Picker("List", selection: $listID) {
-                        Text("All to-dos").tag(nil as UUID?)
-                        ForEach(lists) { Text($0.name).tag(Optional($0.id)) }
-                    }
+                    AccentPicker(title: "List", selection: $listID, choices: [(nil as UUID?, "All to-dos")] + lists.map { (Optional($0.id), $0.name) })
                     Toggle("Show completed", isOn: $showCompleted)
                 }
                 Section {

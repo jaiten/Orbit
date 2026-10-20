@@ -1,6 +1,6 @@
 import Foundation
 
-enum PlannerBackup {
+@MainActor enum PlannerBackup {
     static func encode(_ records: [String: String]) throws -> Data {
         let entries = try records.sorted { $0.key < $1.key }.map { ["key": $0.key, "payload": try SyncRecords.object($0.value)] as [String: Any] }
         return try JSONSerialization.data(withJSONObject: ["format": "orbit-backup", "version": 1, "records": entries], options: [.sortedKeys, .prettyPrinted])
@@ -15,6 +15,9 @@ enum PlannerBackup {
                 guard let habit = p["habitID"] as? String, UUID(uuidString: habit) != nil, let day = p["dayKey"] as? String, day.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil, key == "habit_logs/" + habit.lowercased() + "-" + day, let count = p["count"] as? Int, count >= 0 else { throw CocoaError(.coderReadCorrupt) }
             } else {
                 guard ["tasks", "habits", "lists", "idea_prompts"].contains(entity), key == entity + "/" + id.lowercased(), let name = p[entity == "lists" ? "name" : entity == "idea_prompts" ? "text" : "title"] as? String, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw CocoaError(.coderReadCorrupt) }
+            }
+            if entity == "tasks" {
+                guard p["notes"] is String, p["hasTime"] is Bool, p["recurrenceRule"] is String, p["reminders"] is [Double], p["tags"] is [String], let steps = p["subtasks"] as? [[String: Any]], steps.allSatisfy({ ($0["id"] as? String).flatMap(UUID.init(uuidString:)) != nil && $0["title"] is String && $0["completed"] is Bool }), let duration = p["durationMinutes"] as? Int, (5...1440).contains(duration), let priority = p["priority"] as? Int, (0...3).contains(priority) else { throw CocoaError(.coderReadCorrupt) }
             }
             if entity == "habits" { guard let target = p["target"] as? Int, target > 0, ["DAILY", "WEEKLY"].contains(p["frequencyRule"] as? String ?? "") else { throw CocoaError(.coderReadCorrupt) } }
         }

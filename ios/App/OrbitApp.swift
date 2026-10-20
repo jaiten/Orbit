@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import WidgetKit
+import UIKit
 
 @main struct OrbitApp: App {
     private let container: ModelContainer?
@@ -32,6 +33,7 @@ struct RootView: View {
     @Environment(\.scenePhase) private var phase
     @AppStorage("appearance") private var appearance = "system"
     @AppStorage("accentTheme") private var accentTheme = "coral"
+    @AppStorage("consistencyRange") private var consistencyRange = 7
     @ObservedObject private var undo = UndoJournal.shared
     @ObservedObject private var sync = SyncService.shared
     @State private var selectedTab = 0
@@ -65,8 +67,9 @@ struct RootView: View {
             else { selectedTab = 0 }
         }
         .sheet(isPresented: $sync.recoveryReady) { NavigationStack { PasswordChangeView() } }
-        .task { DayTheme.sharedDefaults?.set(accentTheme, forKey: "accentTheme"); UsageSignals.recordVisit(); await refreshNotifications() }
-        .onChange(of: accentTheme) { _, theme in DayTheme.sharedDefaults?.set(theme, forKey: "accentTheme"); WidgetCenter.shared.reloadAllTimelines() }
+        .task { applyNativeAccent(); DayTheme.sharedDefaults?.set(consistencyRange, forKey: "consistencyRange"); DayTheme.sharedDefaults?.set(accentTheme, forKey: "accentTheme"); UsageSignals.recordVisit(); await refreshNotifications() }
+        .onChange(of: consistencyRange) { _, range in DayTheme.sharedDefaults?.set(range, forKey: "consistencyRange"); WidgetCenter.shared.reloadAllTimelines() }
+        .onChange(of: accentTheme) { _, theme in applyNativeAccent(); DayTheme.sharedDefaults?.set(theme, forKey: "accentTheme"); WidgetCenter.shared.reloadAllTimelines() }
         .task {
             while !Task.isCancelled {
                 if phase == .active { await SyncService.shared.run(context) }
@@ -83,6 +86,13 @@ struct RootView: View {
         .alert("Orbit", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("OK") { errorMessage = nil }
         } message: { Text(errorMessage ?? "") }
+    }
+    private func applyNativeAccent() {
+        let color = UIColor(DayTheme.accentColor(accentTheme))
+        UIView.appearance().tintColor = color
+        for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
+            for window in scene.windows { window.tintColor = color }
+        }
     }
     private func refreshNotifications() async {
         do { try await NotificationScheduler.shared.replace(with: NotificationScheduler.reminders(context: context)) }

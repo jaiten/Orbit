@@ -3,6 +3,7 @@ import SwiftData
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var context
+    @AppStorage("consistencyRange") private var consistencyRange = 7
     @AppStorage("appearance") private var appearance = "system"
     @Query private var tasks: [PlannerTask]
     @Query private var habits: [Habit]
@@ -99,9 +100,7 @@ struct SettingsView: View {
                     }.padding(.vertical, 6)
                 }
                 Section("Preferences") {
-                    Picker("Appearance", selection: $appearance) {
-                        Text("System").tag("system"); Text("Light").tag("light"); Text("Dark").tag("dark")
-                    }.tint(DayTheme.accentColor(accentTheme))
+                    AccentPicker(title: "Appearance", selection: $appearance, choices: [("system", "System"), ("light", "Light"), ("dark", "Dark")])
                     Button("Enable reminders", systemImage: "bell") {
                         Task {
                             do {
@@ -111,6 +110,10 @@ struct SettingsView: View {
                             } catch { message = error.localizedDescription }
                         }
                     }
+                }
+                Section("Widgets & consistency") {
+                    AccentPicker(title: "History range", selection: $consistencyRange, choices: [(7, "Past week"), (30, "Past month")])
+                    Text("This also sets Today’s history range. Hold a consistency widget and choose Edit Widget to give it its own week or month view.").font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("A moment for yourself") {
                     Toggle("Daily check-in", isOn: $checkIn)
