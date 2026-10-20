@@ -68,6 +68,11 @@ const shared = Object.fromEntries(
     "dueOn",
     "habitDetail",
     "OrbitHabits",
+    "OrbitPlanner",
+    "SOMEDAY",
+    "today",
+    "planItem",
+    "saveTasks",
     "render",
   ].map((name) => [name, "writable"]),
 );

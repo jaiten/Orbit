@@ -487,3 +487,22 @@ summary {
   background: transparent;
   outline: 1px dashed var(--line);
 }
+.check-tile.overdue {
+  flex-wrap: wrap;
+}
+.tile-actions {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+  padding: 0 0 10px 52px;
+}
+.tile-actions button {
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--side);
+}
+.tile-actions button:hover {
+  color: var(--ink);
+}

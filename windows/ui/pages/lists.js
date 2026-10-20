@@ -1,21 +1,28 @@
 function renderInbox(tasks) {
   const inbox = tasks.filter((t) => !t.completedAt && (!selectedList || t.listID === selectedList));
-  const name = rows("lists").find((l) => l.id === selectedList)?.name || "All Tasks";
+  const name =
+    selectedList === SOMEDAY ? "Someday" : rows("lists").find((l) => l.id === selectedList)?.name || "All Tasks";
+  const empty = selectedList === SOMEDAY ? "Ideas for later go here." : "No tasks here.";
   return `<h1>${esc(name)}</h1>
-    ${inbox.map(taskRow).join("") || '<p class="empty">No tasks here.</p>'}
+    ${inbox.map(taskRow).join("") || `<p class="empty">${empty}</p>`}
     <form class="quick" id="quick-add">
       <input name="title" aria-label="New task" placeholder="New task" required maxlength="500" /><button>Add</button>
     </form>`;
 }
 
 function renderLists() {
-  $("#sidebar-lists").innerHTML = rows("lists")
-    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
-    .map((l) => {
-      const color = ["sage", "lavender", "honey", "clay"].includes(l.color) ? l.color : "sage";
-      return `<div class="sidebar-list"><button data-list="${esc(l.id)}" class="${selectedList === l.id ? "selected" : ""}"><span class="list-dot ${color}"></span>${esc(l.name)}</button><button data-edit-list="${esc(l.id)}" aria-label="Edit ${esc(l.name)} list">⋯</button></div>`;
-    })
-    .join("");
+  // Someday is built in: always first, never renamed or deleted.
+  const someday = `<div class="sidebar-list"><button data-list="${SOMEDAY}" class="${selectedList === SOMEDAY ? "selected" : ""}"><span class="list-dot lavender"></span>Someday</button></div>`;
+  $("#sidebar-lists").innerHTML =
+    someday +
+    rows("lists")
+      .filter((l) => l.id !== SOMEDAY)
+      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+      .map((l) => {
+        const color = ["sage", "lavender", "honey", "clay"].includes(l.color) ? l.color : "sage";
+        return `<div class="sidebar-list"><button data-list="${esc(l.id)}" class="${selectedList === l.id ? "selected" : ""}"><span class="list-dot ${color}"></span>${esc(l.name)}</button><button data-edit-list="${esc(l.id)}" aria-label="Edit ${esc(l.name)} list">⋯</button></div>`;
+      })
+      .join("");
   document.querySelectorAll("[data-list]").forEach(
     (b) =>
       (b.onclick = () => {

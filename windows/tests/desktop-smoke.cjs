@@ -65,7 +65,7 @@ const path = require("node:path");
     await p.getByLabel("Notes").fill("A small, clear commitment");
     await p.getByLabel("List", { exact: true }).selectOption({ label: "Personal" });
     await p.getByRole("button", { name: "Save", exact: true }).click();
-    await p.locator("[data-list]").click();
+    await p.getByRole("button", { name: "Personal", exact: true }).click();
     await p.getByRole("heading", { name: "Personal", exact: true }).waitFor();
     await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).waitFor();
     await p.locator('[data-page="today"]').click();
@@ -149,6 +149,44 @@ const path = require("node:path");
     const second = await p.getByRole("checkbox", { name: "Complete Call Mom", exact: true }).boundingBox();
     if (Math.abs(first.y - second.y) > 2 || Math.abs(first.x - second.x) < 20)
       throw Error("Short checklist tiles do not share a row");
+    // Overdue items offer Today / Later / Someday; Someday keeps them off Today until added back.
+    await p.evaluate(async () => {
+      const id = crypto.randomUUID(),
+        d = new Date();
+      d.setDate(d.getDate() - 2);
+      const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      await window.orbit.put("tasks/" + id, {
+        id,
+        title: "Renew passport",
+        notes: "",
+        listID: null,
+        localDate,
+        dueDate: null,
+        hasTime: false,
+        durationMinutes: 30,
+        reminders: [],
+        recurrenceRule: "",
+        priority: 0,
+        tags: [],
+        subtasks: [],
+        completedAt: null,
+        sortOrder: Date.now(),
+        updatedAt: Date.now(),
+      });
+    });
+    const overdue = p.locator(".check-tile", { hasText: "Renew passport" });
+    await overdue.getByText(/^from /).waitFor();
+    await overdue.getByRole("button", { name: "Someday", exact: true }).click();
+    await overdue.waitFor({ state: "detached" });
+    await p.locator(`[data-list="00000000-0000-4000-8000-000000000001"]`).click();
+    await p.getByRole("heading", { name: "Someday", exact: true }).waitFor();
+    await p.getByRole("button", { name: "Add to Today", exact: true }).click();
+    await p.locator('[data-page="today"]').click();
+    await p.getByRole("checkbox", { name: "Complete Renew passport", exact: true }).waitFor();
+    const someday = await p.evaluate(async () =>
+      (await window.orbit.read()).records.find((r) => r.key === "lists/00000000-0000-4000-8000-000000000001"),
+    );
+    if (someday?.payload.name !== "Someday") throw Error("Someday list was not created");
     await p.getByLabel("New task or habit", { exact: true }).click();
     await p.evaluate(async () => {
       const r = (await window.orbit.read()).records.find((r) => r.payload.title === "Wash car");

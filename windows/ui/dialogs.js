@@ -6,8 +6,9 @@ function openTask(id, date) {
   const f = $("#task-form");
   f.reset();
   f.elements.listID.innerHTML =
-    '<option value="">Inbox</option>' +
+    `<option value="">Inbox</option><option value="${SOMEDAY}">Someday</option>` +
     rows("lists")
+      .filter((l) => l.id !== SOMEDAY)
       .map((l) => `<option value="${esc(l.id)}">${esc(l.name)}</option>`)
       .join("");
   f.elements.listID.value = editing?.listID || selectedList || "";
@@ -59,7 +60,7 @@ $("#task-form").onsubmit = (e) => {
   action(async () => {
     const t = editing || newTask("", null);
     const due =
-      f.elements.date.value && f.elements.time.value
+      f.elements.listID.value !== SOMEDAY && f.elements.date.value && f.elements.time.value
         ? new Date(`${f.elements.date.value}T${f.elements.time.value}`).getTime()
         : null;
     if (due !== null) {
@@ -80,7 +81,7 @@ $("#task-form").onsubmit = (e) => {
       }
     }
     f.dataset.allowOverlap = "";
-    await put("tasks", {
+    const saved = {
       ...t,
       title: f.elements.title.value.trim(),
       notes: f.elements.notes.value,
@@ -91,7 +92,9 @@ $("#task-form").onsubmit = (e) => {
       durationMinutes: Number(f.elements.duration.value) || 30,
       priority: Number(f.elements.priority.value),
       updatedAt: Date.now(),
-    });
+    };
+    // Someday items have no date and never remind.
+    await saveTasks([saved.listID === SOMEDAY ? OrbitPlanner.moveToSomeday(saved) : saved]);
     $("#editor").close();
   });
 };
@@ -160,7 +163,7 @@ $("#evening-review").onclick = () => {
   $("#review-summary").textContent =
     `${done} ${done === 1 ? "task" : "tasks"} completed · ${habits} ${habits === 1 ? "habit" : "habits"} checked`;
   $("#review-items").innerHTML = rows("tasks")
-    .filter((t) => !t.completedAt)
+    .filter((t) => !t.completedAt && t.listID !== SOMEDAY)
     .map(
       (t) =>
         `<label class="review-item"><input type="checkbox" name="items" value="${esc(t.id)}">${esc(t.title)}</label>`,

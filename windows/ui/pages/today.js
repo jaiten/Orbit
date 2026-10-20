@@ -1,8 +1,6 @@
 function renderToday(tasks, allHabits) {
-  const relevant = tasks.filter(
-    (t) =>
-      (!taskDate(t) || taskDate(t) <= selected) && (!t.completedAt || dayKey(new Date(t.completedAt)) === selected),
-  );
+  // Today: dated today or earlier and still open, or finished today. Undated and Someday items stay in Lists.
+  const relevant = tasks.filter((t) => OrbitPlanner.onDay(planItem(t), selected, today()));
   const habits = allHabits.filter((h) => dueOn(h));
   const active = relevant.filter((t) => !t.completedAt),
     complete = relevant.filter((t) => t.completedAt),
@@ -77,6 +75,6 @@ function bindToday() {
       if (!title) return;
       e.target.elements.title.value = "";
       const day = page === "today" ? selected : null;
-      action(() => put("tasks", { ...newTask(title, day), ...OrbitPlanning.parse(title, day) }));
+      action(() => saveTasks([{ ...newTask(title, day), ...OrbitPlanning.parse(title, day) }]));
     };
 }

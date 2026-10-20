@@ -44,6 +44,23 @@ const rows = (entity) =>
 function taskDate(t) {
   return t.hasTime && t.dueDate ? dayKey(new Date(t.dueDate)) : t.localDate;
 }
+const SOMEDAY = OrbitPlanner.SOMEDAY_LIST_ID;
+const today = () => dayKey(new Date());
+function planItem(t) {
+  return {
+    day: taskDate(t) || null,
+    completedDay: t.completedAt ? dayKey(new Date(t.completedAt)) : null,
+    someday: t.listID === SOMEDAY,
+  };
+}
+/** Saves tasks, creating the built-in Someday list the first time something moves there. */
+function saveTasks(tasks, extra = []) {
+  const changes = tasks.map((t) => ({ key: t._key || "tasks/" + t.id, payload: clean(t) }));
+  const needsSomeday = tasks.some((t) => t.listID === SOMEDAY);
+  const hasSomeday = state.records.some((r) => r.key === "lists/" + SOMEDAY && !r.deleted);
+  if (needsSomeday && !hasSomeday) changes.unshift({ key: "lists/" + SOMEDAY, payload: OrbitPlanner.somedayList() });
+  return api.batch([...changes, ...extra]);
+}
 function clean({ _key, ...payload }) {
   return payload;
 }
@@ -176,11 +193,26 @@ const check = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 10 3.2 3.
 function taskRow(t) {
   const time =
     t.hasTime && t.dueDate ? new Date(t.dueDate).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
-  const size = t.title.length <= 22 && !t.hasTime ? "short" : "long";
-  return `<div class="task-row check-tile ${size} ${t.completedAt ? "complete" : ""}">
- <button class="tile-toggle" role="checkbox" aria-label="${t.completedAt ? "Reopen" : "Complete"} ${esc(t.title)}" aria-checked="${!!t.completedAt}" data-toggle="${esc(t.id)}"><span class="tick-symbol">${t.completedAt ? check : ""}</span><span class="tile-copy"><span>${esc(t.title)}</span>${time ? `<small>${time}</small>` : ""}</span></button>
- <button class="tile-edit" aria-label="Edit ${esc(t.title)}" data-edit="${esc(t.id)}">${pencil}</button>
- ${page === "lists" ? `<button class="today-action" data-today="${esc(t.id)}">Add to Today</button>` : ""}</div>`;
+  const overdue = page === "today" && OrbitPlanner.isOverdue(planItem(t), today());
+  const detail = [overdue ? OrbitPlanner.overdueLabel(taskDate(t), today()) : "", time].filter(Boolean).join(" · ");
+  const onToday = OrbitPlanner.onDay(planItem(t), today());
+  const size = t.title.length <= 22 && !t.hasTime && !overdue ? "short" : "long";
+  const id = esc(t.id);
+  const moves = overdue
+    ? `<div class="tile-actions" aria-label="Move ${esc(t.title)}">
+        <button data-today="${id}">Today</button><button data-later="${id}">Later</button><button data-someday="${id}">Someday</button>
+      </div>`
+    : page === "lists" && !t.completedAt && !onToday
+      ? `<button class="today-action" data-today="${id}">Add to Today</button>`
+      : "";
+  return `<div class="task-row check-tile ${size} ${t.completedAt ? "complete" : ""} ${overdue ? "overdue" : ""}">
+    <button class="tile-toggle" role="checkbox" aria-label="${t.completedAt ? "Reopen" : "Complete"} ${esc(t.title)}" aria-checked="${!!t.completedAt}" data-toggle="${id}">
+      <span class="tick-symbol">${t.completedAt ? check : ""}</span>
+      <span class="tile-copy"><span>${esc(t.title)}</span>${detail ? `<small>${detail}</small>` : ""}</span>
+    </button>
+    <button class="tile-edit" aria-label="Edit ${esc(t.title)}" data-edit="${id}">${pencil}</button>
+    ${moves}
+  </div>`;
 }
 function habitCard(h) {
   const done = checked(h);
@@ -241,18 +273,15 @@ function bindTiles() {
           )),
     );
   document.querySelectorAll("[data-habit-edit]").forEach((b) => (b.onclick = () => openHabit(b.dataset.habitEdit)));
-  document.querySelectorAll("[data-today]").forEach(
-    (b) =>
-      (b.onclick = () =>
-        action(() => {
-          const t = rows("tasks").find((t) => t.id === b.dataset.today);
-          return put("tasks", {
-            ...t,
-            localDate: dayKey(new Date()),
-            dueDate: null,
-            hasTime: false,
-            updatedAt: Date.now(),
-          });
-        })),
-  );
+  const move = (attribute, change) =>
+    document
+      .querySelectorAll(`[data-${attribute}]`)
+      .forEach(
+        (b) =>
+          (b.onclick = () =>
+            action(() => saveTasks([change(rows("tasks").find((t) => t.id === b.getAttribute("data-" + attribute)))]))),
+      );
+  move("today", (t) => OrbitPlanner.moveToDay(t, today()));
+  move("later", (t) => OrbitPlanner.moveLater(t));
+  move("someday", (t) => OrbitPlanner.moveToSomeday(t));
 }

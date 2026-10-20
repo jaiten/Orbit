@@ -1,0 +1,40 @@
+{
+  "description": "Which tasks appear on a day. Run by windows/tests/today.test.cjs and ios/Tests/SharedCaseTests.swift. Items use local calendar days; 'today' is the real date, 'day' the day being viewed (defaults to today).",
+  "cases": [
+    {
+      "name": "today shows today's and overdue open items, and items finished today",
+      "today": "2026-10-20",
+      "items": [
+        { "title": "Due today", "day": "2026-10-20" },
+        { "title": "Overdue", "day": "2026-10-18" },
+        { "title": "Finished today, planned Sunday", "day": "2026-10-18", "completedDay": "2026-10-20" },
+        { "title": "Finished yesterday", "day": "2026-10-19", "completedDay": "2026-10-19" },
+        { "title": "Tomorrow", "day": "2026-10-21" },
+        { "title": "Undated list item" },
+        { "title": "Someday idea", "someday": true },
+        { "title": "Dated but in Someday", "day": "2026-10-20", "someday": true }
+      ],
+      "expect": ["Due today", "Overdue", "Finished today, planned Sunday"],
+      "overdue": ["Overdue"]
+    },
+    {
+      "name": "another day shows only items planned for that day",
+      "today": "2026-10-20",
+      "day": "2026-10-22",
+      "items": [
+        { "title": "Thursday", "day": "2026-10-22" },
+        { "title": "Overdue", "day": "2026-10-18" },
+        { "title": "Undated" }
+      ],
+      "expect": ["Thursday"],
+      "overdue": ["Overdue"]
+    },
+    {
+      "name": "an empty day stays empty",
+      "today": "2026-10-20",
+      "items": [{ "title": "Undated" }, { "title": "Later", "day": "2026-11-01" }],
+      "expect": [],
+      "overdue": []
+    }
+  ]
+}
