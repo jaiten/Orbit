@@ -102,6 +102,6 @@ $('#confirm-delete-list').onclick=()=>action(async()=>{
 
 async function showDevices(){
  const devices=await api.devices();const panel=$('#devices-panel');if(!panel)return;
- panel.innerHTML=`<h3>${devices.length} active sign-ins</h3><p class="secondary">Removing access blocks Orbit sync. Downloaded data stays on the device. A device can have multiple sign-ins.</p>`+devices.map(d=>`<div class="device-row"><span>${esc(d.name)}${d.current?' · This device':''}</span>${d.current?'':`<button data-remove-device="${esc(d.id)}">Remove access</button>`}</div>`).join('');
+ panel.innerHTML=`<h3>${devices.length} active sign-ins</h3><p class="secondary">Removing access blocks Orbit sync. Downloaded data stays on the device. A device can have multiple sign-ins.</p>`+devices.map(d=>`<div class="device-row"><span>${esc(d.name)}${d.current?' · This device':''}<small class="secondary">Last active ${esc(new Date(d.last_seen).toLocaleString())}</small></span>${d.current?'':`<button data-remove-device="${esc(d.id)}">Remove access</button>`}</div>`).join('');
  panel.querySelectorAll('[data-remove-device]').forEach(b=>b.onclick=async()=>{if(b.dataset.confirm!=='yes'){b.dataset.confirm='yes';b.textContent='Confirm removal';return;}try{b.disabled=true;await api.removeDevice(b.dataset.removeDevice);await showDevices();}catch(e){showNotice(e.message);b.disabled=false;}});
 }

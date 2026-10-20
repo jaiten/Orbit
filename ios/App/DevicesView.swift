@@ -5,6 +5,11 @@ struct ConnectedDevice: Identifiable {
     let name: String
     let current: Bool
     let seen: String
+    var lastSeen: Date? {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.date(from: seen) ?? ISO8601DateFormatter().date(from: seen)
+    }
 }
 
 struct DevicesView: View {
@@ -22,7 +27,7 @@ struct DevicesView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(device.name)
                             if device.current { Text("This device").font(.caption).foregroundStyle(.secondary) }
-                            if let date = ISO8601DateFormatter().date(from: device.seen) { Text(date, style: .relative).font(.caption2).foregroundStyle(.secondary) }
+                            if let date = device.lastSeen { (Text("Last active ") + Text(date, style: .relative)).font(.caption2).foregroundStyle(.secondary) }
                         }
                         Spacer()
                         if !device.current { Button("Remove", role: .destructive) { removing = device }.font(.caption) }

@@ -39,6 +39,8 @@ handle('auth',async({mode,email,password})=>{
  if(result.data.session){accountNotice=null;try{store.bind(result.data.user.id);}catch(e){await client.auth.signOut({scope:'local'});throw e;}await client.rpc('orbit_devices_list',{p_name:'Windows PC'});await sync.run();}
  return result.data.session?'Signed in':'Open the newest confirmation email, tap its link, then sign in here.';
 });
+const registerDevice=async()=>{try{if((await client?.auth.getSession())?.data?.session)await client.rpc('orbit_devices_list',{p_name:'Windows PC'});}catch{/* Offline access remains available. */}};
+void registerDevice();setInterval(()=>void registerDevice(),300000).unref();
 await window.loadURL('orbit://app');window.on('focus',()=>void sync.run());setInterval(()=>void sync.run(),20000).unref();
 if(client){client.channel('planner').on('postgres_changes',{event:'*',schema:'public',table:'orbit_records'},()=>void sync.run()).subscribe(status=>{if(status==='SUBSCRIBED')void sync.run();});void sync.run();}
 });
