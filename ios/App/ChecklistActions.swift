@@ -12,6 +12,10 @@ struct TaskActions: ViewModifier {
             if enabled { content.contextMenu {
                 Button("Start focus timer", systemImage: "timer") { Task { do { try await FocusSession.shared.start(task) } catch { self.error = error.localizedDescription } } }
                 Button("Send to calendar", systemImage: "calendar.badge.plus") { Task { do { calendarDraft = try await CalendarBridge.shared.draft(for: task) } catch { self.error = error.localizedDescription } } }
+                Button("Add to Today", systemImage: "sun.max") { change { TodayRules.moveToDay(task, day: .now); try Mutations.save(context) } }
+                if task.listID != TodayRules.somedayID {
+                    Button("Move to Someday", systemImage: "moon.zzz") { change { try TodayRules.moveToSomeday(task, in: context); try Mutations.save(context) } }
+                }
                 Button("Make It a Habit", systemImage: "repeat") { change { try Conversions.toHabit(task, in: context) } }
                 Button("Delete", systemImage: "xmark", role: .destructive) { change { context.delete(task); try Mutations.save(context) } }
             }

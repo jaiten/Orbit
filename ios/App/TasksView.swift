@@ -3,6 +3,8 @@ import SwiftData
 
 struct TasksView: View {
     @AppStorage("accentTheme") private var accentTheme = "coral"
+    @Environment(\.modelContext) private var context
+    @State private var error: String?
     @Query(sort: \PlannerTask.sortOrder) private var tasks: [PlannerTask]
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
     @State private var search = ""
@@ -21,12 +23,19 @@ struct TasksView: View {
         NavigationStack {
             List {
                 Section {
-                    AccentPicker(title: "List", selection: $listID, choices: [(nil as UUID?, "All Tasks")] + lists.map { (Optional($0.id), $0.name) })
+                    AccentPicker(title: "List", selection: $listID, choices: [(nil as UUID?, "All Tasks"), (Optional(TodayRules.somedayID), "Someday")] + lists.filter { $0.id != TodayRules.somedayID }.map { (Optional($0.id), $0.name) })
                     Toggle("Show completed", isOn: $showCompleted)
                 }
                 Section {
-                    if filtered.isEmpty { ContentUnavailableView("No Tasks", systemImage: "checklist") }
-                    ForEach(filtered) { task in TaskRow(task: task) { editing = task }.listRowSeparator(.hidden) }
+                    if filtered.isEmpty { ContentUnavailableView(listID == TodayRules.somedayID ? "Nothing for Someday" : "No Tasks", systemImage: "checklist") }
+                    ForEach(filtered) { task in
+                        TaskRow(task: task) { editing = task }.listRowSeparator(.hidden)
+                            .swipeActions(edge: .leading) {
+                                if task.completedAt == nil && !TodayRules.onDay(TodayRules.item(task), day: PlannerLogic.dayKey(.now), today: PlannerLogic.dayKey(.now)) {
+                                    Button("Add to Today", systemImage: "sun.max") { change { TodayRules.moveToDay(task, day: .now) } }.tint(DayTheme.accentColor(accentTheme))
+                                }
+                            }
+                    }
                 }
             }.tint(DayTheme.accentColor(accentTheme)).searchable(text: $search, prompt: "Search tasks or tags").navigationTitle("Lists")
                 .toolbar {
@@ -35,7 +44,15 @@ struct TasksView: View {
                 }
                 .sheet(isPresented: $adding) { QuickCapture() }.sheet(item: $editing) { TaskEditor(task: $0) }
                 .sheet(isPresented: $manageLists) { ListsView() }
+                .modifier(MutationErrorModifier(error: $error))
         }
+    }
+}
+
+extension TasksView {
+    private func change(_ action: () throws -> Void) {
+        do { try action(); try Mutations.save(context); Task { try? await refreshReminders(context) } }
+        catch { context.rollback(); self.error = error.localizedDescription }
     }
 }
 
@@ -47,13 +64,16 @@ struct ListsView: View {
     @State private var name = ""
     @State private var error: String?
     @State private var pendingDelete: TaskList?
+    private var editable: [TaskList] { lists.filter { $0.id != TodayRules.somedayID } }
     var body: some View {
         NavigationStack {
             List {
-                Section("Lists") {
-                    ForEach(lists) { list in ListNameRow(list: list) }
-                        .onDelete { indices in pendingDelete = indices.first.map { lists[$0] } }
-                }
+                Section {
+                    // Someday is built in: always first, never renamed or deleted.
+                    Label("Someday", systemImage: "moon.zzz").foregroundStyle(.secondary)
+                    ForEach(editable) { list in ListNameRow(list: list) }
+                        .onDelete { indices in pendingDelete = indices.first.map { editable[$0] } }
+                } header: { Text("Lists") }
                 Section {
                     TextField("New list name", text: $name)
                     Button("Add List") {

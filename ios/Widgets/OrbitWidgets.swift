@@ -39,7 +39,7 @@ struct DayProvider: TimelineProvider {
             let container = try Persistence.makeContainer()
             let context = ModelContext(container)
             let tasks = try context.fetch(FetchDescriptor<PlannerTask>())
-                .filter { $0.completedAt == nil && ($0.dueDate.map { Calendar.current.isDateInToday($0) } ?? true) }
+                .filter { $0.completedAt == nil && TodayRules.onDay(TodayRules.item($0), day: PlannerLogic.dayKey(.now), today: PlannerLogic.dayKey(.now)) }
                 .sorted {
                     if $0.hasTime != $1.hasTime { return $0.hasTime }
                     if $0.hasTime { return ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture) }

@@ -28,9 +28,10 @@ struct TodayView: View {
     @ObservedObject private var homeDrag = HomeDrag.shared
     @ObservedObject private var calendars = CalendarBridge.shared
     @ObservedObject private var focus = FocusSession.shared
+    /// Dated today or earlier and still open, or finished today. Undated and Someday items stay in Lists.
     private var relevant: [PlannerTask] {
-        tasks.filter { $0.dueDate.map { $0 < Calendar.current.date(byAdding: .day, value: 1, to: day)! } ?? true }
-            .filter { $0.completedAt == nil || $0.completedAt.map { Calendar.current.isDate($0, inSameDayAs: day) } == true }
+        let today = PlannerLogic.dayKey(day)
+        return tasks.filter { TodayRules.onDay(TodayRules.item($0), day: today, today: today) }
     }
     /// Habits scheduled for the day; a weekly habit drops off once its week is done.
     private var dueHabits: [Habit] { habits.filter { PlannerLogic.isDue($0, logs: logs, at: day) } }
@@ -150,7 +151,7 @@ struct TodayView: View {
         }
     }
     @ViewBuilder private func itemView(_ item: TodayItem) -> some View {
-        if let task = item.task { TaskRow(task: task, dragEnabled: true) { editing = task }.modifier(HomeDragSource(id: "task:" + task.id.uuidString)) }
+        if let task = item.task { TaskRow(task: task, dragEnabled: true, showMoves: true) { editing = task }.modifier(HomeDragSource(id: "task:" + task.id.uuidString)) }
         if let habit = item.habit { HabitRow(habit: habit, logs: logs, date: day, edit: { editingHabit = habit }).modifier(HomeDragSource(id: "habit:" + habit.id.uuidString)) }
     }
     private func refresh() { day = Calendar.current.startOfDay(for: .now); calendars.reload(); focus.restore() }
@@ -187,6 +188,7 @@ struct CheckTile: View {
     var edit: () -> Void
     var remove: () -> Void
     var move: () -> Void
+    var moves: [TileMove] = []
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject private var homeDrag = HomeDrag.shared
     @State private var actionEdge = 0
@@ -210,6 +212,11 @@ struct CheckTile: View {
                     Spacer(minLength: 0)
                 }.padding(.leading, 14).padding(.vertical, 16).frame(maxWidth: .infinity, minHeight: 72, alignment: .leading).contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityLabel(completionLabel).accessibilityValue(subtitle).accessibilityIdentifier("checklist-title")
+            if !moves.isEmpty {
+                Menu { ForEach(moves, id: \.title) { Button($0.title, action: $0.action) } } label: {
+                    Image(systemName: "calendar.badge.clock").font(.system(size: 13, weight: .medium)).foregroundStyle(.secondary).frame(width: 34, height: 54).contentShape(Rectangle())
+                }.accessibilityLabel("Move " + title)
+            }
             Button { if !gestureMoved { edit() } } label: { Image(systemName: "pencil").font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary).frame(width: 38, height: 54).contentShape(Rectangle()) }
                 .buttonStyle(.plain).accessibilityLabel("Edit " + title)
             }
@@ -240,16 +247,28 @@ struct CheckTile: View {
     }
 }
 
+struct TileMove { let title: String; let action: () -> Void }
+
 struct TaskRow: View {
     @AppStorage("accentTheme") private var accentTheme = "coral"
     @Environment(\.modelContext) private var context
     let task: PlannerTask
     var dragEnabled = false
+    /// Overdue tasks on Today offer Today / Later / Someday.
+    var showMoves = false
     var edit: () -> Void
     @State private var error: String?
     @State private var feedback = 0
+    private var overdue: Bool { showMoves && TodayRules.isOverdue(TodayRules.item(task), today: PlannerLogic.dayKey(.now)) }
+    private var moves: [TileMove] {
+        guard overdue else { return [] }
+        return [TileMove(title: "Today") { change { TodayRules.moveToDay(task, day: .now); try Mutations.save(context) } },
+                TileMove(title: "Later") { change { TodayRules.moveLater(task); try Mutations.save(context) } },
+                TileMove(title: "Someday") { change { try TodayRules.moveToSomeday(task, in: context); try Mutations.save(context) } }]
+    }
     private var subtitle: String {
         var parts: [String] = []
+        if overdue, let day = task.day { parts.append(TodayRules.overdueLabel(day, today: PlannerLogic.dayKey(.now))) }
         if task.hasTime, let date = task.dueDate { parts.append(date.formatted(date: .omitted, time: .shortened)) }
         if !task.subtasks.isEmpty { parts.append("\(task.subtasks.filter(\.completed).count)/\(task.subtasks.count) steps") }
         return parts.joined(separator: " · ")
@@ -258,7 +277,7 @@ struct TaskRow: View {
         CheckTile(title: task.title, subtitle: subtitle, done: task.completedAt != nil, color: DayTheme.accentColor(accentTheme),
             completionLabel: (task.completedAt == nil ? "Complete " : "Reopen ") + task.title, moveLabel: "Make It a Habit",
             toggle: { change { try Mutations.toggle(task, in: context); feedback += 1; if task.completedAt != nil { Task { await FocusSession.shared.stopIfMatching(task.id) } } } }, edit: edit,
-            remove: { change { context.delete(task); try Mutations.save(context) } }, move: { change { try Conversions.toHabit(task, in: context) } })
+            remove: { change { context.delete(task); try Mutations.save(context) } }, move: { change { try Conversions.toHabit(task, in: context) } }, moves: moves)
             .modifier(TaskActions(task: task, enabled: !dragEnabled)).modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
     }
     private func change(_ action: () throws -> Void) {

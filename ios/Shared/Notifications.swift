@@ -37,7 +37,7 @@ actor NotificationScheduler {
         let tasks = try context.fetch(FetchDescriptor<PlannerTask>())
         let habits = try context.fetch(FetchDescriptor<Habit>())
         let logs = try context.fetch(FetchDescriptor<HabitLog>())
-        var result = tasks.filter { $0.completedAt == nil }.flatMap { task in
+        var result = tasks.filter { $0.completedAt == nil && $0.listID != TodayRules.somedayID }.flatMap { task in
             task.reminders.enumerated().map { index, date in
                 Reminder(id: "orbit.task.\(task.id).\(index)", title: task.title, body: "Reminder", date: date)
             }

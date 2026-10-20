@@ -89,3 +89,8 @@ struct Subtask: Codable, Identifiable, Equatable {
         id = UUID(); self.text = text; dismissed = false; updatedAt = .now
     }
 }
+
+extension PlannerTask {
+    /// The task's local calendar day ("YYYY-MM-DD"), or nil when it has no date.
+    var day: String? { dueDate.map { PlannerLogic.dayKey($0) } }
+}

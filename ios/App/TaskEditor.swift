@@ -33,10 +33,11 @@ struct TaskEditor: View {
                     TextField("Notes", text: $notes, axis: .vertical).lineLimit(3...8)
                     Picker("List", selection: $listID) {
                         Text("Inbox").tag(nil as UUID?)
-                        ForEach(lists) { Text($0.name).tag(Optional($0.id)) }
+                        Text("Someday").tag(Optional(TodayRules.somedayID))
+                        ForEach(lists.filter { $0.id != TodayRules.somedayID }) { Text($0.name).tag(Optional($0.id)) }
                     }
                 }
-                Section { DisclosureGroup("Date & Time") {
+                if listID != TodayRules.somedayID { Section { DisclosureGroup("Date & Time") {
                     Toggle("Schedule a day", isOn: $scheduled)
                     if scheduled {
                         DatePicker("Day", selection: $date, displayedComponents: .date)
@@ -46,6 +47,7 @@ struct TaskEditor: View {
                             Stepper("\(duration) minutes", value: $duration, in: 5...1440, step: 5)
                         }
                     }
+                }
                 }
                 }
                 Section { DisclosureGroup("Priority & tags") {
@@ -124,6 +126,10 @@ struct TaskEditor: View {
         item.tags = Array(Set(tags.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })).sorted()
         item.subtasks = subtasks.filter { !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         item.reminders = reminders; item.updatedAt = .now
+        if listID == TodayRules.somedayID {
+            // Someday items have no date and never remind.
+            do { try TodayRules.moveToSomeday(item, in: context) } catch { self.error = error.localizedDescription; return }
+        }
         persistAndClose()
     }
     private func persistAndClose() {

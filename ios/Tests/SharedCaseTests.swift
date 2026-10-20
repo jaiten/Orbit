@@ -28,6 +28,19 @@ final class SharedCaseTests: XCTestCase {
         }
     }
 
+    func testTodayCases() throws {
+        for c in try Self.cases("today") {
+            let name = c["name"] as! String, today = c["today"] as! String
+            let day = c["day"] as? String ?? today
+            let items = (c["items"] as! [[String: Any]]).map { i in
+                (title: i["title"] as! String, item: TodayRules.Item(day: i["day"] as? String, completedDay: i["completedDay"] as? String, someday: i["someday"] as? Bool ?? false))
+            }
+            XCTAssertEqual(items.filter { TodayRules.onDay($0.item, day: day, today: today) }.map(\.title), c["expect"] as! [String], name)
+            XCTAssertEqual(items.filter { TodayRules.isOverdue($0.item, today: today) }.map(\.title), c["overdue"] as! [String], name)
+        }
+        XCTAssertEqual(TodayRules.overdueLabel("2026-10-20", today: "2026-10-22"), "from Tue")
+    }
+
     func testCalendarArithmeticIgnoresDaylightSaving() {
         XCTAssertEqual(HabitRules.addDays("2026-03-07", 1), "2026-03-08")
         XCTAssertEqual(HabitRules.addDays("2026-11-01", 1), "2026-11-02")
