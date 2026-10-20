@@ -17,7 +17,9 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 5), app.debugDescription)
         let routine = app.scrollViews.firstMatch.staticTexts["Habits"]
         row.press(forDuration: 1.2, thenDragTo: routine)
-        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Log Read a few pages")).firstMatch.waitForExistence(timeout: 5))
+        let trace = app.staticTexts["drag-trace"]
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Log Read a few pages")).firstMatch.waitForExistence(timeout: 5),
+                      "Drag trace: \(trace.exists ? trace.label : "missing") | row \(row.frame) | Habits \(routine.frame)")
         app.buttons["Edit Read a few pages"].tap()
         XCTAssertTrue(app.textFields["habit-title-input"].waitForExistence(timeout: 5))
         app.navigationBars.buttons["Cancel"].tap()

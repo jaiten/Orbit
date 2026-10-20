@@ -47,7 +47,9 @@ struct TileHoldInstaller: UIViewRepresentable {
     /// because UIView has its own `gestureRecognizerShouldBegin(_:)`.)
     final class OnTile: NSObject, UIGestureRecognizerDelegate {
         func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer) -> Bool {
-            HomeDrag.shared.tile(at: recognizer.location(in: nil)) != nil
+            let point = recognizer.location(in: nil), hit = HomeDrag.shared.tile(at: point)
+            HomeDrag.shared.note("ask \(Int(point.x)),\(Int(point.y)) hit=\(hit ?? "none") tiles=\(HomeDrag.shared.tiles.values.map { "\(Int($0.minX)),\(Int($0.minY)),\(Int($0.width))x\(Int($0.height))" })")
+            return hit != nil
         }
     }
 
@@ -61,7 +63,8 @@ struct TileHoldInstaller: UIViewRepresentable {
             guard window != nil, hold == nil else { return }
             var view = superview
             while let current = view, !(current is UIScrollView) { view = current.superview }
-            guard let scroll = view as? UIScrollView else { return }
+            guard let scroll = view as? UIScrollView else { HomeDrag.shared.note("no scroll view"); return }
+            HomeDrag.shared.note("installed")
             let hold = UILongPressGestureRecognizer(target: self, action: #selector(handle(_:)))
             hold.minimumPressDuration = HomeDrag.holdDuration
             hold.allowableMovement = HomeDrag.holdTolerance
@@ -77,6 +80,7 @@ struct TileHoldInstaller: UIViewRepresentable {
             // Window coordinates, the same space as the SwiftUI `.global` frames HomeDrag keeps.
             let point = hold.location(in: nil), drag = HomeDrag.shared
             let animation: Animation? = UIAccessibility.isReduceMotionEnabled ? nil : .spring(response: 0.3, dampingFraction: 0.85)
+            drag.note("state \(hold.state.rawValue) at \(Int(point.x)),\(Int(point.y)) drops=\(drag.frames.keys.sorted())")
             switch hold.state {
             case .began:
                 guard let id = drag.tile(at: point) else { return }

@@ -18,6 +18,10 @@ import UIKit
     var frames: [String: CGRect] = [:]
     var tiles: [String: CGRect] = [:]
     func tile(at point: CGPoint) -> String? { tiles.first { $0.value.contains(point) }?.key }
+    /// UI tests only: what the hold recognizer saw, shown in a hidden label so a failing test can report it.
+    @Published var trace = ""
+    static let tracing = ProcessInfo.processInfo.arguments.contains("--ui-testing")
+    func note(_ text: String) { if Self.tracing { trace = String((trace + " | " + text).suffix(600)) } }
     var accept: ((String, Bool) -> Void)?
     func lift(_ id: String) {
         guard item != id else { return }

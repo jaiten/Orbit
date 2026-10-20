@@ -94,6 +94,9 @@ struct TodayView: View {
         .frame(maxWidth: 760).frame(maxWidth: .infinity)
         // Hold a tile to move it between Tasks and Habits; one recognizer for the whole page.
         .background(TileHoldInstaller())
+        .overlay(alignment: .bottom) {
+            if HomeDrag.tracing { Text(homeDrag.trace).font(.system(size: 1)).opacity(0.01).accessibilityIdentifier("drag-trace") }
+        }
     }
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
