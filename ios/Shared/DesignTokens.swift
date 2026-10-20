@@ -1,4 +1,4 @@
-// Generated from shared/design-tokens.json by windows/scripts/tokens.cjs. Do not edit.
+// Generated from shared/design-tokens.json by windows/scripts/generate.cjs. Do not edit.
 import Foundation
 
 enum DesignTokens {

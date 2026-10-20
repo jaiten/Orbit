@@ -12,7 +12,7 @@
     "pack": "electron-builder --win portable",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
-    "tokens": "node scripts/tokens.cjs"
+    "generate": "node scripts/generate.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0"
