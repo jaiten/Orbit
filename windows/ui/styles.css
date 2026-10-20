@@ -558,6 +558,17 @@ progress::-webkit-progress-value {
 }
 
 /* Settings */
+.import-preview {
+  margin-top: var(--space-m);
+  padding: var(--space-m) var(--space-l);
+  border-radius: var(--radius-row);
+  background: var(--canvas);
+}
+.import-list {
+  margin: var(--space-xs) 0 var(--space-s);
+  padding-left: var(--space-xl);
+  color: var(--muted);
+}
 label.toggle {
   display: flex;
   align-items: center;

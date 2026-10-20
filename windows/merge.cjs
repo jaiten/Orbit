@@ -35,4 +35,8 @@ function merge(local, remote, base) {
   result.updatedAt = Math.max(local.updatedAt || 0, remote.updatedAt || 0);
   return result;
 }
-module.exports = { merge };
+/** True when two payloads say the same thing (metadata and tiny number noise aside). */
+function sameContent(a, b) {
+  return equal(visible(a), visible(b));
+}
+module.exports = { merge, sameContent };

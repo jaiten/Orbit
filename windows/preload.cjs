@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("orbit", {
   undo: () => ipcRenderer.invoke("undo"),
-  backup: (mode) => ipcRenderer.invoke("backup", mode),
+  backup: (mode, options) => ipcRenderer.invoke("backup", { mode, ...options }),
   devices: () => ipcRenderer.invoke("devices"),
   removeDevice: (id) => ipcRenderer.invoke("remove-device", id),
   batch: (changes) => ipcRenderer.invoke("batch", changes),

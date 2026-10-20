@@ -54,3 +54,57 @@ test("backup excludes auth and sync metadata and validates all records before re
     /Invalid/,
   );
 });
+
+const fs = require("node:fs");
+const path = require("node:path");
+const { planImport, encodeTasksCSV } = require("../planner-tools.cjs");
+const fixtures = path.resolve(__dirname, "../../shared/test-cases");
+const SOMEDAY = "00000000-0000-4000-8000-000000000001";
+
+test("the shared export sample round-trips exactly through the store", () => {
+  const text = fs.readFileSync(path.join(fixtures, "export-sample.json"), "utf8");
+  const sample = JSON.parse(text);
+  const s = new Store(":memory:");
+  try {
+    s.batch(decodeBackup(text));
+    const exported = JSON.parse(encodeBackup(s.rows(), new Date(sample.exportedAt)));
+    assert.deepEqual(exported, sample);
+  } finally {
+    s.close();
+  }
+});
+
+test("tasks export to the same CSV as iOS", () => {
+  const previous = process.env.TZ;
+  process.env.TZ = "UTC"; // The CSV has local times; the sample is checked in UTC.
+  try {
+    const sample = JSON.parse(fs.readFileSync(path.join(fixtures, "export-sample.json"), "utf8"));
+    const csv = encodeTasksCSV(
+      sample.records.map((r) => ({ ...r, deleted: false })),
+      SOMEDAY,
+    );
+    assert.equal(csv, fs.readFileSync(path.join(fixtures, "export-sample.csv"), "utf8"));
+  } finally {
+    process.env.TZ = previous;
+  }
+});
+
+test("importing never silently overwrites: new, same and changed items are told apart", () => {
+  const sample = decodeBackup(fs.readFileSync(path.join(fixtures, "export-sample.json"), "utf8"));
+  const mine = sample.slice(0, 4).map((r, i) => ({
+    ...r,
+    deleted: false,
+    payload: i === 3 ? { ...r.payload, title: "Edited here" } : { ...r.payload, updatedAt: 1 },
+  }));
+  const plan = planImport(mine, sample);
+  assert.equal(plan.added.length, sample.length - 4);
+  assert.equal(plan.same.length, 3, "only updatedAt differs");
+  assert.deepEqual(
+    plan.changed.map((r) => r.key),
+    [sample[3].key],
+  );
+  assert.ok(
+    decodeBackup(JSON.stringify({ format: "orbit-backup", version: 1, records: sample })),
+    "version 1 still imports",
+  );
+});

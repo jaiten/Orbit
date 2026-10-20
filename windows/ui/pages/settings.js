@@ -40,9 +40,10 @@ function renderSettings() {
       <button id="show-shortcuts">Keyboard Shortcuts</button>
     </section>
     <section class="settings-block">
-      <h2>Data</h2>
-      <button id="export-backup">Export</button><button id="import-backup">Import</button>
-      <p class="secondary">Exports contain your tasks, lists and habit history. No account details are included.</p>
+      <h2>Import & Export</h2>
+      <button id="export-backup">Export Everything (JSON)</button><button id="export-csv">Export Tasks (CSV)</button
+      ><button id="import-backup">Import…</button>
+      <p class="secondary">The JSON file holds your tasks, lists and habit history and can be imported on iPhone or Windows. No account details are included.</p>
       <div id="import-confirm"></div>
     </section>
     <button class="history-link" data-open-page="account">Account <span>${esc(state.email || "Not signed in")} →</span></button>`;
@@ -72,25 +73,14 @@ function bindSettings() {
   );
   if ($("#desktop-settings")) void loadDesktopSettings();
   if ($("#show-shortcuts")) $("#show-shortcuts").onclick = openShortcuts;
-  if ($("#export-backup"))
-    $("#export-backup").onclick = () =>
-      action(async () => {
-        const message = await api.backup("export");
-        if (message) showNotice(message);
-      });
-  if ($("#import-backup"))
-    $("#import-backup").onclick = async () => {
-      try {
-        const count = await api.backup("choose");
-        if (count === null) return;
-        const panel = $("#import-confirm");
-        panel.innerHTML = `<p>Import ${count} items? Matching items will be replaced; other items stay.</p><button id="confirm-import">Import and merge</button><button id="cancel-import">Cancel</button>`;
-        $("#cancel-import").onclick = () => panel.replaceChildren();
-        $("#confirm-import").onclick = () => action(async () => showNotice(await api.backup("restore")));
-      } catch (e) {
-        showNotice(e.message);
-      }
-    };
+  const exportAs = (mode) =>
+    action(async () => {
+      const message = await api.backup(mode);
+      if (message) showNotice(message);
+    });
+  if ($("#export-backup")) $("#export-backup").onclick = () => exportAs("export");
+  if ($("#export-csv")) $("#export-csv").onclick = () => exportAs("export-csv");
+  if ($("#import-backup")) $("#import-backup").onclick = () => void previewImport().catch((e) => showNotice(e.message));
 }
 
 const shortcutLabel = (accelerator) =>
@@ -111,4 +101,24 @@ async function loadDesktopSettings() {
   $("#notifications-toggle").onchange = async (e) =>
     show(await api.desktopSettings({ notifications: e.target.checked }));
   $("#global-shortcut").onchange = async (e) => show(await api.desktopSettings({ shortcut: e.target.value }));
+}
+
+/** Shows what an import would do before anything changes; differing items need an explicit choice. */
+async function previewImport() {
+  const plan = await api.backup("choose");
+  if (!plan) return;
+  const panel = $("#import-confirm");
+  const changed = plan.changed.length
+    ? `<p>${plan.changed.length} ${plan.changed.length === 1 ? "item differs" : "items differ"} from yours:</p>
+       <ul class="import-list">${plan.changed.map((c) => `<li>${esc(c.title)}</li>`).join("")}</ul>
+       <label class="toggle"><input type="checkbox" id="replace-changed" /> Replace ${plan.changed.length === 1 ? "it" : "them"} with the imported ${plan.changed.length === 1 ? "version" : "versions"}</label>`
+    : "";
+  panel.innerHTML = `<div class="import-preview">
+      <p><strong>${plan.added}</strong> new ${plan.added === 1 ? "item" : "items"} will be added. ${plan.same} already here.</p>
+      ${changed}
+      <button class="primary" id="confirm-import">Import</button><button id="cancel-import">Cancel</button>
+    </div>`;
+  $("#cancel-import").onclick = () => panel.replaceChildren();
+  $("#confirm-import").onclick = () =>
+    action(async () => showNotice(await api.backup("restore", { replaceChanged: !!$("#replace-changed")?.checked })));
 }

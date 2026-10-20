@@ -1,9 +1,16 @@
 const { isDeepStrictEqual } = require("node:util");
+const { sameContent } = require("./merge.cjs");
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function decodeBackup(data) {
   if (Buffer.byteLength(data) > 50000000) throw Error("Backup is too large");
   const b = JSON.parse(data);
-  if (b.format !== "orbit-backup" || b.version !== 1 || !Array.isArray(b.records) || b.records.length > 100000)
+  // Version 2 adds exportedAt and app; records are unchanged, so version 1 files still import.
+  if (
+    b.format !== "orbit-backup" ||
+    ![1, 2].includes(b.version) ||
+    !Array.isArray(b.records) ||
+    b.records.length > 100000
+  )
     throw Error("Unsupported Orbit backup");
   const seen = new Set();
   for (const r of b.records) {
@@ -62,16 +69,88 @@ function decodeBackup(data) {
   }
   return b.records.map(({ key, payload }) => ({ key, payload }));
 }
-function encodeBackup(rows) {
+/** The export format shared with iOS (PlannerBackup.swift): version 2, records sorted by key. */
+function encodeBackup(rows, exportedAt = new Date()) {
+  const records = rows
+    .filter((r) => !r.deleted)
+    .map(({ key, payload }) => ({ key, payload }))
+    .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
   return JSON.stringify(
-    {
-      format: "orbit-backup",
-      version: 1,
-      records: rows.filter((r) => !r.deleted).map(({ key, payload }) => ({ key, payload })),
-    },
+    { format: "orbit-backup", version: 2, exportedAt: exportedAt.toISOString(), app: "Orbit", records },
     null,
     2,
   );
+}
+
+/**
+ * Compares an import with what is here, by record key: new items are added, identical ones are
+ * skipped, and items that differ are listed so they are only replaced when the user says so.
+ */
+function planImport(rows, records) {
+  const current = new Map(rows.filter((r) => !r.deleted).map((r) => [r.key, r.payload]));
+  const plan = { added: [], same: [], changed: [] };
+  for (const record of records) {
+    const mine = current.get(record.key);
+    if (!mine) plan.added.push(record);
+    else if (sameContent(mine, record.payload)) plan.same.push(record);
+    else plan.changed.push(record);
+  }
+  return plan;
+}
+
+const localDay = (ms) => {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+const csvField = (value) => {
+  const text = String(value ?? "");
+  return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+};
+/** Tasks as CSV (same columns and order as iOS). Dates and times are local to this device. */
+function encodeTasksCSV(rows, somedayID) {
+  const live = rows.filter((r) => !r.deleted);
+  const lists = new Map(live.filter((r) => r.key.startsWith("lists/")).map((r) => [r.payload.id, r.payload.name]));
+  const tasks = live
+    .filter((r) => r.key.startsWith("tasks/"))
+    .map(({ payload: t }) => {
+      const timed = t.hasTime && Number.isFinite(t.dueDate);
+      const clock = timed ? new Date(t.dueDate) : null;
+      return {
+        id: t.id,
+        title: t.title,
+        list: t.listID === somedayID ? "Someday" : (lists.get(t.listID) ?? "Inbox"),
+        date: timed ? localDay(t.dueDate) : t.localDate || "",
+        time: clock
+          ? `${String(clock.getHours()).padStart(2, "0")}:${String(clock.getMinutes()).padStart(2, "0")}`
+          : "",
+        minutes: timed ? t.durationMinutes : "",
+        completed: t.completedAt ? localDay(t.completedAt) : "",
+        notes: t.notes || "",
+        tags: (t.tags || []).join("; "),
+      };
+    })
+    .sort((a, b) =>
+      (a.date || "9999") < (b.date || "9999")
+        ? -1
+        : (a.date || "9999") > (b.date || "9999")
+          ? 1
+          : a.time !== b.time
+            ? a.time < b.time
+              ? -1
+              : 1
+            : a.title !== b.title
+              ? a.title < b.title
+                ? -1
+                : 1
+              : a.id < b.id
+                ? -1
+                : 1,
+    );
+  const header = ["Title", "List", "Date", "Time", "Minutes", "Completed", "Notes", "Tags", "ID"];
+  const lines = tasks.map((t) =>
+    [t.title, t.list, t.date, t.time, t.minutes, t.completed, t.notes, t.tags, t.id].map(csvField).join(","),
+  );
+  return [header.join(","), ...lines].join("\r\n") + "\r\n";
 }
 class PlannerTools {
   constructor(store) {
@@ -128,4 +207,4 @@ class PlannerTools {
     this.last = null;
   }
 }
-module.exports = { decodeBackup, encodeBackup, PlannerTools };
+module.exports = { decodeBackup, encodeBackup, planImport, encodeTasksCSV, PlannerTools };

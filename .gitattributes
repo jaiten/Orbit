@@ -1,0 +1,2 @@
+# Byte-exact fixture: CRLF rows with a LF inside a quoted field.
+shared/test-cases/*.csv -text

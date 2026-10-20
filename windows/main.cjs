@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, safeStorage, session, protocol, net, dialog, powerMonitor } = require("electron");
 const { confirmationNotice } = require("./auth-links.cjs");
-const { PlannerTools, encodeBackup, decodeBackup } = require("./planner-tools.cjs");
+const { PlannerTools, encodeBackup, decodeBackup, planImport, encodeTasksCSV } = require("./planner-tools.cjs");
+const { SOMEDAY_LIST_ID } = require("./ui/planner.js");
 const { createHash, randomBytes } = require("node:crypto");
 const path = require("node:path");
 const fs = require("node:fs");
@@ -250,42 +251,64 @@ app.whenReady().then(async () => {
     notify();
     void sync.run();
   });
-  handle("backup", async (mode) => {
-    if (mode === "export") {
-      const { canceled, filePath } = await dialog.showSaveDialog(window, {
-        defaultPath: "Orbit-backup.json",
-        filters: [{ name: "Orbit backup", extensions: ["json"] }],
-      });
-      if (!canceled && filePath) {
-        const temporary = filePath + "." + randomBytes(8).toString("hex") + ".tmp";
-        try {
-          fs.writeFileSync(temporary, encodeBackup(store.rows()), { encoding: "utf8", flag: "wx" });
-          fs.renameSync(temporary, filePath);
-        } finally {
-          if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
-        }
-        return "Backup saved";
-      }
-      return null;
+  const saveFile = async (defaultPath, name, extension, text) => {
+    const { canceled, filePath } = await dialog.showSaveDialog(window, {
+      defaultPath,
+      filters: [{ name, extensions: [extension] }],
+    });
+    if (canceled || !filePath) return false;
+    const temporary = filePath + "." + randomBytes(8).toString("hex") + ".tmp";
+    try {
+      fs.writeFileSync(temporary, text, { encoding: "utf8", flag: "wx" });
+      fs.renameSync(temporary, filePath);
+    } finally {
+      if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
     }
+    return true;
+  };
+  handle("backup", async (request) => {
+    const { mode, replaceChanged } = typeof request === "string" ? { mode: request } : request || {};
+    const day = new Date().toLocaleDateString("en-CA");
+    if (mode === "export")
+      return (await saveFile(`Orbit-${day}.json`, "Orbit export", "json", encodeBackup(store.rows())))
+        ? "Exported"
+        : null;
+    if (mode === "export-csv")
+      // The byte-order mark lets Excel read accented characters correctly.
+      return (await saveFile(
+        `Orbit-tasks-${day}.csv`,
+        "CSV",
+        "csv",
+        "\uFEFF" + encodeTasksCSV(store.rows(), SOMEDAY_LIST_ID),
+      ))
+        ? "Tasks exported"
+        : null;
     if (mode === "choose") {
       const { canceled, filePaths } = await dialog.showOpenDialog(window, {
         properties: ["openFile"],
-        filters: [{ name: "Orbit backup", extensions: ["json"] }],
+        filters: [{ name: "Orbit export", extensions: ["json"] }],
       });
       if (canceled) return null;
-      if (fs.statSync(filePaths[0]).size > 50000000) throw Error("Backup is too large");
-      pendingBackup = decodeBackup(fs.readFileSync(filePaths[0], "utf8"));
-      return pendingBackup.length;
+      if (fs.statSync(filePaths[0]).size > 50000000) throw Error("This file is too large");
+      pendingBackup = planImport(store.rows(), decodeBackup(fs.readFileSync(filePaths[0], "utf8")));
+      const title = (r) => r.payload.title || r.payload.name || r.payload.dayKey || "Item";
+      return {
+        added: pendingBackup.added.length,
+        same: pendingBackup.same.length,
+        changed: pendingBackup.changed.map((r) => ({ key: r.key, title: title(r) })),
+      };
     }
     if (mode === "restore" && pendingBackup) {
-      plannerTools.change(pendingBackup.map((r) => ({ ...r, payload: { ...r.payload, updatedAt: Date.now() } })));
+      const chosen = [...pendingBackup.added, ...(replaceChanged === true ? pendingBackup.changed : [])];
+      plannerTools.change(chosen.map((r) => ({ ...r, payload: { ...r.payload, updatedAt: Date.now() } })));
       pendingBackup = null;
       notify();
       void sync.run();
-      return "Backup imported";
+      return chosen.length
+        ? `Imported ${chosen.length} ${chosen.length === 1 ? "item" : "items"}`
+        : "Nothing new to import";
     }
-    throw Error("Choose a backup first");
+    throw Error("Choose a file first");
   });
   handle("auth", async ({ mode, email, password }) => {
     if (!client) throw Error("Sync backend is not configured yet");

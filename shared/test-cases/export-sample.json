@@ -1,0 +1,157 @@
+{
+  "format": "orbit-backup",
+  "version": 2,
+  "exportedAt": "2026-10-20T12:00:00.000Z",
+  "app": "Orbit",
+  "records": [
+    {
+      "key": "habit_logs/e5555555-5555-4555-8555-555555555555-2026-10-20",
+      "payload": {
+        "id": "f6666666-6666-4666-8666-666666666666",
+        "habitID": "e5555555-5555-4555-8555-555555555555",
+        "dayKey": "2026-10-20",
+        "count": 1,
+        "updatedAt": 1792400000000
+      }
+    },
+    {
+      "key": "habits/e5555555-5555-4555-8555-555555555555",
+      "payload": {
+        "conversionData": null,
+        "id": "e5555555-5555-4555-8555-555555555555",
+        "title": "Stretch",
+        "frequencyRule": "WEEKDAYS",
+        "target": 1,
+        "color": "sage",
+        "icon": "leaf",
+        "reminderMinutes": 420,
+        "nudgeMinutes": null,
+        "createdAt": 1792300000000,
+        "updatedAt": 1792400000000
+      }
+    },
+    {
+      "key": "lists/00000000-0000-4000-8000-000000000001",
+      "payload": {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "name": "Someday",
+        "color": "lavender",
+        "sortOrder": -1,
+        "updatedAt": 1792400000000
+      }
+    },
+    {
+      "key": "lists/3f2c1a9e-5b7d-4c8e-9f10-2a3b4c5d6e7f",
+      "payload": {
+        "id": "3f2c1a9e-5b7d-4c8e-9f10-2a3b4c5d6e7f",
+        "name": "Work",
+        "color": "sage",
+        "sortOrder": 0,
+        "updatedAt": 1792400000000
+      }
+    },
+    {
+      "key": "tasks/a1111111-1111-4111-8111-111111111111",
+      "payload": {
+        "conversionData": null,
+        "id": "a1111111-1111-4111-8111-111111111111",
+        "title": "Call the bank, about \"fees\"",
+        "notes": "Ask about\nthe card",
+        "listID": "3f2c1a9e-5b7d-4c8e-9f10-2a3b4c5d6e7f",
+        "dueDate": 1792504800000,
+        "localDate": "2026-10-20",
+        "hasTime": true,
+        "durationMinutes": 45,
+        "reminders": [
+          1792504200000
+        ],
+        "recurrenceRule": "",
+        "priority": 0,
+        "tags": [
+          "admin",
+          "money"
+        ],
+        "subtasks": [],
+        "completedAt": null,
+        "nextOccurrenceID": null,
+        "sortOrder": 0,
+        "updatedAt": 1792400000000
+      }
+    },
+    {
+      "key": "tasks/b2222222-2222-4222-8222-222222222222",
+      "payload": {
+        "conversionData": null,
+        "id": "b2222222-2222-4222-8222-222222222222",
+        "title": "Renew passport",
+        "notes": "",
+        "listID": null,
+        "dueDate": null,
+        "localDate": "2026-10-18",
+        "hasTime": false,
+        "durationMinutes": 30,
+        "reminders": [],
+        "recurrenceRule": "",
+        "priority": 2,
+        "tags": [],
+        "subtasks": [
+          {
+            "id": "a9999999-9999-4999-8999-999999999999",
+            "title": "Photo",
+            "completed": true
+          }
+        ],
+        "completedAt": null,
+        "nextOccurrenceID": null,
+        "sortOrder": 0,
+        "updatedAt": 1792400000000
+      }
+    },
+    {
+      "key": "tasks/c3333333-3333-4333-8333-333333333333",
+      "payload": {
+        "conversionData": null,
+        "id": "c3333333-3333-4333-8333-333333333333",
+        "title": "Learn the cello",
+        "notes": "",
+        "listID": "00000000-0000-4000-8000-000000000001",
+        "dueDate": null,
+        "localDate": null,
+        "hasTime": false,
+        "durationMinutes": 30,
+        "reminders": [],
+        "recurrenceRule": "",
+        "priority": 0,
+        "tags": [],
+        "subtasks": [],
+        "completedAt": null,
+        "nextOccurrenceID": null,
+        "sortOrder": 3,
+        "updatedAt": 1792400000000
+      }
+    },
+    {
+      "key": "tasks/d4444444-4444-4444-8444-444444444444",
+      "payload": {
+        "conversionData": null,
+        "id": "d4444444-4444-4444-8444-444444444444",
+        "title": "Buy birthday card",
+        "notes": "",
+        "listID": null,
+        "dueDate": null,
+        "localDate": "2026-10-20",
+        "hasTime": false,
+        "durationMinutes": 30,
+        "reminders": [],
+        "recurrenceRule": "",
+        "priority": 0,
+        "tags": [],
+        "subtasks": [],
+        "completedAt": 1792490000000,
+        "nextOccurrenceID": null,
+        "sortOrder": 0,
+        "updatedAt": 1792400000000
+      }
+    }
+  ]
+}

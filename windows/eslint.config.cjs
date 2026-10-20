@@ -76,6 +76,7 @@ const shared = Object.fromEntries(
     "conflictBanner",
     "openQuickAdd",
     "render",
+    "previewImport",
     "openShortcuts",
     "loadDesktopSettings",
     "bindLists",
