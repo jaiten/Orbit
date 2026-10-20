@@ -144,7 +144,7 @@ async function load(force = false) {
   updateSync(next);
   updateUndo(next);
   if (notice) {
-    page = "settings";
+    page = "account";
     showNotice(notice);
     force = true;
   }

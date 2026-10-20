@@ -76,6 +76,11 @@ const shared = Object.fromEntries(
     "conflictBanner",
     "openQuickAdd",
     "render",
+    "renderAccount",
+    "bindAccount",
+    "renderReview",
+    "bindReview",
+    "applyAppearance",
   ].map((name) => [name, "writable"]),
 );
 

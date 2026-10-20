@@ -1,6 +1,8 @@
 // Page routing and start-up. Pages live in ui/pages; shared helpers in core.js.
 function render() {
-  document.querySelectorAll("[data-page]").forEach((b) => b.classList.toggle("selected", b.dataset.page === page));
+  // Account and Review are reached from Settings and Today; Settings stays highlighted for them.
+  const navPage = ["account", "review"].includes(page) ? "settings" : page;
+  document.querySelectorAll("[data-page]").forEach((b) => b.classList.toggle("selected", b.dataset.page === navPage));
   const tasks = rows("tasks").sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   const habits = rows("habits").sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
   const pages = {
@@ -10,6 +12,8 @@ function render() {
     history: () => renderHistoryIndex(habits),
     "habit-history": () => renderHabitHistory(habits),
     habits: () => renderHabits(habits),
+    account: renderAccount,
+    review: renderReview,
   };
   $("#content").innerHTML = (pages[page] || renderSettings)();
   renderLists();
@@ -23,6 +27,8 @@ function bind() {
   bindCalendar();
   bindHabits();
   bindSettings();
+  bindAccount();
+  bindReview();
 }
 
 document.querySelectorAll("[data-page]").forEach(
@@ -34,7 +40,7 @@ document.querySelectorAll("[data-page]").forEach(
     }),
 );
 $("#sync-status").onclick = () => {
-  page = "settings";
+  page = "account";
   selectedList = null;
   render();
 };

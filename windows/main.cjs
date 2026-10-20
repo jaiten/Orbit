@@ -61,6 +61,8 @@ app.whenReady().then(async () => {
   if (app.isPackaged && !process.env.ORBIT_TEST_DATA)
     app.setAsDefaultProtocolClient("orbit", process.env.PORTABLE_EXECUTABLE_FILE || process.execPath);
   store = new Store(path.join(app.getPath("userData"), "orbit.sqlite"));
+  // Lets the desktop smoke test simulate sync conflicts; only set for test data folders.
+  if (process.env.ORBIT_TEST_DATA) global.orbitTestStore = store;
   const migrate = () => {
     try {
       return runMigrations(store) > 0;

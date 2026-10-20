@@ -123,7 +123,10 @@ const path = require("node:path");
     if (restored.payload.recurrenceRule) throw Error("Make it a Task restored a repeat");
     await p.getByText("1 completed", { exact: true }).waitFor();
     await p.getByRole("button", { name: "Settings", exact: true }).click();
-    await p.getByRole("heading", { name: "Account" }).waitFor();
+    await p.getByRole("heading", { name: "Settings", exact: true }).waitFor();
+    await p.getByRole("button", { name: "Dark", exact: true }).click();
+    if ((await p.locator("html").getAttribute("data-appearance")) !== "dark") throw Error("Appearance did not change");
+    await p.getByRole("button", { name: "System", exact: true }).click();
     await p.getByRole("button", { name: "Sage", exact: true }).click();
     if ((await p.locator("html").getAttribute("data-accent")) !== "sage") throw Error("Theme did not change");
     await p.getByRole("button", { name: "Coral", exact: true }).click();
@@ -154,6 +157,29 @@ const path = require("node:path");
     const second = await p.getByRole("checkbox", { name: "Complete Call Mom", exact: true }).boundingBox();
     // Rows stack one per line, as in docs/mockups/windows-today.png.
     if (second.y <= first.y || Math.abs(first.x - second.x) > 2) throw Error("Today rows do not stack");
+    // A sync conflict shows a small banner on Today that leads to Review.
+    const conflictKey = await p.evaluate(async () => {
+      const r = (await window.orbit.read()).records.find((r) => r.payload.title === "Call Mom");
+      return r.key;
+    });
+    await app.evaluate(({ BrowserWindow }, key) => {
+      const row = global.orbitTestStore.rows().find((r) => r.key === key);
+      global.orbitTestStore.accept({
+        key,
+        payload: { ...row.payload, title: "Call Mum" },
+        deleted: false,
+        revision: 5,
+        mutation: "remote",
+      });
+      BrowserWindow.getAllWindows()[0].webContents.send("changed");
+    }, conflictKey);
+    await p.getByRole("button", { name: "1 item has two versions to review →", exact: true }).click();
+    await p.getByRole("heading", { name: "Review", exact: true }).waitFor();
+    await p.locator(".version-text", { hasText: "Call Mum" }).waitFor();
+    await p.getByRole("button", { name: "Keep This Version", exact: true }).nth(1).click();
+    await p.getByText("Nothing to review.", { exact: true }).waitFor();
+    await p.locator('[data-page="today"]').click();
+    await p.getByRole("checkbox", { name: "Complete Call Mum", exact: true }).waitFor();
     // Overdue items offer Today / Later / Someday; Someday keeps them off Today until added back.
     await p.evaluate(async () => {
       const id = crypto.randomUUID(),
