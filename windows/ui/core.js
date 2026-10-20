@@ -214,7 +214,8 @@ function taskRow(t) {
     : page === "lists" && !t.completedAt && !onToday
       ? `<button class="today-action" data-today="${id}">Add to Today</button>`
       : "";
-  return `<div class="task-row check-tile ${t.completedAt ? "complete" : ""} ${overdue ? "overdue" : ""}">
+  const search = [t.title, t.notes, ...(t.tags || [])].join(" ").toLowerCase();
+  return `<div class="task-row check-tile ${t.completedAt ? "complete" : ""} ${overdue ? "overdue" : ""}" data-search="${esc(search)}">
     <button class="tile-toggle" role="checkbox" aria-label="${t.completedAt ? "Reopen" : "Complete"} ${esc(t.title)}" aria-checked="${!!t.completedAt}" data-toggle="${id}">
       <span class="tick-symbol">${t.completedAt ? check : ""}</span>
       <span class="tile-copy"><span>${esc(t.title)}</span>${detail ? `<small>${detail}</small>` : ""}</span>

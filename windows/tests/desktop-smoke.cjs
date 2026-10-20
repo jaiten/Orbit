@@ -157,6 +157,59 @@ const path = require("node:path");
     const second = await p.getByRole("checkbox", { name: "Complete Call Mom", exact: true }).boundingBox();
     // Rows stack one per line, as in docs/mockups/windows-today.png.
     if (second.y <= first.y || Math.abs(first.x - second.x) > 2) throw Error("Today rows do not stack");
+    // Keyboard: pages, focused-item toggle/edit/delete, help, search.
+    await p.keyboard.press("Control+2");
+    await p.getByRole("heading", { name: "Calendar", exact: true }).waitFor();
+    await p.keyboard.press("Control+1");
+    await p.getByRole("checkbox", { name: "Complete Wash car", exact: true }).focus();
+    await p.keyboard.press("Space");
+    await p.getByRole("checkbox", { name: "Reopen Wash car", exact: true }).waitFor();
+    if (!(await p.evaluate(() => document.activeElement?.getAttribute("aria-label")))?.startsWith("Reopen Wash car"))
+      throw Error("Focus left the toggled item");
+    await p.keyboard.press("Enter");
+    await p.getByRole("checkbox", { name: "Complete Wash car", exact: true }).waitFor();
+    await p.keyboard.press("e");
+    await p.locator("#editor[open]").waitFor();
+    await p.keyboard.press("Escape");
+    await p.locator("#editor[open]").waitFor({ state: "detached" });
+    await p.getByRole("checkbox", { name: "Complete Call Mom", exact: true }).focus();
+    await p.keyboard.press("Delete");
+    await p.getByRole("checkbox", { name: "Complete Call Mom", exact: true }).waitFor({ state: "detached" });
+    await p.getByRole("button", { name: "Undo", exact: true }).click();
+    await p.getByRole("checkbox", { name: "Complete Call Mom", exact: true }).waitFor();
+    await p.keyboard.press("Control+/");
+    await p.getByRole("heading", { name: "Keyboard Shortcuts", exact: true }).waitFor();
+    await p.keyboard.press("Escape");
+    await p.keyboard.press("Control+f");
+    await p.getByRole("searchbox", { name: "Search tasks" }).fill("mom");
+    if (!(await p.getByRole("checkbox", { name: "Complete Call Mom", exact: true }).isVisible()))
+      throw Error("Search hid the match");
+    if (await p.getByRole("checkbox", { name: "Complete Wash car", exact: true }).isVisible())
+      throw Error("Search kept a non-match");
+    await p.getByRole("searchbox", { name: "Search tasks" }).fill("");
+    await p.keyboard.press("Control+1");
+    // Reminders: one timer for the next reminder, re-planned after every change.
+    const soon = Date.now() + 120000;
+    await p.evaluate(async (at) => {
+      const r = (await window.orbit.read()).records.find((r) => r.payload.title === "Wash car");
+      await window.orbit.put(r.key, { ...r.payload, reminders: [at] });
+    }, soon);
+    const next = await app.evaluate(() => global.orbitTestDesktop.scheduler.next);
+    if (next?.title !== "Wash car" || next.at !== soon)
+      throw Error("Reminder was not scheduled: " + JSON.stringify(next));
+    // Global quick-add shortcut: on by default, changeable and can be turned off.
+    if (!(await app.evaluate(({ globalShortcut }) => globalShortcut.isRegistered("CommandOrControl+Shift+Space"))))
+      throw Error("Global shortcut not registered");
+    await p.getByRole("button", { name: "Settings", exact: true }).click();
+    await p.getByLabel("Quick add shortcut").selectOption({ label: "Off" });
+    await p.waitForFunction(async () => (await window.orbit.desktopSettings()).shortcut === "");
+    if (await app.evaluate(({ globalShortcut }) => globalShortcut.isRegistered("CommandOrControl+Shift+Space")))
+      throw Error("Global shortcut still registered when off");
+    await p.getByLabel("Quick add shortcut").selectOption({ label: "Ctrl + Shift + Space" });
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.send("quick-add"));
+    await p.getByRole("textbox", { name: "Quick add" }).waitFor();
+    await p.keyboard.press("Escape");
+    await p.locator('[data-page="today"]').click();
     // A sync conflict shows a small banner on Today that leads to Review.
     const conflictKey = await p.evaluate(async () => {
       const r = (await window.orbit.read()).records.find((r) => r.payload.title === "Call Mom");

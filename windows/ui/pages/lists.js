@@ -1,10 +1,30 @@
+let searchQuery = "";
+/** Hides rows that don't match the search; the text includes notes and tags. */
+function applySearch() {
+  const words = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
+  document.querySelectorAll("#content [data-search]").forEach((row) => {
+    row.hidden = !words.every((w) => row.dataset.search.includes(w));
+  });
+}
+function bindLists() {
+  if (!$("#search")) return;
+  $("#search").oninput = (e) => {
+    searchQuery = e.target.value;
+    applySearch();
+  };
+  applySearch();
+}
+
 function renderInbox(tasks) {
   const inbox = tasks.filter((t) => !t.completedAt && (!selectedList || t.listID === selectedList));
   const name =
     selectedList === SOMEDAY ? "Someday" : rows("lists").find((l) => l.id === selectedList)?.name || "All Tasks";
   const empty = selectedList === SOMEDAY ? "Ideas for later go here." : "No tasks here.";
-  return `<h1>${esc(name)}</h1>
-    ${inbox.map(taskRow).join("") || `<p class="empty">${empty}</p>`}`;
+  return `<div class="list-header">
+      <h1>${esc(name)}</h1>
+      <input id="search" type="search" placeholder="Search" aria-label="Search tasks" value="${esc(searchQuery)}" />
+    </div>
+    <div class="check-list">${inbox.map(taskRow).join("") || `<p class="empty">${empty}</p>`}</div>`;
 }
 
 function renderLists() {

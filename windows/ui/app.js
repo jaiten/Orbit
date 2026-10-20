@@ -1,5 +1,12 @@
 // Page routing and start-up. Pages live in ui/pages; shared helpers in core.js.
 function render() {
+  // Keep keyboard focus on the same item across re-renders (Space/Enter toggles it repeatedly).
+  const focused = document.activeElement?.closest?.("[data-toggle], [data-habit-toggle]");
+  const focusSelector = focused?.dataset.toggle
+    ? `[data-toggle="${focused.dataset.toggle}"]`
+    : focused?.dataset.habitToggle
+      ? `[data-habit-toggle="${focused.dataset.habitToggle}"]`
+      : null;
   // Account and Review are reached from Settings and Today; Settings stays highlighted for them.
   const navPage = ["account", "review"].includes(page) ? "settings" : page;
   document.querySelectorAll("[data-page]").forEach((b) => b.classList.toggle("selected", b.dataset.page === navPage));
@@ -18,6 +25,7 @@ function render() {
   $("#content").innerHTML = (pages[page] || renderSettings)();
   renderLists();
   bind();
+  if (focusSelector) document.querySelector(focusSelector)?.focus();
   if (state.recoveryReady && !$("#password-editor").open) $("#password-editor").showModal();
 }
 
@@ -29,6 +37,7 @@ function bind() {
   bindSettings();
   bindAccount();
   bindReview();
+  bindLists();
 }
 
 document.querySelectorAll("[data-page]").forEach(
@@ -61,6 +70,7 @@ function refreshCalendarDay() {
   const now = dayKey(new Date());
   const zoneChanged = zoneSignature() !== lastZone;
   lastZone = zoneSignature();
+  if (zoneChanged) reschedule();
   if (now === lastCalendarDay && !zoneChanged) return;
   if (selected === lastCalendarDay) selected = now;
   lastCalendarDay = now;
@@ -68,12 +78,11 @@ function refreshCalendarDay() {
   else render();
 }
 window.addEventListener("focus", refreshCalendarDay);
+api.onQuickAdd(() => {
+  if (!document.querySelector("dialog[open]")) openQuickAdd();
+});
+// Reminders are planned in the main process; tell it which zone the page is in.
+const reschedule = () => void api.reschedule(Intl.DateTimeFormat().resolvedOptions().timeZone);
+reschedule();
 api.onWake(refreshCalendarDay);
 setInterval(refreshCalendarDay, 60000);
-
-document.addEventListener("keydown", (e) => {
-  if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "n" && !document.querySelector("dialog[open]")) {
-    e.preventDefault();
-    openQuickAdd();
-  }
-});

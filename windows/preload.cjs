@@ -13,4 +13,7 @@ contextBridge.exposeInMainWorld("orbit", {
   onSyncStatus: (callback) => ipcRenderer.on("sync-status", (_, value) => callback(value)),
   onChange: (callback) => ipcRenderer.on("changed", () => callback()),
   onWake: (callback) => ipcRenderer.on("wake", () => callback()),
+  onQuickAdd: (callback) => ipcRenderer.on("quick-add", () => callback()),
+  desktopSettings: (changes) => ipcRenderer.invoke("desktop-settings", changes ?? null),
+  reschedule: (zone) => ipcRenderer.invoke("reschedule", zone),
 });

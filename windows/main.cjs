@@ -8,6 +8,7 @@ const { pathToFileURL } = require("node:url");
 const { Store } = require("./store.cjs");
 const { Sync } = require("./sync.cjs");
 const { runMigrations } = require("./migrations.cjs");
+const { setupDesktop } = require("./desktop.cjs");
 const { createClient } = require("@supabase/supabase-js");
 const config = require("./config.json");
 protocol.registerSchemesAsPrivileged([
@@ -22,7 +23,8 @@ let window,
   plannerTools,
   pendingBackup,
   pendingRecoveryURL,
-  recoveryReady = false;
+  recoveryReady = false,
+  desktop;
 let recoveryHandler;
 const handleConfirmation = (raw) => {
   const notice = confirmationNotice(raw);
@@ -77,6 +79,7 @@ app.whenReady().then(async () => {
     else {
       // Records from older devices may still contain repeating tasks.
       if (migrate()) void sync.run();
+      desktop?.scheduler.reschedule();
       window?.webContents.send("changed");
     }
   };
@@ -364,11 +367,25 @@ app.whenReady().then(async () => {
   };
   void registerDevice();
   setInterval(() => void registerDevice(), 300000).unref();
+  handle("desktop-settings", (changes) => (changes ? desktop.update(changes) : desktop.settings()));
+  // The page reports its time zone (it notices changes reliably); reminders are re-planned in that zone.
+  handle("reschedule", (zone) => {
+    if (typeof zone === "string" && /^[A-Za-z0-9_+\-/]{1,64}$/.test(zone) && zone !== process.env.TZ)
+      process.env.TZ = zone;
+    desktop.scheduler.reschedule();
+  });
+  app.setAppUserModelId("com.orbit.planner");
+  desktop = setupDesktop({ window, store, iconPath: path.join(__dirname, "assets", "orbit.png") });
+  if (process.env.ORBIT_TEST_DATA) global.orbitTestDesktop = desktop;
   await window.loadURL("orbit://app");
   if (pendingRecoveryURL) void recoveryHandler();
   window.on("focus", () => void sync.run());
   // A sleeping PC can miss midnight; tell the page to re-check the day.
-  for (const event of ["resume", "unlock-screen"]) powerMonitor.on(event, () => window?.webContents.send("wake"));
+  for (const event of ["resume", "unlock-screen"])
+    powerMonitor.on(event, () => {
+      window?.webContents.send("wake");
+      desktop?.scheduler.reschedule();
+    });
   setInterval(() => void sync.run(), 20000).unref();
   if (client) {
     client

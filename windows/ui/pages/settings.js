@@ -31,6 +31,14 @@ function renderSettings() {
       <h2>Accent</h2>
       <div class="accent-options">${choiceButtons("accent", accents, root.accent)}</div>
     </section>
+    <section class="settings-block" id="desktop-settings">
+      <h2>Reminders & Shortcuts</h2>
+      <label class="toggle"><input type="checkbox" id="notifications-toggle" /> Show reminders for tasks and habits</label>
+      <label>Quick add from anywhere
+        <select id="global-shortcut" aria-label="Quick add shortcut"></select>
+      </label>
+      <button id="show-shortcuts">Keyboard Shortcuts</button>
+    </section>
     <section class="settings-block">
       <h2>Data</h2>
       <button id="export-backup">Export</button><button id="import-backup">Import</button>
@@ -62,6 +70,8 @@ function bindSettings() {
         render();
       }),
   );
+  if ($("#desktop-settings")) void loadDesktopSettings();
+  if ($("#show-shortcuts")) $("#show-shortcuts").onclick = openShortcuts;
   if ($("#export-backup"))
     $("#export-backup").onclick = () =>
       action(async () => {
@@ -81,4 +91,24 @@ function bindSettings() {
         showNotice(e.message);
       }
     };
+}
+
+const shortcutLabel = (accelerator) =>
+  accelerator ? accelerator.replace("CommandOrControl", "Ctrl").replaceAll("+", " + ") : "Off";
+
+async function loadDesktopSettings() {
+  const show = (settings) => {
+    const toggle = $("#notifications-toggle"),
+      select = $("#global-shortcut");
+    if (!toggle || !select) return;
+    toggle.checked = settings.notifications;
+    select.innerHTML = settings.shortcuts
+      .map((s) => `<option value="${esc(s)}" ${s === settings.shortcut ? "selected" : ""}>${shortcutLabel(s)}</option>`)
+      .join("");
+    if (settings.message) showNotice(settings.message);
+  };
+  show(await api.desktopSettings());
+  $("#notifications-toggle").onchange = async (e) =>
+    show(await api.desktopSettings({ notifications: e.target.checked }));
+  $("#global-shortcut").onchange = async (e) => show(await api.desktopSettings({ shortcut: e.target.value }));
 }
