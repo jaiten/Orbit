@@ -24,6 +24,7 @@ struct TodayView: View {
     @State private var contentWidth: CGFloat = 0
     @State private var error: String?
     @State private var day = Calendar.current.startOfDay(for: .now)
+    @ObservedObject private var homeDrag = HomeDrag.shared
     @ObservedObject private var calendars = CalendarBridge.shared
     @ObservedObject private var focus = FocusSession.shared
     private var relevant: [PlannerTask] {
@@ -50,7 +51,7 @@ struct TodayView: View {
                     }
                 }
                 ForEach(homeSections.split(separator: ",").map(String.init).filter { !hiddenSections.split(separator: ",").contains(Substring($0)) }, id: \.self) { section in
-                    homeSection(section)
+                    homeSection(section).zIndex(homeDrag.source == section ? 100 : 0)
                 }
                 }
                 .background(GeometryReader { proxy in
@@ -60,6 +61,10 @@ struct TodayView: View {
                 .padding(.horizontal, 20).padding(.bottom, 16).frame(maxWidth: 760).frame(maxWidth: .infinity)
             }
 
+            .scrollDisabled(homeDrag.item != nil)
+            .onPreferenceChange(HomeDropFrames.self) { homeDrag.frames = $0 }
+            .onAppear { homeDrag.accept = { id, routine in _ = move([id], routine: routine) } }
+            .onDisappear { homeDrag.reset(); homeDrag.accept = nil }
             .background(DayTheme.canvas(scheme)).tint(DayTheme.accentColor(accentTheme))
             .navigationTitle("Today").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarLeading) { Button { customizing = true } label: { Image(systemName: "slider.horizontal.3") }.accessibilityLabel("Edit Today") }; ToolbarItem(placement: .topBarTrailing) { SyncIndicator() } }
@@ -90,10 +95,10 @@ struct TodayView: View {
             }
         case "today":
             checklistSection("For today", items: relevant.filter { $0.completedAt == nil && $0.recurrenceRule.isEmpty }.map { TodayItem(task: $0) }, empty: "Your one-off plans go here.")
-                .dropDestination(for: String.self) { values, _ in move(values, routine: false) }
+                .modifier(HomeDropArea(id: "today"))
         case "routine":
             checklistSection("Your routine", items: relevant.filter { $0.completedAt == nil && !$0.recurrenceRule.isEmpty }.map { TodayItem(task: $0) } + habits.filter { PlannerLogic.progress($0, logs: logs, at: day) < $0.target }.map { TodayItem(habit: $0) }, empty: "Hold and drag a to-do here to make it a habit.")
-                .dropDestination(for: String.self) { values, _ in move(values, routine: true) }
+                .modifier(HomeDropArea(id: "routine"))
         case "completed":
             let completed = relevant.filter { $0.completedAt != nil }.map { TodayItem(task: $0) } + habits.filter { PlannerLogic.progress($0, logs: logs, at: day) >= $0.target }.map { TodayItem(habit: $0) }
             if !completed.isEmpty { DisclosureGroup("Completed · \(completed.count)", isExpanded: $completedExpanded) { checklist(completed).padding(.top, 10) }.font(.subheadline).foregroundStyle(.secondary) }
@@ -143,8 +148,8 @@ struct TodayView: View {
         }
     }
     @ViewBuilder private func itemView(_ item: TodayItem) -> some View {
-        if let task = item.task { TaskRow(task: task, dragEnabled: true) { editing = task }.draggable("task:" + task.id.uuidString) }
-        if let habit = item.habit { HabitRow(habit: habit, logs: logs, date: day, edit: { editingHabit = habit }).draggable("habit:" + habit.id.uuidString) }
+        if let task = item.task { TaskRow(task: task, dragEnabled: true) { editing = task }.modifier(HomeDragSource(id: "task:" + task.id.uuidString)) }
+        if let habit = item.habit { HabitRow(habit: habit, logs: logs, date: day, edit: { editingHabit = habit }).modifier(HomeDragSource(id: "habit:" + habit.id.uuidString)) }
     }
     private func refresh() { day = Calendar.current.startOfDay(for: .now); calendars.reload(); focus.restore() }
 }
@@ -181,6 +186,7 @@ struct CheckTile: View {
     var remove: () -> Void
     var move: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject private var homeDrag = HomeDrag.shared
     @State private var actionEdge = 0
     @State private var dragOffset: CGFloat = 0
     @State private var gestureMoved = false
@@ -191,7 +197,7 @@ struct CheckTile: View {
                 Image(systemName: "xmark").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white).frame(width: 64, height: 72)
             }.buttonStyle(.plain).accessibilityLabel("Delete").accessibilityHidden(actionEdge != -1 && dragOffset >= 0).opacity(actionEdge == -1 || dragOffset < 0 ? 1 : 0)
             HStack(spacing: 0) {
-            Button { if !gestureMoved { if actionEdge == 0 { toggle() } else { actionEdge = 0 } } } label: {
+            Button { if !gestureMoved && homeDrag.item == nil { if actionEdge == 0 { toggle() } else { actionEdge = 0 } } } label: {
                 HStack(spacing: 10) {
                     Image(systemName: done ? "checkmark.circle.fill" : "circle")
                         .font(.system(size: 23, weight: .regular)).foregroundStyle(done ? color : color.opacity(0.65))
@@ -214,10 +220,10 @@ struct CheckTile: View {
             .updating($gestureActive) { _, active, _ in active = true }
             .onChanged { value in
                 gestureMoved = true
-                if abs(value.translation.width) > abs(value.translation.height) * 1.4 { dragOffset = value.translation.width }
+                if homeDrag.item == nil && abs(value.translation.width) > abs(value.translation.height) * 1.4 { dragOffset = value.translation.width }
             }
             .onEnded { value in
-                if abs(value.translation.width) > abs(value.translation.height) * 1.4 {
+                if homeDrag.item == nil && abs(value.translation.width) > abs(value.translation.height) * 1.4 {
                     withAnimation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85)) {
                         actionEdge = CGFloat(actionEdge == -1 ? -70 : 0) + value.translation.width < -32 ? -1 : 0
                         dragOffset = 0
@@ -227,6 +233,7 @@ struct CheckTile: View {
         .onChange(of: gestureActive) { _, active in
             if !active { dragOffset = 0; Task { try? await Task.sleep(for: .milliseconds(150)); gestureMoved = false } }
         }
+        .onChange(of: homeDrag.item) { _, value in if value != nil { actionEdge = 0; dragOffset = 0; gestureMoved = true } }
         .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: actionEdge)
     }
 }
