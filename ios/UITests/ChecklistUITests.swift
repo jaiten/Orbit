@@ -87,7 +87,9 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(addButton.waitForExistence(timeout: 15)); addButton.tap()
         let field = app.descendants(matching: .any).matching(identifier: "task-title-input").firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5)); field.tap(); field.typeText("Stretch every day 7am")
-        XCTAssertTrue(app.staticTexts["Habit · Daily · 7:00 AM"].waitForExistence(timeout: 5))
+        let chip = app.staticTexts["quick-add-preview"]
+        XCTAssertTrue(chip.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(chip.label.hasPrefix("Habit · Daily · 7:00"), chip.label)
         app.navigationBars.buttons["Save"].tap()
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Log Stretch")).firstMatch.waitForExistence(timeout: 5))
     }
