@@ -35,6 +35,9 @@ jobs:
           if [ -d TestResults.xcresult ]; then
             xcrun xcresulttool export attachments --path TestResults.xcresult --output-path TestAttachments || true
           fi
+      - name: Print Today screenshot for manual runs
+        if: always() && github.event_name == 'workflow_dispatch'
+        run: python3 scripts/print_screenshot.py TestAttachments "Orbit Today screenshot" || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:

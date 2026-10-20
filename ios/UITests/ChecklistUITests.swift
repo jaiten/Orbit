@@ -80,4 +80,15 @@ final class ChecklistUITests: XCTestCase {
         app.buttons["Appearance"].tap(); app.buttons["System"].tap()
     }
 
+    func testTodayWithSampleDataScreenshot() {
+        continueAfterFailure = false
+        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
+        XCTAssertTrue(app.tabBars.buttons["Settings"].waitForExistence(timeout: 15)); app.tabBars.buttons["Settings"].tap()
+        let sample = app.buttons["Explore with sample data"]
+        reveal(sample, in: app); sample.tap()
+        app.tabBars.buttons["Today"].tap()
+        XCTAssertTrue(app.buttons["Add something"].waitForExistence(timeout: 5))
+        let image = XCTAttachment(screenshot: app.screenshot()); image.name = "Orbit Today screenshot"; image.lifetime = .keepAlways; add(image)
+    }
+
 }
