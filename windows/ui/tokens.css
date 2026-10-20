@@ -1,0 +1,52 @@
+/* Generated from shared/design-tokens.json by windows/scripts/tokens.cjs. Do not edit. */
+:root {
+  color-scheme: light dark;
+  --canvas: light-dark(#F5F5F7, #141416);
+  --sidebar: light-dark(#EBEBEE, #1B1B1D);
+  --surface: light-dark(#FFFFFF, #1F1F21);
+  --ink: light-dark(#1D1D1F, #F5F5F7);
+  --muted: light-dark(#6D6D73, #A6A6AD);
+  --line: light-dark(#E4E4E8, #323236);
+  --danger: light-dark(#C42B1C, #FF8A80);
+  --sage: #6E8C78;
+  --clay: #D97A66;
+  --lavender: #8C85BF;
+  --honey: #D19E4D;
+  --space-xs: 4px;
+  --space-s: 8px;
+  --space-m: 12px;
+  --space-l: 16px;
+  --space-xl: 20px;
+  --space-xxl: 24px;
+  --space-section: 32px;
+  --radius-card: 18px;
+  --radius-row: 12px;
+  --radius-input: 12px;
+  --radius-chip: 999px;
+  --motion: 200ms;
+}
+:root,
+:root[data-accent="coral"] {
+  --accent: #E87359;
+  --accent-text: light-dark(#B74F38, #E87359);
+  --accent-button: light-dark(#B74F38, #E87359);
+  --on-accent: light-dark(#ffffff, #141416);
+}
+:root[data-accent="sage"] {
+  --accent: #6E8C78;
+  --accent-text: light-dark(#5C7564, #6F8D79);
+  --accent-button: light-dark(#5C7564, #6E8C78);
+  --on-accent: light-dark(#ffffff, #141416);
+}
+:root[data-accent="lavender"] {
+  --accent: #8C85BF;
+  --accent-text: light-dark(#7067AF, #8C85BF);
+  --accent-button: light-dark(#7067AF, #8C85BF);
+  --on-accent: light-dark(#ffffff, #141416);
+}
+:root[data-accent="honey"] {
+  --accent: #D19E4D;
+  --accent-text: light-dark(#926826, #D19E4D);
+  --accent-button: light-dark(#926826, #D19E4D);
+  --on-accent: light-dark(#ffffff, #141416);
+}

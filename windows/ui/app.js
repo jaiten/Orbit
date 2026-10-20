@@ -2,7 +2,7 @@
 function render() {
   document.querySelectorAll("[data-page]").forEach((b) => b.classList.toggle("selected", b.dataset.page === page));
   const tasks = rows("tasks").sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-  const habits = rows("habits");
+  const habits = rows("habits").sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
   const pages = {
     today: () => renderToday(tasks, habits),
     lists: () => renderInbox(tasks),

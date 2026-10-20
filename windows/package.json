@@ -11,7 +11,8 @@
     "test:desktop": "node tests/desktop-smoke.cjs",
     "pack": "electron-builder --win portable",
     "lint": "eslint . && prettier --check .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "tokens": "node scripts/tokens.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0"

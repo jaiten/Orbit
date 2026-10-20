@@ -19,7 +19,7 @@ struct HabitsView: View {
                     if !habits.isEmpty {
                         NavigationLink { HabitHistoryIndex() } label: {
                             Label("History", systemImage: "chart.bar.xaxis").frame(maxWidth: .infinity, alignment: .leading).padding(16)
-                        }.background(.background, in: RoundedRectangle(cornerRadius: 16))
+                        }.background(DayTheme.surface, in: RoundedRectangle(cornerRadius: DayTheme.rowRadius, style: .continuous))
                     }
                 }.padding(20).frame(maxWidth: 760).frame(maxWidth: .infinity)
             }.background(DayTheme.canvas(scheme)).navigationTitle("Habits").navigationBarTitleDisplayMode(.inline)

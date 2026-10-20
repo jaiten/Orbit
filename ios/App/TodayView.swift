@@ -42,7 +42,7 @@ struct TodayView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceXl)) {
                 Text(day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())).font(.caption).foregroundStyle(.secondary)
                 if let title = focus.title, let end = focus.endsAt {
                     Section {
@@ -64,7 +64,7 @@ struct TodayView: View {
                     Color.clear.onAppear { contentWidth = proxy.size.width }
                         .onChange(of: proxy.size.width) { _, width in contentWidth = width }
                 })
-                .padding(.horizontal, 20).padding(.bottom, 16).frame(maxWidth: 760).frame(maxWidth: .infinity)
+                .padding(.horizontal, CGFloat(DesignTokens.spaceXl)).padding(.bottom, CGFloat(DesignTokens.spaceL)).frame(maxWidth: 760).frame(maxWidth: .infinity)
             }
 
             .scrollDisabled(homeDrag.item != nil)
@@ -136,17 +136,17 @@ struct TodayView: View {
         } catch { self.error = error.localizedDescription; return false }
     }
     private func checklistSection(_ title: String, items: [TodayItem], empty: String) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceS)) {
             HStack { Text(title).font(.headline); Spacer(); Text("\(items.count)").font(.caption).foregroundStyle(.tertiary) }
             if items.isEmpty { Text(empty).font(.subheadline).foregroundStyle(.secondary).padding(.vertical, 8) }
             checklist(items)
         }
     }
     private func checklist(_ items: [TodayItem]) -> some View {
-        VStack(spacing: 10) {
-            ForEach(TodayGroup.groups(items, compact: !typeSize.isAccessibilitySize && contentWidth >= tileWidth * 2 + 10)) { group in
+        VStack(spacing: CGFloat(DesignTokens.spaceS)) {
+            ForEach(TodayGroup.groups(items, compact: !typeSize.isAccessibilitySize && contentWidth >= tileWidth * 2 + CGFloat(DesignTokens.spaceS))) { group in
                 if group.items.count == 2 {
-                    HStack(alignment: .top, spacing: 10) {
+                    HStack(alignment: .top, spacing: CGFloat(DesignTokens.spaceS)) {
                         ForEach(group.items) { item in itemView(item).frame(maxWidth: .infinity) }
                     }
                 } else { itemView(group.items[0]) }
@@ -223,10 +223,9 @@ struct CheckTile: View {
             Button { if !gestureMoved { edit() } } label: { Image(systemName: "pencil").font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary).frame(width: 38, height: 54).contentShape(Rectangle()) }
                 .buttonStyle(.plain).accessibilityLabel("Edit " + title)
             }
-            .background(.background, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(.primary.opacity(0.035)))
+            .background(DayTheme.surface, in: RoundedRectangle(cornerRadius: DayTheme.rowRadius, style: .continuous))
             .offset(x: max(-76, min(0, CGFloat(actionEdge == -1 ? -70 : 0) + dragOffset)))
-        }.background(actionEdge == -1 || dragOffset < 0 ? Color.red : Color.clear, in: RoundedRectangle(cornerRadius: 18)).clipShape(RoundedRectangle(cornerRadius: 18))
+        }.background(actionEdge == -1 || dragOffset < 0 ? Color.red : Color.clear, in: RoundedRectangle(cornerRadius: DayTheme.rowRadius, style: .continuous)).clipShape(RoundedRectangle(cornerRadius: DayTheme.rowRadius, style: .continuous))
         .contentShape(Rectangle())
         .simultaneousGesture(DragGesture(minimumDistance: 10)
             .updating($gestureActive) { _, active, _ in active = true }

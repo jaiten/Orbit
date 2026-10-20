@@ -26,7 +26,7 @@ function accountSection() {
 }
 
 function renderSettings() {
-  const accentButtons = Object.keys(accents)
+  const accentButtons = accents
     .map(
       (name) =>
         `<button data-accent="${name}" aria-pressed="${document.documentElement.dataset.accent === name}">${name[0].toUpperCase() + name.slice(1)}</button>`,

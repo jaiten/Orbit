@@ -62,6 +62,15 @@ enum HabitRules {
         return checked(rule: rule, target: target, counts: counts, day: day)
             || periodProgress(rule: rule, counts: counts, day: day, weekStart: weekStart) < max(1, target)
     }
+    /// One habit's inputs for consistency: its schedule, the day it was created and its check-ins by day.
+    struct Entry { var rule: String; var target: Int; var createdDay: String?; var counts: [String: Int] }
+    /// Share of habits scheduled on `day` (and created by then) that were checked, with partial
+    /// credit for daily targets; a weekly habit counts a check-in on that day. No habits gives 0.
+    static func consistency(_ habits: [Entry], day: String) -> Double {
+        let active = habits.filter { ($0.createdDay.map { $0 <= day } ?? true) && scheduledOn(rule: $0.rule, day: day) }
+        guard !active.isEmpty else { return 0 }
+        return active.reduce(0.0) { $0 + min(1, Double($1.counts[day] ?? 0) / Double(dailyTarget(rule: $1.rule, target: $1.target))) } / Double(active.count)
+    }
     /// Days checked in the `days` days ending with `day`. Missed days only lower the count.
     static func checkedDays(rule: String, target: Int, counts: [String: Int], day: String, days: Int = 7) -> Int {
         (0..<days).filter { checked(rule: rule, target: target, counts: counts, day: addDays(day, -$0)) }.count

@@ -1,19 +1,28 @@
 {
-  "colors": {
-    "accent": "#E87359",
-    "sage": "#6E8C78",
-    "clay": "#D97A66",
-    "lavender": "#8C85BF",
-    "honey": "#D19E4D",
-    "canvasLight": "#F5F5F7",
-    "canvasDark": "#141416"
+  "description": "Single source for colours, spacing and radii. Run `npm run tokens` in windows/ to regenerate windows/ui/tokens.css and ios/Shared/DesignTokens.swift; a Windows test fails when they drift.",
+  "accents": {
+    "coral": { "fill": "#E87359", "text": { "light": "#B74F38", "dark": "#E87359" } },
+    "sage": { "fill": "#6E8C78", "text": { "light": "#5C7564", "dark": "#6F8D79" } },
+    "lavender": { "fill": "#8C85BF", "text": { "light": "#7067AF", "dark": "#8C85BF" } },
+    "honey": { "fill": "#D19E4D", "text": { "light": "#926826", "dark": "#D19E4D" } }
   },
-  "spacing": [4, 8, 12, 16, 20, 24, 32, 48],
-  "radii": { "input": 16, "card": 18 },
+  "accentNotes": "Fill colours are used for ticks, progress, selection and buttons. Text colours meet WCAG AA (4.5:1) on the canvas and surface of each appearance: coral text is #B74F38 in light mode (5.0:1 on white, 4.6:1 on canvas) and #E87359 in dark mode (6.2:1). White text on a coral fill is only 3:1, so filled light-mode buttons use the text colour as their fill.",
+  "palette": { "sage": "#6E8C78", "clay": "#D97A66", "lavender": "#8C85BF", "honey": "#D19E4D" },
+  "surfaces": {
+    "canvas": { "light": "#F5F5F7", "dark": "#141416" },
+    "sidebar": { "light": "#EBEBEE", "dark": "#1B1B1D" },
+    "surface": { "light": "#FFFFFF", "dark": "#1F1F21" },
+    "ink": { "light": "#1D1D1F", "dark": "#F5F5F7" },
+    "muted": { "light": "#6D6D73", "dark": "#A6A6AD" },
+    "line": { "light": "#E4E4E8", "dark": "#323236" },
+    "danger": { "light": "#C42B1C", "dark": "#FF8A80" }
+  },
+  "spacing": { "xs": 4, "s": 8, "m": 12, "l": 16, "xl": 20, "xxl": 24, "section": 32 },
+  "radii": { "card": 18, "row": 12, "input": 12, "chip": 999 },
   "type": {
-    "display": { "ios": "SF Pro Rounded via system", "windows": "Segoe UI Variable", "size": 34 },
-    "body": { "ios": "SF Pro via system", "windows": "Segoe UI Variable", "size": 17 },
-    "caption": { "size": 12 }
+    "display": { "ios": "SF Pro via system", "windows": "Segoe UI Variable", "size": 30 },
+    "body": { "ios": "SF Pro via system", "windows": "Segoe UI Variable", "size": 14 },
+    "caption": { "size": 11 }
   },
   "motion": { "standardMilliseconds": 200, "respectReducedMotion": true }
 }

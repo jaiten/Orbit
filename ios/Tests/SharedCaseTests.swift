@@ -67,6 +67,17 @@ final class SharedCaseTests: XCTestCase {
         XCTAssertEqual(QuickAdd.describe(QuickAdd.parse("learn piano someday", now: now), now: now), "Someday")
     }
 
+    func testConsistencyCases() throws {
+        for c in try Self.cases("consistency") {
+            let logs = c["logs"] as! [[String: Any]]
+            let habits = (c["habits"] as! [[String: Any]]).map { h in
+                HabitRules.Entry(rule: h["frequencyRule"] as! String, target: h["target"] as! Int, createdDay: h["createdDay"] as? String,
+                                 counts: logs.filter { $0["habitID"] as? String == h["id"] as? String }.reduce(into: [String: Int]()) { $0[$1["dayKey"] as! String, default: 0] += $1["count"] as! Int })
+            }
+            XCTAssertEqual(HabitRules.consistency(habits, day: c["day"] as! String), c["expect"] as! Double, accuracy: 1e-9, c["name"] as! String)
+        }
+    }
+
     func testCalendarArithmeticIgnoresDaylightSaving() {
         XCTAssertEqual(HabitRules.addDays("2026-03-07", 1), "2026-03-08")
         XCTAssertEqual(HabitRules.addDays("2026-11-01", 1), "2026-11-02")

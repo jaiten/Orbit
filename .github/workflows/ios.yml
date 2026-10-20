@@ -2,9 +2,9 @@ name: iOS prototype
 on:
   push:
     branches: [main]
-    paths: ['ios/**', '.github/workflows/ios.yml', '.github/workflows/testflight.yml', 'scripts/prepare_testflight.py']
+    paths: ['ios/**', 'shared/**', '.github/workflows/ios.yml', '.github/workflows/testflight.yml', 'scripts/prepare_testflight.py']
   pull_request:
-    paths: ['ios/**', '.github/workflows/ios.yml', '.github/workflows/testflight.yml', 'scripts/prepare_testflight.py']
+    paths: ['ios/**', 'shared/**', '.github/workflows/ios.yml', '.github/workflows/testflight.yml', 'scripts/prepare_testflight.py']
   workflow_dispatch:
 concurrency:
   group: ios-${{ github.ref }}

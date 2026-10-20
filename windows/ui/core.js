@@ -1,7 +1,8 @@
 // Shared renderer state and helpers. Loaded first; page scripts build on these globals.
-const accents = { coral: "#e8745e", sage: "#6e8c78", lavender: "#8c85bf", honey: "#bd8738" };
+// Accent colours live in tokens.css, generated from shared/design-tokens.json.
+const accents = ["coral", "sage", "lavender", "honey"];
 function applyAccent(name) {
-  if (!accents[name]) name = "coral";
+  if (!accents.includes(name)) name = "coral";
   document.documentElement.dataset.accent = name;
   localStorage.setItem("accent", name);
 }
@@ -60,6 +61,13 @@ function saveTasks(tasks, extra = []) {
   const hasSomeday = state.records.some((r) => r.key === "lists/" + SOMEDAY && !r.deleted);
   if (needsSomeday && !hasSomeday) changes.unshift({ key: "lists/" + SOMEDAY, payload: OrbitPlanner.somedayList() });
   return api.batch([...changes, ...extra]);
+}
+/** A small notice on Today when sync kept two versions of something; links to the review screen. */
+function conflictBanner() {
+  const count = state.records.filter((r) => r.conflict).length;
+  if (!count) return "";
+  const what = count === 1 ? "1 item has" : `${count} items have`;
+  return `<button class="banner" data-review-conflicts>${what} two versions to review →</button>`;
 }
 function clean({ _key, ...payload }) {
   return payload;
@@ -193,9 +201,11 @@ function taskRow(t) {
   const time =
     t.hasTime && t.dueDate ? new Date(t.dueDate).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
   const overdue = page === "today" && OrbitPlanner.isOverdue(planItem(t), today());
-  const detail = [overdue ? OrbitPlanner.overdueLabel(taskDate(t), today()) : "", time].filter(Boolean).join(" · ");
+  const length = time && t.durationMinutes ? `${t.durationMinutes} min` : "";
+  const detail = [overdue ? OrbitPlanner.overdueLabel(taskDate(t), today()) : "", time, length]
+    .filter(Boolean)
+    .join(" · ");
   const onToday = OrbitPlanner.onDay(planItem(t), today());
-  const size = t.title.length <= 22 && !t.hasTime && !overdue ? "short" : "long";
   const id = esc(t.id);
   const moves = overdue
     ? `<div class="tile-actions" aria-label="Move ${esc(t.title)}">
@@ -204,7 +214,7 @@ function taskRow(t) {
     : page === "lists" && !t.completedAt && !onToday
       ? `<button class="today-action" data-today="${id}">Add to Today</button>`
       : "";
-  return `<div class="task-row check-tile ${size} ${t.completedAt ? "complete" : ""} ${overdue ? "overdue" : ""}">
+  return `<div class="task-row check-tile ${t.completedAt ? "complete" : ""} ${overdue ? "overdue" : ""}">
     <button class="tile-toggle" role="checkbox" aria-label="${t.completedAt ? "Reopen" : "Complete"} ${esc(t.title)}" aria-checked="${!!t.completedAt}" data-toggle="${id}">
       <span class="tick-symbol">${t.completedAt ? check : ""}</span>
       <span class="tile-copy"><span>${esc(t.title)}</span>${detail ? `<small>${detail}</small>` : ""}</span>
@@ -215,7 +225,7 @@ function taskRow(t) {
 }
 function habitCard(h) {
   const done = checked(h);
-  return `<div class="habit-card check-tile ${h.title.length <= 22 ? "short" : "long"} ${done ? "complete" : ""}">
+  return `<div class="habit-card check-tile ${done ? "complete" : ""}">
  <button class="tile-toggle" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${esc(h.title)}" aria-checked="${done}" data-habit-toggle="${esc(h.id)}" ${selected > dayKey(new Date()) ? "disabled" : ""}><span class="tick-symbol">${done ? check : ""}</span><span class="tile-copy"><span>${esc(h.title)}</span><small>${habitDetail(h)}</small></span></button>
  <button class="tile-edit" aria-label="Edit ${esc(h.title)}" data-habit-edit="${esc(h.id)}">${pencil}</button></div>`;
 }

@@ -24,3 +24,9 @@ test("calendar arithmetic does not shift across daylight saving changes", () => 
   assert.equal(habits.addDays("2026-11-01", 1), "2026-11-02");
   assert.equal(habits.addDays("2026-03-01", -1), "2026-02-28");
 });
+
+for (const c of require("../../shared/test-cases/consistency.json").cases) {
+  test(`consistency: ${c.name}`, () => {
+    assert.ok(Math.abs(habits.consistency(c.habits, c.logs, c.day) - c.expect) < 1e-9);
+  });
+}

@@ -180,7 +180,7 @@ app.whenReady().then(async () => {
     minWidth: 820,
     minHeight: 620,
     title: "Orbit",
-    backgroundColor: "#f8f7f5",
+    backgroundColor: "#EBEBEE",
     icon: path.join(__dirname, "assets", "orbit.png"),
     autoHideMenuBar: true,
     webPreferences: {

@@ -1,0 +1,52 @@
+{
+  "description": "Daily consistency: the share of habits scheduled that day (and created by then) that were checked, with partial credit for daily targets. Run by windows/tests/habits.test.cjs and ios/Tests/SharedCaseTests.swift. 2026-10-24 is a Saturday.",
+  "cases": [
+    {
+      "name": "partial daily targets count as fractions",
+      "habits": [
+        { "id": "water", "frequencyRule": "DAILY", "target": 4, "createdDay": "2026-10-01" },
+        { "id": "read", "frequencyRule": "DAILY", "target": 1, "createdDay": "2026-10-01" }
+      ],
+      "logs": [
+        { "habitID": "water", "dayKey": "2026-10-20", "count": 2 },
+        { "habitID": "read", "dayKey": "2026-10-20", "count": 1 }
+      ],
+      "day": "2026-10-20",
+      "expect": 0.75
+    },
+    {
+      "name": "habits created later never lower an earlier day",
+      "habits": [
+        { "id": "read", "frequencyRule": "DAILY", "target": 1, "createdDay": "2026-10-01" },
+        { "id": "new", "frequencyRule": "DAILY", "target": 1, "createdDay": "2026-10-21" }
+      ],
+      "logs": [{ "habitID": "read", "dayKey": "2026-10-20", "count": 1 }],
+      "day": "2026-10-20",
+      "expect": 1
+    },
+    {
+      "name": "a weekday habit does not count on Saturday",
+      "habits": [
+        { "id": "gym", "frequencyRule": "WEEKDAYS", "target": 1, "createdDay": "2026-10-01" },
+        { "id": "walk", "frequencyRule": "WEEKENDS", "target": 1, "createdDay": "2026-10-01" }
+      ],
+      "logs": [{ "habitID": "walk", "dayKey": "2026-10-24", "count": 1 }],
+      "day": "2026-10-24",
+      "expect": 1
+    },
+    {
+      "name": "a weekly habit counts a check-in on that day",
+      "habits": [{ "id": "swim", "frequencyRule": "WEEKLY", "target": 3, "createdDay": "2026-10-01" }],
+      "logs": [{ "habitID": "swim", "dayKey": "2026-10-20", "count": 1 }],
+      "day": "2026-10-20",
+      "expect": 1
+    },
+    {
+      "name": "no habits means zero, not a missed day",
+      "habits": [],
+      "logs": [],
+      "day": "2026-10-20",
+      "expect": 0
+    }
+  ]
+}

@@ -152,8 +152,8 @@ const path = require("node:path");
     }
     const first = await p.getByRole("checkbox", { name: "Complete Wash car", exact: true }).boundingBox();
     const second = await p.getByRole("checkbox", { name: "Complete Call Mom", exact: true }).boundingBox();
-    if (Math.abs(first.y - second.y) > 2 || Math.abs(first.x - second.x) < 20)
-      throw Error("Short checklist tiles do not share a row");
+    // Rows stack one per line, as in docs/mockups/windows-today.png.
+    if (second.y <= first.y || Math.abs(first.x - second.x) > 2) throw Error("Today rows do not stack");
     // Overdue items offer Today / Later / Someday; Someday keeps them off Today until added back.
     await p.evaluate(async () => {
       const id = crypto.randomUUID(),

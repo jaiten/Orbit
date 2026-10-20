@@ -104,6 +104,6 @@ struct CalendarEventRow: View {
                 Text(event.isAllDay ? "All day" : event.startDate.formatted(date: .omitted, time: .shortened))
                 if !event.isAllDay { Text(event.endDate.formatted(date: .omitted, time: .shortened)).foregroundStyle(.secondary) }
             }.font(.caption).monospacedDigit()
-        }.padding(12).frame(minHeight: 60).background(.background, in: RoundedRectangle(cornerRadius: 12))
+        }.padding(12).frame(minHeight: 60).background(DayTheme.surface, in: RoundedRectangle(cornerRadius: DayTheme.rowRadius, style: .continuous))
     }
 }

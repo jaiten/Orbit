@@ -41,7 +41,7 @@ struct HomeDropArea: ViewModifier {
     func body(content: Content) -> some View {
         content.contentShape(Rectangle())
             .background(GeometryReader { proxy in Color.clear.preference(key: HomeDropFrames.self, value: [id: proxy.frame(in: .global)]) })
-            .background(drag.target == id ? DayTheme.accent.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: 16))
+            .background(drag.target == id ? DayTheme.accent.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: DayTheme.rowRadius, style: .continuous))
     }
 }
 

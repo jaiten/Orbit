@@ -64,6 +64,15 @@
     for (let i = 0; i < days; i++) if (checkedOn(habit, logs, addDays(key, -i))) count++;
     return count;
   }
+  /**
+   * Share of habits scheduled on `key` (and created by then, `createdDay`) that were checked.
+   * Daily targets give partial credit; a weekly habit counts a check-in on that day.
+   */
+  function consistency(habits, logs, key) {
+    const active = habits.filter((h) => (!h.createdDay || h.createdDay <= key) && scheduledOn(h, key));
+    if (!active.length) return 0;
+    return active.reduce((sum, h) => sum + Math.min(1, dayCount(h, logs, key) / dailyTarget(h)), 0) / active.length;
+  }
   function label(habit) {
     return { DAILY: "Daily", WEEKDAYS: "Weekdays", WEEKENDS: "Weekends", WEEKLY: "Weekly" }[schedule(habit)];
   }
@@ -81,6 +90,7 @@
     periodProgress,
     dueOn,
     checkedDays,
+    consistency,
     label,
   };
   if (typeof module === "object") module.exports = api;
