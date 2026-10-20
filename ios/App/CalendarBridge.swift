@@ -34,6 +34,12 @@ struct CalendarDraft: Identifiable {
         let start = Calendar.current.startOfDay(for: .now), end = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: .now))!
         events = store.events(matching: store.predicateForEvents(withStart: start, end: end, calendars: nil)).sorted { $0.startDate < $1.startDate }
     }
+    func events(on day: Date) -> [EKEvent] {
+        guard connected else { return [] }
+        let start = Calendar.current.startOfDay(for: day)
+        let end = Calendar.current.date(byAdding: .day, value: 1, to: start)!
+        return store.events(matching: store.predicateForEvents(withStart: start, end: end, calendars: nil)).sorted { $0.startDate < $1.startDate }
+    }
     func draft(for task: PlannerTask) async throws -> CalendarDraft {
         if !connected { try await connect() }
         let previous = UserDefaults.standard.string(forKey: "calendarEvent." + task.id.uuidString).flatMap { store.event(withIdentifier: $0) }
@@ -68,5 +74,23 @@ struct CalendarEventEditor: UIViewControllerRepresentable {
                 CalendarBridge.shared.reload(); parent.dismiss()
             }
         }
+    }
+}
+
+struct CalendarEventRow: View {
+    let event: EKEvent
+    var body: some View {
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 2).fill(Color(cgColor: event.calendar.cgColor)).frame(width: 3)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(event.title ?? "Event").font(.subheadline.weight(.medium))
+                Text(event.calendar.title).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(event.isAllDay ? "All day" : event.startDate.formatted(date: .omitted, time: .shortened))
+                if !event.isAllDay { Text(event.endDate.formatted(date: .omitted, time: .shortened)).foregroundStyle(.secondary) }
+            }.font(.caption).monospacedDigit()
+        }.padding(12).frame(minHeight: 60).background(.background, in: RoundedRectangle(cornerRadius: 12))
     }
 }

@@ -33,7 +33,7 @@ struct TaskEditor: View {
                         ForEach(lists) { Text($0.name).tag(Optional($0.id)) }
                     }
                 }
-                Section("Schedule") {
+                Section { DisclosureGroup("When & repeat") {
                     Toggle("Schedule a day", isOn: $scheduled)
                     if scheduled {
                         DatePicker("Day", selection: $date, displayedComponents: .date)
@@ -43,18 +43,21 @@ struct TaskEditor: View {
                             Stepper("\(duration) minutes", value: $duration, in: 5...1440, step: 5)
                         }
                         Picker("Repeat", selection: $recurrence) {
+                            Text("Weekdays").tag("FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"); Text("Weekends").tag("FREQ=WEEKLY;BYDAY=SA,SU")
                             Text("Never").tag(""); Text("Daily").tag("FREQ=DAILY")
                             Text("Weekly").tag("FREQ=WEEKLY"); Text("Monthly").tag("FREQ=MONTHLY")
                         }
                     }
                 }
-                Section("Details") {
+                }
+                Section { DisclosureGroup("Priority & tags") {
                     Picker("Priority", selection: $priority) {
                         Text("None").tag(0); Text("Low").tag(1); Text("Medium").tag(2); Text("High").tag(3)
                     }
                     TextField("Tags, separated by commas", text: $tags)
                 }
-                Section("Subtasks") {
+                }
+                Section { DisclosureGroup("Steps") {
                     ForEach($subtasks) { $item in
                         HStack {
                             Toggle("Complete", isOn: $item.completed).labelsHidden()
@@ -69,11 +72,12 @@ struct TaskEditor: View {
                         } label: { Image(systemName: "plus.circle.fill") }.accessibilityLabel("Add subtask")
                     }
                 }
-                Section {
+                }
+                Section { DisclosureGroup("Reminders") {
                     ForEach(reminders.indices, id: \.self) { index in DatePicker("Reminder \(index + 1)", selection: $reminders[index]) }
                         .onDelete { reminders.remove(atOffsets: $0) }
                     Button("Add reminder", systemImage: "bell.badge") { reminders.append(max(date, Date.now.addingTimeInterval(3600))) }
-                } header: { Text("Reminders") } footer: { Text("Enable notifications in Settings. Swipe a reminder to remove it. Past reminders are saved but won’t fire.") }
+                } } footer: { Text("Enable notifications in Settings. Swipe a reminder to remove it. Past reminders are saved but won’t fire.") }
                 if task != nil { Section { Button("Delete task", role: .destructive) { confirmDelete = true } } }
             }
             .navigationTitle(task == nil ? "New task" : "Edit task").navigationBarTitleDisplayMode(.inline)

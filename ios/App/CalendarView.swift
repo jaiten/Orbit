@@ -1,10 +1,12 @@
 import SwiftUI
 import SwiftData
+import EventKit
 
 struct CalendarView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.colorScheme) private var scheme
     @Query(sort: \PlannerTask.sortOrder) private var tasks: [PlannerTask]
+    @ObservedObject private var calendars = CalendarBridge.shared
     @State private var selected = Date.now
     @State private var mode = "Week"
     @State private var editing: PlannerTask?
@@ -40,27 +42,45 @@ struct CalendarView: View {
                                 VStack(spacing: 8) {
                                     Text(day.formatted(.dateTime.weekday(.narrow))).font(.caption2)
                                     Text(day.formatted(.dateTime.day())).font(.subheadline.weight(.semibold))
-                                    Circle().fill(tasks.contains { $0.dueDate.map { calendar.isDate($0, inSameDayAs: day) } ?? false } ? DayTheme.accent : .clear).frame(width: 4, height: 4)
+                                    Circle().fill((tasks.contains { $0.dueDate.map { calendar.isDate($0, inSameDayAs: day) } ?? false } || !calendars.events(on: day).isEmpty) ? DayTheme.accent : .clear).frame(width: 4, height: 4)
                                 }.frame(maxWidth: .infinity).padding(.vertical, 10)
                                     .background(calendar.isDate(day, inSameDayAs: selected) ? DayTheme.accent.opacity(0.18) : .clear, in: RoundedRectangle(cornerRadius: 14))
                             }.buttonStyle(.plain).accessibilityLabel(day.formatted(date: .complete, time: .omitted))
                                 .dropDestination(for: String.self) { ids, _ in reschedule(ids, to: day) }
                         }
                     }
-                    SectionHeading(title: selected.formatted(.dateTime.weekday(.wide).month().day()), detail: "\(selectedTasks.count) TASKS")
-                    if selectedTasks.isEmpty { ContentUnavailableView("Room to breathe", systemImage: "sun.horizon", description: Text("Add a task or drop one onto a day to reschedule it.")) }
-                    ForEach(selectedTasks) { task in TaskRow(task: task) { editing = task }.draggable(task.id.uuidString) }
+                    SectionHeading(title: selected.formatted(.dateTime.weekday(.wide).month().day()), detail: "Your day")
+                    if !calendars.connected {
+                        Button("Connect Apple & Google calendars", systemImage: "calendar.badge.plus") { Task { do { try await calendars.connect() } catch { self.error = error.localizedDescription } } }
+                    }
+                    let events = calendars.events(on: selected)
+                    if selectedTasks.isEmpty && events.isEmpty { ContentUnavailableView("Room to breathe", systemImage: "sun.horizon", description: Text("Add a plan or connect your calendars.")) }
+                    ForEach(events.filter(\.isAllDay), id: \.calendarItemIdentifier) { event in CalendarEventRow(event: event) }
+                    ForEach(selectedTasks.filter { !$0.hasTime }) { task in TaskRow(task: task) { editing = task }.draggable(task.id.uuidString) }
+                    ForEach(timeline(events), id: \.id) { entry in
+                        if let task = entry.task { TaskRow(task: task) { editing = task }.draggable(task.id.uuidString) }
+                        if let event = entry.event { CalendarEventRow(event: event) }
+                    }
                     Text("Drag a task onto a day to move it. Edit a task to change its time.").font(.caption).foregroundStyle(.secondary)
                 }.padding(20).frame(maxWidth: 760).frame(maxWidth: .infinity)
-            }.background(DayTheme.canvas(scheme)).navigationTitle("Make room").navigationBarTitleDisplayMode(.inline)
+            }.background(DayTheme.canvas(scheme)).navigationTitle("Calendar").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) { Button("Today") { selected = .now } }
                     ToolbarItem(placement: .topBarTrailing) { Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("New task") }
                 }
                 .sheet(item: $editing) { TaskEditor(task: $0) }
-                .sheet(isPresented: $adding) { TaskEditor(initialDate: selected) }
+                .sheet(isPresented: $adding) { QuickCapture(initialDate: selected) }
                 .modifier(MutationErrorModifier(error: $error))
         }
+    }
+    private struct Entry: Identifiable {
+        let id: String
+        let date: Date
+        var task: PlannerTask? = nil
+        var event: EKEvent? = nil
+    }
+    private func timeline(_ events: [EKEvent]) -> [Entry] {
+        (selectedTasks.filter(\.hasTime).map { Entry(id: $0.id.uuidString, date: $0.dueDate ?? selected, task: $0) } + events.filter { !$0.isAllDay }.map { Entry(id: $0.calendarItemIdentifier, date: $0.startDate, event: $0) }).sorted { $0.date < $1.date }
     }
     private func move(_ amount: Int) { selected = calendar.date(byAdding: mode == "Week" ? .weekOfYear : .month, value: amount, to: selected)! }
     private func reschedule(_ ids: [String], to day: Date) -> Bool {

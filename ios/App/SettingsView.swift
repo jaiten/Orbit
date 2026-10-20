@@ -7,7 +7,10 @@ struct SettingsView: View {
     @Query private var tasks: [PlannerTask]
     @Query private var habits: [Habit]
     @Query(sort: \IdeaPrompt.updatedAt) private var ideas: [IdeaPrompt]
-    @State private var ideaText = ""
+    @AppStorage("accentTheme") private var accentTheme = "coral"
+    @AppStorage("generalCheckIn") private var checkIn = false
+    @AppStorage("checkInMinutes") private var checkInMinutes = 1080
+    @AppStorage("orbitVisitDays") private var visitDays = 0
     @State private var message: String?
     @ObservedObject private var calendars = CalendarBridge.shared
     @ObservedObject private var sync = SyncService.shared
@@ -21,9 +24,8 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("Orbit").font(.largeTitle.weight(.bold))
+                    HStack(spacing: 12) { OrbitMark(); VStack(alignment: .leading, spacing: 4) { Text("Orbit").font(.title.weight(.bold)); Text("\(visitDays) days showing up").font(.caption).foregroundStyle(.secondary) } }
                     Text("A little space for what matters.").foregroundStyle(.secondary)
-                    SyncIndicator()
                 }
                 Section("Across your devices") {
                     if let account = sync.email {
@@ -78,6 +80,18 @@ struct SettingsView: View {
                     Text("See events from Apple Calendar and Google accounts added to your iPhone. Touch and hold a to-do to send it to a calendar. Changes to calendar events do not change the original task.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
+                Section("Accent") {
+                    HStack {
+                        ForEach(DayTheme.accents, id: \.self) { name in
+                            Button { accentTheme = name } label: {
+                                VStack(spacing: 8) {
+                                    Circle().fill(DayTheme.accentColor(name)).frame(width: 34, height: 34).overlay { if accentTheme == name { Image(systemName: "checkmark").foregroundStyle(.white) } }
+                                    Text(name == "honey" ? "Honey" : name.capitalized).font(.caption2).foregroundStyle(.primary)
+                                }.frame(maxWidth: .infinity)
+                            }.buttonStyle(.plain).accessibilityLabel(name.capitalized + (accentTheme == name ? ", selected" : ""))
+                        }
+                    }.padding(.vertical, 6)
+                }
                 Section("Preferences") {
                     Picker("Appearance", selection: $appearance) {
                         Text("System").tag("system"); Text("Light").tag("light"); Text("Dark").tag("dark")
@@ -92,27 +106,20 @@ struct SettingsView: View {
                         }
                     }
                 }
-                Section {
-                    TextField("Something you’d like to try", text: $ideaText, axis: .vertical)
-                    Button("Add to my ideas") {
-                        context.insert(IdeaPrompt(text: ideaText.trimmingCharacters(in: .whitespacesAndNewlines)))
-                        do { try Mutations.save(context); ideaText = "" } catch { message = error.localizedDescription }
-                    }.disabled(ideaText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    ForEach(ideas) { idea in
-                        HStack {
-                            Text(idea.text).foregroundStyle(idea.dismissed ? .secondary : .primary)
-                            Spacer()
-                            if idea.dismissed {
-                                Button("Restore") { idea.dismissed = false; idea.updatedAt = .now
-                                    do { try Mutations.save(context) } catch { message = error.localizedDescription }
-                                }.font(.caption)
-                            }
+                Section("A moment for yourself") {
+                    Toggle("Daily check-in", isOn: $checkIn)
+                        .onChange(of: checkIn) { _, enabled in
+                            Task { do { if enabled { _ = try await NotificationScheduler.shared.requestPermission() }; try await refreshReminders(context) } catch { message = error.localizedDescription } }
                         }
-                    }.onDelete { offsets in
-                        for index in offsets { context.delete(ideas[index]) }
-                        do { try Mutations.save(context) } catch { message = error.localizedDescription }
+                    if checkIn {
+                        DatePicker("At", selection: Binding(get: { Calendar.current.date(bySettingHour: checkInMinutes / 60, minute: checkInMinutes % 60, second: 0, of: .now)! }, set: { date in
+                            checkInMinutes = Calendar.current.component(.hour, from: date) * 60 + Calendar.current.component(.minute, from: date)
+                            Task { try? await refreshReminders(context) }
+                        }), displayedComponents: .hourAndMinute)
+                        Button("Use my usual check-in time") { checkInMinutes = UsageSignals.suggestedMinutes(); Task { try? await refreshReminders(context) } }
                     }
-                } header: { Text("Try something new") } footer: { Text("One of your ideas appears on Today each day. Always written by you.") }
+                    Text("One gentle reminder, independent of your to-dos. Time suggestions use only check-in counts stored on this device. After three visits at a similar time, Orbit can suggest that hour. You stay in control.").font(.footnote).foregroundStyle(.secondary)
+                }
                 if tasks.isEmpty && habits.isEmpty {
                     Section { Button("Explore with sample data", action: seed) }
                 }
@@ -120,7 +127,8 @@ struct SettingsView: View {
                     Text("Offline first. Sign in to share your planner with Orbit for Windows. Sync runs while the app is open; widget changes sync when you reopen Orbit.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
-            }.navigationTitle("Settings")
+            }.navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .topBarTrailing) { SyncIndicator() } }
                 .alert("Orbit", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
                     Button("OK") { message = nil }
                 } message: { Text(message ?? "") }

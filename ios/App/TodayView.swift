@@ -15,6 +15,10 @@ struct TodayView: View {
     @State private var editingHabit: Habit?
     @State private var addingTask = false
     @State private var addingHabit = false
+    @State private var customizing = false
+    @AppStorage("homeSections") private var homeSections = "consistency,today,routine,completed,calendar"
+    @AppStorage("hiddenHomeSections") private var hiddenSections = ""
+    @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
     @State private var completedExpanded = true
     @Environment(\.dynamicTypeSize) private var typeSize
     @ScaledMetric(relativeTo: .body) private var tileWidth: CGFloat = 150
@@ -38,7 +42,7 @@ struct TodayView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 18) {
                 Group {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
@@ -61,38 +65,8 @@ struct TodayView: View {
                         }
                     }
                 }
-                checklistSection("For today", items: relevant.filter { $0.completedAt == nil && $0.recurrenceRule.isEmpty }.map { TodayItem(task: $0) }, empty: "Your one-off plans go here.")
-                checklistSection("Your routine", items: relevant.filter { $0.completedAt == nil && !$0.recurrenceRule.isEmpty }.map { TodayItem(task: $0) } + habits.filter { PlannerLogic.progress($0, logs: logs, at: day) < $0.target }.map { TodayItem(habit: $0) }, empty: "Daily habits and weekly commitments.")
-                let completed = relevant.filter { $0.completedAt != nil }.map { TodayItem(task: $0) } + habits.filter { PlannerLogic.progress($0, logs: logs, at: day) >= $0.target }.map { TodayItem(habit: $0) }
-                if !completed.isEmpty {
-                    DisclosureGroup("Completed · \(completed.count)", isExpanded: $completedExpanded) {
-                        checklist(completed).padding(.top, 10)
-                    }.font(.subheadline).foregroundStyle(.secondary).padding(.top, 8)
-                }
-                if calendars.connected {
-                    Section("From your calendars") {
-                        if calendars.events.isEmpty { Text("No events today").foregroundStyle(.secondary) }
-                        ForEach(calendars.events, id: \.calendarItemIdentifier) { event in
-                            HStack {
-                                RoundedRectangle(cornerRadius: 2).fill(Color(cgColor: event.calendar.cgColor)).frame(width: 3)
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(event.title ?? "Event").font(.subheadline)
-                                    Text(event.calendar.title).font(.caption).foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Text(event.isAllDay ? "All day" : event.startDate.formatted(date: .omitted, time: .shortened)).font(.caption).foregroundStyle(.secondary)
-                            }.padding(.vertical, 4)
-                        }
-                    }
-                }
-                if let idea {
-                    Section("A little outside the usual") {
-                        Text(idea.text)
-                        Button("Done with this idea") {
-                            idea.dismissed = true; idea.shownAt = .now; idea.updatedAt = .now
-                            do { try Mutations.save(context) } catch { self.error = error.localizedDescription }
-                        }.font(.caption)
-                    }
+                ForEach(homeSections.split(separator: ",").map(String.init).filter { !hiddenSections.split(separator: ",").contains(Substring($0)) }, id: \.self) { section in
+                    homeSection(section)
                 }
                 }
                 .background(GeometryReader { proxy in
@@ -103,19 +77,17 @@ struct TodayView: View {
             }
 
             .background(DayTheme.canvas(scheme))
-            .navigationTitle("Today").navigationBarTitleDisplayMode(.large)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { SyncIndicator() } }
+            .navigationTitle("Today").navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .topBarLeading) { Button { customizing = true } label: { Image(systemName: "slider.horizontal.3") }.accessibilityLabel("Edit Today") }; ToolbarItem(placement: .topBarTrailing) { SyncIndicator() } }
             .safeAreaInset(edge: .bottom, alignment: .trailing, spacing: 0) {
-                Menu {
-                    Button("To-do", systemImage: "checklist") { addingTask = true }
-                    Button("Non-negotiable", systemImage: "repeat") { addingHabit = true }
-                } label: {
+                Button { addingTask = true } label: {
                     Image(systemName: "plus").font(.title2.weight(.medium)).foregroundStyle(.white)
                         .frame(width: 54, height: 54).background(DayTheme.accent, in: Circle())
                         .shadow(color: .black.opacity(0.13), radius: 10, y: 4)
-                }.accessibilityLabel("Add to-do or non-negotiable").padding(.trailing, 20).padding(.bottom, 10)
+                }.accessibilityLabel("Add something").padding(.trailing, 20).padding(.bottom, 10)
             }
-            .sheet(isPresented: $addingTask) { TaskEditor(initialDate: day) }
+            .sheet(isPresented: $addingTask) { QuickCapture(initialDate: day) }
+            .sheet(isPresented: $customizing) { HomeLayoutEditor() }
             .sheet(isPresented: $addingHabit) { HabitEditor() }
             .sheet(item: $editing) { TaskEditor(task: $0) }
             .sheet(item: $editingHabit) { HabitEditor(habit: $0) }
@@ -124,6 +96,45 @@ struct TodayView: View {
             .task { refresh(); while !Task.isCancelled { try? await Task.sleep(for: .seconds(60)); if !Task.isCancelled { refresh() } } }
             .onChange(of: phase) { _, value in if value == .active { refresh() } }
         }
+    }
+    @ViewBuilder private func homeSection(_ id: String) -> some View {
+        switch id {
+        case "consistency": ConsistencyStrip(habits: habits, logs: logs)
+        case "today":
+            checklistSection("For today", items: relevant.filter { $0.completedAt == nil && $0.recurrenceRule.isEmpty }.map { TodayItem(task: $0) }, empty: "Your one-off plans go here.")
+                .dropDestination(for: String.self) { values, _ in move(values, routine: false) }
+        case "routine":
+            checklistSection("Your routine", items: relevant.filter { $0.completedAt == nil && !$0.recurrenceRule.isEmpty }.map { TodayItem(task: $0) } + habits.filter { PlannerLogic.progress($0, logs: logs, at: day) < $0.target }.map { TodayItem(habit: $0) }, empty: "Hold and drag a to-do here to make it a habit.")
+                .dropDestination(for: String.self) { values, _ in move(values, routine: true) }
+        case "completed":
+            let completed = relevant.filter { $0.completedAt != nil }.map { TodayItem(task: $0) } + habits.filter { PlannerLogic.progress($0, logs: logs, at: day) >= $0.target }.map { TodayItem(habit: $0) }
+            if !completed.isEmpty { DisclosureGroup("Completed · \(completed.count)", isExpanded: $completedExpanded) { checklist(completed).padding(.top, 10) }.font(.subheadline).foregroundStyle(.secondary) }
+        case "calendar":
+            if calendars.connected {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("From your calendars").font(.headline)
+                    if calendars.events.isEmpty { Text("No events today").font(.subheadline).foregroundStyle(.secondary) }
+                    ForEach(calendars.events, id: \.calendarItemIdentifier) { event in CalendarEventRow(event: event) }
+                }
+            }
+        default:
+            if let list = lists.first(where: { "list:" + $0.id.uuidString == id }) {
+                checklistSection(list.name, items: tasks.filter { $0.listID == list.id && $0.completedAt == nil }.map { TodayItem(task: $0) }, empty: "Nothing waiting in this list.")
+            }
+        }
+    }
+    private func move(_ values: [String], routine: Bool) -> Bool {
+        guard let value = values.first else { return false }
+        do {
+            if routine, let task = tasks.first(where: { "task:" + $0.id.uuidString == value }), task.recurrenceRule.isEmpty {
+                try Conversions.toHabit(task, in: context)
+            } else if !routine, let habit = habits.first(where: { "habit:" + $0.id.uuidString == value }) {
+                try Conversions.toTask(habit, in: context)
+            } else if !routine, let task = tasks.first(where: { "task:" + $0.id.uuidString == value }), !task.recurrenceRule.isEmpty {
+                task.recurrenceRule = ""; task.updatedAt = .now; try Mutations.save(context)
+            } else { return false }
+            Task { try? await refreshReminders(context) }; return true
+        } catch { self.error = error.localizedDescription; return false }
     }
     private func checklistSection(_ title: String, items: [TodayItem], empty: String) -> some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -144,8 +155,8 @@ struct TodayView: View {
         }
     }
     @ViewBuilder private func itemView(_ item: TodayItem) -> some View {
-        if let task = item.task { TaskRow(task: task) { editing = task } }
-        if let habit = item.habit { HabitRow(habit: habit, logs: logs, date: day, edit: { editingHabit = habit }) }
+        if let task = item.task { TaskRow(task: task) { editing = task }.draggable("task:" + task.id.uuidString) }
+        if let habit = item.habit { HabitRow(habit: habit, logs: logs, date: day, edit: { editingHabit = habit }).draggable("habit:" + habit.id.uuidString) }
     }
     private func refresh() { day = Calendar.current.startOfDay(for: .now); calendars.reload(); focus.restore() }
 }
@@ -183,10 +194,15 @@ struct CheckTile: View {
     var move: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var actionEdge = 0
+    @State private var dragOffset: CGFloat = 0
     @State private var gestureMoved = false
     @GestureState private var gestureActive = false
     var body: some View {
-        HStack(spacing: 0) {
+        ZStack(alignment: .trailing) {
+            Button { remove(); actionEdge = 0 } label: {
+                Image(systemName: "xmark").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white).frame(width: 64, height: 72)
+            }.buttonStyle(.plain).accessibilityLabel("Delete").opacity(actionEdge == -1 || dragOffset < 0 ? 1 : 0)
+            HStack(spacing: 0) {
             Button { if !gestureMoved { if actionEdge == 0 { toggle() } else { actionEdge = 0 } } } label: {
                 HStack(spacing: 10) {
                     Image(systemName: done ? "checkmark.circle.fill" : "circle")
@@ -198,33 +214,30 @@ struct CheckTile: View {
                     Spacer(minLength: 0)
                 }.padding(.leading, 14).padding(.vertical, 16).frame(maxWidth: .infinity, minHeight: 72, alignment: .leading).contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityLabel(completionLabel).accessibilityValue(subtitle).accessibilityIdentifier("checklist-title")
-            if actionEdge == 0 {
-                Button { if !gestureMoved { edit() } } label: { Image(systemName: "pencil").font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary).frame(width: 38, height: 54).contentShape(Rectangle()) }
-                    .buttonStyle(.plain).accessibilityLabel("Edit " + title)
-            } else {
-                Button {
-                    if actionEdge < 0 { remove() } else { move() }
-                    actionEdge = 0
-                } label: {
-                    Image(systemName: actionEdge < 0 ? "xmark" : "arrow.left.arrow.right").font(.system(size: 14, weight: .semibold)).foregroundStyle(.white).frame(width: 44, height: 50)
-                        .background(actionEdge < 0 ? Color.red : color, in: RoundedRectangle(cornerRadius: 12))
-                }.buttonStyle(.plain).accessibilityLabel(actionEdge < 0 ? "Delete" : moveLabel).padding(.horizontal, 8)
+            Button { if !gestureMoved { edit() } } label: { Image(systemName: "pencil").font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary).frame(width: 38, height: 54).contentShape(Rectangle()) }
+                .buttonStyle(.plain).accessibilityLabel("Edit " + title)
             }
-        }
-        .background(.background, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(.primary.opacity(0.035)))
+            .background(.background, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(.primary.opacity(0.035)))
+            .offset(x: max(-76, min(0, CGFloat(actionEdge == -1 ? -70 : 0) + dragOffset)))
+        }.background(Color.red, in: RoundedRectangle(cornerRadius: 18)).clipShape(RoundedRectangle(cornerRadius: 18))
         .contentShape(Rectangle())
         .simultaneousGesture(DragGesture(minimumDistance: 10)
             .updating($gestureActive) { _, active, _ in active = true }
-            .onChanged { _ in gestureMoved = true }
+            .onChanged { value in
+                gestureMoved = true
+                if abs(value.translation.width) > abs(value.translation.height) * 1.4 { dragOffset = value.translation.width }
+            }
             .onEnded { value in
                 if abs(value.translation.width) > abs(value.translation.height) * 1.4 {
-                    if value.translation.width < -36 { actionEdge = actionEdge == -1 ? 0 : -1 }
-                    else if value.translation.width > 36 { actionEdge = actionEdge == 1 ? 0 : 1 }
+                    withAnimation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85)) {
+                        actionEdge = CGFloat(actionEdge == -1 ? -70 : 0) + value.translation.width < -32 ? -1 : 0
+                        dragOffset = 0
+                    }
                 }
             })
         .onChange(of: gestureActive) { _, active in
-            if !active { Task { try? await Task.sleep(for: .milliseconds(150)); gestureMoved = false } }
+            if !active { dragOffset = 0; Task { try? await Task.sleep(for: .milliseconds(150)); gestureMoved = false } }
         }
         .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: actionEdge)
     }
@@ -239,7 +252,7 @@ struct TaskRow: View {
     private var subtitle: String {
         var parts: [String] = []
         if task.hasTime, let date = task.dueDate { parts.append(date.formatted(date: .omitted, time: .shortened)) }
-        if !task.recurrenceRule.isEmpty { parts.append(task.recurrenceRule == "FREQ=DAILY" ? "Daily" : task.recurrenceRule == "FREQ=WEEKLY" ? "Weekly" : "Monthly") }
+        if !task.recurrenceRule.isEmpty { parts.append(task.recurrenceRule.contains("BYDAY=MO") ? "Weekdays" : task.recurrenceRule.contains("BYDAY=SA") ? "Weekends" : task.recurrenceRule == "FREQ=DAILY" ? "Daily" : task.recurrenceRule == "FREQ=WEEKLY" ? "Weekly" : "Monthly") }
         if !task.subtasks.isEmpty { parts.append("\(task.subtasks.filter(\.completed).count)/\(task.subtasks.count) steps") }
         return parts.joined(separator: " · ")
     }

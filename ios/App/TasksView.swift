@@ -20,8 +20,8 @@ struct TasksView: View {
         NavigationStack {
             List {
                 Section {
-                    Picker("Project", selection: $listID) {
-                        Text("All tasks").tag(nil as UUID?)
+                    Picker("List", selection: $listID) {
+                        Text("All to-dos").tag(nil as UUID?)
                         ForEach(lists) { Text($0.name).tag(Optional($0.id)) }
                     }
                     Toggle("Show completed", isOn: $showCompleted)
@@ -30,7 +30,7 @@ struct TasksView: View {
                     if filtered.isEmpty { ContentUnavailableView("A clear page", systemImage: "checklist", description: Text("Add a task or change your filters.")) }
                     ForEach(filtered) { task in TaskRow(task: task) { editing = task }.listRowSeparator(.hidden) }
                 }
-            }.searchable(text: $search, prompt: "Search tasks or tags").navigationTitle("Tasks")
+            }.searchable(text: $search, prompt: "Search tasks or tags").navigationTitle("Lists")
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) { Button("Lists") { manageLists = true } }
                     ToolbarItem(placement: .topBarTrailing) { Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("New task") }

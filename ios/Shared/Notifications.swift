@@ -53,6 +53,15 @@ actor NotificationScheduler {
                 }
             }
         }
+        if UserDefaults.standard.bool(forKey: "generalCheckIn") {
+            let minutes = UserDefaults.standard.object(forKey: "checkInMinutes") as? Int ?? 1080
+            for offset in 0..<7 {
+                let day = Calendar.current.date(byAdding: .day, value: offset, to: now)!
+                if let date = Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: day) {
+                    result.append(Reminder(id: "orbit.checkin.\(offset)", title: "A little moment for you", body: "Take a breath. Choose one small thing, or notice what you’ve already done.", date: date))
+                }
+            }
+        }
         return result
     }
 }

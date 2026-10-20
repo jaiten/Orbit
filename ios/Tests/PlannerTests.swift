@@ -12,6 +12,19 @@ import SwiftData
     private func date(_ y: Int, _ m: Int, _ d: Int, _ h: Int = 12) -> Date {
         calendar.date(from: DateComponents(year: y, month: m, day: d, hour: h))!
     }
+    func testPartialDailyConsistencyAndCreationBoundary() {
+        let earlier = date(2026, 9, 13)
+        let water = Habit(title: "Water", target: 4); water.createdAt = earlier
+        let read = Habit(title: "Read"); read.createdAt = earlier
+        let future = Habit(title: "Future"); future.createdAt = date(2026, 9, 16)
+        let logs = [HabitLog(habitID: water.id, dayKey: "2026-09-14", count: 2), HabitLog(habitID: read.id, dayKey: "2026-09-14")]
+        XCTAssertEqual(PlannerLogic.dailyConsistency(habits: [water, read, future], logs: logs, on: date(2026, 9, 14), calendar: calendar), 0.75, accuracy: 0.001)
+        XCTAssertEqual(PlannerLogic.dailyConsistency(habits: [], logs: logs, on: earlier), 0)
+    }
+    func testWeekdayAndWeekendRecurrence() {
+        XCTAssertEqual(PlannerLogic.nextOccurrence(after: date(2026, 9, 18, 8), rule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR", calendar: calendar), date(2026, 9, 21, 8))
+        XCTAssertEqual(PlannerLogic.nextOccurrence(after: date(2026, 9, 20, 8), rule: "FREQ=WEEKLY;BYDAY=SA,SU", calendar: calendar), date(2026, 9, 26, 8))
+    }
     func testQuickAddTomorrowAndTime() {
         let result = QuickAdd.parse("gym tomorrow 6am", now: date(2026, 9, 14), calendar: calendar)
         XCTAssertEqual(result.title, "gym"); XCTAssertTrue(result.hasTime)

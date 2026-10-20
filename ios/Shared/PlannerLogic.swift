@@ -1,6 +1,18 @@
 import Foundation
 
 enum PlannerLogic {
+    /// Daily targets are fractional; weekly habits count a check-in on that day.
+    /// Habits created later never lower an earlier day's score.
+    static func dailyConsistency(habits: [Habit], logs: [HabitLog], on day: Date, calendar: Calendar = .current) -> Double {
+        let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: day))!
+        let active = habits.filter { $0.createdAt < end }
+        guard !active.isEmpty else { return 0 }
+        let key = dayKey(day, calendar: calendar)
+        return active.reduce(0.0) { result, habit in
+            let count = logs.filter { $0.habitID == habit.id && $0.dayKey == key }.reduce(0) { $0 + $1.count }
+            return result + min(1, Double(count) / Double(habit.frequencyRule == "WEEKLY" ? 1 : max(1, habit.target)))
+        } / Double(active.count)
+    }
     static func dayKey(_ date: Date, calendar: Calendar = .current) -> String {
         let c = calendar.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", c.year!, c.month!, c.day!)
@@ -37,6 +49,12 @@ enum PlannerLogic {
     /// Prototype supports these explicit RRULEs. Unsupported rules are never guessed.
     static func nextOccurrence(after date: Date, rule: String, calendar: Calendar = .current) -> Date? {
         switch rule {
+        case "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR", "FREQ=WEEKLY;BYDAY=SA,SU":
+            let weekdays = rule.hasSuffix("SA,SU") ? [1, 7] : [2, 3, 4, 5, 6]
+            for offset in 1...7 {
+                if let next = calendar.date(byAdding: .day, value: offset, to: date), weekdays.contains(calendar.component(.weekday, from: next)) { return next }
+            }
+            return nil
         case "FREQ=DAILY": return calendar.date(byAdding: .day, value: 1, to: date)
         case "FREQ=WEEKLY": return calendar.date(byAdding: .weekOfYear, value: 1, to: date)
         case "FREQ=MONTHLY": return calendar.date(byAdding: .month, value: 1, to: date)

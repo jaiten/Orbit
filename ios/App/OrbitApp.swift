@@ -30,23 +30,24 @@ struct RootView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.scenePhase) private var phase
     @AppStorage("appearance") private var appearance = "system"
+    @AppStorage("accentTheme") private var accentTheme = "coral"
     @State private var selectedTab = 0
     @State private var errorMessage: String?
     var body: some View {
         TabView(selection: $selectedTab) {
             TodayView().tabItem { Label("Today", systemImage: "sun.max") }.tag(0)
             CalendarView().tabItem { Label("Calendar", systemImage: "calendar") }.tag(1)
-            TasksView().tabItem { Label("Tasks", systemImage: "checklist") }.tag(2)
+            TasksView().tabItem { Label("Lists", systemImage: "checklist") }.tag(2)
             HabitsView().tabItem { Label("Habits", systemImage: "leaf") }.tag(3)
             SettingsView().tabItem { Label("Settings", systemImage: "gearshape") }.tag(4)
         }
-        .tint(DayTheme.accent)
+        .tint(DayTheme.accentColor(accentTheme))
         .preferredColorScheme(appearance == "system" ? nil : (appearance == "dark" ? .dark : .light))
         .onOpenURL { url in
             if let notice = AuthConfirmation.notice(for: url) { selectedTab = 4; errorMessage = notice }
             else { selectedTab = 0 }
         }
-        .task { await refreshNotifications() }
+        .task { UsageSignals.recordVisit(); await refreshNotifications() }
         .task {
             while !Task.isCancelled {
                 if phase == .active { await SyncService.shared.run(context) }
@@ -57,7 +58,7 @@ struct RootView: View {
             Task { await SyncService.shared.run(context) }
         }
         .onChange(of: phase) { _, value in
-            if value == .active { SyncService.shared.resumeRealtime(); Task { await refreshNotifications(); await SyncService.shared.run(context) } }
+            if value == .active { UsageSignals.recordVisit(); SyncService.shared.resumeRealtime(); Task { await refreshNotifications(); await SyncService.shared.run(context) } }
             else { SyncService.shared.suspendRealtime() }
         }
         .alert("Orbit", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {

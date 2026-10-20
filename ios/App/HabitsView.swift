@@ -11,18 +11,15 @@ struct HabitsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    Text("Consistency, with kindness.").font(.largeTitle.weight(.semibold))
+                    Text("Your routine").font(.title2.weight(.semibold))
                     Text("Tiny rituals. A life that feels like yours.").foregroundStyle(.secondary)
                     if habits.isEmpty { ContentUnavailableView("Start small", systemImage: "leaf", description: Text("Use + to create your first daily or weekly ritual.")) }
                     ForEach(habits) { habit in
                         DayCard {
                             HabitRow(habit: habit, logs: logs, date: .now, edit: { editing = habit })
-                            HabitHeatmap(habit: habit, logs: logs)
-                            HStack {
-                                Text("LAST 12 WEEKS").font(.caption2).tracking(1).foregroundStyle(.secondary)
-                                Spacer()
-                                Button("Edit") { editing = habit }.font(.caption)
-                            }
+                            DisclosureGroup("History · last 12 weeks") {
+                                HabitHeatmap(habit: habit, logs: logs).padding(.top, 8)
+                            }.font(.caption).foregroundStyle(.secondary)
                         }
                     }
                 }.padding(20).frame(maxWidth: 760).frame(maxWidth: .infinity)
