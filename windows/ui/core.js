@@ -103,8 +103,7 @@ let contentSignature = "",
   loadSequence = 0;
 function interacting() {
   return (
-    !!document.querySelector("#quick-add input")?.value ||
-    !!document.querySelector("dialog[open], .floating-add[open]") ||
+    !!document.querySelector("dialog[open]") ||
     ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)
   );
 }
@@ -142,7 +141,7 @@ async function load(force = false) {
     force = true;
   }
   if (!force && signature === contentSignature) return;
-  if (document.querySelector("dialog[open], .floating-add[open]") || (!force && interacting())) {
+  if (document.querySelector("dialog[open]") || (!force && interacting())) {
     pendingRender = true;
     return;
   }

@@ -1,0 +1,321 @@
+{
+  "description": "Quick add phrases. Run by windows/tests/planning.test.cjs and ios/Tests/SharedCaseTests.swift. 'now' is local wall-clock time; date is a local calendar day, time is minutes after midnight. defaultDate is the day the user is viewing (omitted on Today). defaultDate 'undated' means the user is adding to a list: without date words the task stays undated.",
+  "now": "2026-10-20T12:00:00",
+  "cases": [
+    {
+      "input": "Buy milk",
+      "expect": {
+        "kind": "task",
+        "title": "Buy milk",
+        "date": "2026-10-20",
+        "time": null
+      }
+    },
+    {
+      "input": "Buy 13 apples",
+      "expect": {
+        "kind": "task",
+        "title": "Buy 13 apples",
+        "date": "2026-10-20",
+        "time": null
+      }
+    },
+    {
+      "input": "gym tomorrow 6pm",
+      "expect": {
+        "kind": "task",
+        "title": "gym",
+        "date": "2026-10-21",
+        "time": 1080
+      }
+    },
+    {
+      "input": "read 8pm",
+      "expect": {
+        "kind": "task",
+        "title": "read",
+        "date": "2026-10-20",
+        "time": 1200
+      }
+    },
+    {
+      "input": "read 6am",
+      "expect": {
+        "kind": "task",
+        "title": "read",
+        "date": "2026-10-21",
+        "time": 360
+      }
+    },
+    {
+      "input": "standup today 9:15am",
+      "expect": {
+        "kind": "task",
+        "title": "standup",
+        "date": "2026-10-20",
+        "time": 555
+      }
+    },
+    {
+      "input": "dinner at 19:30",
+      "expect": {
+        "kind": "task",
+        "title": "dinner",
+        "date": "2026-10-20",
+        "time": 1170
+      }
+    },
+    {
+      "input": "lunch with Sam tomorrow at noon",
+      "expect": {
+        "kind": "task",
+        "title": "lunch with Sam",
+        "date": "2026-10-21",
+        "time": 720
+      }
+    },
+    {
+      "input": "call mom fri",
+      "expect": {
+        "kind": "task",
+        "title": "call mom",
+        "date": "2026-10-23",
+        "time": null
+      }
+    },
+    {
+      "input": "dentist on friday at 3:30pm",
+      "expect": {
+        "kind": "task",
+        "title": "dentist",
+        "date": "2026-10-23",
+        "time": 930
+      }
+    },
+    {
+      "input": "team sync tue",
+      "expect": {
+        "kind": "task",
+        "title": "team sync",
+        "date": "2026-10-20",
+        "time": null
+      }
+    },
+    {
+      "input": "team sync next tue",
+      "expect": {
+        "kind": "task",
+        "title": "team sync",
+        "date": "2026-10-27",
+        "time": null
+      }
+    },
+    {
+      "input": "plan trip next week",
+      "expect": {
+        "kind": "task",
+        "title": "plan trip",
+        "date": "2026-10-26",
+        "time": null
+      }
+    },
+    {
+      "input": "report in 2 weeks",
+      "expect": {
+        "kind": "task",
+        "title": "report",
+        "date": "2026-11-03",
+        "time": null
+      }
+    },
+    {
+      "input": "pay rent in 3 days",
+      "expect": {
+        "kind": "task",
+        "title": "pay rent",
+        "date": "2026-10-23",
+        "time": null
+      }
+    },
+    {
+      "input": "renew passport in a month",
+      "expect": {
+        "kind": "task",
+        "title": "renew passport",
+        "date": "2026-11-20",
+        "time": null
+      }
+    },
+    {
+      "input": "taxes oct 31",
+      "expect": {
+        "kind": "task",
+        "title": "taxes",
+        "date": "2026-10-31",
+        "time": null
+      }
+    },
+    {
+      "input": "party 24 dec 8pm",
+      "expect": {
+        "kind": "task",
+        "title": "party",
+        "date": "2026-12-24",
+        "time": 1200
+      }
+    },
+    {
+      "input": "book flights jan 5",
+      "expect": {
+        "kind": "task",
+        "title": "book flights",
+        "date": "2027-01-05",
+        "time": null
+      }
+    },
+    {
+      "input": "read every day",
+      "expect": {
+        "kind": "habit",
+        "title": "read",
+        "schedule": "DAILY",
+        "time": null
+      }
+    },
+    {
+      "input": "journal daily 9pm",
+      "expect": {
+        "kind": "habit",
+        "title": "journal",
+        "schedule": "DAILY",
+        "time": 1260
+      }
+    },
+    {
+      "input": "stretch weekdays 7am",
+      "expect": {
+        "kind": "habit",
+        "title": "stretch",
+        "schedule": "WEEKDAYS",
+        "time": 420
+      }
+    },
+    {
+      "input": "long walk every weekend",
+      "expect": {
+        "kind": "habit",
+        "title": "long walk",
+        "schedule": "WEEKENDS",
+        "time": null
+      }
+    },
+    {
+      "input": "water plants weekly",
+      "expect": {
+        "kind": "habit",
+        "title": "water plants",
+        "schedule": "WEEKLY",
+        "time": null
+      }
+    },
+    {
+      "input": "gym every mon 7am",
+      "expect": {
+        "kind": "habit",
+        "title": "gym",
+        "schedule": "WEEKLY",
+        "time": 420
+      }
+    },
+    {
+      "input": "learn piano someday",
+      "expect": {
+        "kind": "task",
+        "title": "learn piano",
+        "someday": true,
+        "date": null,
+        "time": null
+      }
+    },
+    {
+      "input": "email boss #work",
+      "expect": {
+        "kind": "task",
+        "title": "email boss",
+        "list": "work",
+        "date": "2026-10-20",
+        "time": null
+      }
+    },
+    {
+      "input": "draft slides #Work tomorrow",
+      "expect": {
+        "kind": "task",
+        "title": "draft slides",
+        "list": "Work",
+        "date": "2026-10-21",
+        "time": null
+      }
+    },
+    {
+      "input": "read",
+      "defaultDate": "2026-10-25",
+      "expect": {
+        "kind": "task",
+        "title": "read",
+        "date": "2026-10-25",
+        "time": null
+      }
+    },
+    {
+      "input": "read 6am",
+      "defaultDate": "2026-10-25",
+      "expect": {
+        "kind": "task",
+        "title": "read",
+        "date": "2026-10-25",
+        "time": 360
+      }
+    },
+    {
+      "input": "read tomorrow 6am",
+      "defaultDate": "2026-10-25",
+      "expect": {
+        "kind": "task",
+        "title": "read",
+        "date": "2026-10-21",
+        "time": 360
+      }
+    },
+    {
+      "input": "pick up dry cleaning",
+      "defaultDate": "undated",
+      "expect": {
+        "kind": "task",
+        "title": "pick up dry cleaning",
+        "date": null,
+        "time": null
+      }
+    },
+    {
+      "input": "pick up dry cleaning fri",
+      "defaultDate": "undated",
+      "expect": {
+        "kind": "task",
+        "title": "pick up dry cleaning",
+        "date": "2026-10-23",
+        "time": null
+      }
+    },
+    {
+      "input": "call bank 4pm",
+      "defaultDate": "undated",
+      "expect": {
+        "kind": "task",
+        "title": "call bank",
+        "date": "2026-10-20",
+        "time": 960
+      }
+    }
+  ]
+}

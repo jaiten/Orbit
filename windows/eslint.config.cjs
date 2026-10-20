@@ -73,6 +73,7 @@ const shared = Object.fromEntries(
     "today",
     "planItem",
     "saveTasks",
+    "openQuickAdd",
     "render",
   ].map((name) => [name, "writable"]),
 );

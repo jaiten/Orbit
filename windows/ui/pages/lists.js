@@ -4,10 +4,7 @@ function renderInbox(tasks) {
     selectedList === SOMEDAY ? "Someday" : rows("lists").find((l) => l.id === selectedList)?.name || "All Tasks";
   const empty = selectedList === SOMEDAY ? "Ideas for later go here." : "No tasks here.";
   return `<h1>${esc(name)}</h1>
-    ${inbox.map(taskRow).join("") || `<p class="empty">${empty}</p>`}
-    <form class="quick" id="quick-add">
-      <input name="title" aria-label="New task" placeholder="New task" required maxlength="500" /><button>Add</button>
-    </form>`;
+    ${inbox.map(taskRow).join("") || `<p class="empty">${empty}</p>`}`;
 }
 
 function renderLists() {

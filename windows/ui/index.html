@@ -49,13 +49,29 @@
       <header>
         <span class="header-space"></span
         ><button id="evening-review" aria-label="Evening review" title="Evening review">☾</button
-        ><button id="new-task" class="primary">+ Add</button>
+        ><button id="new-task" class="primary" title="Add (Ctrl+N)">+ Add</button>
       </header>
       <div class="page">
         <div id="notice" role="alert" hidden></div>
         <div id="content"></div>
       </div>
     </main>
+    <dialog id="quick-add-dialog" class="quick-add-dialog">
+      <form id="quick-add-form">
+        <input
+          name="text"
+          aria-label="Quick add"
+          placeholder="Try “gym tomorrow 6pm”, “read every day” or “#work”"
+          maxlength="500"
+          autocomplete="off"
+        />
+        <p id="quick-add-preview" class="chip" aria-live="polite" hidden></p>
+        <footer>
+          <button type="button" id="quick-add-details">More details…</button
+          ><button type="button" data-close>Cancel</button><button class="primary" type="submit">Add</button>
+        </footer>
+      </form>
+    </dialog>
     <dialog id="editor">
       <form id="task-form">
         <div class="dialog-head">
@@ -193,6 +209,7 @@
     <script src="pages/habits.js"></script>
     <script src="pages/settings.js"></script>
     <script src="dialogs.js"></script>
+    <script src="quick-add.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

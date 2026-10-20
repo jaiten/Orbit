@@ -12,5 +12,7 @@ function renderCalendar(tasks) {
 }
 
 function bindCalendar() {
-  document.querySelectorAll("[data-plan]").forEach((b) => (b.onclick = () => openTask(null, b.dataset.plan)));
+  document
+    .querySelectorAll("[data-plan]")
+    .forEach((b) => (b.onclick = () => openQuickAdd({ defaultDate: b.dataset.plan, listID: null })));
 }

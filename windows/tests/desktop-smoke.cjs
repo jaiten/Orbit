@@ -13,6 +13,12 @@ const path = require("node:path");
   try {
     app = await electron.launch(options);
     const p = await app.firstWindow();
+    const quickAdd = async (text, preview) => {
+      await p.getByRole("button", { name: "+ Add", exact: true }).click();
+      await p.getByRole("textbox", { name: "Quick add" }).fill(text);
+      if (preview) await p.locator("#quick-add-preview").getByText(preview, { exact: true }).waitFor();
+      await p.getByRole("button", { name: "Add", exact: true }).click();
+    };
     const errors = [];
     p.on("pageerror", (e) => errors.push(e.message));
     await p.getByRole("heading", { name: "Today", exact: true }).waitFor();
@@ -58,8 +64,7 @@ const path = require("node:path");
     await p.getByRole("button", { name: "+ New list", exact: true }).click();
     await p.locator("#list-form input[name=name]").fill("Personal");
     await p.getByRole("button", { name: "Save", exact: true }).click();
-    await p.getByRole("textbox", { name: "Quick add" }).fill("Read for twenty minutes");
-    await p.getByRole("button", { name: "Add", exact: true }).click();
+    await quickAdd("Read for twenty minutes", "Task · Today");
     await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).click();
     await p.getByText("More options", { exact: true }).click();
     await p.getByLabel("Notes").fill("A small, clear commitment");
@@ -69,7 +74,9 @@ const path = require("node:path");
     await p.getByRole("heading", { name: "Personal", exact: true }).waitFor();
     await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).waitFor();
     await p.locator('[data-page="today"]').click();
-    await p.getByLabel("New task or habit", { exact: true }).click();
+    // Sync updates never close or clear an open quick add.
+    await p.keyboard.press("Control+n");
+    await p.getByRole("textbox", { name: "Quick add" }).fill("Morning walk every day");
     await app.evaluate(({ BrowserWindow }) => {
       for (let i = 0; i < 5; i++)
         BrowserWindow.getAllWindows()[0].webContents.send("sync-status", {
@@ -77,10 +84,9 @@ const path = require("node:path");
           syncing: i % 2 === 0,
         });
     });
-    if (!(await p.locator(".floating-add").evaluate((el) => el.open))) throw Error("Sync closed the add menu");
-    await p.getByRole("button", { name: "Habit", exact: true }).click();
-    await p.locator("#habit-form input[name=title]").fill("Morning walk");
-    await p.getByRole("button", { name: "Save", exact: true }).click();
+    if (!(await p.locator("#quick-add-dialog").evaluate((el) => el.open))) throw Error("Sync closed quick add");
+    await p.locator("#quick-add-preview").getByText("Habit · Daily", { exact: true }).waitFor();
+    await p.getByRole("button", { name: "Add", exact: true }).click();
     await p.getByRole("checkbox", { name: "Log Morning walk", exact: true }).click();
     await p.getByText("1 / 1 today", { exact: true }).waitFor();
     await p.getByRole("checkbox", { name: "Undo Morning walk", exact: true }).click();
@@ -141,8 +147,7 @@ const path = require("node:path");
     await p.getByRole("button", { name: "Dismiss message" }).click();
     await p.locator('[data-page="today"]').click();
     for (const title of ["Wash car", "Call Mom"]) {
-      await p.getByRole("textbox", { name: "Quick add" }).fill(title);
-      await p.getByRole("button", { name: "Add", exact: true }).click();
+      await quickAdd(title);
       await p.getByRole("checkbox", { name: "Complete " + title, exact: true }).waitFor();
     }
     const first = await p.getByRole("checkbox", { name: "Complete Wash car", exact: true }).boundingBox();
@@ -187,13 +192,24 @@ const path = require("node:path");
       (await window.orbit.read()).records.find((r) => r.key === "lists/00000000-0000-4000-8000-000000000001"),
     );
     if (someday?.payload.name !== "Someday") throw Error("Someday list was not created");
-    await p.getByLabel("New task or habit", { exact: true }).click();
+    await p.getByRole("button", { name: "+ Add", exact: true }).click();
+    await p.getByRole("textbox", { name: "Quick add" }).fill("Plan picnic tomorrow 1pm #weekend");
+    await p.locator("#quick-add-preview").getByText("Task · Tomorrow · 1:00 PM · #weekend", { exact: true }).waitFor();
+    await p.getByRole("button", { name: "More details…", exact: true }).click();
     await p.evaluate(async () => {
       const r = (await window.orbit.read()).records.find((r) => r.payload.title === "Wash car");
-      await window.orbit.put(r.key, { ...r.payload, notes: "Synced while menu is open" });
+      await window.orbit.put(r.key, { ...r.payload, notes: "Synced while the editor is open" });
     });
-    await p.getByRole("button", { name: "Task", exact: true }).click();
+    if ((await p.locator("#task-form input[name=title]").inputValue()) !== "Plan picnic")
+      throw Error("Details lost the title");
     await p.getByRole("button", { name: "Cancel", exact: true }).click();
+    // Adding to a list keeps the task undated in that list, off Today.
+    await p.getByRole("button", { name: "Someday", exact: true }).click();
+    await quickAdd("Learn the cello", "Someday");
+    await p.getByRole("checkbox", { name: "Complete Learn the cello", exact: true }).waitFor();
+    await p.locator('[data-page="today"]').click();
+    if (await p.getByRole("checkbox", { name: "Complete Learn the cello" }).count())
+      throw Error("Someday item shown on Today");
     await p.getByRole("button", { name: "Settings", exact: true }).click();
     const backupFile = path.join(folder, "planner-backup.json");
     await app.evaluate(({ dialog }, file) => {
@@ -216,7 +232,7 @@ const path = require("node:path");
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(900, 700));
     if (await p.evaluate(() => document.documentElement.scrollWidth > innerWidth))
       throw Error("Horizontal overflow at compact window size");
-    await p.getByLabel("New task or habit", { exact: true }).waitFor();
+    await p.getByRole("button", { name: "+ Add", exact: true }).waitFor();
     await p.emulateMedia({ colorScheme: "light" });
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1320, 900));
     await p.screenshot({ path: path.resolve(__dirname, "../assets/desktop-preview.png"), fullPage: true });

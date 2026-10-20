@@ -32,19 +32,9 @@ function renderToday(tasks, allHabits) {
           </details>`
         : ""
     }
-    <form class="quick" id="quick-add">
-      <input name="title" aria-label="Quick add" placeholder="New task — try “gym tomorrow 6pm”" required maxlength="500" />
-      <button type="submit">Add</button>
-    </form>
     <div class="day-controls">
       <input type="date" id="selected-day" aria-label="Selected day" value="${selected}" /><button id="go-today">Today</button>
     </div>
-    <details class="floating-add">
-      <summary aria-label="New task or habit">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-      </summary>
-      <div><button id="add-todo">Task</button><button id="add-habit">Habit</button></div>
-    </details>
   </div>`;
 }
 
@@ -52,11 +42,6 @@ function bindToday() {
   if ($(".completed-items"))
     $(".completed-items").ontoggle = (e) => {
       completedOpen = e.target.open;
-    };
-  if ($("#add-todo"))
-    $("#add-todo").onclick = () => {
-      if ($(".floating-add")) $(".floating-add").open = false;
-      openTask();
     };
   if ($("#selected-day"))
     $("#selected-day").onchange = (e) => {
@@ -67,14 +52,5 @@ function bindToday() {
     $("#go-today").onclick = () => {
       selected = dayKey(new Date());
       render();
-    };
-  if ($("#quick-add"))
-    $("#quick-add").onsubmit = (e) => {
-      e.preventDefault();
-      const title = e.target.elements.title.value.trim();
-      if (!title) return;
-      e.target.elements.title.value = "";
-      const day = page === "today" ? selected : null;
-      action(() => saveTasks([{ ...newTask(title, day), ...OrbitPlanning.parse(title, day) }]));
     };
 }

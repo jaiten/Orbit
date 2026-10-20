@@ -11,7 +11,6 @@ function render() {
     "habit-history": () => renderHabitHistory(habits),
     habits: () => renderHabits(habits),
   };
-  $("#new-task").hidden = page === "today";
   $("#content").innerHTML = (pages[page] || renderSettings)();
   renderLists();
   bind();
@@ -34,7 +33,6 @@ document.querySelectorAll("[data-page]").forEach(
       render();
     }),
 );
-$("#new-task").onclick = () => openTask();
 $("#sync-status").onclick = () => {
   page = "settings";
   selectedList = null;
@@ -62,3 +60,10 @@ function refreshCalendarDay() {
 window.addEventListener("focus", refreshCalendarDay);
 api.onWake(refreshCalendarDay);
 setInterval(refreshCalendarDay, 60000);
+
+document.addEventListener("keydown", (e) => {
+  if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "n" && !document.querySelector("dialog[open]")) {
+    e.preventDefault();
+    openQuickAdd();
+  }
+});

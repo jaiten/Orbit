@@ -1,9 +1,7 @@
 function renderHabits(habits) {
-  let html =
-    '<div class="section-heading"><h1>Habits</h1><button id="add-habit" class="primary">+ New Habit</button></div>';
-  if (!habits.length) return html + '<p class="empty">No habits yet.</p>';
-  html += habits.map(habitCard).join("") + '<button id="habit-history" class="history-link">History →</button>';
-  return html;
+  const html = "<h1>Habits</h1>";
+  if (!habits.length) return html + '<p class="empty">No habits yet. Try adding “read every day”.</p>';
+  return html + habits.map(habitCard).join("") + '<button id="habit-history" class="history-link">History →</button>';
 }
 
 function renderHistoryIndex(habits) {
@@ -60,9 +58,4 @@ function bindHabits() {
         render();
       }),
   );
-  if ($("#add-habit"))
-    $("#add-habit").onclick = () => {
-      if ($(".floating-add")) $(".floating-add").open = false;
-      openHabit();
-    };
 }

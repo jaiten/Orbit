@@ -1,8 +1,13 @@
 // Task, habit, password and review dialogs. Their markup lives in index.html.
-function openTask(id, date) {
+let taskDraft = null,
+  habitDraft = null;
+/** Opens the task editor for an existing task, or a new one prefilled from `draft`. */
+function openTask(id, date, draft = null) {
   $("#overlap-confirm").hidden = true;
   $("#task-form").dataset.allowOverlap = "";
   editing = rows("tasks").find((t) => t.id === id) || null;
+  taskDraft = editing ? null : draft;
+  const source = editing || draft;
   const f = $("#task-form");
   f.reset();
   f.elements.listID.innerHTML =
@@ -11,12 +16,11 @@ function openTask(id, date) {
       .filter((l) => l.id !== SOMEDAY)
       .map((l) => `<option value="${esc(l.id)}">${esc(l.name)}</option>`)
       .join("");
-  f.elements.listID.value = editing?.listID || selectedList || "";
-  f.elements.title.value = editing?.title || "";
-  f.elements.notes.value = editing?.notes || "";
+  f.elements.listID.value = source?.listID || selectedList || "";
+  f.elements.title.value = source?.title || "";
+  f.elements.notes.value = source?.notes || "";
   f.elements.date.value = editing ? taskDate(editing) || "" : (date ?? (page === "today" ? selected : ""));
-  f.elements.time.value =
-    editing?.hasTime && editing.dueDate ? new Date(editing.dueDate).toTimeString().slice(0, 5) : "";
+  f.elements.time.value = source?.hasTime && source.dueDate ? new Date(source.dueDate).toTimeString().slice(0, 5) : "";
   f.elements.duration.value = editing?.durationMinutes || 30;
   f.elements.priority.value = editing?.priority || 0;
   $("#editor-title").textContent = editing ? "Edit Task" : "New Task";
@@ -31,13 +35,15 @@ function updateTargetLabel() {
 }
 $("#habit-form").elements.frequency.onchange = updateTargetLabel;
 
-function openHabit(id) {
+function openHabit(id, draft = null) {
   editingHabit = rows("habits").find((h) => h.id === id) || null;
+  habitDraft = editingHabit ? null : draft;
+  const source = editingHabit || draft;
   const f = $("#habit-form");
   f.reset();
-  f.elements.title.value = editingHabit?.title || "";
-  f.elements.target.value = editingHabit?.target || 1;
-  f.elements.frequency.value = OrbitHabits.schedule(editingHabit || {});
+  f.elements.title.value = source?.title || "";
+  f.elements.target.value = source?.target || 1;
+  f.elements.frequency.value = OrbitHabits.schedule(source || {});
   updateTargetLabel();
   $("#habit-editor-title").textContent = editingHabit ? "Edit Habit" : "New Habit";
   $("#delete-habit").hidden = !editingHabit;
@@ -58,7 +64,7 @@ $("#task-form").onsubmit = (e) => {
   const f = e.target;
   if (!f.elements.title.value.trim()) return;
   action(async () => {
-    const t = editing || newTask("", null);
+    const t = editing || taskDraft || newTask("", null);
     const due =
       f.elements.listID.value !== SOMEDAY && f.elements.date.value && f.elements.time.value
         ? new Date(`${f.elements.date.value}T${f.elements.time.value}`).getTime()
@@ -118,9 +124,9 @@ $("#habit-form").onsubmit = (e) => {
       ...(editingHabit || {
         id: crypto.randomUUID(),
         createdAt: Date.now(),
-        color: "clay",
+        color: "sage",
         icon: "leaf",
-        reminderMinutes: null,
+        reminderMinutes: habitDraft?.reminderMinutes ?? null,
         nudgeMinutes: null,
       }),
       title: f.elements.title.value.trim(),
