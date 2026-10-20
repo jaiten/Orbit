@@ -46,6 +46,15 @@ function renderSettings() {
       <p class="secondary">The JSON file holds your tasks, lists and habit history and can be imported on iPhone or Windows. No account details are included.</p>
       <div id="import-confirm"></div>
     </section>
+    ${
+      hasExamples()
+        ? `<section class="settings-block">
+      <h2>Examples</h2>
+      <button id="remove-examples">Remove Examples</button>
+      <p class="secondary">Removes the example tasks, list and habits. Anything you added stays.</p>
+    </section>`
+        : ""
+    }
     <button class="history-link" data-open-page="account">Account <span>${esc(state.email || "Not signed in")} →</span></button>`;
 }
 
@@ -80,6 +89,7 @@ function bindSettings() {
     });
   if ($("#export-backup")) $("#export-backup").onclick = () => exportAs("export");
   if ($("#export-csv")) $("#export-csv").onclick = () => exportAs("export-csv");
+  if ($("#remove-examples")) $("#remove-examples").onclick = () => action(removeExamples);
   if ($("#import-backup")) $("#import-backup").onclick = () => void previewImport().catch((e) => showNotice(e.message));
 }
 

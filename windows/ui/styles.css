@@ -779,3 +779,55 @@ dialog footer .danger {
     animation: none !important;
   }
 }
+
+/* First launch */
+.onboarding {
+  width: min(520px, calc(100vw - 48px));
+}
+.onboarding h2 {
+  margin: 0 0 var(--space-xs);
+  font-size: 24px;
+}
+.onboarding input[name="text"] {
+  width: 100%;
+  margin-top: var(--space-l);
+  font-size: 17px;
+  padding: 12px 14px;
+}
+.habit-suggestions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-s);
+  margin-top: var(--space-l);
+}
+.habit-suggestions button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 14px;
+  text-align: left;
+}
+.habit-suggestions button small {
+  color: var(--muted);
+  font-weight: 400;
+}
+.habit-suggestions button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+.onboarding-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: var(--space-l);
+}
+.onboarding-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--line);
+}
+.onboarding-dots span.on {
+  background: var(--accent);
+}

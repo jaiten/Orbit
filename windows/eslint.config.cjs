@@ -86,6 +86,12 @@ const shared = Object.fromEntries(
     "renderReview",
     "bindReview",
     "applyAppearance",
+    "OrbitOnboardingData",
+    "quickContext",
+    "quickRecords",
+    "showOnboarding",
+    "hasExamples",
+    "removeExamples",
   ].map((name) => [name, "writable"]),
 );
 

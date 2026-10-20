@@ -358,8 +358,58 @@ const path = require("node:path");
     await q.clock.setSystemTime(new Date(late.getTime() + 120000));
     await q.evaluate(() => window.dispatchEvent(new Event("focus")));
     await q.getByRole("checkbox", { name: "Log Midnight gym", exact: true }).waitFor();
+    await app.close();
+
+    // First launch: onboarding is skipped above; here it is switched on for fresh data folders.
+    const fresh = fs.mkdtempSync(path.join(os.tmpdir(), "orbit-first-"));
+    const firstRun = { ...options, env: { ...options.env, ORBIT_TEST_DATA: fresh, ORBIT_ONBOARDING: "1" } };
+    try {
+      app = await electron.launch(firstRun);
+      let w = await app.firstWindow();
+      const welcome = w.locator("#onboarding");
+      await welcome.getByRole("heading", { name: "Welcome to Orbit" }).waitFor();
+      await welcome.getByRole("textbox", { name: "Quick add" }).fill("dentist tomorrow 9am");
+      await welcome.locator("#onboarding-preview").getByText("Task · Tomorrow", { exact: false }).waitFor();
+      await welcome.getByRole("button", { name: "Add", exact: true }).click();
+      await welcome.getByRole("heading", { name: "Pick a habit or two" }).waitFor();
+      await welcome.getByRole("button", { name: /^Stretch/ }).click();
+      await welcome.getByRole("button", { name: "Continue", exact: true }).click();
+      await welcome.getByRole("heading", { name: "Stay in sync" }).waitFor();
+      await welcome.getByRole("button", { name: "Not Now", exact: true }).click();
+      await w.getByRole("checkbox", { name: "Log Stretch", exact: true }).waitFor();
+      if (!(await w.evaluate(() => window.orbit.read())).records.some((r) => r.payload.title === "dentist"))
+        throw Error("Onboarding quick add did not save");
+      await app.close();
+      app = await electron.launch(firstRun);
+      w = await app.firstWindow();
+      await w.getByRole("checkbox", { name: "Log Stretch", exact: true }).waitFor();
+      if (await w.locator("#onboarding").isVisible()) throw Error("Onboarding showed twice");
+      await app.close();
+
+      fs.rmSync(fresh, { recursive: true, force: true });
+      fs.mkdirSync(fresh);
+      app = await electron.launch(firstRun);
+      w = await app.firstWindow();
+      await w.getByRole("button", { name: "Start with Examples", exact: true }).click();
+      await w.getByRole("button", { name: "Skip", exact: true }).click();
+      await w.getByRole("button", { name: "Set Up Sync", exact: true }).click();
+      await w.getByRole("heading", { name: "Account", exact: true }).waitFor();
+      await w.locator('[data-page="today"]').click();
+      await w.getByRole("checkbox", { name: "Complete Morning walk", exact: true }).waitFor();
+      await w.getByRole("checkbox", { name: "Log Drink water", exact: true }).click();
+      await w.locator('[data-page="settings"]').click();
+      await w.getByRole("button", { name: "Remove Examples", exact: true }).click();
+      await w.locator('[data-page="today"]').click();
+      await w.getByRole("heading", { name: "Today", exact: true }).waitFor();
+      const left = (await w.evaluate(() => window.orbit.read())).records.filter(
+        (r) => !r.deleted && r.key !== "lists/00000000-0000-4000-8000-000000000001",
+      );
+      if (left.length) throw Error("Examples left behind: " + left.map((r) => r.key).join(", "));
+    } finally {
+      fs.rmSync(fresh, { recursive: true, force: true });
+    }
     console.log(
-      "PASS: conversion round trip,  native desktop lists, task editing/completion, habit log/undo, compact dark layout, settings and offline restart",
+      "PASS: onboarding, examples, conversion round trip,  native desktop lists, task editing/completion, habit log/undo, compact dark layout, settings and offline restart",
     );
   } finally {
     if (app) await app.close();

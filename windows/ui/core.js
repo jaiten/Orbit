@@ -106,7 +106,8 @@ async function action(fn) {
 }
 
 // Sync can deliver new records while a dialog or field is in use; defer the render until it is safe.
-let contentSignature = "",
+let onboardingShown = false,
+  contentSignature = "",
   pendingRender = false,
   loadSequence = 0;
 function interacting() {
@@ -143,6 +144,10 @@ async function load(force = false) {
   state = next;
   updateSync(next);
   updateUndo(next);
+  if (next.onboarded === false && !onboardingShown) {
+    onboardingShown = true;
+    showOnboarding();
+  }
   if (notice) {
     page = "account";
     showNotice(notice);

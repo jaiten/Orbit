@@ -75,6 +75,10 @@ app.whenReady().then(async () => {
     }
   };
   migrate();
+  // People who already have plans skip the first-launch screens. Tests skip them unless ORBIT_ONBOARDING is set.
+  if (!store.setting("onboarded") && store.rows().length) store.setting("onboarded", "yes");
+  const onboarded = () =>
+    store.setting("onboarded") === "yes" || (!!process.env.ORBIT_TEST_DATA && !process.env.ORBIT_ONBOARDING);
   const notify = (kind = "data") => {
     if (kind === "status") window?.webContents.send("sync-status", { status: sync.status, syncing: sync.busy });
     else {
@@ -228,6 +232,7 @@ app.whenReady().then(async () => {
       status: sync.status,
       syncing: sync.busy,
       configured: !!client,
+      onboarded: onboarded(),
       email: (await client?.auth.getSession())?.data?.session?.user?.email ?? null,
     };
   });
@@ -242,6 +247,7 @@ app.whenReady().then(async () => {
     void sync.run();
   });
   handle("sync", () => sync.run());
+  handle("onboarded", () => void store.setting("onboarded", "yes"));
   handle("resolve", ({ key, choice }) => {
     store.resolve(key, choice);
     return sync.run();
