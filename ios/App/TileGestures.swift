@@ -43,7 +43,16 @@ struct TileHoldInstaller: UIViewRepresentable {
     func updateUIView(_ view: InstallerView, context: Context) {}
     static func dismantleUIView(_ view: InstallerView, coordinator: ()) { view.uninstall() }
 
-    final class InstallerView: UIView, UIGestureRecognizerDelegate {
+    /// Only a hold that starts on a tile; holding anywhere else does nothing. (A separate object,
+    /// because UIView has its own `gestureRecognizerShouldBegin(_:)`.)
+    final class OnTile: NSObject, UIGestureRecognizerDelegate {
+        func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer) -> Bool {
+            HomeDrag.shared.tile(at: recognizer.location(in: nil)) != nil
+        }
+    }
+
+    final class InstallerView: UIView {
+        private let onTile = OnTile()
         private var hold: UILongPressGestureRecognizer?
         private weak var host: UIScrollView?
         private var start: CGPoint = .zero
@@ -56,17 +65,13 @@ struct TileHoldInstaller: UIViewRepresentable {
             let hold = UILongPressGestureRecognizer(target: self, action: #selector(handle(_:)))
             hold.minimumPressDuration = HomeDrag.holdDuration
             hold.allowableMovement = HomeDrag.holdTolerance
-            hold.delegate = self
+            hold.delegate = onTile
             scroll.addGestureRecognizer(hold)
             self.hold = hold; host = scroll
         }
         func uninstall() {
             if let hold { host?.removeGestureRecognizer(hold) }
             hold = nil
-        }
-        /// Only a hold that starts on a tile; holding anywhere else does nothing.
-        func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer) -> Bool {
-            HomeDrag.shared.tile(at: recognizer.location(in: nil)) != nil
         }
         @objc private func handle(_ hold: UILongPressGestureRecognizer) {
             // Window coordinates, the same space as the SwiftUI `.global` frames HomeDrag keeps.
