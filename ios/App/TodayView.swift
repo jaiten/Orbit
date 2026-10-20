@@ -10,13 +10,11 @@ struct TodayView: View {
     @Query(sort: \PlannerTask.sortOrder) private var tasks: [PlannerTask]
     @Query(sort: \Habit.createdAt) private var habits: [Habit]
     @Query private var logs: [HabitLog]
-    @Query private var ideas: [IdeaPrompt]
     @State private var editing: PlannerTask?
     @State private var editingHabit: Habit?
     @State private var addingTask = false
-    @State private var addingHabit = false
     @State private var customizing = false
-    @AppStorage("homeSections") private var homeSections = "consistency,today,routine,completed,calendar"
+    @AppStorage("homeSections") private var homeSections = "consistency,progress,today,routine,completed,calendar"
     @AppStorage("hiddenHomeSections") private var hiddenSections = ""
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
     @State private var completedExpanded = true
@@ -33,26 +31,11 @@ struct TodayView: View {
     }
     private var done: Int { relevant.filter { $0.completedAt != nil }.count + habits.filter { PlannerLogic.progress($0, logs: logs, at: day) >= $0.target }.count }
     private var total: Int { relevant.count + habits.count }
-    private var idea: IdeaPrompt? {
-        let active = ideas.filter { !$0.dismissed }.sorted { $0.id.uuidString < $1.id.uuidString }
-        guard !active.isEmpty else { return nil }
-        let index = Calendar.current.ordinality(of: .day, in: .era, for: day) ?? 0
-        return active[index % active.count]
-    }
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                Group {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text(day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())).foregroundStyle(.secondary)
-                            Spacer()
-                            Text("\(done)/\(total)").monospacedDigit().foregroundStyle(.secondary)
-                        }.font(.caption)
-                        ProgressView(value: Double(done), total: Double(max(1, total))).tint(DayTheme.accent)
-                    }.padding(.vertical, 4)
-                }.listRowBackground(Color.clear).listRowSeparator(.hidden)
+                Text(day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())).font(.caption).foregroundStyle(.secondary)
                 if let title = focus.title, let end = focus.endsAt {
                     Section {
                         HStack {
@@ -88,7 +71,6 @@ struct TodayView: View {
             }
             .sheet(isPresented: $addingTask) { QuickCapture(initialDate: day) }
             .sheet(isPresented: $customizing) { HomeLayoutEditor() }
-            .sheet(isPresented: $addingHabit) { HabitEditor() }
             .sheet(item: $editing) { TaskEditor(task: $0) }
             .sheet(item: $editingHabit) { HabitEditor(habit: $0) }
             .animation(reduceMotion ? nil : .snappy(duration: 0.22), value: done)
@@ -100,6 +82,11 @@ struct TodayView: View {
     @ViewBuilder private func homeSection(_ id: String) -> some View {
         switch id {
         case "consistency": ConsistencyStrip(habits: habits, logs: logs)
+        case "progress":
+            HStack(spacing: 14) {
+                Text("\(done) of \(total) complete").font(.caption).foregroundStyle(.secondary)
+                ProgressView(value: Double(done), total: Double(max(1, total))).tint(DayTheme.accent).frame(maxWidth: 130)
+            }
         case "today":
             checklistSection("For today", items: relevant.filter { $0.completedAt == nil && $0.recurrenceRule.isEmpty }.map { TodayItem(task: $0) }, empty: "Your one-off plans go here.")
                 .dropDestination(for: String.self) { values, _ in move(values, routine: false) }
@@ -165,7 +152,7 @@ struct TodayItem: Identifiable {
     var task: PlannerTask? = nil
     var habit: Habit? = nil
     var id: String { task.map { "task-" + $0.id.uuidString } ?? "habit-" + habit!.id.uuidString }
-    var short: Bool { (task?.title ?? habit!.title).count <= 18 && task?.hasTime != true && (task?.subtasks.isEmpty ?? true) }
+    var short: Bool { let title = task?.title ?? habit!.title; return title.count <= 18 && title.split(separator: " ").allSatisfy { $0.count <= 10 } && task?.hasTime != true && (task?.subtasks.isEmpty ?? true) }
 }
 struct TodayGroup: Identifiable {
     let items: [TodayItem]

@@ -38,6 +38,10 @@ struct CalendarDraft: Identifiable {
         guard connected else { return [] }
         let start = Calendar.current.startOfDay(for: day)
         let end = Calendar.current.date(byAdding: .day, value: 1, to: start)!
+        return events(from: start, to: end)
+    }
+    func events(from start: Date, to end: Date) -> [EKEvent] {
+        guard connected else { return [] }
         return store.events(matching: store.predicateForEvents(withStart: start, end: end, calendars: nil)).sorted { $0.startDate < $1.startDate }
     }
     func draft(for task: PlannerTask) async throws -> CalendarDraft {

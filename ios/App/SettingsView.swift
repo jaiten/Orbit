@@ -30,8 +30,9 @@ struct SettingsView: View {
                 Section("Across your devices") {
                     if let account = sync.email {
                         Text(account)
+                        NavigationLink("Devices & active sign-ins") { DevicesView() }
                         Button("Sync now") { Task { await sync.run(context) } }
-                        Button("Sign out") { do { try sync.signOut() } catch { message = error.localizedDescription } }
+                        Button("Sign out") { Task { do { try await sync.signOut() } catch { message = error.localizedDescription } } }
                     } else {
                         TextField("Email", text: $email).textContentType(.emailAddress).keyboardType(.emailAddress).textInputAutocapitalization(.never).autocorrectionDisabled()
                         SecureField("Password", text: $password).textContentType(.password)

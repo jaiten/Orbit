@@ -13,7 +13,7 @@ const fs=require('node:fs');const os=require('node:os');const path=require('node
   await p.getByRole('textbox',{name:'Add an intention'}).fill('Read for twenty minutes');
   await p.getByRole('button',{name:'Add',exact:true}).click();
   await p.getByRole('button',{name:'Edit Read for twenty minutes',exact:true}).click();
-  await p.getByLabel('Notes').fill('A small, clear commitment');await p.getByLabel('List',{exact:true}).selectOption({label:'Personal'});await p.getByRole('button',{name:'Save task',exact:true}).click();
+  await p.getByText('More options',{exact:true}).click();await p.getByLabel('Notes').fill('A small, clear commitment');await p.getByLabel('List',{exact:true}).selectOption({label:'Personal'});await p.getByRole('button',{name:'Save task',exact:true}).click();
   await p.locator('[data-list]').click();await p.getByRole('heading',{name:'Personal',exact:true}).waitFor();await p.getByRole('button',{name:'Edit Read for twenty minutes',exact:true}).waitFor();
   await p.locator('[data-page="today"]').click();
   await p.getByLabel('Add to-do or non-negotiable',{exact:true}).click();
@@ -36,6 +36,15 @@ const fs=require('node:fs');const os=require('node:os');const path=require('node
   const next=await p.evaluate(async()=>{const s=await window.orbit.read();return s.records.find(r=>r.key.startsWith('tasks/')&&!r.deleted&&!r.payload.completedAt);});
   if(!next||next.payload.conversionData)throw Error('Recurring child inherited a different item backup');await p.getByText('1 completed',{exact:true}).waitFor();
   await p.getByRole('button',{name:'Settings & sync',exact:true}).click();await p.getByRole('heading',{name:'Connected, quietly'}).waitFor();
+  await p.getByRole('button',{name:'Sage',exact:true}).click();
+  if(await p.locator('html').getAttribute('data-accent')!=='sage')throw Error('Theme did not change');
+  await p.getByRole('button',{name:'Coral',exact:true}).click();
+  await p.locator('[data-edit-list]').click();
+  await p.getByRole('button',{name:'Delete list',exact:true}).click();
+  await p.getByRole('button',{name:'Delete list and keep to-dos',exact:true}).click();
+  const afterDelete=await p.evaluate(()=>window.orbit.read());
+  if(afterDelete.records.some(r=>r.key.startsWith('tasks/')&&!r.deleted&&r.payload.listID))throw Error('Deleted list left orphaned to-dos');
+  if(!afterDelete.records.some(r=>r.key.startsWith('tasks/')&&!r.deleted))throw Error('Deleting list deleted its to-dos');
   await p.locator('[data-page="today"]').click();
   await app.evaluate(({app})=>app.emit('second-instance',{},['orbit://auth#error_code=otp_expired']));
   await p.getByText('That confirmation link is invalid or expired. Request a fresh email in Settings and use the newest link.',{exact:true}).waitFor();

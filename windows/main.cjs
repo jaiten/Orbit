@@ -23,6 +23,8 @@ session.defaultSession.setPermissionRequestHandler((_,__,callback)=>callback(fal
 window=new BrowserWindow({width:1240,height:860,minWidth:820,minHeight:620,title:'Orbit',backgroundColor:'#f8f7f5',icon:path.join(__dirname,'assets','orbit.png'),autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
 window.webContents.setWindowOpenHandler(()=>({action:'deny'}));window.webContents.on('will-navigate',e=>e.preventDefault());
 const handle=(name,fn)=>ipcMain.handle(name,async(event,arg)=>{if(event.senderFrame!==window.webContents.mainFrame||!event.senderFrame.url.startsWith('orbit://app/'))throw Error('Invalid sender');return fn(arg);});
+handle('devices',async()=>{if(!client)throw Error('Sign in first');const {data,error}=await client.rpc('orbit_devices_list',{p_name:'Windows PC'});if(error)throw error;return data;});
+handle('remove-device',async id=>{if(!client||typeof id!=='string')throw Error('Invalid request');const {data,error}=await client.rpc('orbit_device_remove',{p_session:id});if(error)throw error;return data;});
 handle('read',async()=>{const notice=accountNotice;accountNotice=null;return {records:store.rows(),accountNotice:notice,status:sync.status,syncing:sync.busy,configured:!!client,email:(await client?.auth.getSession())?.data?.session?.user?.email??null};});
 handle('put',({key,payload,deleted})=>{store.put(key,payload,deleted===true);notify();void sync.run();});
 handle('batch',changes=>{store.batch(changes);notify();void sync.run();});handle('sync',()=>sync.run());handle('resolve',({key,choice})=>{store.resolve(key,choice);return sync.run();});
@@ -34,7 +36,7 @@ handle('auth',async({mode,email,password})=>{
  if(mode==='resend'){const {error}=await client.auth.resend({type:'signup',email,options:{emailRedirectTo:'orbit://auth'}});if(error)throw error;return 'If this account needs confirmation, a fresh confirmation email is on its way.';}
  const result=await (mode==='verify'?client.auth.verifyOtp({email,token:password.trim(),type:'email'}):mode==='up'?client.auth.signUp({email,password,options:{emailRedirectTo:'orbit://auth'}}):client.auth.signInWithPassword({email,password}));
  if(result.error)throw result.error;
- if(result.data.session){accountNotice=null;try{store.bind(result.data.user.id);}catch(e){await client.auth.signOut({scope:'local'});throw e;}await sync.run();}
+ if(result.data.session){accountNotice=null;try{store.bind(result.data.user.id);}catch(e){await client.auth.signOut({scope:'local'});throw e;}await client.rpc('orbit_devices_list',{p_name:'Windows PC'});await sync.run();}
  return result.data.session?'Signed in':'Open the newest confirmation email, tap its link, then sign in here.';
 });
 await window.loadURL('orbit://app');window.on('focus',()=>void sync.run());setInterval(()=>void sync.run(),20000).unref();

@@ -66,7 +66,7 @@ struct QuickCapture: View {
             let planned = parsed.date ?? date
             let item = PlannerTask(title: parsed.title, dueDate: timed || parsed.hasTime ? planned : Calendar.current.startOfDay(for: planned), hasTime: timed || parsed.hasTime, listID: listID)
             item.notes = notes; item.recurrenceRule = repeatRule
-            if !repeatRule.isEmpty, let next = PlannerLogic.nextOccurrence(after: planned.addingTimeInterval(-86400), rule: repeatRule) { item.dueDate = next }
+            if !repeatRule.isEmpty, let next = PlannerLogic.nextOccurrence(after: Calendar.current.date(byAdding: .day, value: -1, to: planned)!, rule: repeatRule) { item.dueDate = next }
             context.insert(item)
         }
         do { try Mutations.save(context); Task { try? await refreshReminders(context) }; dismiss() }

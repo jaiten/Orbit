@@ -13,6 +13,7 @@ import WidgetKit
     private var session: [String: Any]?
     private var busy = false
     private var again = false
+    private var lastDeviceCheck = Date.distantPast
     @Published var syncing = false
     private let realtime = RealtimeWakeup()
     private var realtimeAllowed = true
@@ -42,7 +43,7 @@ import WidgetKit
         if authenticated, let token = session?["access_token"] as? String { request.setValue("Bearer " + token, forHTTPHeaderField: "Authorization") }
         if let body { request.httpMethod = "POST"; request.httpBody = try JSONSerialization.data(withJSONObject: body); request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
         let (data, response) = try await URLSession.shared.data(for: request)
-        let value = try JSONSerialization.jsonObject(with: data)
+        let value: Any = data.isEmpty ? [:] : try JSONSerialization.jsonObject(with: data)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             let error = value as? [String: Any]; throw NSError(domain: "Orbit", code: (response as? HTTPURLResponse)?.statusCode ?? 0, userInfo: [NSLocalizedDescriptionKey: error?["msg"] as? String ?? error?["message"] as? String ?? error?["error_description"] as? String ?? "Couldn’t reach sync. Your changes are saved locally."])
         }
@@ -67,7 +68,21 @@ import WidgetKit
     }
     func suspendRealtime() { realtimeAllowed = false; realtime.stop() }
     func resumeRealtime() { realtimeAllowed = true }
-    func signOut() throws { guard !busy else { return }; realtime.stop(); try saveSession(nil); status = "Saved on this device" }
+    func devices() async throws -> [ConnectedDevice] {
+        guard let values = try await request("/rest/v1/rpc/orbit_devices_list", body: ["p_name": UIDevice.current.model]) as? [[String: Any]] else { throw CocoaError(.coderReadCorrupt) }
+        return values.compactMap { value in
+            guard let id = value["id"] as? String, let name = value["name"] as? String else { return nil }
+            return ConnectedDevice(id: id, name: name, current: value["current"] as? Bool ?? false, seen: value["last_seen"] as? String ?? "")
+        }
+    }
+    func removeDevice(_ id: String) async throws {
+        _ = try await request("/rest/v1/rpc/orbit_device_remove", body: ["p_session": id])
+    }
+    func signOut() async throws {
+        guard !busy else { throw NSError(domain: "Orbit", code: 1, userInfo: [NSLocalizedDescriptionKey: "Sync is finishing. Please try again."]) }
+        _ = try await request("/auth/v1/logout?scope=local", body: [:])
+        realtime.stop(); try saveSession(nil); lastDeviceCheck = .distantPast; status = "Saved on this device"
+    }
     func run(_ context: ModelContext) async {
         if busy { again = true; return }
         guard session != nil else { return }
@@ -81,6 +96,7 @@ import WidgetKit
                 guard let renewed = try await request("/auth/v1/token?grant_type=refresh_token", body: ["refresh_token": token], authenticated: false) as? [String: Any] else { throw CocoaError(.coderReadCorrupt) }; try saveSession(renewed)
             }
             guard let user = session?["user"] as? [String: Any], let uid = user["id"] as? String else { throw CocoaError(.coderReadCorrupt) }
+            if Date.now.timeIntervalSince(lastDeviceCheck) > 60 { _ = try await devices(); lastDeviceCheck = .now }
             if realtimeAllowed { realtime.start(token: session?["access_token"] as? String ?? "", userID: uid) { [weak self] in
                 Task { await self?.run(context) }
             } }

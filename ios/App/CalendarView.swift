@@ -27,6 +27,7 @@ struct CalendarView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
+                let visibleEvents = calendars.events(from: days[0], to: calendar.date(byAdding: .day, value: 1, to: days.last!)!)
                 VStack(alignment: .leading, spacing: 24) {
                     Picker("Calendar view", selection: $mode) { Text("Week").tag("Week"); Text("Month").tag("Month") }.pickerStyle(.segmented)
                     HStack {
@@ -42,7 +43,7 @@ struct CalendarView: View {
                                 VStack(spacing: 8) {
                                     Text(day.formatted(.dateTime.weekday(.narrow))).font(.caption2)
                                     Text(day.formatted(.dateTime.day())).font(.subheadline.weight(.semibold))
-                                    Circle().fill((tasks.contains { $0.dueDate.map { calendar.isDate($0, inSameDayAs: day) } ?? false } || !calendars.events(on: day).isEmpty) ? DayTheme.accent : .clear).frame(width: 4, height: 4)
+                                    Circle().fill((tasks.contains { $0.dueDate.map { calendar.isDate($0, inSameDayAs: day) } ?? false } || visibleEvents.contains { $0.startDate < calendar.date(byAdding: .day, value: 1, to: day)! && $0.endDate > day }) ? DayTheme.accent : .clear).frame(width: 4, height: 4)
                                 }.frame(maxWidth: .infinity).padding(.vertical, 10)
                                     .background(calendar.isDate(day, inSameDayAs: selected) ? DayTheme.accent.opacity(0.18) : .clear, in: RoundedRectangle(cornerRadius: 14))
                             }.buttonStyle(.plain).accessibilityLabel(day.formatted(date: .complete, time: .omitted))

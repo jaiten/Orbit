@@ -3,7 +3,7 @@ import SwiftData
 
 /// Home layout is a device preference, never a destructive edit to planner data.
 struct HomeLayoutEditor: View {
-    @AppStorage("homeSections") private var stored = "consistency,today,routine,completed,calendar"
+    @AppStorage("homeSections") private var stored = "consistency,progress,today,routine,completed,calendar"
     @AppStorage("hiddenHomeSections") private var hidden = ""
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
     @Environment(\.dismiss) private var dismiss
@@ -11,6 +11,7 @@ struct HomeLayoutEditor: View {
     static func title(_ id: String, lists: [TaskList]) -> String {
         switch id {
         case "consistency": return "Habit consistency"
+        case "progress": return "Daily progress"
         case "today": return "For today"
         case "routine": return "Your routine"
         case "completed": return "Completed"
