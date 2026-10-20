@@ -542,6 +542,36 @@ progress::-webkit-progress-value {
 .heatmap .logged {
   background: var(--accent);
 }
+.history-charts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xxl);
+}
+.history-charts .consistency-strip {
+  flex: 1 1 240px;
+}
+.habit-history .history-link {
+  margin-top: 0;
+  padding: 0;
+  background: none;
+  font-weight: 600;
+}
+.check-ins {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.check-ins li {
+  display: flex;
+  justify-content: space-between;
+  max-width: 360px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+.check-ins span {
+  color: var(--muted);
+}
 
 .list-header {
   display: flex;

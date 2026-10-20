@@ -61,7 +61,7 @@ final class ChecklistUITests: XCTestCase {
         for _ in 0..<8 { if element.isHittable { return }; app.swipeUp() }
     }
 
-    func testNativeThemeMenusAndSeparateHabitHistory() {
+    func testNativeThemeMenusAndHabitHistory() {
         continueAfterFailure = false
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
         XCTAssertTrue(app.tabBars.buttons["Settings"].waitForExistence(timeout: 15)); app.tabBars.buttons["Settings"].tap()
@@ -74,7 +74,10 @@ final class ChecklistUITests: XCTestCase {
         let title = app.textFields["habit-title-input"]; XCTAssertTrue(title.waitForExistence(timeout: 5)); title.tap(); title.typeText("A small routine")
         app.navigationBars.buttons["Save"].tap()
         XCTAssertTrue(app.buttons["History"].waitForExistence(timeout: 5)); app.buttons["History"].tap()
-        app.buttons["A small routine"].tap()
+        // Every habit's history is on one screen; Check-ins opens the full list for one.
+        XCTAssertTrue(app.staticTexts["A small routine"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["0 of the last 7 days"].exists)
+        app.buttons["Check-ins"].firstMatch.tap()
         XCTAssertTrue(app.navigationBars["A small routine"].waitForExistence(timeout: 5))
         app.tabBars.buttons["Settings"].tap(); reveal(app.buttons["Coral"], in: app); app.buttons["Coral"].tap()
         app.buttons["Appearance"].tap(); app.buttons["System"].tap()

@@ -29,11 +29,27 @@ struct HabitsView: View {
     }
 }
 
+/// Every habit's history on one screen, so there is nothing to open one by one.
+/// Each habit still links to its full list of check-ins.
 struct HabitHistoryIndex: View {
     @Query(sort: \Habit.createdAt) private var habits: [Habit]
+    @Query private var logs: [HabitLog]
     var body: some View {
-        List(habits) { habit in NavigationLink(habit.title) { HabitHistoryDetail(habit: habit) } }
-            .navigationTitle("History").navigationBarTitleDisplayMode(.inline)
+        List {
+            ForEach(habits) { habit in
+                Section {
+                    HabitWeekStrip(habit: habit, logs: logs)
+                    HabitHeatmap(habit: habit, logs: logs)
+                    NavigationLink("Check-ins") { HabitHistoryDetail(habit: habit) }
+                } header: {
+                    HStack {
+                        Text(habit.title).font(.headline).foregroundStyle(.primary)
+                        Spacer()
+                        Text("\(PlannerLogic.checkedDays(habit, logs: logs, ending: .now)) of the last 7 days")
+                    }.textCase(nil)
+                }
+            }
+        }.navigationTitle("History").navigationBarTitleDisplayMode(.inline)
     }
 }
 struct HabitHistoryDetail: View {
