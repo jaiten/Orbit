@@ -39,6 +39,10 @@ struct RootView: View {
     @ObservedObject private var sync = SyncService.shared
     @State private var selectedTab = 0
     @State private var errorMessage: String?
+    @AppStorage("onboarded") private var onboarded = false
+    @State private var showOnboarding = false
+    @State private var openAccountAfterOnboarding = false
+    @State private var showAccount = false
     var body: some View {
         TabView(selection: $selectedTab) {
             TodayView().tabItem { Label("Today", systemImage: "sun.max") }.tag(0)
@@ -70,6 +74,16 @@ struct RootView: View {
             else { selectedTab = 0 }
         }
         .sheet(isPresented: $sync.recoveryReady) { NavigationStack { PasswordChangeView() } }
+        .fullScreenCover(isPresented: $showOnboarding, onDismiss: { if openAccountAfterOnboarding { showAccount = true } }) {
+            OnboardingView { needsReminders, openAccount in
+                onboarded = true; openAccountAfterOnboarding = openAccount; showOnboarding = false
+                if needsReminders { Task { if await NotificationScheduler.shared.requestIfUndecided() { await refreshNotifications() } } }
+            }.environment(\.orbitAccent, OrbitAccent(name: accentTheme))
+        }
+        .sheet(isPresented: $showAccount) {
+            NavigationStack { AccountView().toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showAccount = false } } } }
+        }
+        .task { decideOnboarding() }
         .task { do { try Migrations.run(context) } catch { errorMessage = error.localizedDescription }; applyNativeAccent(); DayTheme.sharedDefaults?.set(consistencyRange, forKey: "consistencyRange"); DayTheme.sharedDefaults?.set(accentTheme, forKey: "accentTheme"); UsageSignals.recordVisit(); await refreshNotifications() }
         .onChange(of: consistencyRange) { _, range in DayTheme.sharedDefaults?.set(range, forKey: "consistencyRange"); WidgetCenter.shared.reloadAllTimelines() }
         .onChange(of: accentTheme) { _, theme in applyNativeAccent(); DayTheme.sharedDefaults?.set(theme, forKey: "accentTheme"); WidgetCenter.shared.reloadAllTimelines() }
@@ -95,6 +109,15 @@ struct RootView: View {
         .alert("Orbit", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("OK") { errorMessage = nil }
         } message: { Text(errorMessage ?? "") }
+    }
+    /// First launch only. People who already have plans skip it; UI tests skip it unless they pass --onboarding.
+    private func decideOnboarding() {
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("--ui-testing") { showOnboarding = arguments.contains("--onboarding"); return }
+        guard !onboarded else { return }
+        let tasks = (try? context.fetchCount(FetchDescriptor<PlannerTask>())) ?? 0
+        let habits = (try? context.fetchCount(FetchDescriptor<Habit>())) ?? 0
+        if tasks + habits > 0 { onboarded = true } else { showOnboarding = true }
     }
     private func applyNativeAccent() {
         let color = UIColor(DayTheme.accentColor(accentTheme))

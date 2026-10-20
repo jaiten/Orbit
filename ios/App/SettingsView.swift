@@ -123,24 +123,19 @@ private struct DataSection: View {
     @Query private var tasks: [PlannerTask]
     @Query private var habits: [Habit]
     @Binding var message: String?
-    var body: some View {
-        Section("Data") {
-            NavigationLink("Import & Export") { BackupView() }
-            if tasks.isEmpty && habits.isEmpty { Button("Explore with sample data", action: seed) }
-        }
+    private var hasExamples: Bool {
+        tasks.contains { Examples.taskIDs.contains($0.id) } || habits.contains { Examples.habitIDs.contains($0.id) }
     }
-    private func seed() {
-        let personal = TaskList(name: "Personal", color: "sage")
-        context.insert(personal)
-        for (index, value) in [("Morning walk", 8), ("Focus on one meaningful thing", 10), ("Make something nourishing", 18)].enumerated() {
-            let date = Calendar.current.date(bySettingHour: value.1, minute: 0, second: 0, of: .now)!
-            let task = PlannerTask(title: value.0, dueDate: date, hasTime: true, listID: personal.id)
-            task.sortOrder = index; context.insert(task)
+    var body: some View {
+        Section {
+            NavigationLink("Import & Export") { BackupView() }
+            if hasExamples {
+                Button("Remove Examples") {
+                    do { try Examples.remove(in: context); Task { try? await refreshReminders(context) } } catch { message = error.localizedDescription }
+                }
+            }
+        } header: { Text("Data") } footer: {
+            if hasExamples { Text("Removes the example tasks, list and habits. Anything you added stays.") }
         }
-        let task = PlannerTask(title: "Call someone you miss", dueDate: Calendar.current.startOfDay(for: .now), listID: personal.id); task.sortOrder = 3; context.insert(task)
-        context.insert(Habit(title: "Read a few pages", color: "lavender", icon: "book"))
-        context.insert(Habit(title: "Drink water", target: 6, color: "sage", icon: "drop"))
-        context.insert(Habit(title: "Move your body", frequencyRule: "WEEKLY", target: 3, color: "clay", icon: "figure.walk"))
-        do { try Mutations.save(context) } catch { message = error.localizedDescription }
     }
 }

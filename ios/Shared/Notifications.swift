@@ -10,6 +10,12 @@ actor NotificationScheduler {
         try await center.requestAuthorization(options: [.alert, .sound, .badge])
     }
 
+    /// Asks the first time something with a reminder is added, never up front. Later answers live in Settings.
+    func requestIfUndecided() async -> Bool {
+        guard await center.notificationSettings().authorizationStatus == .notDetermined else { return false }
+        return (try? await requestPermission()) ?? false
+    }
+
     struct Reminder: Sendable {
         let id: String
         let title: String

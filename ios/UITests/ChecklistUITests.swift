@@ -101,13 +101,23 @@ final class ChecklistUITests: XCTestCase {
 
     func testTodayWithSampleDataScreenshot() {
         continueAfterFailure = false
-        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
-        XCTAssertTrue(app.tabBars.buttons["Settings"].waitForExistence(timeout: 15)); app.tabBars.buttons["Settings"].tap()
-        let sample = app.buttons["Explore with sample data"]
-        reveal(sample, in: app); sample.tap()
-        app.tabBars.buttons["Today"].tap()
+        let app = XCUIApplication(); app.launchArguments = ["--ui-testing", "--onboarding"]; app.launch()
+        XCTAssertTrue(app.staticTexts["Welcome to Orbit"].waitForExistence(timeout: 15))
+        let input = app.textFields["onboarding-input"]; input.tap(); input.typeText("dentist tomorrow 9am")
+        XCTAssertTrue(app.staticTexts["onboarding-preview"].waitForExistence(timeout: 5))
+        app.buttons["Start with Examples"].tap()
+        XCTAssertTrue(app.staticTexts["Pick a habit or two"].waitForExistence(timeout: 5))
+        app.buttons["onboarding-skip"].tap()
+        XCTAssertTrue(app.staticTexts["Stay in sync"].waitForExistence(timeout: 5))
+        app.buttons["onboarding-skip"].tap()
         XCTAssertTrue(app.buttons["Add"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Complete Morning walk")).firstMatch.waitForExistence(timeout: 5))
         let image = XCTAttachment(screenshot: app.screenshot()); image.name = "Orbit Today screenshot"; image.lifetime = .keepAlways; add(image)
+        app.tabBars.buttons["Settings"].tap()
+        let remove = app.buttons["Remove Examples"]
+        reveal(remove, in: app); remove.tap()
+        app.tabBars.buttons["Today"].tap()
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Complete Morning walk")).firstMatch.waitForExistence(timeout: 2))
     }
 
 }

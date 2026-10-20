@@ -69,7 +69,11 @@ struct QuickCapture: View {
                 if !conflictTitles.isEmpty { confirmConflict = true; return }
             }
             try QuickAddSaver.save(result, listID: listID, in: context)
-            Task { try? await refreshReminders(context) }
+            Task {
+                // The first item with a time is the moment to ask about notifications.
+                if result.time != nil { _ = await NotificationScheduler.shared.requestIfUndecided() }
+                try? await refreshReminders(context)
+            }
             dismiss()
         } catch { context.rollback(); self.error = error.localizedDescription }
     }

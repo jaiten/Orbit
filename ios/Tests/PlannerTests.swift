@@ -129,6 +129,27 @@ import SwiftData
         XCTAssertEqual(tasks.first { $0.title == "email boss" }?.notes, "https://example.com")
         XCTAssertEqual(tasks.first { $0.title == "email boss" }?.day, PlannerLogic.dayKey(.now))
     }
+    func testExamplesAddOnceAndRemoveOnlyThemselves() throws {
+        let context = ModelContext(try Persistence.makeContainer(inMemory: true))
+        try Examples.add(in: context, calendar: calendar)
+        try Examples.add(in: context, calendar: calendar)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<PlannerTask>()), OnboardingData.exampleTasks.count)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Habit>()), OnboardingData.exampleHabits.count)
+        let tasks = try context.fetch(FetchDescriptor<PlannerTask>())
+        XCTAssertEqual(tasks.first { $0.title == "Morning walk" }?.hasTime, true)
+        XCTAssertEqual(tasks.first { $0.title == "Plan a weekend away" }?.listID, TodayRules.somedayID)
+        let personal = try XCTUnwrap(Examples.listIDs.first)
+        let mine = PlannerTask(title: "Mine", listID: personal); context.insert(mine)
+        let water = try XCTUnwrap(try context.fetch(FetchDescriptor<Habit>()).first { $0.title == "Drink water" })
+        try Mutations.log(water, at: .now, in: context)
+        XCTAssertTrue(try Examples.present(in: context))
+        try Examples.remove(in: context)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<PlannerTask>()).map(\.title), ["Mine"])
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Habit>()), 0)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<HabitLog>()), 0)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<TaskList>()).contains { $0.id == personal }, "The list keeps your own task")
+        XCTAssertTrue(try context.fetch(FetchDescriptor<SyncEntry>()).contains { $0.key == "habits/" + water.id.uuidString.lowercased() && $0.tombstone })
+    }
     func testHabitLogTargetAndUndo() throws {
         let container = try Persistence.makeContainer(inMemory: true)
         let context = ModelContext(container)
