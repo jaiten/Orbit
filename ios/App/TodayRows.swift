@@ -95,7 +95,9 @@ struct CheckTile: View {
     }
 
     private var swipe: some Gesture {
-        DragGesture(minimumDistance: 10)
+        // Starts later than the page's own scrolling (about 10 pt), so vertical movement scrolls
+        // and only a clearly sideways swipe reveals Delete.
+        DragGesture(minimumDistance: 24)
             .updating($gestureActive) { _, active, _ in active = true }
             .onChanged { value in
                 gestureMoved = true

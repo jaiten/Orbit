@@ -3,8 +3,13 @@ import UIKit
 
 /// A held item moves in the same scroll surface. A quick horizontal gesture
 /// remains a swipe; it cannot become a deletion reveal after the item is lifted.
+/// The hold is deliberately long and must stay almost still, so a finger that
+/// starts scrolling over a tile scrolls the page instead of picking the tile up.
 @MainActor final class HomeDrag: ObservableObject {
     static let shared = HomeDrag()
+    /// How long a tile is held before it lifts, and how far the finger may wander meanwhile.
+    static let holdDuration = 0.6
+    static let holdTolerance: CGFloat = 6
     @Published private(set) var item: String?
     @Published var translation: CGSize = .zero
     @Published private(set) var target: String?
@@ -58,7 +63,7 @@ struct HomeDragSource: ViewModifier {
             .shadow(color: .black.opacity(lifted ? 0.12 : 0), radius: 12, y: 6)
             .offset(lifted ? drag.translation : .zero)
             .zIndex(lifted ? 100 : 0)
-            .simultaneousGesture(LongPressGesture(minimumDuration: 0.35, maximumDistance: 12)
+            .simultaneousGesture(LongPressGesture(minimumDuration: HomeDrag.holdDuration, maximumDistance: HomeDrag.holdTolerance)
                 .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
                 .updating($holding) { value, state, _ in
                     switch value { case .second(true, _): state = true; default: break }
