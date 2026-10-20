@@ -41,6 +41,32 @@ final class SharedCaseTests: XCTestCase {
         XCTAssertEqual(TodayRules.overdueLabel("2026-10-20", today: "2026-10-22"), "from Tue")
     }
 
+    func testQuickAddPhrases() throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../shared/test-cases/quick-add.json").standardizedFileURL
+        let table = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        // "now" is local wall-clock time, so the table holds in any time zone.
+        let parts = (table["now"] as! String).split(whereSeparator: { "-T:".contains($0) }).map { Int($0)! }
+        let calendar = Calendar.current
+        let now = try XCTUnwrap(calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2], hour: parts[3], minute: parts[4])))
+        for c in table["cases"] as! [[String: Any]] {
+            let input = c["input"] as! String
+            var defaultDay = DefaultDay.today
+            if let key = c["defaultDate"] as? String { defaultDay = key == "undated" ? .undated : .day(key) }
+            let result = QuickAdd.parse(input, defaultDay: defaultDay, now: now, calendar: calendar)
+            let expect = c["expect"] as! [String: Any]
+            XCTAssertEqual(result.kind.rawValue, expect["kind"] as? String, input)
+            XCTAssertEqual(result.title, expect["title"] as? String, input)
+            XCTAssertEqual(result.time, expect["time"] as? Int, input)
+            XCTAssertEqual(result.schedule, expect["schedule"] as? String, input)
+            XCTAssertEqual(result.someday, expect["someday"] as? Bool ?? false, input)
+            XCTAssertEqual(result.list, expect["list"] as? String, input)
+            if result.kind == .task { XCTAssertEqual(result.date, expect["date"] as? String, input) }
+        }
+        XCTAssertEqual(QuickAdd.describe(QuickAdd.parse("stretch weekdays 7am", now: now), now: now), "Habit · Weekdays · 7:00 AM")
+        XCTAssertEqual(QuickAdd.describe(QuickAdd.parse("gym tomorrow 6pm #health", now: now), now: now), "Task · Tomorrow · 6:00 PM · #health")
+        XCTAssertEqual(QuickAdd.describe(QuickAdd.parse("learn piano someday", now: now), now: now), "Someday")
+    }
+
     func testCalendarArithmeticIgnoresDaylightSaving() {
         XCTAssertEqual(HabitRules.addDays("2026-03-07", 1), "2026-03-08")
         XCTAssertEqual(HabitRules.addDays("2026-11-01", 1), "2026-11-02")

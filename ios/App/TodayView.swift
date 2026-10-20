@@ -79,7 +79,7 @@ struct TodayView: View {
                         .shadow(color: .black.opacity(0.13), radius: 10, y: 4)
                 }.accessibilityLabel("Add").padding(.trailing, 20).padding(.bottom, 10)
             }
-            .sheet(isPresented: $addingTask) { QuickCapture(initialDate: day) }
+            .sheet(isPresented: $addingTask) { QuickCapture() }
             .sheet(isPresented: $reviewing) { EveningReview() }
             .sheet(isPresented: $customizing) { HomeLayoutEditor() }
             .sheet(item: $editing) { TaskEditor(task: $0) }

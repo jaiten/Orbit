@@ -35,11 +35,6 @@ import SwiftData
         XCTAssertEqual(PlannerLogic.consistencySeries(habits: [water, read, future], logs: logs, ending: date(2026, 9, 14), days: 30, calendar: calendar).last!, 0.75, accuracy: 0.001)
         XCTAssertEqual(PlannerLogic.dailyConsistency(habits: [], logs: logs, on: earlier), 0)
     }
-    func testQuickAddTomorrowAndTime() {
-        let result = QuickAdd.parse("gym tomorrow 6am", now: date(2026, 9, 14), calendar: calendar)
-        XCTAssertEqual(result.title, "gym"); XCTAssertTrue(result.hasTime)
-        XCTAssertEqual(result.date, date(2026, 9, 15, 6))
-    }
     func testWeeklyCheckIsDailyAndDoesNotCapTheWeek() throws {
         let context = ModelContext(try Persistence.makeContainer(inMemory: true))
         let habit = Habit(title: "Gym", frequencyRule: "WEEKLY", target: 5); context.insert(habit)
@@ -81,17 +76,6 @@ import SwiftData
         XCTAssertTrue(PlannerLogic.overlaps(date(2026, 9, 14, 9), date(2026, 9, 14, 11), date(2026, 9, 14, 10), date(2026, 9, 14, 12)))
         XCTAssertNil(RecoveryFlow.code(from: URL(string: "orbit://attacker?code=1234567890123456")!))
         XCTAssertEqual(RecoveryFlow.challenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"), "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
-    }
-    func testQuickCaptureKeepsChosenCalendarDay() {
-        let result = QuickAdd.parse("Read 6am", now: date(2026, 9, 14), calendar: calendar, plannedDay: date(2026, 9, 20))
-        XCTAssertEqual(result.date, date(2026, 9, 20, 6))
-        let explicit = QuickAdd.parse("Read tomorrow 6am", now: date(2026, 9, 14), calendar: calendar, plannedDay: date(2026, 9, 20))
-        XCTAssertEqual(explicit.date, date(2026, 9, 15, 6))
-    }
-    func testBarePastTimeMovesToTomorrow() {
-        let result = QuickAdd.parse("Read 6am", now: date(2026, 9, 14), calendar: calendar)
-        XCTAssertEqual(result.date, date(2026, 9, 15, 6))
-        XCTAssertEqual(QuickAdd.parse("Buy 13 apples", now: date(2026, 9, 14), calendar: calendar).title, "Buy 13 apples")
     }
     func testWeeklyTargetUsesCalendarBoundaries() {
         let habit = Habit(title: "Move", frequencyRule: "WEEKLY", target: 3)

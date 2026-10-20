@@ -82,8 +82,8 @@ const OrbitPlanning = (() => {
 
     const title = text
       .replace(/\s+/g, " ")
-      .replace(/\s(?:on|at|by)$/i, "")
-      .trim();
+      .trim()
+      .replace(/\s(?:on|at|by)$/i, "");
     if (schedule) return { kind: "habit", title, schedule, time, date: null, someday: false, list };
     if (someday) return { kind: "task", title, date: null, time: null, schedule: null, someday, list };
     if (!date) {

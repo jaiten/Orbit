@@ -42,7 +42,7 @@ struct TasksView: View {
                     ToolbarItem(placement: .topBarLeading) { Button("Edit Lists") { manageLists = true } }
                     ToolbarItem(placement: .topBarTrailing) { Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("New task") }
                 }
-                .sheet(isPresented: $adding) { QuickCapture() }.sheet(item: $editing) { TaskEditor(task: $0) }
+                .sheet(isPresented: $adding) { QuickCapture(listID: listID, fromList: true) }.sheet(item: $editing) { TaskEditor(task: $0) }
                 .sheet(isPresented: $manageLists) { ListsView() }
                 .modifier(MutationErrorModifier(error: $error))
         }

@@ -80,6 +80,18 @@ final class ChecklistUITests: XCTestCase {
         app.buttons["Appearance"].tap(); app.buttons["System"].tap()
     }
 
+    func testQuickAddPreviewCreatesHabit() {
+        continueAfterFailure = false
+        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
+        let addButton = app.buttons["Add"]
+        XCTAssertTrue(addButton.waitForExistence(timeout: 15)); addButton.tap()
+        let field = app.descendants(matching: .any).matching(identifier: "task-title-input").firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5)); field.tap(); field.typeText("Stretch every day 7am")
+        XCTAssertTrue(app.staticTexts["Habit · Daily · 7:00 AM"].waitForExistence(timeout: 5))
+        app.navigationBars.buttons["Save"].tap()
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Log Stretch")).firstMatch.waitForExistence(timeout: 5))
+    }
+
     func testTodayWithSampleDataScreenshot() {
         continueAfterFailure = false
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
