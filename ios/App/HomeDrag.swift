@@ -57,7 +57,7 @@ struct HomeDragSource: ViewModifier {
             .shadow(color: .black.opacity(lifted ? 0.12 : 0), radius: 12, y: 6)
             .offset(lifted ? drag.translation : .zero)
             .zIndex(lifted ? 100 : 0)
-            .highPriorityGesture(LongPressGesture(minimumDuration: 0.35, maximumDistance: 12)
+            .simultaneousGesture(LongPressGesture(minimumDuration: 0.35, maximumDistance: 12)
                 .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
                 .updating($holding) { value, state, _ in
                     switch value { case .second(true, _): state = true; default: break }
