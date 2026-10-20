@@ -80,9 +80,9 @@ struct SettingsView: View {
                         Label("Calendars connected", systemImage: "checkmark.circle")
                         Button("Disconnect calendars") { calendars.disconnect() }
                     } else {
-                        Button("Connect calendars", systemImage: "calendar") {
+                        Button {
                             Task { do { try await calendars.connect() } catch { message = error.localizedDescription } }
-                        }
+                        } label: { Label { Text("Connect calendars") } icon: { Image(systemName: "calendar").foregroundStyle(DayTheme.accentColor(accentTheme)) } }
                     }
                     Text("See events from Apple Calendar and Google accounts added to your iPhone. Use a to-do’s pencil, then More actions, to send it to a calendar. Changes to calendar events do not change the original task.")
                         .font(.footnote).foregroundStyle(.secondary)
@@ -101,7 +101,7 @@ struct SettingsView: View {
                 }
                 Section("Preferences") {
                     AccentPicker(title: "Appearance", selection: $appearance, choices: [("system", "System"), ("light", "Light"), ("dark", "Dark")])
-                    Button("Enable reminders", systemImage: "bell") {
+                    Button {
                         Task {
                             do {
                                 let granted = try await NotificationScheduler.shared.requestPermission()
@@ -109,7 +109,7 @@ struct SettingsView: View {
                                 message = granted ? "Reminders are enabled." : "Notifications are off. You can enable them in iOS Settings → Orbit → Notifications."
                             } catch { message = error.localizedDescription }
                         }
-                    }
+                    } label: { Label { Text("Enable reminders") } icon: { Image(systemName: "bell").foregroundStyle(DayTheme.accentColor(accentTheme)) } }
                 }
                 Section("Widgets & consistency") {
                     AccentPicker(title: "History range", selection: $consistencyRange, choices: [(7, "Past week"), (30, "Past month")])

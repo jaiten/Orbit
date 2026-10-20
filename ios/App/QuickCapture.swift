@@ -73,6 +73,7 @@ struct QuickCapture: View {
                 let clock = Calendar.current.dateComponents([.hour, .minute], from: date)
                 planned = Calendar.current.date(bySettingHour: clock.hour!, minute: clock.minute!, second: 0, of: planned)!
             }
+            if !repeatRule.isEmpty, let next = PlannerLogic.nextOccurrence(after: Calendar.current.date(byAdding: .day, value: -1, to: planned)!, rule: repeatRule) { planned = next }
             if !allowConflict && (timed || parsed.hasTime) {
                 do { conflictTitles = CalendarBridge.shared.conflictTitles(start: planned, duration: 30, excluding: nil, tasks: try context.fetch(FetchDescriptor<PlannerTask>())) }
                 catch { self.error = error.localizedDescription; return }
@@ -80,7 +81,6 @@ struct QuickCapture: View {
             }
             let item = PlannerTask(title: parsed.title, dueDate: timed || parsed.hasTime ? planned : Calendar.current.startOfDay(for: planned), hasTime: timed || parsed.hasTime, listID: listID)
             item.notes = notes; item.recurrenceRule = repeatRule
-            if !repeatRule.isEmpty, let next = PlannerLogic.nextOccurrence(after: Calendar.current.date(byAdding: .day, value: -1, to: planned)!, rule: repeatRule) { item.dueDate = next }
             context.insert(item)
         }
         do { try Mutations.save(context); Task { try? await refreshReminders(context) }; dismiss() }
