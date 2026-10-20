@@ -48,6 +48,7 @@ targets:
         com.apple.security.application-groups: [$(ORBIT_APP_GROUP)]
     dependencies:
       - target: OrbitWidgets
+      - target: OrbitShare
   OrbitWidgets:
     type: app-extension
     platform: iOS
@@ -69,6 +70,35 @@ targets:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     entitlements:
       path: Widgets/OrbitWidgets.entitlements
+      properties:
+        com.apple.security.application-groups: [$(ORBIT_APP_GROUP)]
+  OrbitShare:
+    type: app-extension
+    platform: iOS
+    sources: [Share, Shared]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jaiten.orbit.share
+        INFOPLIST_KEY_CFBundleDisplayName: Add to Orbit
+        GENERATE_INFOPLIST_FILE: YES
+        SKIP_INSTALL: YES
+    info:
+      path: Share/Info.plist
+      properties:
+        CFBundleDisplayName: Add to Orbit
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        OrbitAppGroup: $(ORBIT_APP_GROUP)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsText: true
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+              NSExtensionActivationSupportsWebPageWithMaxCount: 1
+    entitlements:
+      path: Share/OrbitShare.entitlements
       properties:
         com.apple.security.application-groups: [$(ORBIT_APP_GROUP)]
   OrbitTests:

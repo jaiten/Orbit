@@ -38,10 +38,20 @@ def main():
     profiles = {}
     profile_dir = Path.home() / 'Library/MobileDevice/Provisioning Profiles'
     profile_dir.mkdir(parents=True, exist_ok=True)
-    for target, bundle, secret, filename in [
+    signed = [
         ('Orbit', 'com.jaiten.orbit', 'APP_PROFILE_BASE64', 'orbit-app'),
         ('OrbitWidgets', 'com.jaiten.orbit.widgets', 'WIDGET_PROFILE_BASE64', 'orbit-widget'),
-    ]:
+    ]
+    # The share extension ships once its profile is configured (docs/testflight.md);
+    # until then the build leaves it out instead of failing.
+    if os.environ.get('SHARE_PROFILE_BASE64'):
+        signed.append(('OrbitShare', 'com.jaiten.orbit.share', 'SHARE_PROFILE_BASE64', 'orbit-share'))
+    else:
+        spec['targets'].pop('OrbitShare', None)
+        app = spec['targets']['Orbit']
+        app['dependencies'] = [d for d in app.get('dependencies', []) if d.get('target') != 'OrbitShare']
+        print('SHARE_PROFILE_BASE64 is not set; building without the share extension.')
+    for target, bundle, secret, filename in signed:
         path = profile_dir / f'{filename}.mobileprovision'
         path.write_bytes(base64.b64decode(os.environ[secret]))
         profile = plistlib.loads(subprocess.check_output(['security', 'cms', '-D', '-i', str(path)]))
@@ -67,7 +77,7 @@ def main():
     key_path = key_dir / f'AuthKey_{key_id}.p8'
     key_path.write_text(os.environ['ASC_PRIVATE_KEY'])
     key_path.chmod(0o600)
-    print('Validated both profiles and prepared signed build configuration.')
+    print(f'Validated {len(signed)} profiles and prepared signed build configuration.')
 
 
 if __name__ == '__main__':

@@ -63,30 +63,7 @@ struct DayProvider: TimelineProvider {
     }
 }
 
-struct CompleteItemIntent: AppIntent {
-    static var title: LocalizedStringResource = "Complete Item"
-    static var openAppWhenRun = false
-    @Parameter(title: "Item ID") var itemID: String
-    @Parameter(title: "Is habit") var isHabit: Bool
-    init() {}
-    init(itemID: String, isHabit: Bool) { self.itemID = itemID; self.isHabit = isHabit }
-    @MainActor func perform() async throws -> some IntentResult {
-        guard let id = UUID(uuidString: itemID) else { return .result() }
-        let container = try Persistence.makeContainer()
-        let context = ModelContext(container)
-        context.autosaveEnabled = false
-        if isHabit {
-            if let habit = try context.fetch(FetchDescriptor<Habit>(predicate: #Predicate { $0.id == id })).first {
-                try Mutations.log(habit, at: .now, in: context)
-            }
-        } else if let task = try context.fetch(FetchDescriptor<PlannerTask>(predicate: #Predicate { $0.id == id })).first,
-                  task.completedAt == nil {
-            try Mutations.toggle(task, in: context)
-        }
-        try await NotificationScheduler.shared.replace(with: NotificationScheduler.reminders(context: context))
-        return .result()
-    }
-}
+// CompleteItemIntent lives in Shared/OrbitIntents.swift so the app (Shortcuts, Siri) has it too.
 
 struct DayWidgetView: View {
     @Environment(\.widgetFamily) private var family

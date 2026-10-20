@@ -64,38 +64,13 @@ struct QuickCapture: View {
         let result = self.result
         guard !result.title.isEmpty else { return }
         do {
-            if result.kind == .habit {
-                // Anything that repeats is a habit; a time becomes its reminder.
-                let habit = Habit(title: result.title, frequencyRule: result.schedule ?? "DAILY")
-                habit.reminderMinutes = result.time
-                context.insert(habit)
-            } else {
-                let start = result.date.flatMap { QuickAdd.start(of: $0, time: result.time) }
-                if !allowConflict, result.time != nil, let start {
-                    conflictTitles = CalendarBridge.shared.conflictTitles(start: start, duration: 30, excluding: nil, tasks: try context.fetch(FetchDescriptor<PlannerTask>()))
-                    if !conflictTitles.isEmpty { confirmConflict = true; return }
-                }
-                let list = try targetList(result)
-                let task = PlannerTask(title: result.title, dueDate: start, hasTime: start != nil && result.time != nil, listID: list)
-                if task.listID == TodayRules.somedayID { try TodayRules.moveToSomeday(task, in: context) }
-                context.insert(task)
+            if !allowConflict, result.kind == .task, result.time != nil, let start = result.date.flatMap({ QuickAdd.start(of: $0, time: result.time) }) {
+                conflictTitles = CalendarBridge.shared.conflictTitles(start: start, duration: 30, excluding: nil, tasks: try context.fetch(FetchDescriptor<PlannerTask>()))
+                if !conflictTitles.isEmpty { confirmConflict = true; return }
             }
-            try Mutations.save(context)
+            try QuickAddSaver.save(result, listID: listID, in: context)
             Task { try? await refreshReminders(context) }
             dismiss()
         } catch { context.rollback(); self.error = error.localizedDescription }
-    }
-
-    /// Someday wins; then a #list (created when new); then the list being viewed.
-    private func targetList(_ result: QuickAddResult) throws -> UUID? {
-        if result.someday { try TodayRules.ensureSomeday(context); return TodayRules.somedayID }
-        if let name = result.list {
-            if let existing = lists.first(where: { $0.id != TodayRules.somedayID && $0.name.localizedCaseInsensitiveCompare(name) == .orderedSame }) { return existing.id }
-            let list = TaskList(name: name, sortOrder: lists.count); context.insert(list); return list.id
-        }
-        // A dated item can't stay in Someday.
-        if listID == TodayRules.somedayID && result.date != nil { return nil }
-        if listID == TodayRules.somedayID { try TodayRules.ensureSomeday(context) }
-        return listID
     }
 }

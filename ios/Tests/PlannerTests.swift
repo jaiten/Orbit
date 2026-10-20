@@ -113,6 +113,22 @@ import SwiftData
         try Conversions.toTask(stretch, in: context)
         XCTAssertEqual(try context.fetch(FetchDescriptor<PlannerTask>()).first { $0.id == open.id }?.recurrenceRule, "", "Make It a Task never brings the repeat back")
     }
+    func testQuickAddSaverMatchesQuickAddRules() throws {
+        let context = ModelContext(try Persistence.makeContainer(inMemory: true))
+        try QuickAddSaver.save(QuickAdd.parse("stretch weekdays 7am"), in: context)
+        try QuickAddSaver.save(QuickAdd.parse("learn piano someday"), in: context)
+        try QuickAddSaver.save(QuickAdd.parse("email boss #Work"), notes: "https://example.com", in: context)
+        try QuickAddSaver.save(QuickAdd.parse("email team #work"), in: context)
+        let habit = try XCTUnwrap(context.fetch(FetchDescriptor<Habit>()).first)
+        XCTAssertEqual(habit.frequencyRule, "WEEKDAYS"); XCTAssertEqual(habit.reminderMinutes, 420)
+        let tasks = try context.fetch(FetchDescriptor<PlannerTask>())
+        let piano = try XCTUnwrap(tasks.first { $0.title == "learn piano" })
+        XCTAssertEqual(piano.listID, TodayRules.somedayID); XCTAssertNil(piano.dueDate)
+        let lists = try context.fetch(FetchDescriptor<TaskList>())
+        XCTAssertEqual(lists.filter { $0.name.lowercased() == "work" }.count, 1, "#work finds the list created by #Work")
+        XCTAssertEqual(tasks.first { $0.title == "email boss" }?.notes, "https://example.com")
+        XCTAssertEqual(tasks.first { $0.title == "email boss" }?.day, PlannerLogic.dayKey(.now))
+    }
     func testHabitLogTargetAndUndo() throws {
         let container = try Persistence.makeContainer(inMemory: true)
         let context = ModelContext(container)

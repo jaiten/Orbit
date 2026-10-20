@@ -27,6 +27,14 @@ Team: `5T6K789X4T`. App: `com.jaiten.orbit`. Widget:
 Do not commit any signing material or paste it in chat. The public CSR can be
 uploaded to Apple's certificate form; it does not contain the private key.
 
+### Share extension (optional)
+
+The "Add to Orbit" share extension (`com.jaiten.orbit.share`) is built and tested in CI.
+To ship it in TestFlight builds: register that App ID with the shared App Group, create
+an App Store Connect distribution profile for it with the same certificate, and add its
+base64 as the `SHARE_PROFILE_BASE64` secret. Without that secret, TestFlight builds leave
+the extension out and everything else uploads as before.
+
 A successful **iOS prototype** check for a push to `main` automatically starts
 **TestFlight** for that tested commit. Pull requests and failed checks do not upload.
 You can also use **Actions → TestFlight → Run workflow** on `main` for a manual retry.
