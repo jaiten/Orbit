@@ -181,9 +181,10 @@ struct CheckTile: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var actionEdge = 0
     @State private var gestureMoved = false
+    @GestureState private var gestureActive = false
     var body: some View {
         HStack(spacing: 0) {
-            Button { if !gestureMoved { toggle() } } label: {
+            Button { if !gestureMoved { if actionEdge == 0 { toggle() } else { actionEdge = 0 } } } label: {
                 HStack(spacing: 10) {
                     Image(systemName: done ? "checkmark.circle.fill" : "circle")
                         .font(.system(size: 23, weight: .regular)).foregroundStyle(done ? color : color.opacity(0.65))
@@ -211,14 +212,17 @@ struct CheckTile: View {
         .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(.primary.opacity(0.035)))
         .contentShape(Rectangle())
         .simultaneousGesture(DragGesture(minimumDistance: 10)
+            .updating($gestureActive) { _, active, _ in active = true }
             .onChanged { _ in gestureMoved = true }
             .onEnded { value in
                 if abs(value.translation.width) > abs(value.translation.height) * 1.4 {
-                    if value.translation.width < -36 { actionEdge = -1 }
-                    else if value.translation.width > 36 { actionEdge = 1 }
+                    if value.translation.width < -36 { actionEdge = actionEdge == -1 ? 0 : -1 }
+                    else if value.translation.width > 36 { actionEdge = actionEdge == 1 ? 0 : 1 }
                 }
-                Task { try? await Task.sleep(for: .milliseconds(150)); gestureMoved = false }
             })
+        .onChange(of: gestureActive) { _, active in
+            if !active { Task { try? await Task.sleep(for: .milliseconds(150)); gestureMoved = false } }
+        }
         .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: actionEdge)
     }
 }
