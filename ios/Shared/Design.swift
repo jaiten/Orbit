@@ -2,7 +2,10 @@ import SwiftUI
 
 enum DayTheme {
     /// Single UI accent: a soft coral, used sparingly against neutral surfaces.
-    static var accent: Color { accentColor(UserDefaults.standard.string(forKey: "accentTheme") ?? "coral") }
+    static var sharedDefaults: UserDefaults? {
+        (Bundle.main.object(forInfoDictionaryKey: "OrbitAppGroup") as? String).flatMap { UserDefaults(suiteName: $0) }
+    }
+    static var accent: Color { accentColor(UserDefaults.standard.string(forKey: "accentTheme") ?? sharedDefaults?.string(forKey: "accentTheme") ?? "coral") }
     static let accents = ["coral", "sage", "lavender", "honey"]
     static func accentColor(_ name: String) -> Color { name == "coral" ? Color(red: 0.91, green: 0.45, blue: 0.36) : color(name) }
     // Habit palette keeps its stored names; values are muted to sit quietly on neutrals.

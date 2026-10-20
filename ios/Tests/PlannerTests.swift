@@ -12,6 +12,19 @@ import SwiftData
     private func date(_ y: Int, _ m: Int, _ d: Int, _ h: Int = 12) -> Date {
         calendar.date(from: DateComponents(year: y, month: m, day: d, hour: h))!
     }
+    func testLocalTimeSuggestionRequiresDistinctDays() {
+        let name = "OrbitUsageTests." + UUID().uuidString
+        let defaults = UserDefaults(suiteName: name)!
+        defer { defaults.removePersistentDomain(forName: name) }
+        let first = Calendar.current.date(from: DateComponents(year: 2026, month: 9, day: 14, hour: 10))!
+        UsageSignals.recordVisit(now: first, defaults: defaults)
+        UsageSignals.recordVisit(now: first.addingTimeInterval(60), defaults: defaults)
+        XCTAssertEqual(defaults.integer(forKey: "orbitVisitDays"), 1)
+        XCTAssertEqual(UsageSignals.suggestedMinutes(defaults: defaults), 1080)
+        for offset in 1...2 { UsageSignals.recordVisit(now: Calendar.current.date(byAdding: .day, value: offset, to: first)!, defaults: defaults) }
+        XCTAssertEqual(defaults.integer(forKey: "orbitVisitDays"), 3)
+        XCTAssertEqual(UsageSignals.suggestedMinutes(defaults: defaults), 600)
+    }
     func testPartialDailyConsistencyAndCreationBoundary() {
         let earlier = date(2026, 9, 13)
         let water = Habit(title: "Water", target: 4); water.createdAt = earlier

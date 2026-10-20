@@ -81,9 +81,9 @@ struct ConsistencyStrip: View {
 struct OrbitMark: View {
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 12).fill(DayTheme.accent.opacity(0.12))
-            Ellipse().stroke(DayTheme.accent, lineWidth: 2.5).frame(width: 32, height: 19).rotationEffect(.degrees(-35))
-            Circle().fill(DayTheme.accent).frame(width: 8, height: 8).offset(x: 13, y: -9)
+            RoundedRectangle(cornerRadius: 12).fill(DayTheme.accent)
+            Circle().trim(from: 0, to: 0.75).stroke(.white, style: StrokeStyle(lineWidth: 4.5, lineCap: .round)).frame(width: 23, height: 23)
+            Circle().fill(.white).frame(width: 6, height: 6).offset(x: 9, y: -9)
         }.frame(width: 48, height: 48).accessibilityHidden(true)
     }
 }

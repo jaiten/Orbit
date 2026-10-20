@@ -3,6 +3,7 @@ import SwiftData
 import SwiftUI
 import Security
 import WidgetKit
+import UIKit
 
 @MainActor final class SyncService: ObservableObject {
     static let shared = SyncService()

@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import WidgetKit
 
 @main struct OrbitApp: App {
     private let container: ModelContainer?
@@ -47,7 +48,8 @@ struct RootView: View {
             if let notice = AuthConfirmation.notice(for: url) { selectedTab = 4; errorMessage = notice }
             else { selectedTab = 0 }
         }
-        .task { UsageSignals.recordVisit(); await refreshNotifications() }
+        .task { DayTheme.sharedDefaults?.set(accentTheme, forKey: "accentTheme"); UsageSignals.recordVisit(); await refreshNotifications() }
+        .onChange(of: accentTheme) { _, theme in DayTheme.sharedDefaults?.set(theme, forKey: "accentTheme"); WidgetCenter.shared.reloadAllTimelines() }
         .task {
             while !Task.isCancelled {
                 if phase == .active { await SyncService.shared.run(context) }
