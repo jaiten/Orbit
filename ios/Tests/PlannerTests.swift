@@ -43,6 +43,12 @@ import SwiftData
         XCTAssertEqual(result.title, "gym"); XCTAssertTrue(result.hasTime)
         XCTAssertEqual(result.date, date(2026, 9, 15, 6))
     }
+    func testQuickCaptureKeepsChosenCalendarDay() {
+        let result = QuickAdd.parse("Read 6am", now: date(2026, 9, 14), calendar: calendar, plannedDay: date(2026, 9, 20))
+        XCTAssertEqual(result.date, date(2026, 9, 20, 6))
+        let explicit = QuickAdd.parse("Read tomorrow 6am", now: date(2026, 9, 14), calendar: calendar, plannedDay: date(2026, 9, 20))
+        XCTAssertEqual(explicit.date, date(2026, 9, 15, 6))
+    }
     func testBarePastTimeMovesToTomorrow() {
         let result = QuickAdd.parse("Read 6am", now: date(2026, 9, 14), calendar: calendar)
         XCTAssertEqual(result.date, date(2026, 9, 15, 6))

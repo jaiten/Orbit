@@ -56,14 +56,18 @@ struct QuickCapture: View {
         }
     }
     private func save() {
-        let parsed = QuickAdd.parse(title)
+        let parsed = QuickAdd.parse(title, plannedDay: date)
         guard !parsed.title.isEmpty else { error = "Add a name as well as a time."; return }
         if repeatRule == "DAILY" || repeatRule == "WEEKLY" {
             let habit = Habit(title: parsed.title, frequencyRule: repeatRule)
             if parsed.hasTime, let date = parsed.date { habit.reminderMinutes = Calendar.current.component(.hour, from: date) * 60 + Calendar.current.component(.minute, from: date) }
             context.insert(habit)
         } else {
-            let planned = parsed.date ?? date
+            var planned = parsed.date ?? date
+            if timed && !parsed.hasTime {
+                let clock = Calendar.current.dateComponents([.hour, .minute], from: date)
+                planned = Calendar.current.date(bySettingHour: clock.hour!, minute: clock.minute!, second: 0, of: planned)!
+            }
             let item = PlannerTask(title: parsed.title, dueDate: timed || parsed.hasTime ? planned : Calendar.current.startOfDay(for: planned), hasTime: timed || parsed.hasTime, listID: listID)
             item.notes = notes; item.recurrenceRule = repeatRule
             if !repeatRule.isEmpty, let next = PlannerLogic.nextOccurrence(after: Calendar.current.date(byAdding: .day, value: -1, to: planned)!, rule: repeatRule) { item.dueDate = next }

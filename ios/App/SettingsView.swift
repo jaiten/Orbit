@@ -78,7 +78,7 @@ struct SettingsView: View {
                             Task { do { try await calendars.connect() } catch { message = error.localizedDescription } }
                         }
                     }
-                    Text("See events from Apple Calendar and Google accounts added to your iPhone. Touch and hold a to-do to send it to a calendar. Changes to calendar events do not change the original task.")
+                    Text("See events from Apple Calendar and Google accounts added to your iPhone. Use a to-do’s pencil, then More actions, to send it to a calendar. Changes to calendar events do not change the original task.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("Accent") {

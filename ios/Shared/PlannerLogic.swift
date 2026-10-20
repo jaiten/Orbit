@@ -71,9 +71,9 @@ struct QuickAddResult {
 
 enum QuickAdd {
     /// Intentionally small English grammar: today/tomorrow and 6am / 6:30pm.
-    static func parse(_ input: String, now: Date = .now, calendar: Calendar = .current) -> QuickAddResult {
+    static func parse(_ input: String, now: Date = .now, calendar: Calendar = .current, plannedDay: Date? = nil) -> QuickAddResult {
         var title = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        var date: Date?
+        var date: Date? = plannedDay
         var hasTime = false
         if let range = title.range(of: #"\b(today|tomorrow)\b"#, options: [.regularExpression, .caseInsensitive]) {
             let offset = title[range].lowercased() == "tomorrow" ? 1 : 0

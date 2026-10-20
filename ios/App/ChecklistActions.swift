@@ -4,16 +4,19 @@ import SwiftData
 struct TaskActions: ViewModifier {
     @Environment(\.modelContext) private var context
     let task: PlannerTask
+    var enabled = true
     @State private var error: String?
     @State private var calendarDraft: CalendarDraft?
     func body(content: Content) -> some View {
-        content
-            .contextMenu {
+        Group {
+            if enabled { content.contextMenu {
                 Button("Start focus timer", systemImage: "timer") { Task { do { try await FocusSession.shared.start(task) } catch { self.error = error.localizedDescription } } }
                 Button("Send to calendar", systemImage: "calendar.badge.plus") { Task { do { calendarDraft = try await CalendarBridge.shared.draft(for: task) } catch { self.error = error.localizedDescription } } }
                 Button("Move to non-negotiables", systemImage: "repeat") { change { try Conversions.toHabit(task, in: context) } }
                 Button("Delete", systemImage: "xmark", role: .destructive) { change { context.delete(task); try Mutations.save(context) } }
             }
+            } else { content }
+        }
             .sheet(item: $calendarDraft) { CalendarEventEditor(draft: $0) }
             .modifier(MutationErrorModifier(error: $error))
     }

@@ -79,6 +79,9 @@ struct HabitEditor: View {
                     Toggle("Gentle nudge if unfinished", isOn: $nudgeEnabled)
                     if nudgeEnabled { DatePicker("Nudge at", selection: $nudge, displayedComponents: .hourAndMinute) }
                 } header: { Text("A little encouragement") } footer: { Text("Reminders pause once you reach your period’s target. Enable notifications in You.") }
+                if let habit { Section { Button("Make a to-do", systemImage: "checklist") {
+                    do { try Conversions.toTask(habit, in: context); finish() } catch { self.error = error.localizedDescription }
+                } } }
                 if habit != nil { Section { Button("Delete habit", role: .destructive) { confirmDelete = true } } }
             }.navigationTitle(habit == nil ? "Plant a habit" : "Edit habit").navigationBarTitleDisplayMode(.inline)
                 .toolbar {

@@ -22,6 +22,7 @@ struct TaskEditor: View {
     @State private var reminders: [Date] = []
     @State private var error: String?
     @State private var confirmDelete = false
+    @State private var calendarDraft: CalendarDraft?
     var body: some View {
         NavigationStack {
             Form {
@@ -78,6 +79,13 @@ struct TaskEditor: View {
                         .onDelete { reminders.remove(atOffsets: $0) }
                     Button("Add reminder", systemImage: "bell.badge") { reminders.append(max(date, Date.now.addingTimeInterval(3600))) }
                 } } footer: { Text("Enable notifications in Settings. Swipe a reminder to remove it. Past reminders are saved but won’t fire.") }
+                if let task {
+                    Section { DisclosureGroup("More actions") {
+                        Button("Send to calendar", systemImage: "calendar.badge.plus") { Task { do { calendarDraft = try await CalendarBridge.shared.draft(for: task) } catch { self.error = error.localizedDescription } } }
+                        Button("Start focus timer", systemImage: "timer") { Task { do { try await FocusSession.shared.start(task); dismiss() } catch { self.error = error.localizedDescription } } }
+                        Button("Make a habit", systemImage: "repeat") { do { try Conversions.toHabit(task, in: context); Task { try? await refreshReminders(context) }; dismiss() } catch { self.error = error.localizedDescription } }
+                    } }
+                }
                 if task != nil { Section { Button("Delete task", role: .destructive) { confirmDelete = true } } }
             }
             .navigationTitle(task == nil ? "New task" : "Edit task").navigationBarTitleDisplayMode(.inline)
@@ -85,6 +93,7 @@ struct TaskEditor: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) { Button("Save", action: save).disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
             }
+            .sheet(item: $calendarDraft) { CalendarEventEditor(draft: $0) }
             .onAppear(perform: populate).modifier(MutationErrorModifier(error: $error))
             .confirmationDialog("Delete this task?", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Delete task", role: .destructive) { guard let task else { return }; context.delete(task); persistAndClose() }

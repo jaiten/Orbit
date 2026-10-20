@@ -142,7 +142,7 @@ struct TodayView: View {
         }
     }
     @ViewBuilder private func itemView(_ item: TodayItem) -> some View {
-        if let task = item.task { TaskRow(task: task) { editing = task }.draggable("task:" + task.id.uuidString) }
+        if let task = item.task { TaskRow(task: task, dragEnabled: true) { editing = task }.draggable("task:" + task.id.uuidString) }
         if let habit = item.habit { HabitRow(habit: habit, logs: logs, date: day, edit: { editingHabit = habit }).draggable("habit:" + habit.id.uuidString) }
     }
     private func refresh() { day = Calendar.current.startOfDay(for: .now); calendars.reload(); focus.restore() }
@@ -233,6 +233,7 @@ struct CheckTile: View {
 struct TaskRow: View {
     @Environment(\.modelContext) private var context
     let task: PlannerTask
+    var dragEnabled = false
     var edit: () -> Void
     @State private var error: String?
     @State private var feedback = 0
@@ -248,7 +249,7 @@ struct TaskRow: View {
             completionLabel: (task.completedAt == nil ? "Complete " : "Reopen ") + task.title, moveLabel: "Make non-negotiable",
             toggle: { change { try Mutations.toggle(task, in: context); feedback += 1; if task.completedAt != nil { Task { await FocusSession.shared.stopIfMatching(task.id) } } } }, edit: edit,
             remove: { change { context.delete(task); try Mutations.save(context) } }, move: { change { try Conversions.toHabit(task, in: context) } })
-            .modifier(TaskActions(task: task)).modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
+            .modifier(TaskActions(task: task, enabled: !dragEnabled)).modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
     }
     private func change(_ action: () throws -> Void) {
         do { try action(); Task { do { try await refreshReminders(context) } catch { self.error = error.localizedDescription } } }
@@ -270,10 +271,6 @@ struct HabitRow: View {
             completionLabel: (progress >= habit.target ? "Undo " : "Log ") + habit.title, moveLabel: "Make to-do",
             toggle: { change { if progress >= habit.target { try Mutations.undoLog(habit, at: date, in: context) } else { try Mutations.log(habit, at: date, in: context) }; feedback += 1 } }, edit: { edit?() },
             remove: { change { try Conversions.remove(habit, in: context) } }, move: { change { try Conversions.toTask(habit, in: context) } })
-            .contextMenu {
-                Button("Move to to-dos", systemImage: "checklist") { change { try Conversions.toTask(habit, in: context) } }
-                Button("Delete", systemImage: "xmark", role: .destructive) { change { try Conversions.remove(habit, in: context) } }
-            }
             .modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
     }
     private func change(_ action: () throws -> Void) {
