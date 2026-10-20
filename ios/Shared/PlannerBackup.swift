@@ -49,7 +49,9 @@ import Foundation
             guard let key = record["key"] as? String, let payload = record["payload"] as? [String: Any] else { return nil }
             return (key, payload)
         }
-        let lists = Dictionary(payloads.filter { $0.0.hasPrefix("lists/") }.compactMap { ($0.1["id"] as? String).map { id in (id, $0.1["name"] as? String ?? "") } }, uniquingKeysWith: { first, _ in first })
+        let lists = Dictionary(payloads.filter { $0.0.hasPrefix("lists/") }.compactMap { entry in
+            (entry.1["id"] as? String).map { id in (id.lowercased(), entry.1["name"] as? String ?? "") }
+        }, uniquingKeysWith: { first, _ in first })
         let someday = TodayRules.somedayID.uuidString.lowercased()
         func date(_ value: Any?) -> Date? { (value as? Double).map { Date(timeIntervalSince1970: $0 / 1000) } }
         struct Row { var id, title, list, date, time, minutes, completed, notes, tags: String }
