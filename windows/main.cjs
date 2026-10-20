@@ -7,13 +7,13 @@ let window,store,sync,client,accountNotice;
 const handleConfirmation=raw=>{const notice=confirmationNotice(raw);if(!notice)return;accountNotice=notice;if(window){if(window.isMinimized())window.restore();window.show();window.focus();window.webContents.send('changed');}};
 if(!app.requestSingleInstanceLock())app.quit();
 else {
- app.on('second-instance',(_,argv)=>{for(const arg of argv)handleConfirmation(arg);});
+ app.on('second-instance',(_,argv)=>{for(const arg of argv)handleConfirmation(arg);if(window){if(window.isMinimized())window.restore();window.show();window.focus();}});
  app.on('open-url',(event,url)=>{event.preventDefault();handleConfirmation(url);});
 }
 for(const arg of process.argv)handleConfirmation(arg);
 app.whenReady().then(async()=>{
 if(app.isPackaged&&!process.env.ORBIT_TEST_DATA)app.setAsDefaultProtocolClient('orbit',process.env.PORTABLE_EXECUTABLE_FILE||process.execPath);
-store=new Store(path.join(app.getPath('userData'),'orbit.sqlite'));const notify=()=>window?.webContents.send('changed');
+store=new Store(path.join(app.getPath('userData'),'orbit.sqlite'));const notify=(kind='data')=>{if(kind==='status')window?.webContents.send('sync-status',{status:sync.status,syncing:sync.busy});else window?.webContents.send('changed');};
 const tokenPath=path.join(app.getPath('userData'),'session.enc');
 const storage={getItem:()=>fs.existsSync(tokenPath)?safeStorage.decryptString(fs.readFileSync(tokenPath)):null,setItem:(_,v)=>{if(!safeStorage.isEncryptionAvailable())throw Error('Windows credential encryption is unavailable');fs.writeFileSync(tokenPath+'.tmp',safeStorage.encryptString(v));fs.renameSync(tokenPath+'.tmp',tokenPath);},removeItem:()=>{if(fs.existsSync(tokenPath))fs.unlinkSync(tokenPath);}};
 if(config.url&&config.publishableKey)client=createClient(config.url,config.publishableKey,{auth:{storage,autoRefreshToken:true,persistSession:true,detectSessionInUrl:false}});
@@ -23,7 +23,7 @@ session.defaultSession.setPermissionRequestHandler((_,__,callback)=>callback(fal
 window=new BrowserWindow({width:1240,height:860,minWidth:820,minHeight:620,title:'Orbit',backgroundColor:'#f8f7f5',icon:path.join(__dirname,'assets','orbit.png'),autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
 window.webContents.setWindowOpenHandler(()=>({action:'deny'}));window.webContents.on('will-navigate',e=>e.preventDefault());
 const handle=(name,fn)=>ipcMain.handle(name,async(event,arg)=>{if(event.senderFrame!==window.webContents.mainFrame||!event.senderFrame.url.startsWith('orbit://app/'))throw Error('Invalid sender');return fn(arg);});
-handle('read',async()=>{const notice=accountNotice;accountNotice=null;return {records:store.rows(),accountNotice:notice,status:sync.status,configured:!!client,email:(await client?.auth.getSession())?.data?.session?.user?.email??null};});
+handle('read',async()=>{const notice=accountNotice;accountNotice=null;return {records:store.rows(),accountNotice:notice,status:sync.status,syncing:sync.busy,configured:!!client,email:(await client?.auth.getSession())?.data?.session?.user?.email??null};});
 handle('put',({key,payload,deleted})=>{store.put(key,payload,deleted===true);notify();void sync.run();});
 handle('batch',changes=>{store.batch(changes);notify();void sync.run();});handle('sync',()=>sync.run());handle('resolve',({key,choice})=>{store.resolve(key,choice);return sync.run();});
 handle('auth',async({mode,email,password})=>{
@@ -37,7 +37,7 @@ handle('auth',async({mode,email,password})=>{
  if(result.data.session){accountNotice=null;try{store.bind(result.data.user.id);}catch(e){await client.auth.signOut({scope:'local'});throw e;}await sync.run();}
  return result.data.session?'Signed in':'Open the newest confirmation email, tap its link, then sign in here.';
 });
-await window.loadURL('orbit://app');window.on('focus',()=>void sync.run());setInterval(()=>void sync.run(),8000).unref();
+await window.loadURL('orbit://app');window.on('focus',()=>void sync.run());setInterval(()=>void sync.run(),20000).unref();
 if(client){client.channel('planner').on('postgres_changes',{event:'*',schema:'public',table:'orbit_records'},()=>void sync.run()).subscribe();void sync.run();}
 });
 app.on('window-all-closed',()=>app.quit());app.on('before-quit',()=>store?.close());

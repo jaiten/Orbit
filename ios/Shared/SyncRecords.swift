@@ -10,6 +10,7 @@ import SwiftData
     var mutation: String
     var dirty: Bool
     var conflict: String?
+    var basePayload: String? = nil
     init(key: String, payload: String) {
         self.key = key; self.payload = payload; tombstone = false; revision = 0
         mutation = UUID().uuidString.lowercased(); dirty = true

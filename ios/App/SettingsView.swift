@@ -23,7 +23,7 @@ struct SettingsView: View {
                 Section {
                     Text("Orbit").font(.largeTitle.weight(.bold))
                     Text("A little space for what matters.").foregroundStyle(.secondary)
-                    Label(sync.status, systemImage: "arrow.triangle.2.circlepath").font(.footnote).foregroundStyle(.secondary)
+                    SyncIndicator()
                 }
                 Section("Across your devices") {
                     if let account = sync.email {
@@ -51,14 +51,19 @@ struct SettingsView: View {
                     }
                 }
                 ForEach(syncEntries.filter { $0.conflict != nil }) { entry in
-                    Section("Choose which change to keep") {
-                        Text((try? SyncRecords.object(entry.payload)["title"] as? String) ?? entry.key)
-                        DisclosureGroup("Compare versions") {
-                            Text("This device: " + entry.payload).font(.caption)
-                            Text("Other device: " + (entry.conflict ?? "")).font(.caption)
+                    Section("Review two versions") {
+                        Text("Both versions are saved. Choose the content you want to keep.").font(.footnote).foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("On this iPhone").font(.caption).foregroundStyle(.secondary)
+                            Text(SyncMerge.summary((try? SyncRecords.object(entry.payload)) ?? [:], deleted: entry.tombstone))
+                            Button("Use the version above") { resolve(entry, local: true) }
                         }
-                        Button("Keep this device") { resolve(entry, local: true) }
-                        Button("Keep other device") { resolve(entry, local: false) }
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("From sync").font(.caption).foregroundStyle(.secondary)
+                            let record = (try? SyncRecords.object(entry.conflict ?? "{}")) ?? [:]
+                            Text(SyncMerge.summary(record["payload"] as? [String: Any] ?? [:], deleted: record["deleted"] as? Bool ?? false))
+                            Button("Use this synced version") { resolve(entry, local: false) }
+                        }
                     }
                 }
                 Section("Calendars") {

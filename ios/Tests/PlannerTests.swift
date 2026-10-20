@@ -109,6 +109,16 @@ import SwiftData
         XCTAssertFalse(notice?.contains("private") == true)
         XCTAssertTrue(AuthConfirmation.notice(for: URL(string: "orbit://auth#error_code=otp_expired")!)?.contains("fresh email") == true)
     }
+    func testSyncIgnoresMetadataAndMergesDifferentFields() throws {
+        let base: [String: Any] = ["id": "a", "title": "Read", "notes": "First", "updatedAt": 1]
+        var local = base; local["title"] = "Read more"; local["updatedAt"] = 3
+        var remote = base; remote["notes"] = "Second"; remote["updatedAt"] = 2
+        let merged = try XCTUnwrap(SyncMerge.merge(local: local, remote: remote, base: base))
+        XCTAssertEqual(merged["title"] as? String, "Read more")
+        XCTAssertEqual(merged["notes"] as? String, "Second")
+        XCTAssertNotNil(SyncMerge.merge(local: ["id": "a", "title": "Read", "updatedAt": 1, "conversionData": NSNull()], remote: ["id": "a", "title": "Read", "updatedAt": 2], base: nil))
+        XCTAssertNil(SyncMerge.merge(local: ["title": "Gym"], remote: ["title": "Walk"], base: ["title": "Read"]))
+    }
     func testDiskRoundTrip() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

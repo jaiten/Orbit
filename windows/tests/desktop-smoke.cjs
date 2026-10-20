@@ -12,19 +12,21 @@ const fs=require('node:fs');const os=require('node:os');const path=require('node
   await p.getByRole('button',{name:'Save list',exact:true}).click();
   await p.getByRole('textbox',{name:'Add an intention'}).fill('Read for twenty minutes');
   await p.getByRole('button',{name:'Add',exact:true}).click();
-  await p.getByRole('button',{name:'Read for twenty minutes',exact:true}).click();
+  await p.getByRole('button',{name:'Edit Read for twenty minutes',exact:true}).click();
   await p.getByLabel('Notes').fill('A small, clear commitment');await p.getByLabel('List',{exact:true}).selectOption({label:'Personal'});await p.getByRole('button',{name:'Save task',exact:true}).click();
-  await p.locator('[data-list]').click();await p.getByRole('heading',{name:'Personal',exact:true}).waitFor();await p.getByRole('button',{name:'Read for twenty minutes',exact:true}).waitFor();
+  await p.locator('[data-list]').click();await p.getByRole('heading',{name:'Personal',exact:true}).waitFor();await p.getByRole('button',{name:'Edit Read for twenty minutes',exact:true}).waitFor();
   await p.locator('[data-page="today"]').click();
   await p.getByLabel('Add to-do or non-negotiable',{exact:true}).click();
+  await app.evaluate(({BrowserWindow})=>{for(let i=0;i<5;i++)BrowserWindow.getAllWindows()[0].webContents.send('sync-status',{status:i%2?'All changes synced':'Syncing…',syncing:i%2===0});});
+  if(!await p.locator('.floating-add').evaluate(el=>el.open))throw Error('Sync closed the add menu');
   await p.getByRole('button',{name:'+ Habit',exact:true}).click();await p.locator('#habit-form input[name=title]').fill('Morning walk');
-  await p.getByRole('button',{name:'Save habit',exact:true}).click();await p.getByRole('button',{name:'Log Morning walk',exact:true}).click();
-  await p.getByText('1 / 1 today',{exact:true}).waitFor();await p.getByRole('button',{name:'Undo',exact:true}).click();await p.getByText('0 / 1 today',{exact:true}).waitFor();
-  await p.getByRole('button',{name:'Read for twenty minutes',exact:true}).click();
+  await p.getByRole('button',{name:'Save habit',exact:true}).click();await p.getByRole('checkbox',{name:'Log Morning walk',exact:true}).click();
+  await p.getByText('1 / 1 today',{exact:true}).waitFor();await p.getByRole('checkbox',{name:'Undo Morning walk',exact:true}).click();await p.getByText('0 / 1 today',{exact:true}).waitFor();
+  await p.getByRole('button',{name:'Edit Read for twenty minutes',exact:true}).click();
   await p.getByRole('button',{name:'Move to non-negotiables',exact:true}).click();
-  await p.locator('[data-habit-edit]').filter({hasText:'Read for twenty minutes'}).click();
+  await p.getByRole('button',{name:'Edit Read for twenty minutes',exact:true}).click();
   await p.getByRole('button',{name:'Move to to-dos',exact:true}).click();
-  await p.getByRole('button',{name:'Read for twenty minutes',exact:true}).click();
+  await p.getByRole('button',{name:'Edit Read for twenty minutes',exact:true}).click();
   if(await p.getByLabel('Notes').inputValue()!=='A small, clear commitment')throw Error('Conversion lost notes');
   await p.getByRole('button',{name:'Save task',exact:true}).click();
   // A restored recurring task must not lend its habit backup to future occurrences.

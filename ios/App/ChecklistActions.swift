@@ -8,12 +8,6 @@ struct TaskActions: ViewModifier {
     @State private var calendarDraft: CalendarDraft?
     func body(content: Content) -> some View {
         content
-            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                Button(role: .destructive) { change { context.delete(task); try Mutations.save(context) } } label: { Label("Delete", systemImage: "xmark") }
-            }
-            .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                Button { change { try Conversions.toHabit(task, in: context) } } label: { Label("Make non-negotiable", systemImage: "repeat") }.tint(DayTheme.accent)
-            }
             .contextMenu {
                 Button("Start focus timer", systemImage: "timer") { Task { do { try await FocusSession.shared.start(task) } catch { self.error = error.localizedDescription } } }
                 Button("Send to calendar", systemImage: "calendar.badge.plus") { Task { do { calendarDraft = try await CalendarBridge.shared.draft(for: task) } catch { self.error = error.localizedDescription } } }

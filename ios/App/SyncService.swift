@@ -12,6 +12,10 @@ import WidgetKit
     private let key = "sb_publishable_m0nf1UT5Q2vLryIVocVbXA_-q5tDD53"
     private var session: [String: Any]?
     private var busy = false
+    private var again = false
+    @Published var syncing = false
+    private let realtime = RealtimeWakeup()
+    private var realtimeAllowed = true
     private init() {
         let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "OrbitSession", kSecReturnData as String: true, kSecMatchLimit as String: kSecMatchLimitOne]
         var item: CFTypeRef?
@@ -61,21 +65,35 @@ import WidgetKit
               result["access_token"] != nil, let user = result["user"] as? [String: Any], let id = user["id"] as? String else { throw CocoaError(.coderReadCorrupt) }
         try SyncRecords.bind(id, context: context); try saveSession(result); await run(context)
     }
-    func signOut() throws { guard !busy else { return }; try saveSession(nil); status = "Saved on this device" }
+    func suspendRealtime() { realtimeAllowed = false; realtime.stop() }
+    func resumeRealtime() { realtimeAllowed = true }
+    func signOut() throws { guard !busy else { return }; realtime.stop(); try saveSession(nil); status = "Saved on this device" }
     func run(_ context: ModelContext) async {
-        guard !busy, session != nil else { return }; busy = true; defer { busy = false }
+        if busy { again = true; return }
+        guard session != nil else { return }
+        busy = true; syncing = true; again = false
+        defer {
+            busy = false; syncing = false
+            if again { Task { await self.run(context) } }
+        }
         do {
             if let expires = session?["expires_at"] as? Double, expires < Date.now.timeIntervalSince1970 + 60, let token = session?["refresh_token"] as? String {
                 guard let renewed = try await request("/auth/v1/token?grant_type=refresh_token", body: ["refresh_token": token], authenticated: false) as? [String: Any] else { throw CocoaError(.coderReadCorrupt) }; try saveSession(renewed)
             }
             guard let user = session?["user"] as? [String: Any], let uid = user["id"] as? String else { throw CocoaError(.coderReadCorrupt) }
+            if realtimeAllowed { realtime.start(token: session?["access_token"] as? String ?? "", userID: uid) { [weak self] in
+                Task { await self?.run(context) }
+            } }
             try SyncRecords.bind(uid, context: context); try SyncRecords.capture(context); try context.save(); status = "Syncing…"
+            for entry in try context.fetch(FetchDescriptor<SyncEntry>()) where entry.conflict != nil {
+                try receive(try SyncRecords.object(entry.conflict!), context: context)
+            }
             let pending = try context.fetch(FetchDescriptor<SyncEntry>()).filter { $0.dirty && $0.conflict == nil && $0.key != "owner" }
             for entry in pending {
                 let mutation = entry.mutation
                 let body: [String: Any] = ["p_key": entry.key, "p_payload": try SyncRecords.object(entry.payload), "p_deleted": entry.tombstone, "p_base": entry.revision, "p_mutation": mutation]
                 guard let response = try await request("/rest/v1/rpc/orbit_put", body: body) as? [String: Any], let record = response["record"] as? [String: Any] else { throw CocoaError(.coderReadCorrupt) }
-                if response["accepted"] as? Bool == true { entry.revision = record["revision"] as? Int ?? entry.revision; if entry.mutation == mutation { entry.dirty = false; entry.conflict = nil }; try context.save() }
+                if response["accepted"] as? Bool == true { entry.basePayload = try SyncRecords.json(record["payload"] ?? [:]); entry.revision = record["revision"] as? Int ?? entry.revision; if entry.mutation == mutation { entry.dirty = false; entry.conflict = nil }; try context.save() }
                 else { try receive(record, context: context) }
             }
             var offset = 0
@@ -88,7 +106,8 @@ import WidgetKit
             status = entries.contains { $0.conflict != nil } ? "Changes need review in Settings" : entries.contains { $0.dirty } ? "Changes waiting to sync" : "All changes synced"
             WidgetCenter.shared.reloadAllTimelines()
             try await refreshReminders(context)
-        } catch { status = "Saved locally · " + error.localizedDescription }
+            if entries.contains(where: { $0.dirty && $0.conflict == nil && $0.key != "owner" }) { again = true }
+        } catch { again = false; status = "Saved locally · " + error.localizedDescription }
     }
     private func receive(_ record: [String: Any], context: ModelContext) throws {
         guard let key = record["key"] as? String, let revision = record["revision"] as? Int, let payload = record["payload"] as? [String: Any] else { throw CocoaError(.coderReadCorrupt) }
@@ -96,22 +115,32 @@ import WidgetKit
         let old = try context.fetch(FetchDescriptor<SyncEntry>()).first { $0.key == key }
         if let old, old.dirty {
             if revision > old.revision {
-                if old.payload == value && old.tombstone == deleted { old.revision = revision; old.dirty = false; old.conflict = nil }
-                else { old.conflict = try SyncRecords.json(record) }; try context.save()
-            }; return
+                let local = try SyncRecords.object(old.payload)
+                let base = try old.basePayload.map { try SyncRecords.object($0) }
+                if old.tombstone == deleted, let merged = SyncMerge.merge(local: local, remote: payload, base: base) {
+                    let mergedJSON = try SyncRecords.json(merged)
+                    try SyncRecords.apply(["key": key, "payload": merged, "deleted": deleted], context: context)
+                    old.payload = try SyncRecords.snapshots(context)[key] ?? mergedJSON
+                    old.revision = revision; old.basePayload = value; old.conflict = nil
+                    old.dirty = mergedJSON != value
+                    if old.dirty { old.mutation = UUID().uuidString.lowercased(); again = true }
+                } else { old.conflict = try SyncRecords.json(record) }
+                try context.save()
+            }
+            return
         }
         if let old, old.revision >= revision { return }
         do {
             try SyncRecords.apply(record, context: context)
             let entry = old ?? SyncEntry(key: key, payload: value); if old == nil { context.insert(entry) }
             // Use the local canonical representation to avoid spurious re-uploads.
-            entry.payload = try SyncRecords.snapshots(context)[key] ?? value; entry.tombstone = deleted; entry.revision = revision; entry.dirty = false; entry.conflict = nil; entry.mutation = record["mutation"] as? String ?? UUID().uuidString.lowercased(); try context.save()
+            entry.payload = try SyncRecords.snapshots(context)[key] ?? value; entry.tombstone = deleted; entry.basePayload = value; entry.revision = revision; entry.dirty = false; entry.conflict = nil; entry.mutation = record["mutation"] as? String ?? UUID().uuidString.lowercased(); try context.save()
         } catch { context.rollback(); throw error }
     }
     func resolve(_ entry: SyncEntry, local: Bool, context: ModelContext) async throws {
         guard !busy, let conflict = entry.conflict else { return }
         let record = try SyncRecords.object(conflict)
-        if local { entry.revision = record["revision"] as? Int ?? entry.revision; entry.conflict = nil; entry.mutation = UUID().uuidString.lowercased(); try context.save() }
+        if local { entry.revision = record["revision"] as? Int ?? entry.revision; entry.basePayload = try SyncRecords.json(record["payload"] ?? [:]); entry.conflict = nil; entry.mutation = UUID().uuidString.lowercased(); try context.save() }
         else { entry.dirty = false; entry.revision = 0; try receive(record, context: context) }
         await run(context)
     }

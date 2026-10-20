@@ -15,7 +15,9 @@ struct TodayView: View {
     @State private var editingHabit: Habit?
     @State private var addingTask = false
     @State private var addingHabit = false
-    @State private var completedExpanded = false
+    @State private var completedExpanded = true
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @ScaledMetric(relativeTo: .body) private var tileWidth = 150.0
     @State private var error: String?
     @State private var day = Calendar.current.startOfDay(for: .now)
     @ObservedObject private var calendars = CalendarBridge.shared
@@ -34,8 +36,9 @@ struct TodayView: View {
     }
     var body: some View {
         NavigationStack {
-            List {
-                Section {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                Group {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text(day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())).foregroundStyle(.secondary)
@@ -57,25 +60,13 @@ struct TodayView: View {
                         }
                     }
                 }
-                Section("To-dos") {
-                    if relevant.allSatisfy({ $0.completedAt != nil }) { Text("A clear checklist. Add something with +.").foregroundStyle(.secondary).font(.subheadline) }
-                    ForEach(relevant.filter { $0.completedAt == nil }) { task in
-                        TaskRow(task: task) { editing = task }.listRowInsets(EdgeInsets(top: 2, leading: 8, bottom: 2, trailing: 12))
-                    }
-                }
-                Section("Non-negotiables") {
-                    if habits.isEmpty { Text("Choose one small thing to return to.").foregroundStyle(.secondary).font(.subheadline) }
-                    ForEach(habits) { habit in
-                        HabitRow(habit: habit, logs: logs, date: day, edit: { editingHabit = habit })
-                            .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 12))
-                    }
-                }
-                if relevant.contains(where: { $0.completedAt != nil }) {
-                    Section {
-                        DisclosureGroup("Completed", isExpanded: $completedExpanded) {
-                            ForEach(relevant.filter { $0.completedAt != nil }) { task in TaskRow(task: task) { editing = task } }
-                        }
-                    }
+                checklistSection("For today", items: relevant.filter { $0.completedAt == nil && $0.recurrenceRule.isEmpty }.map { TodayItem(task: $0) }, empty: "Your one-off plans go here.")
+                checklistSection("Your routine", items: relevant.filter { $0.completedAt == nil && !$0.recurrenceRule.isEmpty }.map { TodayItem(task: $0) } + habits.filter { PlannerLogic.progress($0, logs: logs, at: day) < $0.target }.map { TodayItem(habit: $0) }, empty: "Daily habits and weekly commitments.")
+                let completed = relevant.filter { $0.completedAt != nil }.map { TodayItem(task: $0) } + habits.filter { PlannerLogic.progress($0, logs: logs, at: day) >= $0.target }.map { TodayItem(habit: $0) }
+                if !completed.isEmpty {
+                    DisclosureGroup("Completed · \(completed.count)", isExpanded: $completedExpanded) {
+                        checklist(completed).padding(.top, 10)
+                    }.font(.subheadline).foregroundStyle(.secondary).padding(.top, 8)
                 }
                 if calendars.connected {
                     Section("From your calendars") {
@@ -102,10 +93,12 @@ struct TodayView: View {
                         }.font(.caption)
                     }
                 }
+                }.padding(.horizontal, 20).padding(.bottom, 16).frame(maxWidth: 760).frame(maxWidth: .infinity)
             }
-            .listStyle(.insetGrouped).scrollContentBackground(.hidden)
+
             .background(DayTheme.canvas(scheme))
             .navigationTitle("Today").navigationBarTitleDisplayMode(.large)
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { SyncIndicator() } }
             .safeAreaInset(edge: .bottom, alignment: .trailing, spacing: 0) {
                 Menu {
                     Button("To-do", systemImage: "checklist") { addingTask = true }
@@ -126,7 +119,103 @@ struct TodayView: View {
             .onChange(of: phase) { _, value in if value == .active { refresh() } }
         }
     }
+    private func checklistSection(_ title: String, items: [TodayItem], empty: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack { Text(title).font(.headline); Spacer(); Text("\(items.count)").font(.caption).foregroundStyle(.tertiary) }
+            if items.isEmpty { Text(empty).font(.subheadline).foregroundStyle(.secondary).padding(.vertical, 8) }
+            checklist(items)
+        }
+    }
+    private func checklist(_ items: [TodayItem]) -> some View {
+        VStack(spacing: 10) {
+            ForEach(TodayGroup.groups(items, compact: !typeSize.isAccessibilitySize)) { group in
+                if group.items.count == 2 {
+                    ViewThatFits(in: .horizontal) {
+                        HStack(alignment: .top, spacing: 10) {
+                            ForEach(group.items) { item in itemView(item).frame(minWidth: tileWidth, maxWidth: .infinity) }
+                        }
+                        VStack(spacing: 10) { ForEach(group.items) { item in itemView(item) } }
+                    }
+                } else { itemView(group.items[0]) }
+            }
+        }
+    }
+    @ViewBuilder private func itemView(_ item: TodayItem) -> some View {
+        if let task = item.task { TaskRow(task: task) { editing = task } }
+        if let habit = item.habit { HabitRow(habit: habit, logs: logs, date: day, edit: { editingHabit = habit }) }
+    }
     private func refresh() { day = Calendar.current.startOfDay(for: .now); calendars.reload(); focus.restore() }
+}
+
+struct TodayItem: Identifiable {
+    var task: PlannerTask? = nil
+    var habit: Habit? = nil
+    var id: String { task.map { "task-" + $0.id.uuidString } ?? "habit-" + habit!.id.uuidString }
+    var short: Bool { (task?.title ?? habit!.title).count <= 18 && task?.hasTime != true && (task?.subtasks.isEmpty ?? true) }
+}
+struct TodayGroup: Identifiable {
+    let items: [TodayItem]
+    var id: String { items[0].id }
+    static func groups(_ items: [TodayItem], compact: Bool) -> [TodayGroup] {
+        var groups: [TodayGroup] = []; var index = 0
+        while index < items.count {
+            if compact, items[index].short, index + 1 < items.count, items[index + 1].short {
+                groups.append(TodayGroup(items: [items[index], items[index + 1]])); index += 2
+            } else { groups.append(TodayGroup(items: [items[index]])); index += 1 }
+        }
+        return groups
+    }
+}
+
+struct CheckTile: View {
+    let title: String
+    let subtitle: String
+    let done: Bool
+    let color: Color
+    let completionLabel: String
+    let moveLabel: String
+    var toggle: () -> Void
+    var edit: () -> Void
+    var remove: () -> Void
+    var move: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var actionEdge = 0
+    var body: some View {
+        HStack(spacing: 0) {
+            Button(action: toggle) {
+                HStack(spacing: 10) {
+                    Image(systemName: done ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 23, weight: .regular)).foregroundStyle(done ? color : color.opacity(0.65))
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(title).font(.subheadline.weight(.medium)).foregroundStyle(done ? .secondary : .primary).strikethrough(done).fixedSize(horizontal: false, vertical: true)
+                        if !subtitle.isEmpty { Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(2) }
+                    }
+                    Spacer(minLength: 0)
+                }.padding(.leading, 14).padding(.vertical, 16).frame(maxWidth: .infinity, minHeight: 72, alignment: .leading).contentShape(Rectangle())
+            }.buttonStyle(.plain).accessibilityLabel(completionLabel).accessibilityIdentifier("checklist-title")
+            if actionEdge == 0 {
+                Button(action: edit) { Image(systemName: "pencil").font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary).frame(width: 38, height: 54).contentShape(Rectangle()) }
+                    .buttonStyle(.plain).accessibilityLabel("Edit " + title)
+            } else {
+                Button {
+                    if actionEdge < 0 { remove() } else { move() }
+                    actionEdge = 0
+                } label: {
+                    Image(systemName: actionEdge < 0 ? "xmark" : "arrow.left.arrow.right").font(.system(size: 14, weight: .semibold)).foregroundStyle(.white).frame(width: 44, height: 50)
+                        .background(actionEdge < 0 ? Color.red : color, in: RoundedRectangle(cornerRadius: 12))
+                }.buttonStyle(.plain).accessibilityLabel(actionEdge < 0 ? "Delete" : moveLabel).padding(.horizontal, 8)
+            }
+        }
+        .background(.background, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(.primary.opacity(0.035)))
+        .contentShape(Rectangle())
+        .simultaneousGesture(DragGesture(minimumDistance: 24).onEnded { value in
+            guard abs(value.translation.width) > abs(value.translation.height) * 1.4 else { return }
+            if value.translation.width < -36 { actionEdge = -1 }
+            else if value.translation.width > 36 { actionEdge = 1 }
+        })
+        .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: actionEdge)
+    }
 }
 
 struct TaskRow: View {
@@ -135,35 +224,23 @@ struct TaskRow: View {
     var edit: () -> Void
     @State private var error: String?
     @State private var feedback = 0
+    private var subtitle: String {
+        var parts: [String] = []
+        if task.hasTime, let date = task.dueDate { parts.append(date.formatted(date: .omitted, time: .shortened)) }
+        if !task.recurrenceRule.isEmpty { parts.append(task.recurrenceRule == "FREQ=DAILY" ? "Daily" : task.recurrenceRule == "FREQ=WEEKLY" ? "Weekly" : "Monthly") }
+        if !task.subtasks.isEmpty { parts.append("\(task.subtasks.filter(\.completed).count)/\(task.subtasks.count) steps") }
+        return parts.joined(separator: " · ")
+    }
     var body: some View {
-        HStack(spacing: 14) {
-            Button {
-                do { try Mutations.toggle(task, in: context); feedback += 1
-                    if task.completedAt != nil { Task { await FocusSession.shared.stopIfMatching(task.id) } }
-                    Task { do { try await refreshReminders(context) } catch { self.error = error.localizedDescription } }
-                } catch { self.error = error.localizedDescription }
-            } label: {
-                Image(systemName: task.completedAt == nil ? "circle" : "checkmark.circle.fill").font(.title2)
-                    .foregroundStyle(task.completedAt == nil ? DayTheme.accent.opacity(0.55) : DayTheme.accent)
-                    .frame(width: 44, height: 44)
-            }.buttonStyle(.plain).accessibilityLabel(task.completedAt == nil ? "Complete \(task.title)" : "Reopen \(task.title)")
-            Button(action: edit) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(task.title).strikethrough(task.completedAt != nil).foregroundStyle(task.completedAt == nil ? .primary : .secondary)
-                    HStack(spacing: 8) {
-                        if task.hasTime, let date = task.dueDate {
-                            Text(date.formatted(date: .omitted, time: .shortened))
-                            Text("· \(task.durationMinutes) min")
-                        }
-                        if task.priority > 0 { Image(systemName: "flag.fill").foregroundStyle(DayTheme.accent) }
-                        if !task.recurrenceRule.isEmpty { Image(systemName: "repeat") }
-                        if !task.subtasks.isEmpty { Text("\(task.subtasks.filter(\.completed).count)/\(task.subtasks.count)") }
-                    }.font(.caption).foregroundStyle(.secondary)
-                }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
-            }.buttonStyle(.plain).accessibilityLabel("Edit " + task.title).accessibilityIdentifier("checklist-title")
-        }.padding(8).background(.background, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .modifier(TaskActions(task: task))
-            .modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
+        CheckTile(title: task.title, subtitle: subtitle, done: task.completedAt != nil, color: DayTheme.accent,
+            completionLabel: (task.completedAt == nil ? "Complete " : "Reopen ") + task.title, moveLabel: "Make non-negotiable",
+            toggle: { change { try Mutations.toggle(task, in: context); feedback += 1; if task.completedAt != nil { Task { await FocusSession.shared.stopIfMatching(task.id) } } } }, edit: edit,
+            remove: { change { context.delete(task); try Mutations.save(context) } }, move: { change { try Conversions.toHabit(task, in: context) } })
+            .modifier(TaskActions(task: task)).modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
+    }
+    private func change(_ action: () throws -> Void) {
+        do { try action(); Task { do { try await refreshReminders(context) } catch { self.error = error.localizedDescription } } }
+        catch { self.error = error.localizedDescription }
     }
 }
 
@@ -177,39 +254,18 @@ struct HabitRow: View {
     @State private var feedback = 0
     private var progress: Int { PlannerLogic.progress(habit, logs: logs, at: date) }
     var body: some View {
-        HStack(spacing: 14) {
-            Image(systemName: habit.icon).font(.title3).foregroundStyle(DayTheme.color(habit.color))
-                .frame(width: 44, height: 44).background(DayTheme.color(habit.color).opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
-            Button { edit?() } label: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(habit.title).font(.subheadline.weight(.medium))
-                    Text("\(progress)/\(habit.target) this \(habit.frequencyRule == "WEEKLY" ? "week" : "day") · \(PlannerLogic.streak(habit, logs: logs, at: date)) period streak")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-            }.buttonStyle(.plain).accessibilityLabel("Edit " + habit.title).accessibilityIdentifier("checklist-title")
-            Spacer(minLength: 0)
-            Button {
-                do { if progress >= habit.target { try Mutations.undoLog(habit, at: date, in: context) } else { try Mutations.log(habit, at: date, in: context) }; feedback += 1
-                    Task { do { try await refreshReminders(context) } catch { self.error = error.localizedDescription } }
-                } catch { self.error = error.localizedDescription }
-            } label: {
-                Image(systemName: progress >= habit.target ? "checkmark.circle.fill" : "circle")
-                    .font(.title2).foregroundStyle(DayTheme.color(habit.color)).frame(width: 44, height: 44)
-            }.buttonStyle(.plain)
-                .accessibilityLabel("\(progress >= habit.target ? "Undo" : "Log") \(habit.title), \(progress) of \(habit.target)")
-        }.contentShape(Rectangle()).modifier(HabitActions(habit: habit))
-        .contextMenu {
-            Button("Move to to-dos", systemImage: "checklist") {
-                do { try Conversions.toTask(habit, in: context) } catch { context.rollback(); self.error = error.localizedDescription }
+        CheckTile(title: habit.title, subtitle: habit.target == 1 ? (habit.frequencyRule == "WEEKLY" ? "Weekly" : "Daily") : "\(progress)/\(habit.target) \(habit.frequencyRule == "WEEKLY" ? "this week" : "today")", done: progress >= habit.target, color: DayTheme.color(habit.color),
+            completionLabel: (progress >= habit.target ? "Undo " : "Log ") + habit.title, moveLabel: "Make to-do",
+            toggle: { change { if progress >= habit.target { try Mutations.undoLog(habit, at: date, in: context) } else { try Mutations.log(habit, at: date, in: context) }; feedback += 1 } }, edit: { edit?() },
+            remove: { change { try Conversions.remove(habit, in: context) } }, move: { change { try Conversions.toTask(habit, in: context) } })
+            .contextMenu {
+                Button("Move to to-dos", systemImage: "checklist") { change { try Conversions.toTask(habit, in: context) } }
+                Button("Delete", systemImage: "xmark", role: .destructive) { change { try Conversions.remove(habit, in: context) } }
             }
-            Button("Delete", systemImage: "xmark", role: .destructive) {
-                do { try Conversions.remove(habit, in: context) } catch { context.rollback(); self.error = error.localizedDescription }
-            }
-            Button("Undo one log today", systemImage: "arrow.uturn.backward") {
-                do { try Mutations.undoLog(habit, at: date, in: context)
-                    Task { do { try await refreshReminders(context) } catch { self.error = error.localizedDescription } }
-                } catch { self.error = error.localizedDescription }
-            }
-        }.modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
+            .modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
+    }
+    private func change(_ action: () throws -> Void) {
+        do { try action(); Task { do { try await refreshReminders(context) } catch { self.error = error.localizedDescription } } }
+        catch { self.error = error.localizedDescription }
     }
 }

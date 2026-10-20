@@ -50,14 +50,15 @@ struct RootView: View {
         .task {
             while !Task.isCancelled {
                 if phase == .active { await SyncService.shared.run(context) }
-                try? await Task.sleep(for: .seconds(8))
+                try? await Task.sleep(for: .seconds(20))
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .init("OrbitLocalChange"))) { _ in
             Task { await SyncService.shared.run(context) }
         }
         .onChange(of: phase) { _, value in
-            if value == .active { Task { await refreshNotifications() } }
+            if value == .active { SyncService.shared.resumeRealtime(); Task { await refreshNotifications(); await SyncService.shared.run(context) } }
+            else { SyncService.shared.suspendRealtime() }
         }
         .alert("Orbit", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("OK") { errorMessage = nil }
