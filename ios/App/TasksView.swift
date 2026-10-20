@@ -32,7 +32,7 @@ struct TasksView: View {
                 }
             }.searchable(text: $search, prompt: "Search tasks or tags").navigationTitle("Lists")
                 .toolbar {
-                    ToolbarItem(placement: .topBarLeading) { Button("Lists") { manageLists = true } }
+                    ToolbarItem(placement: .topBarLeading) { Button("Manage lists") { manageLists = true } }
                     ToolbarItem(placement: .topBarTrailing) { Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("New task") }
                 }
                 .sheet(isPresented: $adding) { QuickCapture() }.sheet(item: $editing) { TaskEditor(task: $0) }

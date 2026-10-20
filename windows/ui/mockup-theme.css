@@ -27,3 +27,5 @@ aside{border-right:1px solid var(--line);padding-top:32px}nav{display:grid;gap:5
 button:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px}.accent-options{display:flex;gap:10px;flex-wrap:wrap}.accent-options button{border:1px solid var(--line);border-radius:20px}.accent-options button[aria-pressed=true]{border-color:var(--accent);color:var(--accent);background:color-mix(in srgb,var(--coral) 10%,var(--surface))}
 .capture-options{margin-top:18px}.capture-options summary{cursor:pointer;padding:12px 0;color:var(--muted)}.capture-options[open] summary{margin-bottom:12px}.capture-options label{margin-bottom:14px}
 @media(prefers-reduced-motion:no-preference){nav button,button{transition:background .15s ease,color .15s ease}dialog[open]{animation:arrive .2s ease-out}}
+
+nav button svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}nav button{gap:12px}.device-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid var(--line)}

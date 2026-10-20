@@ -188,7 +188,7 @@ struct CheckTile: View {
         ZStack(alignment: .trailing) {
             Button { remove(); actionEdge = 0 } label: {
                 Image(systemName: "xmark").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white).frame(width: 64, height: 72)
-            }.buttonStyle(.plain).accessibilityLabel("Delete").opacity(actionEdge == -1 || dragOffset < 0 ? 1 : 0)
+            }.buttonStyle(.plain).accessibilityLabel("Delete").accessibilityHidden(actionEdge != -1 && dragOffset >= 0).opacity(actionEdge == -1 || dragOffset < 0 ? 1 : 0)
             HStack(spacing: 0) {
             Button { if !gestureMoved { if actionEdge == 0 { toggle() } else { actionEdge = 0 } } } label: {
                 HStack(spacing: 10) {
