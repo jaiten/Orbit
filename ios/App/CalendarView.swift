@@ -3,7 +3,7 @@ import SwiftData
 import EventKit
 
 struct CalendarView: View {
-    @AppStorage("accentTheme") private var accentTheme = "coral"
+    @Environment(\.orbitAccent) private var accent
     @Environment(\.modelContext) private var context
     @Environment(\.colorScheme) private var scheme
     @Query(sort: \PlannerTask.sortOrder) private var tasks: [PlannerTask]
@@ -44,9 +44,9 @@ struct CalendarView: View {
                                 VStack(spacing: 8) {
                                     Text(day.formatted(.dateTime.weekday(.narrow))).font(.caption2)
                                     Text(day.formatted(.dateTime.day())).font(.subheadline.weight(.semibold))
-                                    Circle().fill((tasks.contains { $0.day == PlannerLogic.dayKey(day) } || visibleEvents.contains { $0.startDate < calendar.date(byAdding: .day, value: 1, to: day)! && $0.endDate > day }) ? DayTheme.accent : .clear).frame(width: 4, height: 4)
+                                    Circle().fill((tasks.contains { $0.day == PlannerLogic.dayKey(day) } || visibleEvents.contains { $0.startDate < calendar.date(byAdding: .day, value: 1, to: day)! && $0.endDate > day }) ? accent.fill : .clear).frame(width: 4, height: 4)
                                 }.frame(maxWidth: .infinity).padding(.vertical, 10)
-                                    .background(calendar.isDate(day, inSameDayAs: selected) ? DayTheme.accent.opacity(0.18) : .clear, in: RoundedRectangle(cornerRadius: 14))
+                                    .background(calendar.isDate(day, inSameDayAs: selected) ? accent.fill.opacity(0.18) : .clear, in: RoundedRectangle(cornerRadius: 14))
                             }.buttonStyle(.plain).accessibilityLabel(day.formatted(date: .complete, time: .omitted))
                                 .dropDestination(for: String.self) { ids, _ in reschedule(ids, to: day) }
                         }
@@ -65,7 +65,7 @@ struct CalendarView: View {
                     }
                     Text("Drag a task onto a day to move it.").font(.caption).foregroundStyle(.secondary)
                 }.padding(20).frame(maxWidth: 760).frame(maxWidth: .infinity)
-            }.background(DayTheme.canvas(scheme)).tint(DayTheme.accentColor(accentTheme)).navigationTitle("Calendar").navigationBarTitleDisplayMode(.inline)
+            }.background(DayTheme.canvas(scheme)).tint(accent.fill).navigationTitle("Calendar").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) { Button("Today") { selected = .now } }
                     ToolbarItem(placement: .topBarTrailing) { Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("New task") }

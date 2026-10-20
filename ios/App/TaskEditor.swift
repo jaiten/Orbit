@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct TaskEditor: View {
-    @AppStorage("accentTheme") private var accentTheme = "coral"
+    @Environment(\.orbitAccent) private var accent
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]

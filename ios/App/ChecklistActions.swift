@@ -32,6 +32,7 @@ struct TaskActions: ViewModifier {
 }
 
 struct HabitActions: ViewModifier {
+    @Environment(\.orbitAccent) private var accent
     @Environment(\.modelContext) private var context
     let habit: Habit
     @State private var error: String?
@@ -39,7 +40,7 @@ struct HabitActions: ViewModifier {
         content.swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) { change { try Conversions.remove(habit, in: context) } } label: { Label("Delete", systemImage: "xmark") }
         }.swipeActions(edge: .leading, allowsFullSwipe: false) {
-            Button { change { try Conversions.toTask(habit, in: context) } } label: { Label("Make It a Task", systemImage: "checklist") }.tint(DayTheme.accent)
+            Button { change { try Conversions.toTask(habit, in: context) } } label: { Label("Make It a Task", systemImage: "checklist") }.tint(accent.fill)
         }.modifier(MutationErrorModifier(error: $error))
     }
     private func change(_ action: () throws -> Void) {

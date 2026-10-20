@@ -5,7 +5,7 @@ struct AccentPicker<Value: Hashable>: View {
     let title: String
     @Binding var selection: Value
     let choices: [(Value, String)]
-    @AppStorage("accentTheme") private var accentTheme = "coral"
+    @Environment(\.orbitAccent) private var accent
     var body: some View {
         HStack {
             Text(title)
@@ -21,7 +21,7 @@ struct AccentPicker<Value: Hashable>: View {
                 HStack(spacing: 5) {
                     Text(choices.first { $0.0 == selection }?.1 ?? "Choose")
                     Image(systemName: "chevron.up.chevron.down").font(.caption2)
-                }.foregroundStyle(DayTheme.accentColor(accentTheme)).frame(minHeight: 36)
+                }.foregroundStyle(accent.fill).frame(minHeight: 36)
             }.accessibilityLabel(title).accessibilityValue(choices.first { $0.0 == selection }?.1 ?? "Choose")
         }
     }

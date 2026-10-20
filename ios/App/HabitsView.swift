@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct HabitsView: View {
-    @AppStorage("accentTheme") private var accentTheme = "coral"
+    @Environment(\.orbitAccent) private var accent
     @Environment(\.colorScheme) private var scheme
     @Query(sort: \Habit.createdAt) private var habits: [Habit]
     @Query private var logs: [HabitLog]
@@ -82,7 +82,7 @@ struct HabitWeekStrip: View {
 }
 
 struct HabitHeatmap: View {
-    @AppStorage("accentTheme") private var accentTheme = "coral"
+    @Environment(\.orbitAccent) private var accent
     let habit: Habit
     let logs: [HabitLog]
     private var days: [Date] { (-83...0).map { Calendar.current.date(byAdding: .day, value: $0, to: .now)! } }
@@ -99,7 +99,7 @@ struct HabitHeatmap: View {
 }
 
 struct HabitEditor: View {
-    @AppStorage("accentTheme") private var accentTheme = "coral"
+    @Environment(\.orbitAccent) private var accent
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     var habit: Habit?
@@ -136,7 +136,7 @@ struct HabitEditor: View {
                     do { try Conversions.toTask(habit, in: context); finish() } catch { self.error = error.localizedDescription }
                 } } }
                 if habit != nil { Section { Button("Delete habit", role: .destructive) { confirmDelete = true } } }
-            }.tint(DayTheme.accentColor(accentTheme)).navigationTitle(habit == nil ? "New Habit" : "Edit Habit").navigationBarTitleDisplayMode(.inline)
+            }.tint(accent.fill).navigationTitle(habit == nil ? "New Habit" : "Edit Habit").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Save", action: save).disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }

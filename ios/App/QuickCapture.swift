@@ -4,7 +4,7 @@ import SwiftData
 /// One text field. The chip shows what will be created ("Task · Tomorrow · 6:00 PM") before saving;
 /// details can be added afterwards with the pencil.
 struct QuickCapture: View {
-    @AppStorage("accentTheme") private var accentTheme = "coral"
+    @Environment(\.orbitAccent) private var accent
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
@@ -42,13 +42,13 @@ struct QuickCapture: View {
                         .font(.title3).focused($focused).accessibilityIdentifier("task-title-input")
                         .onSubmit { save() }
                     if !preview.isEmpty {
-                        Text(preview).font(.footnote.weight(.medium)).foregroundStyle(DayTheme.accentColor(accentTheme))
+                        Text(preview).font(.footnote.weight(.medium)).foregroundStyle(accent.fill)
                             .padding(.horizontal, 10).padding(.vertical, 4)
-                            .background(DayTheme.accentColor(accentTheme).opacity(0.12), in: Capsule())
+                            .background(accent.fill.opacity(0.12), in: Capsule())
                             .accessibilityIdentifier("quick-add-preview")
                     }
                 } footer: { Text("Try “gym tomorrow 6pm”, “read every day”, “#work” or “someday”.") }
-            }.tint(DayTheme.accentColor(accentTheme)).navigationTitle("New Item").navigationBarTitleDisplayMode(.inline)
+            }.tint(accent.fill).navigationTitle("New Item").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.disabled(result.title.isEmpty) }

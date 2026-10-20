@@ -58,6 +58,8 @@ struct RootView: View {
             }
         }
         .tint(DayTheme.accentColor(accentTheme))
+        // The one source for the accent: every view reads it from the environment and updates at once.
+        .environment(\.orbitAccent, OrbitAccent(name: accentTheme))
         .preferredColorScheme(appearance == "system" ? nil : (appearance == "dark" ? .dark : .light))
         .onOpenURL { url in
             if let code = RecoveryFlow.code(from: url) {
@@ -79,7 +81,7 @@ struct RootView: View {
         }
         // Travel or midnight: all-day dates stay on their day, habit reminders follow local time,
         // and timed reminders keep their instant.
-        .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange).merge(with: NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification))) { _ in
+        .onReceive(TimeChanges.publisher) { _ in
             do { try Migrations.run(context) } catch { errorMessage = error.localizedDescription }
             Task { await refreshNotifications() }
         }

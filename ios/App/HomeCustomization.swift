@@ -3,7 +3,7 @@ import SwiftData
 
 /// Home layout is a device preference, never a destructive edit to planner data.
 struct HomeLayoutEditor: View {
-    @AppStorage("accentTheme") private var accentTheme = "coral"
+    @Environment(\.orbitAccent) private var accent
     @AppStorage("homeSections") private var stored = "consistency,progress,today,routine,completed,calendar"
     @AppStorage("hiddenHomeSections") private var hidden = ""
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
@@ -46,7 +46,7 @@ struct HomeLayoutEditor: View {
 }
 
 struct ConsistencyStrip: View {
-    @AppStorage("accentTheme") private var accentTheme = "coral"
+    @Environment(\.orbitAccent) private var accent
     let habits: [Habit]
     let logs: [HabitLog]
     @AppStorage("consistencyRange") private var range = 7
@@ -66,9 +66,9 @@ struct ConsistencyStrip: View {
                 ForEach(Array(days.enumerated()), id: \.offset) { index, day in
                     let ratio = fractions[index]
                     VStack(spacing: 4) {
-                        RoundedRectangle(cornerRadius: 5).fill(DayTheme.accentColor(accentTheme).opacity(0.10))
+                        RoundedRectangle(cornerRadius: 5).fill(accent.fill.opacity(0.10))
                             .overlay(alignment: .bottom) { GeometryReader { proxy in
-                                VStack { Spacer(minLength: 0); DayTheme.accentColor(accentTheme).frame(height: proxy.size.height * ratio) }
+                                VStack { Spacer(minLength: 0); accent.fill.frame(height: proxy.size.height * ratio) }
                             }.clipShape(RoundedRectangle(cornerRadius: 5)) }
                             .frame(height: range == 7 ? 30 : 20)
                         if range == 7 { Text(day.formatted(.dateTime.weekday(.narrow))).font(.caption2).foregroundStyle(.secondary) }
@@ -81,10 +81,10 @@ struct ConsistencyStrip: View {
 }
 
 struct OrbitMark: View {
-    @AppStorage("accentTheme") private var accentTheme = "coral"
+    @Environment(\.orbitAccent) private var accent
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 12).fill(DayTheme.accentColor(accentTheme))
+            RoundedRectangle(cornerRadius: 12).fill(accent.fill)
             Circle().trim(from: 0, to: 0.75).stroke(.white, style: StrokeStyle(lineWidth: 4.5, lineCap: .round)).frame(width: 23, height: 23)
             Circle().fill(.white).frame(width: 6, height: 6).offset(x: 9, y: -9)
         }.frame(width: 48, height: 48).accessibilityHidden(true)

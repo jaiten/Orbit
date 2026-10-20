@@ -60,3 +60,18 @@ struct SectionHeading: View {
         }.accessibilityElement(children: .combine)
     }
 }
+
+/// The accent chosen in Settings. RootView sets it from one @AppStorage value, so every view
+/// updates as soon as it changes; widgets read `DayTheme.accent` from the shared defaults.
+struct OrbitAccent: Equatable {
+    var name: String
+    var fill: Color { DayTheme.accentColor(name) }
+    var text: Color { DayTheme.accentText(name) }
+}
+private struct OrbitAccentKey: EnvironmentKey { static let defaultValue = OrbitAccent(name: "coral") }
+extension EnvironmentValues {
+    var orbitAccent: OrbitAccent {
+        get { self[OrbitAccentKey.self] }
+        set { self[OrbitAccentKey.self] = newValue }
+    }
+}

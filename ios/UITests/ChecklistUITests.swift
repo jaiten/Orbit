@@ -78,6 +78,11 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["A small routine"].waitForExistence(timeout: 5))
         app.tabBars.buttons["Settings"].tap(); reveal(app.buttons["Coral"], in: app); app.buttons["Coral"].tap()
         app.buttons["Appearance"].tap(); app.buttons["System"].tap()
+        // Account has its own screen.
+        app.swipeDown(); app.swipeDown()
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Account")).firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["Account"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Sign in"].exists)
     }
 
     func testQuickAddPreviewCreatesHabit() {

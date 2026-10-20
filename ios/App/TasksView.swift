@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct TasksView: View {
-    @AppStorage("accentTheme") private var accentTheme = "coral"
+    @Environment(\.orbitAccent) private var accent
     @Environment(\.modelContext) private var context
     @State private var error: String?
     @Query(sort: \PlannerTask.sortOrder) private var tasks: [PlannerTask]
@@ -32,12 +32,12 @@ struct TasksView: View {
                         TaskRow(task: task) { editing = task }.listRowSeparator(.hidden)
                             .swipeActions(edge: .leading) {
                                 if task.completedAt == nil && !TodayRules.onDay(TodayRules.item(task), day: PlannerLogic.dayKey(.now), today: PlannerLogic.dayKey(.now)) {
-                                    Button("Add to Today", systemImage: "sun.max") { change { TodayRules.moveToDay(task, day: .now) } }.tint(DayTheme.accentColor(accentTheme))
+                                    Button("Add to Today", systemImage: "sun.max") { change { TodayRules.moveToDay(task, day: .now) } }.tint(accent.fill)
                                 }
                             }
                     }
                 }
-            }.tint(DayTheme.accentColor(accentTheme)).searchable(text: $search, prompt: "Search tasks or tags").navigationTitle("Lists")
+            }.tint(accent.fill).searchable(text: $search, prompt: "Search tasks or tags").navigationTitle("Lists")
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) { Button("Edit Lists") { manageLists = true } }
                     ToolbarItem(placement: .topBarTrailing) { Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("New task") }
@@ -57,7 +57,7 @@ extension TasksView {
 }
 
 struct ListsView: View {
-    @AppStorage("accentTheme") private var accentTheme = "coral"
+    @Environment(\.orbitAccent) private var accent
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
@@ -81,7 +81,7 @@ struct ListsView: View {
                         do { try Mutations.save(context); name = "" } catch { self.error = error.localizedDescription }
                     }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-            }.tint(DayTheme.accentColor(accentTheme)).navigationTitle("Lists").toolbar { Button("Done") { dismiss() } }
+            }.tint(accent.fill).navigationTitle("Lists").toolbar { Button("Done") { dismiss() } }
                 .modifier(MutationErrorModifier(error: $error))
                 .confirmationDialog("Delete this list? Its tasks will move to Inbox.", isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }), titleVisibility: .visible) {
                     Button("Delete list", role: .destructive) {
@@ -99,7 +99,7 @@ struct ListsView: View {
 }
 
 struct ListNameRow: View {
-    @AppStorage("accentTheme") private var accentTheme = "coral"
+    @Environment(\.orbitAccent) private var accent
     @Environment(\.modelContext) private var context
     let list: TaskList
     @State private var name = ""
