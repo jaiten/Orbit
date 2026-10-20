@@ -159,12 +159,83 @@ struct DayWidgetView: View {
     }
 }
 
+/// The Today widget's look: today's progress (the original design) or a checklist with ticks.
+enum TodayWidgetStyle: String, AppEnum {
+    case progress, checklist
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Style"
+    static var caseDisplayRepresentations: [Self: DisplayRepresentation] = [.progress: "Progress", .checklist: "Checklist"]
+}
+struct TodayWidgetConfiguration: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource = "Today"
+    static var description = IntentDescription("Show today’s progress, or a checklist you can tick off.")
+    @Parameter(title: "Style", default: .progress) var style: TodayWidgetStyle
+}
+struct TodayWidgetEntry: TimelineEntry {
+    let date: Date
+    let day: DayEntry
+    let style: TodayWidgetStyle
+}
+struct TodayWidgetProvider: AppIntentTimelineProvider {
+    func placeholder(in context: Context) -> TodayWidgetEntry { TodayWidgetEntry(date: .now, day: .placeholder, style: .progress) }
+    func snapshot(for configuration: TodayWidgetConfiguration, in context: Context) async -> TodayWidgetEntry {
+        let day = context.isPreview ? DayEntry.placeholder : await MainActor.run { DayProvider.read() }
+        return TodayWidgetEntry(date: day.date, day: day, style: configuration.style)
+    }
+    func timeline(for configuration: TodayWidgetConfiguration, in context: Context) async -> Timeline<TodayWidgetEntry> {
+        let entry = await snapshot(for: configuration, in: context)
+        let midnight = Calendar.current.startOfDay(for: Calendar.current.date(byAdding: .day, value: 1, to: entry.date)!)
+        return Timeline(entries: [entry], policy: .after(min(entry.date.addingTimeInterval(900), midnight)))
+    }
+}
+
+struct TodayWidgetView: View {
+    @Environment(\.widgetFamily) private var family
+    let entry: TodayWidgetEntry
+    var body: some View {
+        if entry.style == .checklist && !entry.day.unavailable && [WidgetFamily.systemSmall, .systemMedium, .systemLarge].contains(family) {
+            ChecklistWidgetView(entry: entry.day)
+        } else {
+            DayWidgetView(entry: entry.day)
+        }
+    }
+}
+
+/// Today's tasks and habits with a tick for each (CompleteItemIntent), in the chosen accent.
+struct ChecklistWidgetView: View {
+    @Environment(\.widgetFamily) private var family
+    let entry: DayEntry
+    private var limit: Int { family == .systemLarge ? 8 : family == .systemMedium ? 3 : 4 }
+    var body: some View {
+        VStack(alignment: .leading, spacing: family == .systemSmall ? 6 : 8) {
+            HStack {
+                Text("Today").font(.headline)
+                Spacer()
+                Text(entry.items.isEmpty ? "Done" : "\(entry.items.count) left").font(.caption).foregroundStyle(.secondary)
+            }
+            if entry.items.isEmpty { Text("Nothing left today.").font(.subheadline).foregroundStyle(.secondary) }
+            ForEach(entry.items.prefix(limit)) { item in
+                HStack(spacing: 8) {
+                    Button(intent: CompleteItemIntent(itemID: item.id, isHabit: item.habit)) {
+                        Image(systemName: "circle").font(family == .systemSmall ? .body : .title3).foregroundStyle(DayTheme.accent)
+                    }.buttonStyle(.plain).accessibilityLabel("\(item.habit ? "Log" : "Complete") \(item.title)")
+                    Text(item.title).font(.caption).lineLimit(1)
+                    Spacer(minLength: 0)
+                    if family != .systemSmall { Text(item.subtitle).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
+                }
+            }
+            Spacer(minLength: 0)
+        }.containerBackground(for: .widget) { Color(uiColor: .systemBackground) }
+            .widgetURL(URL(string: "orbit://today"))
+    }
+}
+
 struct OrbitWidget: Widget {
     let kind = "OrbitAgenda"
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: DayProvider()) { DayWidgetView(entry: $0) }
+        // Existing widgets keep the Progress style; choose Checklist with Edit Widget.
+        AppIntentConfiguration(kind: kind, intent: TodayWidgetConfiguration.self, provider: TodayWidgetProvider()) { TodayWidgetView(entry: $0) }
             .configurationDisplayName("Today")
-            .description("Today’s tasks and habits.")
+            .description("Today’s progress, or a checklist you can tick off. Hold the widget and choose Edit Widget to switch.")
             .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryCircular, .accessoryRectangular])
     }
 }
