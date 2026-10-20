@@ -24,6 +24,7 @@ jobs:
           cache: npm
           cache-dependency-path: windows/package-lock.json
       - run: npm ci
+      - run: npm run lint
       - run: npm test
       - run: npm run test:desktop
       - run: npm run pack

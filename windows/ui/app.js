@@ -1,142 +1,66 @@
-const accents={coral:'#e8745e',sage:'#6e8c78',lavender:'#8c85bf',honey:'#bd8738'};
-function applyAccent(name){if(!accents[name])name='coral';document.documentElement.dataset.accent=name;localStorage.setItem('accent',name);}
-applyAccent(localStorage.getItem('accent')||'coral');
-const visitDate=new Date().toLocaleDateString('en-CA');
-if(localStorage.getItem('lastVisit')!==visitDate){localStorage.setItem('lastVisit',visitDate);localStorage.setItem('visitDays',String(Number(localStorage.getItem('visitDays')||0)+1));}
-const api=window.orbit;const $=s=>document.querySelector(s);let state={records:[]},page='today',selected=dayKey(new Date()),editing=null,editingHabit=null,editingList=null,selectedList=null,accountEmail='',resendAfter=0,completedOpen=true,historyHabitID=null;
-function dayKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
-function localDay(key){return new Date(key+'T12:00:00');}function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-const rows=entity=>state.records.filter(r=>r.key.startsWith(entity+'/')&&!r.deleted).map(r=>({...r.payload,_key:r.key}));
-function taskDate(t){return t.hasTime&&t.dueDate?dayKey(new Date(t.dueDate)):t.localDate;}
-function showNotice(message){
- const notice=$('#notice'),text=document.createElement('span'),close=document.createElement('button');
- text.textContent=message;close.textContent='×';close.setAttribute('aria-label','Dismiss message');
- close.onclick=()=>{notice.hidden=true;};notice.replaceChildren(text,close);notice.hidden=false;
-}
-let actionBusy=false; async function action(fn){if(actionBusy)return;actionBusy=true;try{await fn();await load(true);}catch(e){showNotice(e.message);}finally{actionBusy=false;}}
-let contentSignature='',pendingRender=false,loadSequence=0;
-function interacting(){return !!document.querySelector('#quick-add input')?.value||!!document.querySelector('dialog[open], .floating-add[open]')||['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName);}
-function updateSync(value){
- const icon=$('#sync-status');const status=value.status||'Saved on this PC';
- icon.dataset.state=value.syncing?'syncing':/Saved locally|review/.test(status)?'attention':state.email?'synced':'local';
- if($('#sync-details'))$('#sync-details').textContent=status;icon.title=status;icon.setAttribute('aria-label','Sync: '+status);
-}
-async function load(force=false){
- const sequence=++loadSequence;const next=await api.read();if(sequence!==loadSequence)return;const signature=JSON.stringify({records:next.records.map(r=>({key:r.key,payload:r.payload,deleted:r.deleted,conflict:r.conflict})),email:next.email,configured:next.configured,recoveryReady:next.recoveryReady});
- const notice=next.accountNotice;state=next;updateSync(next);updateUndo(next);
- if(notice){page='settings';showNotice(notice);force=true;}
- if(!force&&signature===contentSignature)return;
- if(document.querySelector('dialog[open], .floating-add[open]')||(!force&&interacting())){pendingRender=true;return;}
- contentSignature=signature;pendingRender=false;render();
-}
-function flushPending(){if(pendingRender&&!interacting())void load(true);}
-document.addEventListener('toggle',flushPending,true);document.addEventListener('close',flushPending,true);document.addEventListener('focusout',()=>setTimeout(flushPending,0));
-function put(entity,data,deleted=false){const {_key,...payload}=data;return api.put(_key||`${entity}/${payload.id}`,payload,deleted);}
-function dailyCount(h,date=selected){return rows('habit_logs').filter(l=>l.habitID===h.id&&l.dayKey===date).reduce((s,l)=>s+l.count,0);}
-function checked(h,date=selected){return dailyCount(h,date)>=(h.frequencyRule==='WEEKLY'?1:h.target);}
-function progress(h,date=selected){const d=localDay(date),start=new Date(d),end=new Date(d);if(h.frequencyRule==='WEEKLY'){start.setDate(d.getDate()-d.getDay());end.setTime(start.getTime());end.setDate(start.getDate()+7);}else end.setDate(d.getDate()+1);return rows('habit_logs').filter(l=>l.habitID===h.id&&l.dayKey>=dayKey(start)&&l.dayKey<dayKey(end)).reduce((s,l)=>s+l.count,0);}
-const pencil='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15z"/></svg>';
-const check='<svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 10 3.2 3.2L15 6.5"/></svg>';
-function taskRow(t){
- const time=t.hasTime&&t.dueDate?new Date(t.dueDate).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'';
- const repeat=t.recurrenceRule?({'FREQ=DAILY':'Daily','FREQ=WEEKLY':'Weekly','FREQ=MONTHLY':'Monthly'}[t.recurrenceRule]||'Repeating'):'';
- return `<div class="task-row check-tile ${t.title.length<=22&&!t.hasTime?'short':'long'} ${t.completedAt?'complete':''}">
- <button class="tile-toggle" role="checkbox" aria-label="${t.completedAt?'Reopen':'Complete'} ${esc(t.title)}" aria-checked="${!!t.completedAt}" data-toggle="${esc(t.id)}"><span class="tick-symbol">${t.completedAt?check:''}</span><span class="tile-copy"><span>${esc(t.title)}</span>${time||repeat?`<small>${time}${time&&repeat?' · ':''}${repeat}</small>`:''}</span></button>
- <button class="tile-edit" aria-label="Edit ${esc(t.title)}" data-edit="${esc(t.id)}">${pencil}</button>
- ${page==='inbox'?`<button class="today-action" data-today="${esc(t.id)}">Today ↗</button>`:''}</div>`;
-}
-function habitCard(h){const n=progress(h),done=checked(h);return `<div class="habit-card check-tile ${h.title.length<=22?'short':'long'} ${done?'complete':''}">
- <button class="tile-toggle" role="checkbox" aria-label="${done?'Undo':'Log'} ${esc(h.title)}" aria-checked="${done}" data-habit-toggle="${esc(h.id)}" ${selected>dayKey(new Date())?'disabled':''}><span class="tick-symbol">${done?check:''}</span><span class="tile-copy"><span>${esc(h.title)}</span><small>${n} / ${h.target} ${h.frequencyRule==='WEEKLY'?'this week':'today'}</small></span></button>
- <button class="tile-edit" aria-label="Edit ${esc(h.title)}" data-habit-edit="${esc(h.id)}">${pencil}</button></div>`;}
-function versionSummary(p,deleted){if(deleted)return 'Removed item';return [p.title||p.name||'Item',p.notes,p.localDate?'Planned for '+p.localDate:'',p.count!==undefined?p.count+' check-ins':'',p.completedAt?'Completed':'',p.target?p.target+' times '+(p.frequencyRule==='WEEKLY'?'a week':'a day'):'',p.tags?.length?'Tags: '+p.tags.join(', '):'',p.priority?'Priority: '+['Normal','Low','Medium','High'][p.priority]:'',p.recurrenceRule?'Repeat: '+({'FREQ=DAILY':'Daily','FREQ=WEEKLY':'Weekly','FREQ=MONTHLY':'Monthly'}[p.recurrenceRule]||'Custom'):'',p.subtasks?.length?'Steps: '+p.subtasks.map(s=>(s.completed?'✓ ':'')+s.title).join(', '):''].filter(Boolean).join('\n');}
-function render(){document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('selected',b.dataset.page===page));$('#breadcrumb').textContent='Your space / '+({today:'Today',inbox:'Lists',week:'Plan',habits:'Habits',settings:'Settings'}[page]);const tasks=rows('tasks').sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0));const habits=rows('habits');let html='';
-if(page==='today'){html=renderToday(tasks,habits);
-}else if(page==='inbox'){const inbox=tasks.filter(t=>!t.completedAt&&(!selectedList||t.listID===selectedList));html=`<div class="eyebrow">Keep it somewhere</div><h1>${esc(rows('lists').find(l=>l.id===selectedList)?.name||'All to-dos')}</h1><p class="subtitle">Capture it now. Make room for it when you’re ready.</p>${inbox.map(taskRow).join('')||'<p class="empty">Nothing waiting here. A little breathing room.</p>'}<form class="quick" id="quick-add"><input name="title" aria-label="Capture a task" placeholder="Something for later…" required maxlength="500"><button>Add</button></form>`;
-}else if(page==='week'){html='<div class="eyebrow">A little perspective</div><h1>This week</h1><p class="subtitle">Make a plan that leaves room to live.</p>';for(let i=0;i<7;i++){const d=new Date();d.setDate(d.getDate()+i);const key=dayKey(d);const items=tasks.filter(t=>taskDate(t)===key);html+=`<section class="week-day"><div class="section-heading"><h2>${d.toLocaleDateString([],{weekday:'long',month:'short',day:'numeric'})}</h2><button data-plan="${key}">+ Plan</button></div>${items.map(taskRow).join('')||'<p class="empty">Open space</p>'}</section>`;}
-}else if(page==='history'){html='<h1>Habit history</h1><p class="subtitle">Choose a habit to look back.</p>'+habits.map(h=>`<button class="history-link" data-history="${esc(h.id)}">${esc(h.title)} <span>View history →</span></button>`).join('');
-}else if(page==='habit-history'){const h=habits.find(h=>h.id===historyHabitID);html=h?`<h1>${esc(h.title)}</h1><p class="subtitle">Last 12 weeks · ${progress(h)} / ${h.target} ${h.frequencyRule==='WEEKLY'?'this week':'today'}</p><div class="heatmap">${Array.from({length:84},(_,i)=>{const d=new Date();d.setDate(d.getDate()-83+i);const key=dayKey(d),n=dailyCount(h,key);return `<span class="${n?'logged':''}" title="${key}: ${n}"></span>`;}).join('')}</div>`:'<h1>Habit removed</h1>';
-}else if(page==='habits'){html='<div class="eyebrow">Small things, often</div><div class="section-heading"><h1>Habits</h1><button id="add-habit" class="primary">+ New habit</button></div><p class="subtitle">Consistency can be quiet.</p>';html+=habits.map(habitCard).join('')+'<button id="habit-history" class="history-link">Habit history →</button>';if(!habits.length)html+='<p class="empty">Choose something small enough to do again tomorrow.</p>';
-}else{html=`<div class="eyebrow">Your space</div><h1>Settings</h1><div class="brand-preview"><img src="logo.svg" alt="Orbit logo"><div><h2>Orbit</h2><p class="secondary">${Number(localStorage.getItem('visitDays')||1)} days showing up</p></div></div><section class="settings-block"><h2>Your accent</h2><div class="accent-options">${Object.keys(accents).map(name=>`<button data-accent="${name}" aria-pressed="${document.documentElement.dataset.accent===name}">${name[0].toUpperCase()+name.slice(1)}</button>`).join('')}</div></section><section class="settings-block"><h2>Connected, quietly</h2><p id="sync-details">${esc(state.status)}</p><p class="secondary">Your planner saves on this PC first. Sign in with the same account on your iPhone to sync. This local planner stays linked to that account.</p>${state.email?`<p>${esc(state.email)}</p><button id="sync-now">Sync now</button><button id="show-devices">Devices & active sign-ins</button><button id="change-password">Change password</button><div id="devices-panel"></div><button id="signout">Sign out</button>`:`<form id="account"><label>Email<input name="email" type="email" autocomplete="email" value="${esc(accountEmail)}" required></label><label>Password<input name="password" type="password" autocomplete="current-password" minlength="8" required></label><div><button class="primary" type="submit" ${!state.configured?'disabled':''}>Sign in</button><button type="button" id="forgot-password">Forgot password?</button><button type="button" id="signup" ${!state.configured?'disabled':''}>Create account</button></div></form><details class="confirmation"><summary>Email confirmation</summary><form id="confirm-account"><label>Confirmation code (if provided)<input name="code" autocomplete="one-time-code" inputmode="numeric" required></label><button class="primary">Confirm account</button><button type="button" id="resend-code">Resend confirmation email</button></form><p class="secondary">Open the newest confirmation email and tap its link, then sign in above. If your email provides a code, enter it here.</p></details>${!state.configured?'<p class="secondary">Backend setup is still in progress. Everything you add is saved locally.</p>':''}`}</section>`;for(const r of state.records.filter(r=>r.conflict)){html+=`<section class="conflict"><h2>Review two versions</h2><p class="secondary">Both versions are saved. Choose the content you want to keep.</p><div class="version-options"><div><h3>On this PC</h3><p class="version-text">${esc(versionSummary(r.payload,r.deleted))}</p><button data-resolve="${esc(r.key)}" data-choice="local">Use the version above</button></div><div><h3>From sync</h3><p class="version-text">${esc(versionSummary(r.conflict.payload,r.conflict.deleted))}</p><button data-resolve="${esc(r.key)}" data-choice="cloud">Use this synced version</button></div></div></section>`;}}
-if(page==='settings'){html+=`<section class="settings-block"><h2>Your data</h2><button id="export-backup">Export planner</button><button id="import-backup">Import backup</button><p class="secondary">Portable backups contain planner text and history, without account tokens.</p><div id="import-confirm"></div></section>`;}
-$('#new-task').hidden=page==='today';$('#content').innerHTML=html;renderLists();bind();if(state.recoveryReady&&!$('#password-editor').open)$('#password-editor').showModal();}
-function openTask(id,date){$('#overlap-confirm').hidden=true;$('#task-form').dataset.allowOverlap='';editing=rows('tasks').find(t=>t.id===id)||null;const f=$('#task-form');f.reset();f.elements.listID.innerHTML='<option value="">Inbox</option>'+rows('lists').map(l=>`<option value="${esc(l.id)}">${esc(l.name)}</option>`).join('');f.elements.listID.value=editing?.listID||selectedList||'';f.elements.title.value=editing?.title||'';f.elements.notes.value=editing?.notes||'';f.elements.date.value=editing?taskDate(editing)||'':date??(page==='today'?selected:'');f.elements.time.value=editing?.hasTime&&editing.dueDate?new Date(editing.dueDate).toTimeString().slice(0,5):'';f.elements.duration.value=editing?.durationMinutes||30;f.elements.priority.value=editing?.priority||0;f.elements.recurrence.value=editing?.recurrenceRule||'';$('#delete-task').hidden=!editing;$('#move-task').hidden=!editing;$('#editor').showModal();}
-function openHabit(id){editingHabit=rows('habits').find(h=>h.id===id)||null;const f=$('#habit-form');f.reset();f.elements.title.value=editingHabit?.title||'';f.elements.target.value=editingHabit?.target||1;f.elements.frequency.value=editingHabit?.frequencyRule||'DAILY';$('#delete-habit').hidden=!editingHabit;$('#move-habit').hidden=!editingHabit;$('#habit-editor').showModal();}
-function newTask(title,date){return {id:crypto.randomUUID(),title,notes:'',listID:page==='inbox'?selectedList:null,dueDate:null,localDate:date,hasTime:false,durationMinutes:30,reminders:[],recurrenceRule:'',priority:0,tags:[],subtasks:[],completedAt:null,nextOccurrenceID:null,sortOrder:Date.now(),updatedAt:Date.now()};}
-async function toggle(id){const t=rows('tasks').find(t=>t.id===id);if(!t)return;const was=!!t.completedAt;t.completedAt=was?null:Date.now();if(!was&&!t.nextOccurrenceID&&t.recurrenceRule&&taskDate(t)){const d=t.hasTime?new Date(t.dueDate):localDay(t.localDate);if(t.recurrenceRule.includes('BYDAY=')){const allowed=t.recurrenceRule.endsWith('SA,SU')?[0,6]:[1,2,3,4,5];do{d.setDate(d.getDate()+1);}while(!allowed.includes(d.getDay()));}else if(t.recurrenceRule==='FREQ=MONTHLY'){const day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+1);d.setDate(Math.min(day,new Date(d.getFullYear(),d.getMonth()+1,0).getDate()));}else d.setDate(d.getDate()+(t.recurrenceRule==='FREQ=WEEKLY'?7:1));const next={...t,id:crypto.randomUUID(),_key:undefined,conversionData:null,completedAt:null,nextOccurrenceID:null,localDate:dayKey(d),dueDate:t.hasTime?d.getTime():null,subtasks:t.subtasks.map(s=>({...s,id:crypto.randomUUID(),completed:false})),reminders:t.reminders.map(r=>r+(d.getTime()-t.dueDate))};t.nextOccurrenceID=next.id;const {_key: ignored,...nextPayload}=next;const {_key: previous,...taskPayload}=t;await api.batch([{key:'tasks/'+next.id,payload:nextPayload},{key:t._key,payload:{...taskPayload,updatedAt:Date.now()}}]);return;}await put('tasks',{...t,updatedAt:Date.now()});}
-async function log(id,undo){const h=rows('habits').find(h=>h.id===id);if(selected>dayKey(new Date())||!h)return;const old=rows('habit_logs').find(l=>l.habitID===id&&l.dayKey===selected);if(!undo&&checked(h))return;const data=old||{id:crypto.randomUUID(),habitID:id,dayKey:selected,count:0};data.count=Math.max(0,data.count+(undo?-1:1));data.updatedAt=Date.now();data._key=`habit_logs/${id}-${selected}`;await put('habit_logs',data);}
-function bind(){
- if($('#habit-history'))$('#habit-history').onclick=()=>{page='history';render();};
- document.querySelectorAll('[data-history]').forEach(b=>b.onclick=()=>{historyHabitID=b.dataset.history;page='habit-history';render();});
- if($('#change-password'))$('#change-password').onclick=()=>$('#password-editor').showModal();
- if($('#forgot-password'))$('#forgot-password').onclick=()=>action(async()=>{const email=$('#account').elements.email.value.trim();if(!email)throw Error('Enter your email first');showNotice(await api.auth('recover',email,''));});
- if($('#export-backup'))$('#export-backup').onclick=()=>action(async()=>{const message=await api.backup('export');if(message)showNotice(message);});
- if($('#import-backup'))$('#import-backup').onclick=async()=>{try{const count=await api.backup('choose');if(count===null)return;const panel=$('#import-confirm');panel.innerHTML=`<p>Import ${count} items? Matching items will be replaced; other items stay.</p><button id="confirm-import">Import and merge</button><button id="cancel-import">Cancel</button>`;$('#cancel-import').onclick=()=>panel.replaceChildren();$('#confirm-import').onclick=()=>action(async()=>{showNotice(await api.backup('restore'));});}catch(e){showNotice(e.message);}};
-if($('#show-devices'))$('#show-devices').onclick=()=>{void showDevices().catch(e=>showNotice(e.message));};document.querySelectorAll('button[data-accent]').forEach(b=>b.onclick=()=>{applyAccent(b.dataset.accent);render();});if($('.completed-items'))$('.completed-items').ontoggle=e=>{completedOpen=e.target.open;};document.querySelectorAll('[data-habit-toggle]').forEach(b=>b.onclick=()=>action(()=>log(b.dataset.habitToggle,checked(rows('habits').find(h=>h.id===b.dataset.habitToggle)))));if($('#confirm-account')){$('#confirm-account').onsubmit=e=>{e.preventDefault();void action(()=>confirmAccount('verify'));};$('#resend-code').onclick=()=>action(()=>confirmAccount('resend'));}document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openTask(b.dataset.edit));document.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>action(()=>toggle(b.dataset.toggle)));document.querySelectorAll('[data-today]').forEach(b=>b.onclick=()=>action(()=>{const t=rows('tasks').find(t=>t.id===b.dataset.today);return put('tasks',{...t,localDate:dayKey(new Date()),dueDate:null,hasTime:false,updatedAt:Date.now()});}));document.querySelectorAll('[data-log]').forEach(b=>b.onclick=()=>action(()=>log(b.dataset.log,false)));document.querySelectorAll('[data-undo]').forEach(b=>b.onclick=()=>action(()=>log(b.dataset.undo,true)));document.querySelectorAll('[data-habit-edit]').forEach(b=>b.onclick=()=>openHabit(b.dataset.habitEdit));document.querySelectorAll('[data-plan]').forEach(b=>b.onclick=()=>openTask(null,b.dataset.plan));document.querySelectorAll('[data-resolve]').forEach(b=>b.onclick=()=>action(()=>api.resolve(b.dataset.resolve,b.dataset.choice)));if($('#add-todo'))$('#add-todo').onclick=()=>{if($('.floating-add'))$('.floating-add').open=false;openTask();};if($('#add-habit'))$('#add-habit').onclick=()=>{if($('.floating-add'))$('.floating-add').open=false;openHabit();};if($('#selected-day'))$('#selected-day').onchange=e=>{selected=e.target.value||dayKey(new Date());render();};if($('#go-today'))$('#go-today').onclick=()=>{selected=dayKey(new Date());render();};if($('#quick-add'))$('#quick-add').onsubmit=e=>{e.preventDefault();const title=e.target.elements.title.value.trim();if(title){e.target.elements.title.value='';action(()=>put('tasks',{...newTask(title,page==='today'?selected:null),...OrbitPlanning.parse(title,page==='today'?selected:null)}));}};if($('#sync-now'))$('#sync-now').onclick=()=>action(()=>api.sync());if($('#signout'))$('#signout').onclick=()=>action(()=>api.auth('out'));if($('#account')){const auth=mode=>{const f=$('#account');if(!f.reportValidity())return;const email=f.elements.email.value.trim(),password=f.elements.password.value;accountEmail=email;action(async()=>{const message=await api.auth(mode,email,password);if(message!=='Signed in'){ showNotice(message);}});};$('#account').onsubmit=e=>{e.preventDefault();auth('in');};$('#signup').onclick=()=>auth('up');}}
-async function confirmAccount(mode){
- const email=$('#account').elements.email.value.trim();accountEmail=email;
- if(!email||!$('#account').elements.email.reportValidity())return;
- if(mode==='resend'&&Date.now()<resendAfter)throw Error('Please wait a minute before requesting another code.');
- const code=$('#confirm-account').elements.code.value;
- if(mode==='verify'&&!code.trim())throw Error('Enter the newest confirmation code from your email.');
- const message=await api.auth(mode,email,code);
- if(mode==='resend')resendAfter=Date.now()+60000;
- if(message!=='Signed in'){showNotice(message);}
-}
-document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>{page=b.dataset.page;selectedList=null;render();});$('#new-task').onclick=()=>openTask();document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());
-$('#task-form').onsubmit=e=>{e.preventDefault();const f=e.target;if(!f.elements.title.value.trim())return;action(async()=>{const t=editing||newTask('',null);const due=f.elements.date.value&&f.elements.time.value?new Date(`${f.elements.date.value}T${f.elements.time.value}`).getTime():null;
-if(due!==null){const end=due+(Number(f.elements.duration.value)||30)*60000;const overlaps=rows('tasks').filter(other=>other.id!==t.id&&other.hasTime&&other.dueDate&&!other.completedAt&&due<other.dueDate+other.durationMinutes*60000&&other.dueDate<end);if(overlaps.length&&f.dataset.allowOverlap!=='yes'){$('#overlap-confirm').hidden=false;$('#overlap-description').textContent='Overlaps: '+overlaps.map(t=>t.title).join(', ');return;}}
-f.dataset.allowOverlap='';await put('tasks',{...t,title:f.elements.title.value.trim(),notes:f.elements.notes.value,listID:f.elements.listID.value||null,localDate:f.elements.date.value||null,hasTime:due!==null,dueDate:due,durationMinutes:Number(f.elements.duration.value)||30,priority:Number(f.elements.priority.value),recurrenceRule:f.elements.recurrence.value,updatedAt:Date.now()});$('#editor').close();});};
-$('#delete-task').onclick=()=>action(async()=>{await put('tasks',editing,true);$('#editor').close();});$('#habit-form').onsubmit=e=>{e.preventDefault();const f=e.target;if(!f.elements.title.value.trim())return;action(async()=>{await put('habits',{...(editingHabit||{id:crypto.randomUUID(),createdAt:Date.now(),color:'clay',icon:'leaf',reminderMinutes:null,nudgeMinutes:null}),title:f.elements.title.value.trim(),target:Number(f.elements.target.value),frequencyRule:f.elements.frequency.value,updatedAt:Date.now()});$('#habit-editor').close();});};$('#delete-habit').onclick=()=>action(async()=>{const logs=rows('habit_logs').filter(l=>l.habitID===editingHabit.id);await api.batch([{key:editingHabit._key,payload:clean(editingHabit),deleted:true},...logs.map(l=>({key:l._key,payload:clean(l),deleted:true}))]);$('#habit-editor').close();});
-function renderLists(){
-  $('#sidebar-lists').innerHTML=rows('lists').sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0)).map(l=>`<div class="sidebar-list"><button data-list="${esc(l.id)}" class="${selectedList===l.id?'selected':''}"><span class="list-dot ${['sage','lavender','honey','clay'].includes(l.color)?l.color:'sage'}"></span>${esc(l.name)}</button><button data-edit-list="${esc(l.id)}" aria-label="Edit ${esc(l.name)} list">⋯</button></div>`).join('');
-  document.querySelectorAll('[data-list]').forEach(b=>b.onclick=()=>{selectedList=b.dataset.list;page='inbox';render();});
-  document.querySelectorAll('[data-edit-list]').forEach(b=>b.onclick=()=>openList(b.dataset.editList));
-}
-function openList(id){$('#list-delete-confirm').hidden=true;editingList=rows('lists').find(l=>l.id===id)||null;const f=$('#list-form');f.elements.name.value=editingList?.name||'';f.elements.color.value=editingList?.color||'sage';$('#delete-list').hidden=!editingList;$('#list-editor').showModal();}
-$('#new-list').onclick=()=>openList();
-$('#list-form').onsubmit=e=>{e.preventDefault();const f=e.target;if(!f.elements.name.value.trim())return;action(async()=>{await put('lists',{...(editingList||{id:crypto.randomUUID(),sortOrder:rows('lists').length}),name:f.elements.name.value.trim(),color:f.elements.color.value,updatedAt:Date.now()});$('#list-editor').close();});};
-api.onChange(()=>void load());api.onSyncStatus(value=>{state.status=value.status;state.syncing=value.syncing;updateSync(value);});void load();
-$('#sync-status').onclick=()=>{page='settings';selectedList=null;render();};
+// Page routing and start-up. Pages live in ui/pages; shared helpers in core.js.
+const pageTitles = { today: "Today", inbox: "Lists", week: "Plan", habits: "Habits", settings: "Settings" };
 
-function clean({_key,...payload}){return payload;}
-async function moveItem(entity,source){
- await api.batch(OrbitConversions.convert(entity,source,rows('habit_logs'),dayKey(new Date())));
- $('#editor').close();$('#habit-editor').close();
-}
-$('#move-task').onclick=()=>action(()=>moveItem('tasks',editing));
-$('#move-habit').onclick=()=>action(()=>moveItem('habits',editingHabit));
-
-$('#delete-list').onclick=()=>{$('#list-delete-confirm').hidden=false;};
-$('#confirm-delete-list').onclick=()=>action(async()=>{
- if(!editingList)return;
- const changes=rows('tasks').filter(t=>t.listID===editingList.id).map(t=>({key:t._key,payload:{...clean(t),listID:null,updatedAt:Date.now()}}));
- changes.push({key:editingList._key,payload:clean(editingList),deleted:true});
- await api.batch(changes);selectedList=null;$('#list-editor').close();$('#list-delete-confirm').hidden=true;
-});
-
-async function showDevices(){
- const devices=await api.devices();const panel=$('#devices-panel');if(!panel)return;
- panel.innerHTML=`<h3>${devices.length} active sign-ins</h3><p class="secondary">Removing access blocks Orbit sync. Downloaded data stays on the device. A device can have multiple sign-ins.</p>`+devices.map(d=>`<div class="device-row"><span>${esc(d.name)}${d.current?' · This device':''}<small class="secondary">Last active ${esc(new Date(d.last_seen).toLocaleString())}</small></span>${d.current?'':`<button data-remove-device="${esc(d.id)}">Remove access</button>`}</div>`).join('');
- panel.querySelectorAll('[data-remove-device]').forEach(b=>b.onclick=async()=>{if(b.dataset.confirm!=='yes'){b.dataset.confirm='yes';b.textContent='Confirm removal';return;}try{b.disabled=true;await api.removeDevice(b.dataset.removeDevice);await showDevices();}catch(e){showNotice(e.message);b.disabled=false;}});
+function render() {
+  document.querySelectorAll("[data-page]").forEach((b) => b.classList.toggle("selected", b.dataset.page === page));
+  $("#breadcrumb").textContent = "Your space / " + pageTitles[page];
+  const tasks = rows("tasks").sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  const habits = rows("habits");
+  const pages = {
+    today: () => renderToday(tasks, habits),
+    inbox: () => renderInbox(tasks),
+    week: () => renderCalendar(tasks),
+    history: () => renderHistoryIndex(habits),
+    "habit-history": () => renderHabitHistory(habits),
+    habits: () => renderHabits(habits),
+  };
+  $("#new-task").hidden = page === "today";
+  $("#content").innerHTML = (pages[page] || renderSettings)();
+  renderLists();
+  bind();
+  if (state.recoveryReady && !$("#password-editor").open) $("#password-editor").showModal();
 }
 
-let undoTimer,lastUndoCreated;
-function updateUndo(next){const box=$('#undo-toast');if(!next.undoAvailable){box.hidden=true;return;}if(lastUndoCreated===next.undoCreatedAt)return;lastUndoCreated=next.undoCreatedAt;box.hidden=false;clearTimeout(undoTimer);undoTimer=setTimeout(()=>box.hidden=true,8000);}
-$('#undo-change').onclick=()=>action(()=>api.undo());$('#dismiss-undo').onclick=()=>$('#undo-toast').hidden=true;
-$('#password-form').onsubmit=e=>{e.preventDefault();const f=e.target;if(f.elements.password.value!==f.elements.confirmation.value){showNotice('Passwords do not match');return;}void action(async()=>{showNotice(await api.auth('password','',f.elements.password.value));f.reset();$('#password-editor').close();});};
-$('#evening-review').onclick=()=>{
- const done=rows('tasks').filter(t=>t.completedAt&&dayKey(new Date(t.completedAt))===dayKey(new Date())).length;
- $('#review-summary').textContent=`${done} to-dos completed. ${rows('habits').filter(h=>checked(h,dayKey(new Date()))).length} habits checked. Rest counts too.`;
- $('#review-items').innerHTML=rows('tasks').filter(t=>!t.completedAt&&!t.recurrenceRule).map(t=>`<label class="review-item"><input type="checkbox" name="items" value="${esc(t.id)}">${esc(t.title)}</label>`).join('');
- $('#review-editor').showModal();
+function bind() {
+  bindTiles();
+  bindToday();
+  bindCalendar();
+  bindHabits();
+  bindSettings();
+}
+
+document.querySelectorAll("[data-page]").forEach(
+  (b) =>
+    (b.onclick = () => {
+      page = b.dataset.page;
+      selectedList = null;
+      render();
+    }),
+);
+$("#new-task").onclick = () => openTask();
+$("#sync-status").onclick = () => {
+  page = "settings";
+  selectedList = null;
+  render();
 };
-$('#review-form').onsubmit=e=>{e.preventDefault();const ids=[...e.target.querySelectorAll('input:checked')].map(i=>i.value);if(ids.length>3){showNotice('Choose up to three priorities');return;}void action(async()=>{
- const tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);const day=dayKey(tomorrow);
- await api.batch(rows('tasks').filter(t=>ids.includes(t.id)).map(t=>{let due=null;if(t.hasTime){const clock=new Date(t.dueDate);due=new Date(day+'T12:00:00');due.setHours(clock.getHours(),clock.getMinutes(),0,0);due=due.getTime();}return {key:t._key,payload:{...clean(t),localDate:day,dueDate:due,reminders:t.reminders.map(r=>due&&t.dueDate?r+(due-t.dueDate):r),updatedAt:Date.now()}};}));$('#review-editor').close();
- });};
 
-$('#save-overlap').onclick=()=>{$('#task-form').dataset.allowOverlap='yes';$('#task-form').requestSubmit();};
+api.onChange(() => void load());
+api.onSyncStatus((value) => {
+  state.status = value.status;
+  state.syncing = value.syncing;
+  updateSync(value);
+});
+void load();
 
-let lastCalendarDay=dayKey(new Date());
-function refreshCalendarDay(){const now=dayKey(new Date());if(now===lastCalendarDay)return;if(selected===lastCalendarDay)selected=now;lastCalendarDay=now;if(interacting()){pendingRender=true;}else render();}
-window.addEventListener('focus',refreshCalendarDay);setInterval(refreshCalendarDay,60000);
+// Keep "today" current when the app stays open across midnight.
+let lastCalendarDay = dayKey(new Date());
+function refreshCalendarDay() {
+  const now = dayKey(new Date());
+  if (now === lastCalendarDay) return;
+  if (selected === lastCalendarDay) selected = now;
+  lastCalendarDay = now;
+  if (interacting()) pendingRender = true;
+  else render();
+}
+window.addEventListener("focus", refreshCalendarDay);
+setInterval(refreshCalendarDay, 60000);

@@ -1,95 +1,214 @@
-const {_electron:electron}=require('playwright');
-const fs=require('node:fs');const os=require('node:os');const path=require('node:path');
-(async()=>{
- const folder=fs.mkdtempSync(path.join(os.tmpdir(),'orbit-ui-'));
- const options={executablePath:require('electron'),args:[path.resolve(__dirname,'..')],env:{...process.env,ORBIT_TEST_DATA:folder}};
- let app;
- try{
-  app=await electron.launch(options);const p=await app.firstWindow();const errors=[];p.on('pageerror',e=>errors.push(e.message));
-  await p.getByRole('heading',{name:'Today',exact:true}).waitFor();
-  const weekly='22222222-2222-4222-8222-222222222222';
-  await p.evaluate(async id=>{const now=new Date(),yesterday=new Date();yesterday.setDate(now.getDate()-1);const key=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;await window.orbit.batch([{key:'habits/'+id,payload:{id,title:'Gym weekly test',frequencyRule:'WEEKLY',target:5,color:'sage',icon:'leaf',createdAt:Date.now(),updatedAt:Date.now()}},{key:'habit_logs/'+id+'-'+key(yesterday),payload:{id:crypto.randomUUID(),habitID:id,dayKey:key(yesterday),count:5,updatedAt:Date.now()}}]);},weekly);
-  await p.getByRole('checkbox',{name:'Log Gym weekly test',exact:true}).click();
-  await p.getByRole('checkbox',{name:'Undo Gym weekly test',exact:true}).waitFor();
-  await p.getByRole('checkbox',{name:'Undo Gym weekly test',exact:true}).click();
-  await p.getByRole('checkbox',{name:'Log Gym weekly test',exact:true}).waitFor();
-  await p.evaluate(async id=>{const all=await window.orbit.read();await window.orbit.batch(all.records.filter(r=>r.payload.id===id||r.payload.habitID===id).map(r=>({key:r.key,payload:r.payload,deleted:true})));},weekly);
-  await p.getByRole('button',{name:'+ New list',exact:true}).click();
-  await p.locator('#list-form input[name=name]').fill('Personal');
-  await p.getByRole('button',{name:'Save list',exact:true}).click();
-  await p.getByRole('textbox',{name:'Add an intention'}).fill('Read for twenty minutes');
-  await p.getByRole('button',{name:'Add',exact:true}).click();
-  await p.getByRole('button',{name:'Edit Read for twenty minutes',exact:true}).click();
-  await p.getByText('More options',{exact:true}).click();await p.getByLabel('Notes').fill('A small, clear commitment');await p.getByLabel('List',{exact:true}).selectOption({label:'Personal'});await p.getByRole('button',{name:'Save task',exact:true}).click();
-  await p.locator('[data-list]').click();await p.getByRole('heading',{name:'Personal',exact:true}).waitFor();await p.getByRole('button',{name:'Edit Read for twenty minutes',exact:true}).waitFor();
-  await p.locator('[data-page="today"]').click();
-  await p.getByLabel('Add to-do or non-negotiable',{exact:true}).click();
-  await app.evaluate(({BrowserWindow})=>{for(let i=0;i<5;i++)BrowserWindow.getAllWindows()[0].webContents.send('sync-status',{status:i%2?'All changes synced':'Syncing…',syncing:i%2===0});});
-  if(!await p.locator('.floating-add').evaluate(el=>el.open))throw Error('Sync closed the add menu');
-  await p.getByRole('button',{name:'+ Habit',exact:true}).click();await p.locator('#habit-form input[name=title]').fill('Morning walk');
-  await p.getByRole('button',{name:'Save habit',exact:true}).click();await p.getByRole('checkbox',{name:'Log Morning walk',exact:true}).click();
-  await p.getByText('1 / 1 today',{exact:true}).waitFor();await p.getByRole('checkbox',{name:'Undo Morning walk',exact:true}).click();await p.getByText('0 / 1 today',{exact:true}).waitFor();
-  await p.getByRole('button',{name:'Edit Read for twenty minutes',exact:true}).click();
-  await p.getByRole('button',{name:'Move to non-negotiables',exact:true}).click();
-  await p.getByRole('button',{name:'Edit Read for twenty minutes',exact:true}).click();
-  await p.getByRole('button',{name:'Move to to-dos',exact:true}).click();
-  await p.getByRole('button',{name:'Edit Read for twenty minutes',exact:true}).click();
-  if(await p.getByLabel('Notes').inputValue()!=='A small, clear commitment')throw Error('Conversion lost notes');
-  await p.getByRole('button',{name:'Save task',exact:true}).click();
-  // A restored recurring task must not lend its habit backup to future occurrences.
-  const original=await p.evaluate(async()=>{const s=await window.orbit.read();return s.records.find(r=>r.key.startsWith('tasks/')&&!r.deleted);});
-  await p.evaluate(async r=>{await window.orbit.put(r.key,{...r.payload,recurrenceRule:'FREQ=DAILY'});},original);
-  await p.getByRole('checkbox',{name:'Complete Read for twenty minutes'}).click();
-  const next=await p.evaluate(async()=>{const s=await window.orbit.read();return s.records.find(r=>r.key.startsWith('tasks/')&&!r.deleted&&!r.payload.completedAt);});
-  if(!next||next.payload.conversionData)throw Error('Recurring child inherited a different item backup');await p.getByText('1 completed',{exact:true}).waitFor();
-  await p.getByRole('button',{name:'Settings & sync',exact:true}).click();await p.getByRole('heading',{name:'Connected, quietly'}).waitFor();
-  await p.getByRole('button',{name:'Sage',exact:true}).click();
-  if(await p.locator('html').getAttribute('data-accent')!=='sage')throw Error('Theme did not change');
-  await p.getByRole('button',{name:'Coral',exact:true}).click();
-  await p.locator('[data-edit-list]').click();
-  await p.getByRole('button',{name:'Delete list',exact:true}).click();
-  await p.getByRole('button',{name:'Delete list and keep to-dos',exact:true}).click();
-  const afterDelete=await p.evaluate(()=>window.orbit.read());
-  if(afterDelete.records.some(r=>r.key.startsWith('tasks/')&&!r.deleted&&r.payload.listID))throw Error('Deleted list left orphaned to-dos');
-  if(!afterDelete.records.some(r=>r.key.startsWith('tasks/')&&!r.deleted))throw Error('Deleting list deleted its to-dos');
-  await p.locator('[data-page="today"]').click();
-  await app.evaluate(({app})=>app.emit('second-instance',{},['orbit://auth#error_code=otp_expired']));
-  await p.getByText('That confirmation link is invalid or expired. Request a fresh email in Settings and use the newest link.',{exact:true}).waitFor();
-  await p.getByRole('heading',{name:'Connected, quietly'}).waitFor();
-  await p.getByRole('button',{name:'Dismiss message'}).click();
-  await p.locator('[data-page="today"]').click();
-  for(const title of ['Wash car','Call Mom']){
-   await p.getByRole('textbox',{name:'Add an intention'}).fill(title);
-   await p.getByRole('button',{name:'Add',exact:true}).click();
-   await p.getByRole('checkbox',{name:'Complete '+title,exact:true}).waitFor();
+const { _electron: electron } = require("playwright");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+(async () => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), "orbit-ui-"));
+  const options = {
+    executablePath: require("electron"),
+    args: [path.resolve(__dirname, "..")],
+    env: { ...process.env, ORBIT_TEST_DATA: folder },
+  };
+  let app;
+  try {
+    app = await electron.launch(options);
+    const p = await app.firstWindow();
+    const errors = [];
+    p.on("pageerror", (e) => errors.push(e.message));
+    await p.getByRole("heading", { name: "Today", exact: true }).waitFor();
+    const weekly = "22222222-2222-4222-8222-222222222222";
+    await p.evaluate(async (id) => {
+      const now = new Date(),
+        yesterday = new Date();
+      yesterday.setDate(now.getDate() - 1);
+      const key = (d) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      await window.orbit.batch([
+        {
+          key: "habits/" + id,
+          payload: {
+            id,
+            title: "Gym weekly test",
+            frequencyRule: "WEEKLY",
+            target: 5,
+            color: "sage",
+            icon: "leaf",
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          },
+        },
+        {
+          key: "habit_logs/" + id + "-" + key(yesterday),
+          payload: { id: crypto.randomUUID(), habitID: id, dayKey: key(yesterday), count: 5, updatedAt: Date.now() },
+        },
+      ]);
+    }, weekly);
+    await p.getByRole("checkbox", { name: "Log Gym weekly test", exact: true }).click();
+    await p.getByRole("checkbox", { name: "Undo Gym weekly test", exact: true }).waitFor();
+    await p.getByRole("checkbox", { name: "Undo Gym weekly test", exact: true }).click();
+    await p.getByRole("checkbox", { name: "Log Gym weekly test", exact: true }).waitFor();
+    await p.evaluate(async (id) => {
+      const all = await window.orbit.read();
+      await window.orbit.batch(
+        all.records
+          .filter((r) => r.payload.id === id || r.payload.habitID === id)
+          .map((r) => ({ key: r.key, payload: r.payload, deleted: true })),
+      );
+    }, weekly);
+    await p.getByRole("button", { name: "+ New list", exact: true }).click();
+    await p.locator("#list-form input[name=name]").fill("Personal");
+    await p.getByRole("button", { name: "Save list", exact: true }).click();
+    await p.getByRole("textbox", { name: "Add an intention" }).fill("Read for twenty minutes");
+    await p.getByRole("button", { name: "Add", exact: true }).click();
+    await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).click();
+    await p.getByText("More options", { exact: true }).click();
+    await p.getByLabel("Notes").fill("A small, clear commitment");
+    await p.getByLabel("List", { exact: true }).selectOption({ label: "Personal" });
+    await p.getByRole("button", { name: "Save task", exact: true }).click();
+    await p.locator("[data-list]").click();
+    await p.getByRole("heading", { name: "Personal", exact: true }).waitFor();
+    await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).waitFor();
+    await p.locator('[data-page="today"]').click();
+    await p.getByLabel("Add to-do or non-negotiable", { exact: true }).click();
+    await app.evaluate(({ BrowserWindow }) => {
+      for (let i = 0; i < 5; i++)
+        BrowserWindow.getAllWindows()[0].webContents.send("sync-status", {
+          status: i % 2 ? "All changes synced" : "Syncing…",
+          syncing: i % 2 === 0,
+        });
+    });
+    if (!(await p.locator(".floating-add").evaluate((el) => el.open))) throw Error("Sync closed the add menu");
+    await p.getByRole("button", { name: "+ Habit", exact: true }).click();
+    await p.locator("#habit-form input[name=title]").fill("Morning walk");
+    await p.getByRole("button", { name: "Save habit", exact: true }).click();
+    await p.getByRole("checkbox", { name: "Log Morning walk", exact: true }).click();
+    await p.getByText("1 / 1 today", { exact: true }).waitFor();
+    await p.getByRole("checkbox", { name: "Undo Morning walk", exact: true }).click();
+    await p.getByText("0 / 1 today", { exact: true }).waitFor();
+    await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).click();
+    await p.getByRole("button", { name: "Move to non-negotiables", exact: true }).click();
+    await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).click();
+    await p.getByRole("button", { name: "Move to to-dos", exact: true }).click();
+    await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).click();
+    if ((await p.getByLabel("Notes").inputValue()) !== "A small, clear commitment")
+      throw Error("Conversion lost notes");
+    await p.getByRole("button", { name: "Save task", exact: true }).click();
+    // A restored recurring task must not lend its habit backup to future occurrences.
+    const original = await p.evaluate(async () => {
+      const s = await window.orbit.read();
+      return s.records.find((r) => r.key.startsWith("tasks/") && !r.deleted);
+    });
+    await p.evaluate(async (r) => {
+      await window.orbit.put(r.key, { ...r.payload, recurrenceRule: "FREQ=DAILY" });
+    }, original);
+    await p.getByRole("checkbox", { name: "Complete Read for twenty minutes" }).click();
+    const next = await p.evaluate(async () => {
+      const s = await window.orbit.read();
+      return s.records.find((r) => r.key.startsWith("tasks/") && !r.deleted && !r.payload.completedAt);
+    });
+    if (!next || next.payload.conversionData) throw Error("Recurring child inherited a different item backup");
+    await p.getByText("1 completed", { exact: true }).waitFor();
+    await p.getByRole("button", { name: "Settings & sync", exact: true }).click();
+    await p.getByRole("heading", { name: "Connected, quietly" }).waitFor();
+    await p.getByRole("button", { name: "Sage", exact: true }).click();
+    if ((await p.locator("html").getAttribute("data-accent")) !== "sage") throw Error("Theme did not change");
+    await p.getByRole("button", { name: "Coral", exact: true }).click();
+    await p.locator("[data-edit-list]").click();
+    await p.getByRole("button", { name: "Delete list", exact: true }).click();
+    await p.getByRole("button", { name: "Delete list and keep to-dos", exact: true }).click();
+    const afterDelete = await p.evaluate(() => window.orbit.read());
+    if (afterDelete.records.some((r) => r.key.startsWith("tasks/") && !r.deleted && r.payload.listID))
+      throw Error("Deleted list left orphaned to-dos");
+    if (!afterDelete.records.some((r) => r.key.startsWith("tasks/") && !r.deleted))
+      throw Error("Deleting list deleted its to-dos");
+    await p.locator('[data-page="today"]').click();
+    await app.evaluate(({ app }) => app.emit("second-instance", {}, ["orbit://auth#error_code=otp_expired"]));
+    await p
+      .getByText(
+        "That confirmation link is invalid or expired. Request a fresh email in Settings and use the newest link.",
+        { exact: true },
+      )
+      .waitFor();
+    await p.getByRole("heading", { name: "Connected, quietly" }).waitFor();
+    await p.getByRole("button", { name: "Dismiss message" }).click();
+    await p.locator('[data-page="today"]').click();
+    for (const title of ["Wash car", "Call Mom"]) {
+      await p.getByRole("textbox", { name: "Add an intention" }).fill(title);
+      await p.getByRole("button", { name: "Add", exact: true }).click();
+      await p.getByRole("checkbox", { name: "Complete " + title, exact: true }).waitFor();
+    }
+    const first = await p.getByRole("checkbox", { name: "Complete Wash car", exact: true }).boundingBox();
+    const second = await p.getByRole("checkbox", { name: "Complete Call Mom", exact: true }).boundingBox();
+    if (Math.abs(first.y - second.y) > 2 || Math.abs(first.x - second.x) < 20)
+      throw Error("Short checklist tiles do not share a row");
+    await p.getByLabel("Add to-do or non-negotiable", { exact: true }).click();
+    await p.evaluate(async () => {
+      const r = (await window.orbit.read()).records.find((r) => r.payload.title === "Wash car");
+      await window.orbit.put(r.key, { ...r.payload, notes: "Synced while menu is open" });
+    });
+    await p.getByRole("button", { name: "To-do", exact: true }).click();
+    await p.getByRole("button", { name: "Cancel", exact: true }).click();
+    await p.getByRole("button", { name: "Settings & sync", exact: true }).click();
+    const backupFile = path.join(folder, "planner-backup.json");
+    await app.evaluate(({ dialog }, file) => {
+      dialog.showSaveDialog = async () => ({ canceled: false, filePath: file });
+      dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] });
+    }, backupFile);
+    await p.getByRole("button", { name: "Export planner", exact: true }).click();
+    await p.getByText("Backup saved", { exact: true }).waitFor();
+    const backup = JSON.parse(fs.readFileSync(backupFile, "utf8"));
+    backup.records.find((r) => r.payload.title === "Wash car").payload.title = "Wash car restored";
+    fs.writeFileSync(backupFile, JSON.stringify(backup));
+    await p.getByRole("button", { name: "Import backup", exact: true }).click();
+    await p.getByRole("button", { name: "Import and merge", exact: true }).click();
+    await p.getByText("Backup imported", { exact: true }).waitFor();
+    await p.locator('[data-page="today"]').click();
+    await p.getByRole("checkbox", { name: "Complete Wash car restored", exact: true }).waitFor();
+    await p.getByRole("button", { name: "Undo", exact: true }).click();
+    await p.getByRole("checkbox", { name: "Complete Wash car", exact: true }).waitFor();
+    await p.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(900, 700));
+    if (await p.evaluate(() => document.documentElement.scrollWidth > innerWidth))
+      throw Error("Horizontal overflow at compact window size");
+    await p.getByLabel("Add to-do or non-negotiable", { exact: true }).waitFor();
+    await p.emulateMedia({ colorScheme: "light" });
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1320, 900));
+    await p.screenshot({ path: path.resolve(__dirname, "../assets/desktop-preview.png"), fullPage: true });
+    if (errors.length) throw Error(errors.join("\n"));
+    await app.close();
+    app = await electron.launch(options);
+    const q = await app.firstWindow();
+    await q.getByText("1 completed", { exact: true }).waitFor();
+    await q.getByText("0 / 1 today", { exact: true }).waitFor();
+    const late = new Date();
+    late.setHours(23, 59, 0, 0);
+    await q.clock.install({ time: late });
+    await q.evaluate(async () => {
+      const id = "33333333-3333-4333-8333-333333333333";
+      await window.orbit.put("habits/" + id, {
+        id,
+        title: "Midnight gym",
+        frequencyRule: "WEEKLY",
+        target: 5,
+        color: "sage",
+        icon: "leaf",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    });
+    await q.getByRole("checkbox", { name: "Log Midnight gym", exact: true }).click();
+    await q.getByRole("checkbox", { name: "Undo Midnight gym", exact: true }).waitFor();
+    await q.clock.setSystemTime(new Date(late.getTime() + 120000));
+    await q.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await q.getByRole("checkbox", { name: "Log Midnight gym", exact: true }).waitFor();
+    console.log(
+      "PASS: conversion round trip,  native desktop lists, task editing/completion, habit log/undo, compact dark layout, settings and offline restart",
+    );
+  } finally {
+    if (app) await app.close();
+    fs.rmSync(folder, { recursive: true, force: true });
   }
-  const first=await p.getByRole('checkbox',{name:'Complete Wash car',exact:true}).boundingBox();
-  const second=await p.getByRole('checkbox',{name:'Complete Call Mom',exact:true}).boundingBox();
-  if(Math.abs(first.y-second.y)>2||Math.abs(first.x-second.x)<20)throw Error('Short checklist tiles do not share a row');
-  await p.getByLabel('Add to-do or non-negotiable',{exact:true}).click();
-  await p.evaluate(async()=>{const r=(await window.orbit.read()).records.find(r=>r.payload.title==='Wash car');await window.orbit.put(r.key,{...r.payload,notes:'Synced while menu is open'});});
-  await p.getByRole('button',{name:'To-do',exact:true}).click();
-  await p.getByRole('button',{name:'Cancel',exact:true}).click();
-  await p.getByRole('button',{name:'Settings & sync',exact:true}).click();
-  const backupFile=path.join(folder,'planner-backup.json');
-  await app.evaluate(({dialog},file)=>{dialog.showSaveDialog=async()=>({canceled:false,filePath:file});dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]});},backupFile);
-  await p.getByRole('button',{name:'Export planner',exact:true}).click();await p.getByText('Backup saved',{exact:true}).waitFor();
-  const backup=JSON.parse(fs.readFileSync(backupFile,'utf8'));backup.records.find(r=>r.payload.title==='Wash car').payload.title='Wash car restored';fs.writeFileSync(backupFile,JSON.stringify(backup));
-  await p.getByRole('button',{name:'Import backup',exact:true}).click();await p.getByRole('button',{name:'Import and merge',exact:true}).click();await p.getByText('Backup imported',{exact:true}).waitFor();
-  await p.locator('[data-page="today"]').click();await p.getByRole('checkbox',{name:'Complete Wash car restored',exact:true}).waitFor();
-  await p.getByRole('button',{name:'Undo',exact:true}).click();await p.getByRole('checkbox',{name:'Complete Wash car',exact:true}).waitFor();
-  await p.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});
-  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setSize(900,700));
-  if(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Horizontal overflow at compact window size');
-  await p.getByLabel('Add to-do or non-negotiable',{exact:true}).waitFor();
-  await p.emulateMedia({colorScheme:'light'});
-  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setSize(1320,900));
-  await p.screenshot({path:path.resolve(__dirname,'../assets/desktop-preview.png'),fullPage:true});
-  if(errors.length)throw Error(errors.join('\n'));await app.close();app=await electron.launch(options);const q=await app.firstWindow();await q.getByText('1 completed',{exact:true}).waitFor();await q.getByText('0 / 1 today',{exact:true}).waitFor();
-  const late=new Date();late.setHours(23,59,0,0);await q.clock.install({time:late});
-  await q.evaluate(async()=>{const id='33333333-3333-4333-8333-333333333333';await window.orbit.put('habits/'+id,{id,title:'Midnight gym',frequencyRule:'WEEKLY',target:5,color:'sage',icon:'leaf',createdAt:Date.now(),updatedAt:Date.now()});});
-  await q.getByRole('checkbox',{name:'Log Midnight gym',exact:true}).click();await q.getByRole('checkbox',{name:'Undo Midnight gym',exact:true}).waitFor();
-  await q.clock.setSystemTime(new Date(late.getTime()+120000));await q.evaluate(()=>window.dispatchEvent(new Event('focus')));await q.getByRole('checkbox',{name:'Log Midnight gym',exact:true}).waitFor();
-  console.log('PASS: conversion round trip,  native desktop lists, task editing/completion, habit log/undo, compact dark layout, settings and offline restart');
- }finally{if(app)await app.close();fs.rmSync(folder,{recursive:true,force:true});}
-})().catch(e=>{console.error(e);process.exitCode=1;});
+})().catch((e) => {
+  console.error(e);
+  process.exitCode = 1;
+});
