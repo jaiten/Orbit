@@ -39,7 +39,7 @@ actor NotificationScheduler {
         let logs = try context.fetch(FetchDescriptor<HabitLog>())
         var result = tasks.filter { $0.completedAt == nil }.flatMap { task in
             task.reminders.enumerated().map { index, date in
-                Reminder(id: "orbit.task.\(task.id).\(index)", title: task.title, body: "A little space for what matters.", date: date)
+                Reminder(id: "orbit.task.\(task.id).\(index)", title: task.title, body: "Reminder", date: date)
             }
         }
         for habit in habits {
@@ -49,7 +49,7 @@ actor NotificationScheduler {
                 for (kind, minutes) in [("reminder", habit.reminderMinutes), ("nudge", habit.nudgeMinutes)] {
                     guard let minutes, let date = Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: day) else { continue }
                     result.append(Reminder(id: "orbit.habit.\(habit.id).\(offset).\(kind)", title: habit.title,
-                        body: kind == "nudge" ? "Still time for a small step. No pressure." : "Make a moment for yourself.", date: date))
+                        body: kind == "nudge" ? "Not checked yet today." : "Habit reminder", date: date))
                 }
             }
         }
@@ -58,7 +58,7 @@ actor NotificationScheduler {
             for offset in 0..<7 {
                 let day = Calendar.current.date(byAdding: .day, value: offset, to: now)!
                 if let date = Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: day) {
-                    result.append(Reminder(id: "orbit.checkin.\(offset)", title: "A little moment for you", body: "Take a breath. Choose one small thing, or notice what you’ve already done.", date: date))
+                    result.append(Reminder(id: "orbit.checkin.\(offset)", title: "Daily check-in", body: "Take a minute to plan your day.", date: date))
                 }
             }
         }

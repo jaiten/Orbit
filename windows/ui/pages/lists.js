@@ -1,7 +1,11 @@
 function renderInbox(tasks) {
   const inbox = tasks.filter((t) => !t.completedAt && (!selectedList || t.listID === selectedList));
-  const name = rows("lists").find((l) => l.id === selectedList)?.name || "All to-dos";
-  return `<div class="eyebrow">Keep it somewhere</div><h1>${esc(name)}</h1><p class="subtitle">Capture it now. Make room for it when you’re ready.</p>${inbox.map(taskRow).join("") || '<p class="empty">Nothing waiting here. A little breathing room.</p>'}<form class="quick" id="quick-add"><input name="title" aria-label="Capture a task" placeholder="Something for later…" required maxlength="500"><button>Add</button></form>`;
+  const name = rows("lists").find((l) => l.id === selectedList)?.name || "All Tasks";
+  return `<h1>${esc(name)}</h1>
+    ${inbox.map(taskRow).join("") || '<p class="empty">No tasks here.</p>'}
+    <form class="quick" id="quick-add">
+      <input name="title" aria-label="New task" placeholder="New task" required maxlength="500" /><button>Add</button>
+    </form>`;
 }
 
 function renderLists() {
@@ -16,7 +20,7 @@ function renderLists() {
     (b) =>
       (b.onclick = () => {
         selectedList = b.dataset.list;
-        page = "inbox";
+        page = "lists";
         render();
       }),
   );
@@ -30,6 +34,7 @@ function openList(id) {
   f.elements.name.value = editingList?.name || "";
   f.elements.color.value = editingList?.color || "sage";
   $("#delete-list").hidden = !editingList;
+  $("#list-editor-title").textContent = editingList ? "Edit List" : "New List";
   $("#list-editor").showModal();
 }
 
@@ -54,7 +59,7 @@ $("#delete-list").onclick = () => {
 $("#confirm-delete-list").onclick = () =>
   action(async () => {
     if (!editingList) return;
-    // Deleting a list keeps its to-dos; they move to Inbox.
+    // Deleting a list keeps its tasks; they move to Inbox.
     const changes = rows("tasks")
       .filter((t) => t.listID === editingList.id)
       .map((t) => ({ key: t._key, payload: { ...clean(t), listID: null, updatedAt: Date.now() } }));

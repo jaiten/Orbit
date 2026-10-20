@@ -1,6 +1,6 @@
 # Orbit
 
-**A little space for what matters.** A local-first planner for iPhone and Windows:
+A local-first planner for iPhone and Windows:
 capture tasks, choose a manageable day, and keep small daily habits.
 
 ## Try it
@@ -12,8 +12,8 @@ capture tasks, choose a manageable day, and keep small daily habits.
   The targets, bundle identifiers and shared store now use Orbit. Importing data
   from an older DayOS installation is not implemented; preserve that installation
   if it contains records you need.
-- Sync: create/confirm an account in Windows **Settings & sync**, then sign in
-  on iPhone in **Settings → Across your devices**. Use the same account on both.
+- Sync: create/confirm an account in Windows **Settings → Account**, then sign in
+  on iPhone in **Settings → Account**. Use the same account on both.
   Local items are imported into that account; offline storage remains available. Realtime changes are received while both apps are open, with periodic catch-up after reconnect.
 
 For a physical iPhone, configure your Apple team, unique bundle IDs and matching

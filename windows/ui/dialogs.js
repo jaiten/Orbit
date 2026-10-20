@@ -19,6 +19,7 @@ function openTask(id, date) {
   f.elements.duration.value = editing?.durationMinutes || 30;
   f.elements.priority.value = editing?.priority || 0;
   f.elements.recurrence.value = editing?.recurrenceRule || "";
+  $("#editor-title").textContent = editing ? "Edit Task" : "New Task";
   $("#delete-task").hidden = !editing;
   $("#move-task").hidden = !editing;
   $("#editor").showModal();
@@ -31,6 +32,7 @@ function openHabit(id) {
   f.elements.title.value = editingHabit?.title || "";
   f.elements.target.value = editingHabit?.target || 1;
   f.elements.frequency.value = editingHabit?.frequencyRule || "DAILY";
+  $("#habit-editor-title").textContent = editingHabit ? "Edit Habit" : "New Habit";
   $("#delete-habit").hidden = !editingHabit;
   $("#move-habit").hidden = !editingHabit;
   $("#habit-editor").showModal();
@@ -150,7 +152,8 @@ $("#evening-review").onclick = () => {
   const today = dayKey(new Date());
   const done = rows("tasks").filter((t) => t.completedAt && dayKey(new Date(t.completedAt)) === today).length;
   const habits = rows("habits").filter((h) => checked(h, today)).length;
-  $("#review-summary").textContent = `${done} to-dos completed. ${habits} habits checked. Rest counts too.`;
+  $("#review-summary").textContent =
+    `${done} ${done === 1 ? "task" : "tasks"} completed · ${habits} ${habits === 1 ? "habit" : "habits"} checked`;
   $("#review-items").innerHTML = rows("tasks")
     .filter((t) => !t.completedAt && !t.recurrenceRule)
     .map(

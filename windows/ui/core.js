@@ -176,7 +176,7 @@ function taskRow(t) {
   return `<div class="task-row check-tile ${size} ${t.completedAt ? "complete" : ""}">
  <button class="tile-toggle" role="checkbox" aria-label="${t.completedAt ? "Reopen" : "Complete"} ${esc(t.title)}" aria-checked="${!!t.completedAt}" data-toggle="${esc(t.id)}"><span class="tick-symbol">${t.completedAt ? check : ""}</span><span class="tile-copy"><span>${esc(t.title)}</span>${time || repeat ? `<small>${time}${time && repeat ? " · " : ""}${repeat}</small>` : ""}</span></button>
  <button class="tile-edit" aria-label="Edit ${esc(t.title)}" data-edit="${esc(t.id)}">${pencil}</button>
- ${page === "inbox" ? `<button class="today-action" data-today="${esc(t.id)}">Today ↗</button>` : ""}</div>`;
+ ${page === "lists" ? `<button class="today-action" data-today="${esc(t.id)}">Add to Today</button>` : ""}</div>`;
 }
 function habitCard(h) {
   const n = progress(h),
@@ -191,7 +191,7 @@ function newTask(title, date) {
     id: crypto.randomUUID(),
     title,
     notes: "",
-    listID: page === "inbox" ? selectedList : null,
+    listID: page === "lists" ? selectedList : null,
     dueDate: null,
     localDate: date,
     hasTime: false,

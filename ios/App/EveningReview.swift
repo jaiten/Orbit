@@ -13,19 +13,18 @@ struct EveningReview: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("Notice what moved forward") {
-                    LabeledContent("To-dos completed", value: "\(completed)")
-                    LabeledContent("Habits checked today", value: "\(habits.filter { PlannerLogic.checkedToday($0, logs: logs, at: .now) }.count)")
-                    Text("Rest counts too. You don’t need to clear everything.").foregroundStyle(.secondary)
+                Section("Today") {
+                    LabeledContent("Tasks completed", value: "\(completed)")
+                    LabeledContent("Habits checked", value: "\(habits.filter { PlannerLogic.checkedToday($0, logs: logs, at: .now) }.count)")
                 }
-                Section("Choose up to three for tomorrow") {
+                Section("Pick up to three for tomorrow") {
                     ForEach(tasks.filter { $0.completedAt == nil && $0.recurrenceRule.isEmpty }.sorted { $0.sortOrder < $1.sortOrder }) { task in
                         Button {
                             if selected.contains(task.id) { selected.remove(task.id) } else if selected.count < 3 { selected.insert(task.id) }
                         } label: { HStack { Text(task.title).foregroundStyle(.primary); Spacer(); Image(systemName: selected.contains(task.id) ? "checkmark.circle.fill" : "circle") } }
                     }
                 }
-            }.navigationTitle("A little reflection").navigationBarTitleDisplayMode(.inline)
+            }.navigationTitle("Evening Review").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Plan tomorrow") { save() }.disabled(selected.isEmpty) }

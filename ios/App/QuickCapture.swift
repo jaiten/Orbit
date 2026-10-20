@@ -21,7 +21,7 @@ struct QuickCapture: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("What would you like to do?", text: $title, axis: .vertical)
+                    TextField("Title", text: $title, axis: .vertical)
                         .font(.title3).focused($focused).accessibilityIdentifier("task-title-input")
                     Text("Try “Read tomorrow 8pm”").font(.caption).foregroundStyle(.secondary)
                 }
@@ -51,7 +51,7 @@ struct QuickCapture: View {
                         Text("You can add reminders, steps and other details using the pencil after saving.").font(.footnote).foregroundStyle(.secondary)
                     }
                 }
-            }.tint(DayTheme.accentColor(accentTheme)).navigationTitle("Make a little room").navigationBarTitleDisplayMode(.inline)
+            }.tint(DayTheme.accentColor(accentTheme)).navigationTitle("New Item").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Save", action: save).disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }

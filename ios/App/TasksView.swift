@@ -21,16 +21,16 @@ struct TasksView: View {
         NavigationStack {
             List {
                 Section {
-                    AccentPicker(title: "List", selection: $listID, choices: [(nil as UUID?, "All to-dos")] + lists.map { (Optional($0.id), $0.name) })
+                    AccentPicker(title: "List", selection: $listID, choices: [(nil as UUID?, "All Tasks")] + lists.map { (Optional($0.id), $0.name) })
                     Toggle("Show completed", isOn: $showCompleted)
                 }
                 Section {
-                    if filtered.isEmpty { ContentUnavailableView("A clear page", systemImage: "checklist", description: Text("Add a task or change your filters.")) }
+                    if filtered.isEmpty { ContentUnavailableView("No Tasks", systemImage: "checklist") }
                     ForEach(filtered) { task in TaskRow(task: task) { editing = task }.listRowSeparator(.hidden) }
                 }
             }.tint(DayTheme.accentColor(accentTheme)).searchable(text: $search, prompt: "Search tasks or tags").navigationTitle("Lists")
                 .toolbar {
-                    ToolbarItem(placement: .topBarLeading) { Button("Manage lists") { manageLists = true } }
+                    ToolbarItem(placement: .topBarLeading) { Button("Edit Lists") { manageLists = true } }
                     ToolbarItem(placement: .topBarTrailing) { Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("New task") }
                 }
                 .sheet(isPresented: $adding) { QuickCapture() }.sheet(item: $editing) { TaskEditor(task: $0) }
@@ -50,13 +50,13 @@ struct ListsView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("Projects & lists") {
+                Section("Lists") {
                     ForEach(lists) { list in ListNameRow(list: list) }
                         .onDelete { indices in pendingDelete = indices.first.map { lists[$0] } }
                 }
                 Section {
                     TextField("New list name", text: $name)
-                    Button("Create list") {
+                    Button("Add List") {
                         context.insert(TaskList(name: name.trimmingCharacters(in: .whitespacesAndNewlines), sortOrder: lists.count))
                         do { try Mutations.save(context); name = "" } catch { self.error = error.localizedDescription }
                     }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)

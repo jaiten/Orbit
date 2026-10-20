@@ -11,7 +11,6 @@ struct SettingsView: View {
     @AppStorage("accentTheme") private var accentTheme = "coral"
     @AppStorage("generalCheckIn") private var checkIn = false
     @AppStorage("checkInMinutes") private var checkInMinutes = 1080
-    @AppStorage("orbitVisitDays") private var visitDays = 0
     @State private var message: String?
     @ObservedObject private var calendars = CalendarBridge.shared
     @ObservedObject private var sync = SyncService.shared
@@ -24,11 +23,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    HStack(spacing: 12) { OrbitMark(); VStack(alignment: .leading, spacing: 4) { Text("Orbit").font(.title.weight(.bold)); Text("\(visitDays) days showing up").font(.caption).foregroundStyle(.secondary) } }
-                    Text("A little space for what matters.").foregroundStyle(.secondary)
-                }
-                Section("Across your devices") {
+                Section("Account") {
                     if let account = sync.email {
                         Text(account)
                         NavigationLink("Change password") { PasswordChangeView() }
@@ -56,7 +51,7 @@ struct SettingsView: View {
                             }
                             Text("Enter the newest code from your email. Expired links cannot be reused.").font(.footnote).foregroundStyle(.secondary)
                         }
-                        Text("Sign in on your PC with the same account. Your existing planner will be added to that account and stay available offline.").font(.footnote).foregroundStyle(.secondary)
+                        Text("Use the same account on your PC. Everything stays available offline.").font(.footnote).foregroundStyle(.secondary)
                     }
                 }
                 ForEach(syncEntries.filter { $0.conflict != nil }) { entry in
@@ -84,7 +79,7 @@ struct SettingsView: View {
                             Task { do { try await calendars.connect() } catch { message = error.localizedDescription } }
                         } label: { Label { Text("Connect calendars") } icon: { Image(systemName: "calendar").foregroundStyle(DayTheme.accentColor(accentTheme)) } }
                     }
-                    Text("See events from Apple Calendar and Google accounts added to your iPhone. Use a to-do’s pencil, then More actions, to send it to a calendar. Changes to calendar events do not change the original task.")
+                    Text("Shows events from Apple Calendar, including Google accounts added to your iPhone.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("Accent") {
@@ -109,13 +104,13 @@ struct SettingsView: View {
                                 message = granted ? "Reminders are enabled." : "Notifications are off. You can enable them in iOS Settings → Orbit → Notifications."
                             } catch { message = error.localizedDescription }
                         }
-                    } label: { Label { Text("Enable reminders") } icon: { Image(systemName: "bell").foregroundStyle(DayTheme.accentColor(accentTheme)) } }
+                    } label: { Label { Text("Allow Notifications") } icon: { Image(systemName: "bell").foregroundStyle(DayTheme.accentColor(accentTheme)) } }
                 }
-                Section("Widgets & consistency") {
+                Section("Widgets") {
                     AccentPicker(title: "History range", selection: $consistencyRange, choices: [(7, "Past week"), (30, "Past month")])
-                    Text("This also sets Today’s history range. Hold a consistency widget and choose Edit Widget to give it its own week or month view.").font(.footnote).foregroundStyle(.secondary)
+                    Text("Also used on Today. Each widget can override it with Edit Widget.").font(.footnote).foregroundStyle(.secondary)
                 }
-                Section("A moment for yourself") {
+                Section("Daily Check-in") {
                     Toggle("Daily check-in", isOn: $checkIn)
                         .onChange(of: checkIn) { _, enabled in
                             Task { do { if enabled { _ = try await NotificationScheduler.shared.requestPermission() }; try await refreshReminders(context) } catch { message = error.localizedDescription } }
@@ -125,16 +120,16 @@ struct SettingsView: View {
                             checkInMinutes = Calendar.current.component(.hour, from: date) * 60 + Calendar.current.component(.minute, from: date)
                             Task { try? await refreshReminders(context) }
                         }), displayedComponents: .hourAndMinute)
-                        Button("Use my usual check-in time") { checkInMinutes = UsageSignals.suggestedMinutes(); Task { try? await refreshReminders(context) } }
+                        Button("Use My Usual Time") { checkInMinutes = UsageSignals.suggestedMinutes(); Task { try? await refreshReminders(context) } }
                     }
-                    Text("One gentle reminder, independent of your to-dos. Time suggestions use only check-in counts stored on this device. After three visits at a similar time, Orbit can suggest that hour. You stay in control.").font(.footnote).foregroundStyle(.secondary)
+                    Text("One reminder a day to plan. The suggested time is based on when you usually open Orbit, counted on this device only.").font(.footnote).foregroundStyle(.secondary)
                 }
                 if tasks.isEmpty && habits.isEmpty {
                     Section { Button("Explore with sample data", action: seed) }
                 }
-                Section("Your data") { NavigationLink("Backup & restore") { BackupView() } }
-                Section("About Orbit") {
-                    Text("Offline first. Sign in to share your planner with Orbit for Windows. Sync runs while the app is open; widget changes sync when you reopen Orbit.")
+                Section("Data") { NavigationLink("Import & Export") { BackupView() } }
+                Section("About") {
+                    Text("Works offline. Sync runs while Orbit is open; widget changes sync the next time you open it.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }.tint(DayTheme.accentColor(accentTheme)).navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)

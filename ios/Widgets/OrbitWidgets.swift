@@ -19,7 +19,7 @@ struct DayEntry: TimelineEntry {
     let streak: Int
     var unavailable = false
     var consistency: [Double] = []
-    static let placeholder = DayEntry(date: .now, items: [WidgetItem(id: "preview", title: "A moment to reset", subtitle: "Your next intention", habit: false, date: nil)], completedHabits: 1, totalHabits: 3, streak: 4)
+    static let placeholder = DayEntry(date: .now, items: [WidgetItem(id: "preview", title: "Morning walk", subtitle: "8:00 AM", habit: false, date: nil)], completedHabits: 1, totalHabits: 3, streak: 4)
 }
 
 struct DayProvider: TimelineProvider {
@@ -50,7 +50,7 @@ struct DayProvider: TimelineProvider {
             let logs = try context.fetch(FetchDescriptor<HabitLog>())
             let taskItems = tasks.map { task in
                 WidgetItem(id: task.id.uuidString, title: task.title,
-                    subtitle: task.hasTime ? task.dueDate!.formatted(date: .omitted, time: .shortened) : "At your own pace",
+                    subtitle: task.hasTime ? task.dueDate!.formatted(date: .omitted, time: .shortened) : "",
                     habit: false, date: task.hasTime ? task.dueDate : nil)
             }
             let habitItems = habits.filter { !PlannerLogic.checkedToday($0, logs: logs, at: .now) }.map {
@@ -64,7 +64,7 @@ struct DayProvider: TimelineProvider {
 }
 
 struct CompleteItemIntent: AppIntent {
-    static var title: LocalizedStringResource = "Complete a Orbit item"
+    static var title: LocalizedStringResource = "Complete Item"
     static var openAppWhenRun = false
     @Parameter(title: "Item ID") var itemID: String
     @Parameter(title: "Is habit") var isHabit: Bool
@@ -104,8 +104,8 @@ struct DayWidgetView: View {
                 case .accessoryRectangular:
                     VStack(alignment: .leading) {
                         Text("ORBIT").font(.caption2.bold())
-                        Text(entry.items.first?.title ?? "Room to breathe").font(.headline).lineLimit(1)
-                        Text(entry.items.first?.subtitle ?? "Your day, on your terms").font(.caption)
+                        Text(entry.items.first?.title ?? "Nothing left today").font(.headline).lineLimit(1)
+                        Text(entry.items.first?.subtitle ?? "").font(.caption)
                     }
                 case .systemSmall:
                     VStack(alignment: .leading, spacing: 10) {
@@ -123,12 +123,12 @@ struct DayWidgetView: View {
                 default:
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
-                            Text("Today, at a glance").font(.headline)
+                            Text("Today").font(.headline)
                             Spacer()
                             Image(systemName: "sun.max").foregroundStyle(DayTheme.accent)
                         }
                         ConsistencyWidgetGrid(values: Array(entry.consistency.suffix(DayTheme.sharedDefaults?.integer(forKey: "consistencyRange") == 30 ? 30 : 7)), compact: true)
-                        if entry.items.isEmpty { Text("All clear. Enjoy a little breathing room.").font(.subheadline).foregroundStyle(.secondary) }
+                        if entry.items.isEmpty { Text("Nothing left today.").font(.subheadline).foregroundStyle(.secondary) }
                         ForEach(entry.items.prefix(family == .systemLarge ? 5 : 2)) { item in
                             HStack(spacing: 8) {
                                 Button(intent: CompleteItemIntent(itemID: item.id, isHabit: item.habit)) {
@@ -163,8 +163,8 @@ struct OrbitWidget: Widget {
     let kind = "OrbitAgenda"
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: DayProvider()) { DayWidgetView(entry: $0) }
-            .configurationDisplayName("Your daily rhythm")
-            .description("Your next intentions and small daily rituals.")
+            .configurationDisplayName("Today")
+            .description("Today’s tasks and habits.")
             .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryCircular, .accessoryRectangular])
     }
 }

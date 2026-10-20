@@ -1,26 +1,23 @@
 function renderHabits(habits) {
   let html =
-    '<div class="eyebrow">Small things, often</div><div class="section-heading"><h1>Habits</h1><button id="add-habit" class="primary">+ New habit</button></div><p class="subtitle">Consistency can be quiet.</p>';
-  html += habits.map(habitCard).join("") + '<button id="habit-history" class="history-link">Habit history →</button>';
-  if (!habits.length) html += '<p class="empty">Choose something small enough to do again tomorrow.</p>';
+    '<div class="section-heading"><h1>Habits</h1><button id="add-habit" class="primary">+ New Habit</button></div>';
+  if (!habits.length) return html + '<p class="empty">No habits yet.</p>';
+  html += habits.map(habitCard).join("") + '<button id="habit-history" class="history-link">History →</button>';
   return html;
 }
 
 function renderHistoryIndex(habits) {
   return (
-    '<h1>Habit history</h1><p class="subtitle">Choose a habit to look back.</p>' +
+    "<h1>History</h1>" +
     habits
-      .map(
-        (h) =>
-          `<button class="history-link" data-history="${esc(h.id)}">${esc(h.title)} <span>View history →</span></button>`,
-      )
+      .map((h) => `<button class="history-link" data-history="${esc(h.id)}">${esc(h.title)} <span>→</span></button>`)
       .join("")
   );
 }
 
 function renderHabitHistory(habits) {
   const h = habits.find((h) => h.id === historyHabitID);
-  if (!h) return "<h1>Habit removed</h1>";
+  if (!h) return "<h1>Habit deleted</h1>";
   const cells = Array.from({ length: 84 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - 83 + i);

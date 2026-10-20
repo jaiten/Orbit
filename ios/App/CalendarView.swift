@@ -51,19 +51,19 @@ struct CalendarView: View {
                                 .dropDestination(for: String.self) { ids, _ in reschedule(ids, to: day) }
                         }
                     }
-                    SectionHeading(title: selected.formatted(.dateTime.weekday(.wide).month().day()), detail: "Your day")
+                    SectionHeading(title: selected.formatted(.dateTime.weekday(.wide).month().day()))
                     if !calendars.connected {
-                        Button("Connect Apple & Google calendars", systemImage: "calendar.badge.plus") { Task { do { try await calendars.connect() } catch { self.error = error.localizedDescription } } }
+                        Button("Connect Calendars", systemImage: "calendar.badge.plus") { Task { do { try await calendars.connect() } catch { self.error = error.localizedDescription } } }
                     }
                     let events = calendars.events(on: selected)
-                    if selectedTasks.isEmpty && events.isEmpty { ContentUnavailableView("Room to breathe", systemImage: "sun.horizon", description: Text("Add a plan or connect your calendars.")) }
+                    if selectedTasks.isEmpty && events.isEmpty { ContentUnavailableView("Nothing Planned", systemImage: "sun.horizon") }
                     ForEach(events.filter(\.isAllDay), id: \.calendarItemIdentifier) { event in CalendarEventRow(event: event) }
                     ForEach(selectedTasks.filter { !$0.hasTime }) { task in TaskRow(task: task) { editing = task }.draggable(task.id.uuidString) }
                     ForEach(timeline(events), id: \.id) { entry in
                         if let task = entry.task { TaskRow(task: task) { editing = task }.draggable(task.id.uuidString) }
                         if let event = entry.event { CalendarEventRow(event: event) }
                     }
-                    Text("Drag a task onto a day to move it. Edit a task to change its time.").font(.caption).foregroundStyle(.secondary)
+                    Text("Drag a task onto a day to move it.").font(.caption).foregroundStyle(.secondary)
                 }.padding(20).frame(maxWidth: 760).frame(maxWidth: .infinity)
             }.background(DayTheme.canvas(scheme)).tint(DayTheme.accentColor(accentTheme)).navigationTitle("Calendar").navigationBarTitleDisplayMode(.inline)
                 .toolbar {

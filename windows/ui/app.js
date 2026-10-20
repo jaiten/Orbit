@@ -1,15 +1,12 @@
 // Page routing and start-up. Pages live in ui/pages; shared helpers in core.js.
-const pageTitles = { today: "Today", inbox: "Lists", week: "Plan", habits: "Habits", settings: "Settings" };
-
 function render() {
   document.querySelectorAll("[data-page]").forEach((b) => b.classList.toggle("selected", b.dataset.page === page));
-  $("#breadcrumb").textContent = "Your space / " + pageTitles[page];
   const tasks = rows("tasks").sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   const habits = rows("habits");
   const pages = {
     today: () => renderToday(tasks, habits),
-    inbox: () => renderInbox(tasks),
-    week: () => renderCalendar(tasks),
+    lists: () => renderInbox(tasks),
+    calendar: () => renderCalendar(tasks),
     history: () => renderHistoryIndex(habits),
     "habit-history": () => renderHabitHistory(habits),
     habits: () => renderHabits(habits),

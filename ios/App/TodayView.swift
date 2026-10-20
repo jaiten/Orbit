@@ -74,7 +74,7 @@ struct TodayView: View {
                     Image(systemName: "plus").font(.title2.weight(.medium)).foregroundStyle(.white)
                         .frame(width: 54, height: 54).background(DayTheme.accent, in: Circle())
                         .shadow(color: .black.opacity(0.13), radius: 10, y: 4)
-                }.accessibilityLabel("Add something").padding(.trailing, 20).padding(.bottom, 10)
+                }.accessibilityLabel("Add").padding(.trailing, 20).padding(.bottom, 10)
             }
             .sheet(isPresented: $addingTask) { QuickCapture(initialDate: day) }
             .sheet(isPresented: $reviewing) { EveningReview() }
@@ -96,10 +96,10 @@ struct TodayView: View {
                 ProgressView(value: Double(done), total: Double(max(1, total))).tint(DayTheme.accent).frame(maxWidth: 130)
             }
         case "today":
-            checklistSection("For today", items: relevant.filter { $0.completedAt == nil && $0.recurrenceRule.isEmpty }.map { TodayItem(task: $0) }, empty: "Your one-off plans go here.")
+            checklistSection("Tasks", items: relevant.filter { $0.completedAt == nil && $0.recurrenceRule.isEmpty }.map { TodayItem(task: $0) }, empty: "Nothing planned for today.")
                 .modifier(HomeDropArea(id: "today"))
         case "routine":
-            checklistSection("Your routine", items: relevant.filter { $0.completedAt == nil && !$0.recurrenceRule.isEmpty }.map { TodayItem(task: $0) } + habits.filter { !PlannerLogic.checkedToday($0, logs: logs, at: day) }.map { TodayItem(habit: $0) }, empty: "Hold and drag a to-do here to make it a habit.")
+            checklistSection("Habits", items: relevant.filter { $0.completedAt == nil && !$0.recurrenceRule.isEmpty }.map { TodayItem(task: $0) } + habits.filter { !PlannerLogic.checkedToday($0, logs: logs, at: day) }.map { TodayItem(habit: $0) }, empty: "Hold and drag a to-do here to make it a habit.")
                 .modifier(HomeDropArea(id: "routine"))
         case "completed":
             let completed = relevant.filter { $0.completedAt != nil }.map { TodayItem(task: $0) } + habits.filter { PlannerLogic.checkedToday($0, logs: logs, at: day) }.map { TodayItem(habit: $0) }
@@ -107,14 +107,14 @@ struct TodayView: View {
         case "calendar":
             if calendars.connected {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("From your calendars").font(.headline)
+                    Text("Calendar").font(.headline)
                     if calendars.events.isEmpty { Text("No events today").font(.subheadline).foregroundStyle(.secondary) }
                     ForEach(calendars.events, id: \.calendarItemIdentifier) { event in CalendarEventRow(event: event) }
                 }
             }
         default:
             if let list = lists.first(where: { "list:" + $0.id.uuidString == id }) {
-                checklistSection(list.name, items: tasks.filter { $0.listID == list.id && $0.completedAt == nil }.map { TodayItem(task: $0) }, empty: "Nothing waiting in this list.")
+                checklistSection(list.name, items: tasks.filter { $0.listID == list.id && $0.completedAt == nil }.map { TodayItem(task: $0) }, empty: "No tasks.")
             }
         }
     }
@@ -257,7 +257,7 @@ struct TaskRow: View {
     }
     var body: some View {
         CheckTile(title: task.title, subtitle: subtitle, done: task.completedAt != nil, color: DayTheme.accentColor(accentTheme),
-            completionLabel: (task.completedAt == nil ? "Complete " : "Reopen ") + task.title, moveLabel: "Make non-negotiable",
+            completionLabel: (task.completedAt == nil ? "Complete " : "Reopen ") + task.title, moveLabel: "Make It a Habit",
             toggle: { change { try Mutations.toggle(task, in: context); feedback += 1; if task.completedAt != nil { Task { await FocusSession.shared.stopIfMatching(task.id) } } } }, edit: edit,
             remove: { change { context.delete(task); try Mutations.save(context) } }, move: { change { try Conversions.toHabit(task, in: context) } })
             .modifier(TaskActions(task: task, enabled: !dragEnabled)).modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
@@ -280,7 +280,7 @@ struct HabitRow: View {
     private var checked: Bool { PlannerLogic.checkedToday(habit, logs: logs, at: date) }
     var body: some View {
         CheckTile(title: habit.title, subtitle: habit.frequencyRule == "WEEKLY" ? "\(progress)/\(habit.target) this week · today’s check-in" : "\(progress)/\(habit.target) today", done: checked, color: DayTheme.color(habit.color),
-            completionLabel: (checked ? "Undo " : "Log ") + habit.title, moveLabel: "Make to-do",
+            completionLabel: (checked ? "Undo " : "Log ") + habit.title, moveLabel: "Make It a Task",
             toggle: { change { if checked { try Mutations.undoLog(habit, at: date, in: context) } else { try Mutations.log(habit, at: date, in: context) }; feedback += 1 } }, edit: { edit?() },
             remove: { change { try Conversions.remove(habit, in: context) } }, move: { change { try Conversions.toTask(habit, in: context) } })
             .modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)

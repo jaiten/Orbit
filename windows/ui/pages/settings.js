@@ -32,11 +32,18 @@ function renderSettings() {
         `<button data-accent="${name}" aria-pressed="${document.documentElement.dataset.accent === name}">${name[0].toUpperCase() + name.slice(1)}</button>`,
     )
     .join("");
-  let html = `<div class="eyebrow">Your space</div><h1>Settings</h1><div class="brand-preview"><img src="logo.svg" alt="Orbit logo"><div><h2>Orbit</h2><p class="secondary">${Number(localStorage.getItem("visitDays") || 1)} days showing up</p></div></div><section class="settings-block"><h2>Your accent</h2><div class="accent-options">${accentButtons}</div></section><section class="settings-block"><h2>Connected, quietly</h2><p id="sync-details">${esc(state.status)}</p><p class="secondary">Your planner saves on this PC first. Sign in with the same account on your iPhone to sync. This local planner stays linked to that account.</p>${accountSection()}</section>`;
+  let html = `<h1>Settings</h1>
+    <section class="settings-block"><h2>Accent</h2><div class="accent-options">${accentButtons}</div></section>
+    <section class="settings-block">
+      <h2>Account</h2>
+      <p id="sync-details">${esc(state.status)}</p>
+      <p class="secondary">Sign in with the same account on your iPhone to sync. Everything is saved on this PC first.</p>
+      ${accountSection()}
+    </section>`;
   for (const r of state.records.filter((r) => r.conflict)) {
     html += `<section class="conflict"><h2>Review two versions</h2><p class="secondary">Both versions are saved. Choose the content you want to keep.</p><div class="version-options"><div><h3>On this PC</h3><p class="version-text">${esc(versionSummary(r.payload, r.deleted))}</p><button data-resolve="${esc(r.key)}" data-choice="local">Use the version above</button></div><div><h3>From sync</h3><p class="version-text">${esc(versionSummary(r.conflict.payload, r.conflict.deleted))}</p><button data-resolve="${esc(r.key)}" data-choice="cloud">Use this synced version</button></div></div></section>`;
   }
-  html += `<section class="settings-block"><h2>Your data</h2><button id="export-backup">Export planner</button><button id="import-backup">Import backup</button><p class="secondary">Portable backups contain planner text and history, without account tokens.</p><div id="import-confirm"></div></section>`;
+  html += `<section class="settings-block"><h2>Data</h2><button id="export-backup">Export</button><button id="import-backup">Import</button><p class="secondary">Exports contain your tasks, lists and habit history. No account details are included.</p><div id="import-confirm"></div></section>`;
   return html;
 }
 

@@ -12,7 +12,7 @@ struct TaskActions: ViewModifier {
             if enabled { content.contextMenu {
                 Button("Start focus timer", systemImage: "timer") { Task { do { try await FocusSession.shared.start(task) } catch { self.error = error.localizedDescription } } }
                 Button("Send to calendar", systemImage: "calendar.badge.plus") { Task { do { calendarDraft = try await CalendarBridge.shared.draft(for: task) } catch { self.error = error.localizedDescription } } }
-                Button("Move to non-negotiables", systemImage: "repeat") { change { try Conversions.toHabit(task, in: context) } }
+                Button("Make It a Habit", systemImage: "repeat") { change { try Conversions.toHabit(task, in: context) } }
                 Button("Delete", systemImage: "xmark", role: .destructive) { change { context.delete(task); try Mutations.save(context) } }
             }
             } else { content }
@@ -35,7 +35,7 @@ struct HabitActions: ViewModifier {
         content.swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) { change { try Conversions.remove(habit, in: context) } } label: { Label("Delete", systemImage: "xmark") }
         }.swipeActions(edge: .leading, allowsFullSwipe: false) {
-            Button { change { try Conversions.toTask(habit, in: context) } } label: { Label("Make to-do", systemImage: "checklist") }.tint(DayTheme.accent)
+            Button { change { try Conversions.toTask(habit, in: context) } } label: { Label("Make It a Task", systemImage: "checklist") }.tint(DayTheme.accent)
         }.modifier(MutationErrorModifier(error: $error))
     }
     private func change(_ action: () throws -> Void) {

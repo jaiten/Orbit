@@ -12,19 +12,17 @@ struct HabitsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    Text("Your routine").font(.title2.weight(.semibold))
-                    Text("Tiny rituals. A life that feels like yours.").foregroundStyle(.secondary)
-                    if habits.isEmpty { ContentUnavailableView("Start small", systemImage: "leaf", description: Text("Use + to create your first daily or weekly ritual.")) }
+                    if habits.isEmpty { ContentUnavailableView("No Habits", systemImage: "leaf", description: Text("Tap + to add one.")) }
                     ForEach(habits) { habit in
                         HabitRow(habit: habit, logs: logs, date: .now, edit: { editing = habit })
                     }
                     if !habits.isEmpty {
                         NavigationLink { HabitHistoryIndex() } label: {
-                            Label("Habit history", systemImage: "chart.bar.xaxis").frame(maxWidth: .infinity, alignment: .leading).padding(16)
+                            Label("History", systemImage: "chart.bar.xaxis").frame(maxWidth: .infinity, alignment: .leading).padding(16)
                         }.background(.background, in: RoundedRectangle(cornerRadius: 16))
                     }
                 }.padding(20).frame(maxWidth: 760).frame(maxWidth: .infinity)
-            }.background(DayTheme.canvas(scheme)).navigationTitle("Routine").navigationBarTitleDisplayMode(.inline)
+            }.background(DayTheme.canvas(scheme)).navigationTitle("Habits").navigationBarTitleDisplayMode(.inline)
                 .toolbar { Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("New habit") }
                 .sheet(isPresented: $adding) { HabitEditor() }.sheet(item: $editing) { HabitEditor(habit: $0) }
         }
@@ -35,7 +33,7 @@ struct HabitHistoryIndex: View {
     @Query(sort: \Habit.createdAt) private var habits: [Habit]
     var body: some View {
         List(habits) { habit in NavigationLink(habit.title) { HabitHistoryDetail(habit: habit) } }
-            .navigationTitle("Habit history").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("History").navigationBarTitleDisplayMode(.inline)
     }
 }
 struct HabitHistoryDetail: View {
@@ -93,8 +91,8 @@ struct HabitEditor: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Your ritual") {
-                    TextField("Read, move, take a breath…", text: $title).accessibilityIdentifier("habit-title-input")
+                Section {
+                    TextField("Title", text: $title).accessibilityIdentifier("habit-title-input")
                     Picker("Frequency", selection: $frequency) { Text("Daily").tag("DAILY"); Text("Weekly").tag("WEEKLY") }
                     Stepper("\(target) times per \(frequency == "DAILY" ? "day" : "week")", value: $target, in: 1...1000)
                     Picker("Color", selection: $color) { ForEach(DayTheme.colors, id: \.self) { Text($0.capitalized).tag($0) } }
@@ -103,16 +101,16 @@ struct HabitEditor: View {
                     }
                 }
                 Section {
-                    Toggle("Daily reminder", isOn: $reminderEnabled)
+                    Toggle("Reminder", isOn: $reminderEnabled)
                     if reminderEnabled { DatePicker("At", selection: $reminder, displayedComponents: .hourAndMinute) }
-                    Toggle("Gentle nudge if unfinished", isOn: $nudgeEnabled)
+                    Toggle("Second reminder if not done", isOn: $nudgeEnabled)
                     if nudgeEnabled { DatePicker("Nudge at", selection: $nudge, displayedComponents: .hourAndMinute) }
-                } header: { Text("A little encouragement") } footer: { Text("Reminders pause after today’s check-in. Weekly goals count toward your week; the check is for today.") }
-                if let habit { Section { Button("Make a to-do", systemImage: "checklist") {
+                } header: { Text("Reminders") } footer: { Text("Reminders stop once the habit is checked for the day.") }
+                if let habit { Section { Button("Make It a Task", systemImage: "checklist") {
                     do { try Conversions.toTask(habit, in: context); finish() } catch { self.error = error.localizedDescription }
                 } } }
                 if habit != nil { Section { Button("Delete habit", role: .destructive) { confirmDelete = true } } }
-            }.tint(DayTheme.accentColor(accentTheme)).navigationTitle(habit == nil ? "Plant a habit" : "Edit habit").navigationBarTitleDisplayMode(.inline)
+            }.tint(DayTheme.accentColor(accentTheme)).navigationTitle(habit == nil ? "New Habit" : "Edit Habit").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Save", action: save).disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }

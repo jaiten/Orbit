@@ -25,8 +25,8 @@ warning. Code signing and automatic updates are not configured.
 
 ## Connect iPhone
 
-Open **Settings & sync**, create an account, confirm the email, then sign in.
-In iOS, open **Settings → Across your devices** and use the same credentials.
+Open **Settings → Account**, create an account, confirm the email, then sign in.
+In iOS, open **Settings → Account** and use the same credentials.
 Existing local items are added to that account. The local planner stays bound to
 its original account after sign-out to avoid mixing account data. Sign-out keeps
 local records and disconnects sync.

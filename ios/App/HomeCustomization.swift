@@ -11,12 +11,12 @@ struct HomeLayoutEditor: View {
     private var sections: [String] { stored.split(separator: ",").map(String.init) }
     static func title(_ id: String, lists: [TaskList]) -> String {
         switch id {
-        case "consistency": return "Habit consistency"
+        case "consistency": return "Consistency"
         case "progress": return "Daily progress"
-        case "today": return "For today"
-        case "routine": return "Your routine"
+        case "today": return "Tasks"
+        case "routine": return "Habits"
         case "completed": return "Completed"
-        case "calendar": return "From your calendars"
+        case "calendar": return "Calendar"
         default: return lists.first { "list:" + $0.id.uuidString == id }?.name ?? "List"
         }
     }
@@ -36,10 +36,10 @@ struct HomeLayoutEditor: View {
                     ForEach(lists.filter { !sections.contains("list:" + $0.id.uuidString) }) { list in
                         Button(list.name, systemImage: "plus") { stored += ",list:" + list.id.uuidString }
                     }
-                    Text("Pinned lists show their unfinished to-dos, including plans for later. Hiding a section keeps all your items.").font(.footnote).foregroundStyle(.secondary)
+                    Text("Pinned lists show their unfinished tasks. Hiding a section never deletes anything.").font(.footnote).foregroundStyle(.secondary)
                 }
             }.environment(\.editMode, .constant(.active))
-                .navigationTitle("Your Today").navigationBarTitleDisplayMode(.inline)
+                .navigationTitle("Edit Today").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
     }
@@ -55,7 +55,7 @@ struct ConsistencyStrip: View {
         let fractions = PlannerLogic.consistencySeries(habits: habits, logs: logs, ending: .now, days: range)
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Small steps add up").font(.subheadline.weight(.semibold))
+                Text("Consistency").font(.subheadline.weight(.semibold))
                 Spacer()
                 Menu { Button("Past week") { range = 7 }; Button("Past month") { range = 30 } } label: {
                     Text(range == 7 ? "Week" : "Month").font(.caption)
@@ -76,7 +76,6 @@ struct ConsistencyStrip: View {
                         .accessibilityLabel("\(day.formatted(date: .abbreviated, time: .omitted)), \(Int(ratio * 100)) percent of habits")
                 }
             }
-            if habits.isEmpty { Text("Your habit check-ins will grow here.").font(.caption).foregroundStyle(.secondary) }
         }
     }
 }

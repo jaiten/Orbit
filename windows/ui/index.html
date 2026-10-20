@@ -14,21 +14,20 @@
   <body>
     <aside>
       <div class="brand"><img src="logo.svg" alt="" width="32" height="32" /><strong>Orbit</strong></div>
-      <p class="tagline">A little space for what matters.</p>
       <nav aria-label="Planner">
         <button data-page="today" class="selected">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <circle cx="12" cy="12" r="4" />
             <path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5" /></svg
           ><span>Today</span></button
-        ><button data-page="inbox">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 2 2 3-4M11 6h10M3 13h3m5 0h10M3 20h3m5 0h10" /></svg
-          ><span>Lists</span></button
-        ><button data-page="week">
+        ><button data-page="calendar">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <rect x="3" y="5" width="18" height="16" rx="3" />
             <path d="M3 10h18M8 3v4m8-4v4" /></svg
-          ><span>Plan</span></button
+          ><span>Calendar</span></button
+        ><button data-page="lists">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 2 2 3-4M11 6h10M3 13h3m5 0h10M3 20h3m5 0h10" /></svg
+          ><span>Lists</span></button
         ><button data-page="habits">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 4C8 2 3 8 6 15s13 5 13-11ZM7 18l8-10" /></svg
           ><span>Habits</span>
@@ -38,7 +37,7 @@
       <div id="sidebar-lists" class="sidebar-lists"></div>
       <button id="new-list" class="quiet-add">+ New list</button>
       <div class="side-bottom">
-        <button data-page="settings">Settings & sync</button
+        <button data-page="settings">Settings</button
         ><button id="sync-status" class="sync-indicator" aria-label="Sync status" title="Saved on this PC">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M6 17a4 4 0 0 1-1-7.9A6 6 0 0 1 17 7a5 5 0 0 1 1 10M8 17l3 3 5-6" />
@@ -48,7 +47,7 @@
     </aside>
     <main>
       <header>
-        <span id="breadcrumb">Your space / Today</span
+        <span class="header-space"></span
         ><button id="evening-review" aria-label="Evening review" title="Evening review">☾</button
         ><button id="new-task" class="primary">+ Add</button>
       </header>
@@ -60,19 +59,12 @@
     <dialog id="editor">
       <form id="task-form">
         <div class="dialog-head">
-          <h2 id="editor-title">A little intention</h2>
+          <h2 id="editor-title">New Task</h2>
           <button type="button" data-close aria-label="Close">×</button>
         </div>
-        <label
-          >What would you like to do?<input
-            name="title"
-            required
-            maxlength="500"
-            placeholder="Give it a clear, small next step"
-            autofocus
-        /></label>
+        <label>Title<input name="title" required maxlength="500" autofocus /></label>
         <details class="capture-options">
-          <summary>When & repeat</summary>
+          <summary>Date & time</summary>
           <div class="fields">
             <label>Day<input name="date" type="date" /></label
             ><label>Time (optional)<input name="time" type="time" /></label
@@ -92,9 +84,7 @@
         <details class="capture-options">
           <summary>More options</summary>
           <label>List<select name="listID" aria-label="List"></select></label
-          ><label
-            >Notes<textarea name="notes" rows="3" placeholder="Anything that helps you get started"></textarea>
-          </label>
+          ><label>Notes<textarea name="notes" rows="3"></textarea></label>
           <div class="fields">
             <label
               >Priority<select name="priority">
@@ -111,19 +101,19 @@
           <button type="button" id="save-overlap">Save anyway</button>
         </div>
         <footer>
-          <button type="button" id="move-task" hidden>Move to non-negotiables</button
-          ><button type="button" id="delete-task" class="danger" hidden>Delete task</button
-          ><button type="button" data-close>Cancel</button><button class="primary" type="submit">Save task</button>
+          <button type="button" id="move-task" hidden>Make it a Habit</button
+          ><button type="button" id="delete-task" class="danger" hidden>Delete</button
+          ><button type="button" data-close>Cancel</button><button class="primary" type="submit">Save</button>
         </footer>
       </form>
     </dialog>
     <dialog id="habit-editor">
       <form id="habit-form">
         <div class="dialog-head">
-          <h2>Make room for a habit</h2>
+          <h2 id="habit-editor-title">New Habit</h2>
           <button type="button" data-close aria-label="Close">×</button>
         </div>
-        <label>Habit<input name="title" required maxlength="500" placeholder="Read a few pages" /></label>
+        <label>Title<input name="title" required maxlength="500" /></label>
         <div class="fields">
           <label
             >Frequency<select name="frequency">
@@ -133,16 +123,16 @@
           ><label>Target<input name="target" type="number" min="1" max="1000" value="1" required /></label>
         </div>
         <footer>
-          <button type="button" id="move-habit" hidden>Move to to-dos</button
-          ><button type="button" id="delete-habit" class="danger" hidden>Delete habit</button
-          ><button class="primary" type="submit">Save habit</button>
+          <button type="button" id="move-habit" hidden>Make it a Task</button
+          ><button type="button" id="delete-habit" class="danger" hidden>Delete</button
+          ><button class="primary" type="submit">Save</button>
         </footer>
       </form>
     </dialog>
     <dialog id="list-editor">
       <form id="list-form">
         <div class="dialog-head">
-          <h2>Your list</h2>
+          <h2 id="list-editor-title">New List</h2>
           <button type="button" data-close aria-label="Close">×</button>
         </div>
         <label>Name<input name="name" required maxlength="100" placeholder="Personal" /></label
@@ -155,17 +145,17 @@
           </select></label
         >
         <div id="list-delete-confirm" hidden>
-          <p>Delete this list? Its to-dos will move to Inbox.</p>
-          <button type="button" class="danger" id="confirm-delete-list">Delete list and keep to-dos</button>
+          <p>Delete this list? Its tasks move to Inbox.</p>
+          <button type="button" class="danger" id="confirm-delete-list">Delete List, Keep Tasks</button>
         </div>
         <footer>
           <button type="button" class="danger" id="delete-list" hidden>Delete list</button
-          ><button class="primary">Save list</button>
+          ><button class="primary">Save</button>
         </footer>
       </form>
     </dialog>
     <div id="undo-toast" class="undo-toast" hidden>
-      <span>Change saved</span><button id="undo-change">Undo</button
+      <span>Saved</span><button id="undo-change">Undo</button
       ><button id="dismiss-undo" aria-label="Dismiss Undo">×</button>
     </div>
     <dialog id="password-editor">
@@ -188,9 +178,9 @@
     </dialog>
     <dialog id="review-editor">
       <form id="review-form">
-        <h2>A little reflection</h2>
+        <h2>Evening Review</h2>
         <p id="review-summary"></p>
-        <h3>Choose up to three for tomorrow</h3>
+        <h3>Pick up to three for tomorrow</h3>
         <div id="review-items"></div>
         <footer>
           <button type="button" data-close>Close</button><button class="primary" type="submit">Plan tomorrow</button>

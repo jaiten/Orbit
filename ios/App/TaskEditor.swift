@@ -30,7 +30,7 @@ struct TaskEditor: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Task name", text: $title, axis: .vertical).font(.title3).accessibilityIdentifier("task-title-input")
+                    TextField("Title", text: $title, axis: .vertical).font(.title3).accessibilityIdentifier("task-title-input")
                     TextField("Notes", text: $notes, axis: .vertical).lineLimit(3...8)
                     Picker("List", selection: $listID) {
                         Text("Inbox").tag(nil as UUID?)
@@ -86,12 +86,12 @@ struct TaskEditor: View {
                     Section { DisclosureGroup("More actions") {
                         Button("Send to calendar", systemImage: "calendar.badge.plus") { Task { do { calendarDraft = try await CalendarBridge.shared.draft(for: task) } catch { self.error = error.localizedDescription } } }
                         Button("Start focus timer", systemImage: "timer") { Task { do { try await FocusSession.shared.start(task); dismiss() } catch { self.error = error.localizedDescription } } }
-                        Button("Make a habit", systemImage: "repeat") { do { try Conversions.toHabit(task, in: context); Task { try? await refreshReminders(context) }; dismiss() } catch { self.error = error.localizedDescription } }
+                        Button("Make It a Habit", systemImage: "repeat") { do { try Conversions.toHabit(task, in: context); Task { try? await refreshReminders(context) }; dismiss() } catch { self.error = error.localizedDescription } }
                     } }
                 }
                 if task != nil { Section { Button("Delete task", role: .destructive) { confirmDelete = true } } }
             }
-            .navigationTitle(task == nil ? "New task" : "Edit task").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle(task == nil ? "New Task" : "Edit Task").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) { Button("Save", action: save).disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
@@ -136,7 +136,7 @@ struct TaskEditor: View {
         do { try Mutations.save(context)
             Task {
                 do { try await refreshReminders(context); dismiss() }
-                catch { self.error = "Your change was saved, but reminders could not update: \(error.localizedDescription)" }
+                catch { self.error = "Saved, but reminders could not update: \(error.localizedDescription)" }
             }
         } catch { self.error = error.localizedDescription }
     }
