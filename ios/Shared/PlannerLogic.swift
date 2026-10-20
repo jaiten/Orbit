@@ -19,6 +19,18 @@ enum PlannerLogic {
     }
 
     static func overlaps(_ start: Date, _ end: Date, _ otherStart: Date, _ otherEnd: Date) -> Bool { start < otherEnd && otherStart < end }
+    static func consistencySeries(habits: [Habit], logs: [HabitLog], ending: Date, days: Int, calendar: Calendar = .current) -> [Double] {
+        var counts: [String: [UUID: Int]] = [:]
+        for log in logs { counts[log.dayKey, default: [:]][log.habitID, default: 0] += log.count }
+        return (0..<max(0, days)).reversed().map { offset in
+            let day = calendar.date(byAdding: .day, value: -offset, to: ending)!
+            let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: day))!
+            let active = habits.filter { $0.createdAt < end }
+            guard !active.isEmpty else { return 0 }
+            let daily = counts[dayKey(day, calendar: calendar)] ?? [:]
+            return active.reduce(0.0) { $0 + min(1, Double(daily[$1.id] ?? 0) / Double(dailyTarget($1))) } / Double(active.count)
+        }
+    }
     static func dailyProgress(_ habit: Habit, logs: [HabitLog], at date: Date, calendar: Calendar = .current) -> Int {
         logs.filter { $0.habitID == habit.id && $0.dayKey == dayKey(date, calendar: calendar) }.reduce(0) { $0 + $1.count }
     }

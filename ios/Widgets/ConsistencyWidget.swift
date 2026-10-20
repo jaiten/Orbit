@@ -19,7 +19,7 @@ struct ConsistencyEntry: TimelineEntry {
 struct ConsistencyProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> ConsistencyEntry { ConsistencyEntry(date: .now, day: .placeholder, range: .week) }
     func snapshot(for configuration: ConsistencyConfiguration, in context: Context) async -> ConsistencyEntry {
-        let day = await MainActor.run { DayProvider.read() }
+        let day = await MainActor.run { DayProvider.read(includeStreak: false) }
         return ConsistencyEntry(date: day.date, day: day, range: configuration.range)
     }
     func timeline(for configuration: ConsistencyConfiguration, in context: Context) async -> Timeline<ConsistencyEntry> {

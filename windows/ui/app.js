@@ -136,3 +136,7 @@ $('#review-form').onsubmit=e=>{e.preventDefault();const ids=[...e.target.querySe
  });};
 
 $('#save-overlap').onclick=()=>{$('#task-form').dataset.allowOverlap='yes';$('#task-form').requestSubmit();};
+
+let lastCalendarDay=dayKey(new Date());
+function refreshCalendarDay(){const now=dayKey(new Date());if(now===lastCalendarDay)return;if(selected===lastCalendarDay)selected=now;lastCalendarDay=now;if(interacting()){pendingRender=true;}else render();}
+window.addEventListener('focus',refreshCalendarDay);setInterval(refreshCalendarDay,60000);

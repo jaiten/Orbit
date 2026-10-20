@@ -52,6 +52,7 @@ struct ConsistencyStrip: View {
     @AppStorage("consistencyRange") private var range = 7
     private var days: [Date] { (0..<range).reversed().map { Calendar.current.date(byAdding: .day, value: -$0, to: .now)! } }
     var body: some View {
+        let fractions = PlannerLogic.consistencySeries(habits: habits, logs: logs, ending: .now, days: range)
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("Small steps add up").font(.subheadline.weight(.semibold))
@@ -62,8 +63,8 @@ struct ConsistencyStrip: View {
                 }.accessibilityLabel("Consistency range")
             }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 5), count: range == 7 ? 7 : 10), spacing: 6) {
-                ForEach(days, id: \.self) { day in
-                    let ratio = PlannerLogic.dailyConsistency(habits: habits, logs: logs, on: day)
+                ForEach(Array(days.enumerated()), id: \.offset) { index, day in
+                    let ratio = fractions[index]
                     VStack(spacing: 4) {
                         RoundedRectangle(cornerRadius: 5).fill(DayTheme.accentColor(accentTheme).opacity(0.10))
                             .overlay(alignment: .bottom) { GeometryReader { proxy in

@@ -35,7 +35,7 @@ struct DayProvider: TimelineProvider {
             completion(Timeline(entries: [entry], policy: .after(refresh)))
         }
     }
-    @MainActor static func read() -> DayEntry {
+    @MainActor static func read(includeStreak: Bool = true) -> DayEntry {
         do {
             let container = try Persistence.makeContainer()
             let context = ModelContext(container)
@@ -58,7 +58,7 @@ struct DayProvider: TimelineProvider {
                     subtitle: "\(PlannerLogic.progress($0, logs: logs, at: .now))/\($0.target)", habit: true, date: nil)
             }
             return DayEntry(date: .now, items: taskItems + habitItems, completedHabits: habits.count - habitItems.count,
-                totalHabits: habits.count, streak: habits.map { PlannerLogic.streak($0, logs: logs) }.max() ?? 0, consistency: (-29...0).map { PlannerLogic.dailyConsistency(habits: habits, logs: logs, on: Calendar.current.date(byAdding: .day, value: $0, to: .now)!) })
+                totalHabits: habits.count, streak: includeStreak ? (habits.map { PlannerLogic.streak($0, logs: logs) }.max() ?? 0) : 0, consistency: PlannerLogic.consistencySeries(habits: habits, logs: logs, ending: .now, days: 30))
         } catch { return DayEntry(date: .now, items: [], completedHabits: 0, totalHabits: 0, streak: 0, unavailable: true) }
     }
 }
