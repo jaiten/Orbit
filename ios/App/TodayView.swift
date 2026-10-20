@@ -3,6 +3,7 @@ import SwiftData
 import EventKit
 
 struct TodayView: View {
+    @AppStorage("accentTheme") private var accentTheme = "coral"
     @Environment(\.modelContext) private var context
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -59,7 +60,7 @@ struct TodayView: View {
                 .padding(.horizontal, 20).padding(.bottom, 16).frame(maxWidth: 760).frame(maxWidth: .infinity)
             }
 
-            .background(DayTheme.canvas(scheme))
+            .background(DayTheme.canvas(scheme)).tint(DayTheme.accentColor(accentTheme))
             .navigationTitle("Today").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarLeading) { Button { customizing = true } label: { Image(systemName: "slider.horizontal.3") }.accessibilityLabel("Edit Today") }; ToolbarItem(placement: .topBarTrailing) { SyncIndicator() } }
             .safeAreaInset(edge: .bottom, alignment: .trailing, spacing: 0) {
@@ -207,7 +208,7 @@ struct CheckTile: View {
             .background(.background, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(.primary.opacity(0.035)))
             .offset(x: max(-76, min(0, CGFloat(actionEdge == -1 ? -70 : 0) + dragOffset)))
-        }.background(Color.red, in: RoundedRectangle(cornerRadius: 18)).clipShape(RoundedRectangle(cornerRadius: 18))
+        }.background(actionEdge == -1 || dragOffset < 0 ? Color.red : Color.clear, in: RoundedRectangle(cornerRadius: 18)).clipShape(RoundedRectangle(cornerRadius: 18))
         .contentShape(Rectangle())
         .simultaneousGesture(DragGesture(minimumDistance: 10)
             .updating($gestureActive) { _, active, _ in active = true }
@@ -231,6 +232,7 @@ struct CheckTile: View {
 }
 
 struct TaskRow: View {
+    @AppStorage("accentTheme") private var accentTheme = "coral"
     @Environment(\.modelContext) private var context
     let task: PlannerTask
     var dragEnabled = false
@@ -245,7 +247,7 @@ struct TaskRow: View {
         return parts.joined(separator: " · ")
     }
     var body: some View {
-        CheckTile(title: task.title, subtitle: subtitle, done: task.completedAt != nil, color: DayTheme.accent,
+        CheckTile(title: task.title, subtitle: subtitle, done: task.completedAt != nil, color: DayTheme.accentColor(accentTheme),
             completionLabel: (task.completedAt == nil ? "Complete " : "Reopen ") + task.title, moveLabel: "Make non-negotiable",
             toggle: { change { try Mutations.toggle(task, in: context); feedback += 1; if task.completedAt != nil { Task { await FocusSession.shared.stopIfMatching(task.id) } } } }, edit: edit,
             remove: { change { context.delete(task); try Mutations.save(context) } }, move: { change { try Conversions.toHabit(task, in: context) } })

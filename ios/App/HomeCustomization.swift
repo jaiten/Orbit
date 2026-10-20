@@ -45,6 +45,7 @@ struct HomeLayoutEditor: View {
 }
 
 struct ConsistencyStrip: View {
+    @AppStorage("accentTheme") private var accentTheme = "coral"
     let habits: [Habit]
     let logs: [HabitLog]
     @AppStorage("consistencyRange") private var range = 7
@@ -63,9 +64,9 @@ struct ConsistencyStrip: View {
                 ForEach(days, id: \.self) { day in
                     let ratio = PlannerLogic.dailyConsistency(habits: habits, logs: logs, on: day)
                     VStack(spacing: 4) {
-                        RoundedRectangle(cornerRadius: 5).fill(DayTheme.accent.opacity(0.10))
+                        RoundedRectangle(cornerRadius: 5).fill(DayTheme.accentColor(accentTheme).opacity(0.10))
                             .overlay(alignment: .bottom) { GeometryReader { proxy in
-                                VStack { Spacer(minLength: 0); DayTheme.accent.frame(height: proxy.size.height * ratio) }
+                                VStack { Spacer(minLength: 0); DayTheme.accentColor(accentTheme).frame(height: proxy.size.height * ratio) }
                             }.clipShape(RoundedRectangle(cornerRadius: 5)) }
                             .frame(height: range == 7 ? 30 : 20)
                         if range == 7 { Text(day.formatted(.dateTime.weekday(.narrow))).font(.caption2).foregroundStyle(.secondary) }
@@ -79,9 +80,10 @@ struct ConsistencyStrip: View {
 }
 
 struct OrbitMark: View {
+    @AppStorage("accentTheme") private var accentTheme = "coral"
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 12).fill(DayTheme.accent)
+            RoundedRectangle(cornerRadius: 12).fill(DayTheme.accentColor(accentTheme))
             Circle().trim(from: 0, to: 0.75).stroke(.white, style: StrokeStyle(lineWidth: 4.5, lineCap: .round)).frame(width: 23, height: 23)
             Circle().fill(.white).frame(width: 6, height: 6).offset(x: 9, y: -9)
         }.frame(width: 48, height: 48).accessibilityHidden(true)

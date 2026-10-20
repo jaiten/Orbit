@@ -3,6 +3,7 @@ import SwiftData
 import EventKit
 
 struct CalendarView: View {
+    @AppStorage("accentTheme") private var accentTheme = "coral"
     @Environment(\.modelContext) private var context
     @Environment(\.colorScheme) private var scheme
     @Query(sort: \PlannerTask.sortOrder) private var tasks: [PlannerTask]
@@ -64,7 +65,7 @@ struct CalendarView: View {
                     }
                     Text("Drag a task onto a day to move it. Edit a task to change its time.").font(.caption).foregroundStyle(.secondary)
                 }.padding(20).frame(maxWidth: 760).frame(maxWidth: .infinity)
-            }.background(DayTheme.canvas(scheme)).navigationTitle("Calendar").navigationBarTitleDisplayMode(.inline)
+            }.background(DayTheme.canvas(scheme)).tint(DayTheme.accentColor(accentTheme)).navigationTitle("Calendar").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) { Button("Today") { selected = .now } }
                     ToolbarItem(placement: .topBarTrailing) { Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("New task") }
