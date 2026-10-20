@@ -70,6 +70,14 @@ const fs=require('node:fs');const os=require('node:os');const path=require('node
   await p.evaluate(async()=>{const r=(await window.orbit.read()).records.find(r=>r.payload.title==='Wash car');await window.orbit.put(r.key,{...r.payload,notes:'Synced while menu is open'});});
   await p.getByRole('button',{name:'To-do',exact:true}).click();
   await p.getByRole('button',{name:'Cancel',exact:true}).click();
+  await p.getByRole('button',{name:'Settings & sync',exact:true}).click();
+  const backupFile=path.join(folder,'planner-backup.json');
+  await app.evaluate(({dialog},file)=>{dialog.showSaveDialog=async()=>({canceled:false,filePath:file});dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]});},backupFile);
+  await p.getByRole('button',{name:'Export planner',exact:true}).click();await p.getByText('Backup saved',{exact:true}).waitFor();
+  const backup=JSON.parse(fs.readFileSync(backupFile,'utf8'));backup.records.find(r=>r.payload.title==='Wash car').payload.title='Wash car restored';fs.writeFileSync(backupFile,JSON.stringify(backup));
+  await p.getByRole('button',{name:'Import backup',exact:true}).click();await p.getByRole('button',{name:'Import and merge',exact:true}).click();await p.getByText('Backup imported',{exact:true}).waitFor();
+  await p.locator('[data-page="today"]').click();await p.getByRole('checkbox',{name:'Complete Wash car restored',exact:true}).waitFor();
+  await p.getByRole('button',{name:'Undo',exact:true}).click();await p.getByRole('checkbox',{name:'Complete Wash car',exact:true}).waitFor();
   await p.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});
   await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setSize(900,700));
   if(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Horizontal overflow at compact window size');
@@ -78,6 +86,10 @@ const fs=require('node:fs');const os=require('node:os');const path=require('node
   await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setSize(1320,900));
   await p.screenshot({path:path.resolve(__dirname,'../assets/desktop-preview.png'),fullPage:true});
   if(errors.length)throw Error(errors.join('\n'));await app.close();app=await electron.launch(options);const q=await app.firstWindow();await q.getByText('1 completed',{exact:true}).waitFor();await q.getByText('0 / 1 today',{exact:true}).waitFor();
+  const late=new Date();late.setHours(23,59,0,0);await q.clock.install({time:late});
+  await q.evaluate(async()=>{const id='33333333-3333-4333-8333-333333333333';await window.orbit.put('habits/'+id,{id,title:'Midnight gym',frequencyRule:'WEEKLY',target:5,color:'sage',icon:'leaf',createdAt:Date.now(),updatedAt:Date.now()});});
+  await q.getByRole('checkbox',{name:'Log Midnight gym',exact:true}).click();await q.getByRole('checkbox',{name:'Undo Midnight gym',exact:true}).waitFor();
+  await q.clock.setSystemTime(new Date(late.getTime()+120000));await q.evaluate(()=>window.dispatchEvent(new Event('focus')));await q.getByRole('checkbox',{name:'Log Midnight gym',exact:true}).waitFor();
   console.log('PASS: conversion round trip,  native desktop lists, task editing/completion, habit log/undo, compact dark layout, settings and offline restart');
  }finally{if(app)await app.close();fs.rmSync(folder,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});

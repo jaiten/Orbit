@@ -32,6 +32,7 @@ import SwiftData
         let future = Habit(title: "Future"); future.createdAt = date(2026, 9, 16)
         let logs = [HabitLog(habitID: water.id, dayKey: "2026-09-14", count: 2), HabitLog(habitID: read.id, dayKey: "2026-09-14")]
         XCTAssertEqual(PlannerLogic.dailyConsistency(habits: [water, read, future], logs: logs, on: date(2026, 9, 14), calendar: calendar), 0.75, accuracy: 0.001)
+        XCTAssertEqual(PlannerLogic.consistencySeries(habits: [water, read, future], logs: logs, ending: date(2026, 9, 14), days: 30, calendar: calendar).last!, 0.75, accuracy: 0.001)
         XCTAssertEqual(PlannerLogic.dailyConsistency(habits: [], logs: logs, on: earlier), 0)
     }
     func testWeekdayAndWeekendRecurrence() {

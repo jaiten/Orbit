@@ -48,13 +48,13 @@ struct HabitConsistencyWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: kind, intent: ConsistencyConfiguration.self, provider: ConsistencyProvider()) { entry in
             let count = entry.range == .month || (entry.range == .followApp && DayTheme.sharedDefaults?.integer(forKey: "consistencyRange") == 30) ? 30 : 7
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 8) {
                 HStack { Text("Orbit").font(.headline); Spacer(); Image(systemName: "leaf").foregroundStyle(DayTheme.accent) }
                 if entry.day.unavailable { Text("Open Orbit to set up your planner.").font(.caption) }
                 else {
                     Text(count == 7 ? "Your past week" : "Your past month").font(.caption).foregroundStyle(.secondary)
                     ConsistencyWidgetGrid(values: entry.day.consistency.isEmpty ? Array(repeating: 0, count: count) : Array(entry.day.consistency.suffix(count)))
-                    Text("\(entry.day.completedHabits)/\(entry.day.totalHabits) checked today").font(.caption2).foregroundStyle(.secondary)
+                    Text("\(entry.day.completedHabits)/\(entry.day.totalHabits) checked today").lineLimit(1).minimumScaleFactor(0.8).font(.caption2).foregroundStyle(.secondary)
                 }
             }.containerBackground(for: .widget) { Color(uiColor: .systemBackground) }.widgetURL(URL(string: "orbit://today"))
         }.configurationDisplayName("Habit consistency").description("Small steps, over a week or a month. Hold the widget and choose Edit Widget to change its range.")

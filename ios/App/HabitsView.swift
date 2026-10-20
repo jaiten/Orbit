@@ -66,7 +66,7 @@ struct HabitHeatmap: View {
         LazyHGrid(rows: Array(repeating: GridItem(.fixed(12), spacing: 4), count: 7), spacing: 4) {
             ForEach(days, id: \.self) { day in
                 let count = logs.filter { $0.habitID == habit.id && $0.dayKey == PlannerLogic.dayKey(day) }.reduce(0) { $0 + $1.count }
-                RoundedRectangle(cornerRadius: 3).fill(DayTheme.color(habit.color).opacity(count == 0 ? 0.10 : min(1, 0.35 + Double(count) / Double(habit.target) * 0.65)))
+                RoundedRectangle(cornerRadius: 3).fill(DayTheme.color(habit.color).opacity(count == 0 ? 0.10 : min(1, 0.35 + Double(count) / Double(PlannerLogic.dailyTarget(habit)) * 0.65)))
                     .frame(width: 12, height: 12)
                     .accessibilityLabel("\(day.formatted(date: .abbreviated, time: .omitted)): \(count) completions")
             }

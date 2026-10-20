@@ -57,4 +57,27 @@ final class ChecklistUITests: XCTestCase {
         let screenshot = XCTAttachment(screenshot: app.screenshot()); screenshot.name = "Completed checklist tile"; screenshot.lifetime = .keepAlways; add(screenshot)
     }
 
+    private func reveal(_ element: XCUIElement, in app: XCUIApplication) {
+        for _ in 0..<8 { if element.isHittable { return }; app.swipeUp() }
+    }
+
+    func testNativeThemeMenusAndSeparateHabitHistory() {
+        continueAfterFailure = false
+        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
+        XCTAssertTrue(app.tabBars.buttons["Settings"].waitForExistence(timeout: 15)); app.tabBars.buttons["Settings"].tap()
+        reveal(app.buttons["Sage"], in: app); app.buttons["Sage"].tap()
+        XCTAssertTrue(app.buttons["Sage, selected"].waitForExistence(timeout: 5))
+        reveal(app.buttons["Appearance"], in: app); app.buttons["Appearance"].tap(); app.buttons["Light"].tap()
+        XCTAssertEqual(app.buttons["Appearance"].value as? String, "Light")
+        let image = XCTAttachment(screenshot: app.screenshot()); image.name = "Sage appearance controls"; image.lifetime = .keepAlways; add(image)
+        app.tabBars.buttons["Habits"].tap(); app.buttons["New habit"].tap()
+        let title = app.textFields["habit-title-input"]; XCTAssertTrue(title.waitForExistence(timeout: 5)); title.tap(); title.typeText("A small routine")
+        app.navigationBars.buttons["Save"].tap()
+        XCTAssertTrue(app.buttons["Habit history"].waitForExistence(timeout: 5)); app.buttons["Habit history"].tap()
+        app.buttons["A small routine"].tap()
+        XCTAssertTrue(app.navigationBars["A small routine"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["Settings"].tap(); reveal(app.buttons["Coral"], in: app); app.buttons["Coral"].tap()
+        app.buttons["Appearance"].tap(); app.buttons["System"].tap()
+    }
+
 }
