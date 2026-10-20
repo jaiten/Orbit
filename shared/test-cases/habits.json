@@ -1,0 +1,131 @@
+{
+  "description": "Habit schedule rules. Run by windows/tests/habits.test.cjs and ios/Tests/SharedCaseTests.swift. 2026-10-19 is a Monday. weekStart uses 0 = Sunday, 1 = Monday.",
+  "cases": [
+    {
+      "name": "daily habit is due every day and resets at midnight",
+      "habit": { "frequencyRule": "DAILY", "target": 1 },
+      "logs": [{ "dayKey": "2026-10-19", "count": 1 }],
+      "day": "2026-10-20",
+      "weekStart": 0,
+      "expect": { "due": true, "checked": false, "progress": 0, "lastSeven": 1 }
+    },
+    {
+      "name": "daily target counts check-ins on that day only",
+      "habit": { "frequencyRule": "DAILY", "target": 3 },
+      "logs": [
+        { "dayKey": "2026-10-20", "count": 2 },
+        { "dayKey": "2026-10-19", "count": 3 }
+      ],
+      "day": "2026-10-20",
+      "weekStart": 0,
+      "expect": { "due": true, "checked": false, "progress": 2, "lastSeven": 1 }
+    },
+    {
+      "name": "weekday habit is not due on Saturday",
+      "habit": { "frequencyRule": "WEEKDAYS", "target": 1 },
+      "logs": [],
+      "day": "2026-10-24",
+      "weekStart": 0,
+      "expect": { "due": false, "checked": false, "progress": 0, "lastSeven": 0 }
+    },
+    {
+      "name": "weekday habit is due on Friday",
+      "habit": { "frequencyRule": "WEEKDAYS", "target": 1 },
+      "logs": [{ "dayKey": "2026-10-23", "count": 1 }],
+      "day": "2026-10-23",
+      "weekStart": 0,
+      "expect": { "due": true, "checked": true, "progress": 1, "lastSeven": 1 }
+    },
+    {
+      "name": "weekend habit is due on Sunday, not Monday",
+      "habit": { "frequencyRule": "WEEKENDS", "target": 1 },
+      "logs": [],
+      "day": "2026-10-25",
+      "weekStart": 0,
+      "expect": { "due": true, "checked": false, "progress": 0, "lastSeven": 0 }
+    },
+    {
+      "name": "weekend habit is not due on Monday",
+      "habit": { "frequencyRule": "WEEKENDS", "target": 1 },
+      "logs": [],
+      "day": "2026-10-19",
+      "weekStart": 0,
+      "expect": { "due": false, "checked": false, "progress": 0, "lastSeven": 0 }
+    },
+    {
+      "name": "weekly habit counts the week and resets each day's tick",
+      "habit": { "frequencyRule": "WEEKLY", "target": 3 },
+      "logs": [
+        { "dayKey": "2026-10-19", "count": 1 },
+        { "dayKey": "2026-10-20", "count": 1 }
+      ],
+      "day": "2026-10-21",
+      "weekStart": 0,
+      "expect": { "due": true, "checked": false, "progress": 2, "lastSeven": 2 }
+    },
+    {
+      "name": "weekly habit stops asking once the week's target is met",
+      "habit": { "frequencyRule": "WEEKLY", "target": 2 },
+      "logs": [
+        { "dayKey": "2026-10-19", "count": 1 },
+        { "dayKey": "2026-10-20", "count": 1 }
+      ],
+      "day": "2026-10-22",
+      "weekStart": 0,
+      "expect": { "due": false, "checked": false, "progress": 2, "lastSeven": 2 }
+    },
+    {
+      "name": "weekly habit stays visible on the day it was checked",
+      "habit": { "frequencyRule": "WEEKLY", "target": 2 },
+      "logs": [
+        { "dayKey": "2026-10-19", "count": 1 },
+        { "dayKey": "2026-10-20", "count": 1 }
+      ],
+      "day": "2026-10-20",
+      "weekStart": 0,
+      "expect": { "due": true, "checked": true, "progress": 2, "lastSeven": 2 }
+    },
+    {
+      "name": "weekly progress resets at the start of the week (Sunday start)",
+      "habit": { "frequencyRule": "WEEKLY", "target": 2 },
+      "logs": [
+        { "dayKey": "2026-10-23", "count": 1 },
+        { "dayKey": "2026-10-24", "count": 1 }
+      ],
+      "day": "2026-10-25",
+      "weekStart": 0,
+      "expect": { "due": true, "checked": false, "progress": 0, "lastSeven": 2 }
+    },
+    {
+      "name": "weekly progress follows a Monday week start",
+      "habit": { "frequencyRule": "WEEKLY", "target": 2 },
+      "logs": [
+        { "dayKey": "2026-10-24", "count": 1 },
+        { "dayKey": "2026-10-25", "count": 1 }
+      ],
+      "day": "2026-10-25",
+      "weekStart": 1,
+      "expect": { "due": true, "checked": true, "progress": 2, "lastSeven": 2 }
+    },
+    {
+      "name": "missed days only lower the count, nothing breaks",
+      "habit": { "frequencyRule": "DAILY", "target": 1 },
+      "logs": [
+        { "dayKey": "2026-10-14", "count": 1 },
+        { "dayKey": "2026-10-16", "count": 1 },
+        { "dayKey": "2026-10-20", "count": 1 }
+      ],
+      "day": "2026-10-20",
+      "weekStart": 0,
+      "expect": { "due": true, "checked": true, "progress": 1, "lastSeven": 3 }
+    },
+    {
+      "name": "unknown schedules are treated as daily",
+      "habit": { "frequencyRule": "FREQ=HOURLY", "target": 1 },
+      "logs": [],
+      "day": "2026-10-24",
+      "weekStart": 0,
+      "expect": { "due": true, "checked": false, "progress": 0, "lastSeven": 0 }
+    }
+  ]
+}

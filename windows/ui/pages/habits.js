@@ -15,18 +15,35 @@ function renderHistoryIndex(habits) {
   );
 }
 
+function consistencyStrip(h, end = dayKey(new Date())) {
+  const cells = Array.from({ length: 7 }, (_, i) => {
+    const key = OrbitHabits.addDays(end, i - 6);
+    const done = checked(h, key);
+    const scheduled = OrbitHabits.scheduledOn(h, key);
+    const name = localDay(key).toLocaleDateString([], { weekday: "narrow" });
+    const status = done ? "checked" : scheduled ? "not checked" : "not scheduled";
+    return `<span class="strip-day ${done ? "done" : ""} ${scheduled ? "" : "off"}" title="${key}: ${status}"><i></i>${name}</span>`;
+  }).join("");
+  return `<div class="consistency-strip" aria-label="Last 7 days">${cells}</div>`;
+}
+
 function renderHabitHistory(habits) {
   const h = habits.find((h) => h.id === historyHabitID);
   if (!h) return "<h1>Habit deleted</h1>";
+  const today = dayKey(new Date());
+  const lastSeven = OrbitHabits.checkedDays(h, habitLogs(), today, 7);
   const cells = Array.from({ length: 84 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - 83 + i);
-    const key = dayKey(d),
+    const key = OrbitHabits.addDays(today, i - 83),
       n = dailyCount(h, key);
     return `<span class="${n ? "logged" : ""}" title="${key}: ${n}"></span>`;
   }).join("");
-  const period = h.frequencyRule === "WEEKLY" ? "this week" : "today";
-  return `<h1>${esc(h.title)}</h1><p class="subtitle">Last 12 weeks · ${progress(h)} / ${h.target} ${period}</p><div class="heatmap">${cells}</div>`;
+  return `<h1>${esc(h.title)}</h1>
+    <p class="subtitle">${OrbitHabits.label(h)} · ${habitDetail(h, today)}</p>
+    <section class="settings-block">
+      <h2>${lastSeven} of the last 7 days</h2>
+      ${consistencyStrip(h, today)}
+    </section>
+    <section class="settings-block"><h2>Last 12 weeks</h2><div class="heatmap">${cells}</div></section>`;
 }
 
 function bindHabits() {

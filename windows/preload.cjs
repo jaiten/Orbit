@@ -12,4 +12,5 @@ contextBridge.exposeInMainWorld("orbit", {
   resolve: (key, choice) => ipcRenderer.invoke("resolve", { key, choice }),
   onSyncStatus: (callback) => ipcRenderer.on("sync-status", (_, value) => callback(value)),
   onChange: (callback) => ipcRenderer.on("changed", () => callback()),
+  onWake: (callback) => ipcRenderer.on("wake", () => callback()),
 });

@@ -1,8 +1,9 @@
-function renderToday(tasks, habits) {
+function renderToday(tasks, allHabits) {
   const relevant = tasks.filter(
     (t) =>
       (!taskDate(t) || taskDate(t) <= selected) && (!t.completedAt || dayKey(new Date(t.completedAt)) === selected),
   );
+  const habits = allHabits.filter((h) => dueOn(h));
   const active = relevant.filter((t) => !t.completedAt),
     complete = relevant.filter((t) => t.completedAt),
     pendingHabits = habits.filter((h) => !checked(h)),
@@ -10,15 +11,8 @@ function renderToday(tasks, habits) {
   const done = complete.length + doneHabits.length,
     total = relevant.length + habits.length;
   const date = localDay(selected);
-  const oneOff = active
-    .filter((t) => !t.recurrenceRule)
-    .map(taskRow)
-    .join("");
-  const routine =
-    active
-      .filter((t) => t.recurrenceRule)
-      .map(taskRow)
-      .join("") + pendingHabits.map(habitCard).join("");
+  const oneOff = active.map(taskRow).join("");
+  const routine = pendingHabits.map(habitCard).join("");
   const completed = complete.length + doneHabits.length;
   const heading = selected === dayKey(new Date()) ? "Today" : date.toLocaleDateString([], { weekday: "long" });
   const eyebrow = date.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }).toUpperCase();

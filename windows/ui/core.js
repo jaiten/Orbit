@@ -140,26 +140,33 @@ document.addEventListener("toggle", flushPending, true);
 document.addEventListener("close", flushPending, true);
 document.addEventListener("focusout", () => setTimeout(flushPending, 0));
 
+// Week start follows the system locale (Sunday or Monday), like iOS.
+const weekStart = (() => {
+  try {
+    const locale = new Intl.Locale(navigator.language);
+    const info = locale.getWeekInfo?.() ?? locale.weekInfo;
+    return (info?.firstDay ?? 7) % 7;
+  } catch {
+    return 0;
+  }
+})();
+const habitLogs = () => rows("habit_logs");
 function dailyCount(h, date = selected) {
-  return rows("habit_logs")
-    .filter((l) => l.habitID === h.id && l.dayKey === date)
-    .reduce((s, l) => s + l.count, 0);
+  return OrbitHabits.dayCount(h, habitLogs(), date);
 }
 function checked(h, date = selected) {
-  return dailyCount(h, date) >= (h.frequencyRule === "WEEKLY" ? 1 : h.target);
+  return OrbitHabits.checkedOn(h, habitLogs(), date);
 }
 function progress(h, date = selected) {
-  const d = localDay(date),
-    start = new Date(d),
-    end = new Date(d);
-  if (h.frequencyRule === "WEEKLY") {
-    start.setDate(d.getDate() - d.getDay());
-    end.setTime(start.getTime());
-    end.setDate(start.getDate() + 7);
-  } else end.setDate(d.getDate() + 1);
-  return rows("habit_logs")
-    .filter((l) => l.habitID === h.id && l.dayKey >= dayKey(start) && l.dayKey < dayKey(end))
-    .reduce((s, l) => s + l.count, 0);
+  return OrbitHabits.periodProgress(h, habitLogs(), date, weekStart);
+}
+function dueOn(h, date = selected) {
+  return OrbitHabits.dueOn(h, habitLogs(), date, weekStart);
+}
+function habitDetail(h, date = selected) {
+  const schedule = OrbitHabits.schedule(h);
+  const count = `${progress(h, date)} / ${h.target} ${schedule === "WEEKLY" ? "this week" : "today"}`;
+  return schedule === "DAILY" || schedule === "WEEKLY" ? count : `${OrbitHabits.label(h)} · ${count}`;
 }
 
 const pencil =
@@ -169,20 +176,16 @@ const check = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 10 3.2 3.
 function taskRow(t) {
   const time =
     t.hasTime && t.dueDate ? new Date(t.dueDate).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
-  const repeat = t.recurrenceRule
-    ? { "FREQ=DAILY": "Daily", "FREQ=WEEKLY": "Weekly", "FREQ=MONTHLY": "Monthly" }[t.recurrenceRule] || "Repeating"
-    : "";
   const size = t.title.length <= 22 && !t.hasTime ? "short" : "long";
   return `<div class="task-row check-tile ${size} ${t.completedAt ? "complete" : ""}">
- <button class="tile-toggle" role="checkbox" aria-label="${t.completedAt ? "Reopen" : "Complete"} ${esc(t.title)}" aria-checked="${!!t.completedAt}" data-toggle="${esc(t.id)}"><span class="tick-symbol">${t.completedAt ? check : ""}</span><span class="tile-copy"><span>${esc(t.title)}</span>${time || repeat ? `<small>${time}${time && repeat ? " · " : ""}${repeat}</small>` : ""}</span></button>
+ <button class="tile-toggle" role="checkbox" aria-label="${t.completedAt ? "Reopen" : "Complete"} ${esc(t.title)}" aria-checked="${!!t.completedAt}" data-toggle="${esc(t.id)}"><span class="tick-symbol">${t.completedAt ? check : ""}</span><span class="tile-copy"><span>${esc(t.title)}</span>${time ? `<small>${time}</small>` : ""}</span></button>
  <button class="tile-edit" aria-label="Edit ${esc(t.title)}" data-edit="${esc(t.id)}">${pencil}</button>
  ${page === "lists" ? `<button class="today-action" data-today="${esc(t.id)}">Add to Today</button>` : ""}</div>`;
 }
 function habitCard(h) {
-  const n = progress(h),
-    done = checked(h);
+  const done = checked(h);
   return `<div class="habit-card check-tile ${h.title.length <= 22 ? "short" : "long"} ${done ? "complete" : ""}">
- <button class="tile-toggle" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${esc(h.title)}" aria-checked="${done}" data-habit-toggle="${esc(h.id)}" ${selected > dayKey(new Date()) ? "disabled" : ""}><span class="tick-symbol">${done ? check : ""}</span><span class="tile-copy"><span>${esc(h.title)}</span><small>${n} / ${h.target} ${h.frequencyRule === "WEEKLY" ? "this week" : "today"}</small></span></button>
+ <button class="tile-toggle" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${esc(h.title)}" aria-checked="${done}" data-habit-toggle="${esc(h.id)}" ${selected > dayKey(new Date()) ? "disabled" : ""}><span class="tick-symbol">${done ? check : ""}</span><span class="tile-copy"><span>${esc(h.title)}</span><small>${habitDetail(h)}</small></span></button>
  <button class="tile-edit" aria-label="Edit ${esc(h.title)}" data-habit-edit="${esc(h.id)}">${pencil}</button></div>`;
 }
 
@@ -210,41 +213,7 @@ function newTask(title, date) {
 async function toggle(id) {
   const t = rows("tasks").find((t) => t.id === id);
   if (!t) return;
-  const was = !!t.completedAt;
-  t.completedAt = was ? null : Date.now();
-  if (!was && !t.nextOccurrenceID && t.recurrenceRule && taskDate(t)) {
-    const d = t.hasTime ? new Date(t.dueDate) : localDay(t.localDate);
-    if (t.recurrenceRule.includes("BYDAY=")) {
-      const allowed = t.recurrenceRule.endsWith("SA,SU") ? [0, 6] : [1, 2, 3, 4, 5];
-      do {
-        d.setDate(d.getDate() + 1);
-      } while (!allowed.includes(d.getDay()));
-    } else if (t.recurrenceRule === "FREQ=MONTHLY") {
-      const day = d.getDate();
-      d.setDate(1);
-      d.setMonth(d.getMonth() + 1);
-      d.setDate(Math.min(day, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()));
-    } else d.setDate(d.getDate() + (t.recurrenceRule === "FREQ=WEEKLY" ? 7 : 1));
-    const next = {
-      ...t,
-      id: crypto.randomUUID(),
-      _key: undefined,
-      conversionData: null,
-      completedAt: null,
-      nextOccurrenceID: null,
-      localDate: dayKey(d),
-      dueDate: t.hasTime ? d.getTime() : null,
-      subtasks: t.subtasks.map((s) => ({ ...s, id: crypto.randomUUID(), completed: false })),
-      reminders: t.reminders.map((r) => r + (d.getTime() - t.dueDate)),
-    };
-    t.nextOccurrenceID = next.id;
-    await api.batch([
-      { key: "tasks/" + next.id, payload: clean(next) },
-      { key: t._key, payload: { ...clean(t), updatedAt: Date.now() } },
-    ]);
-    return;
-  }
-  await put("tasks", { ...t, updatedAt: Date.now() });
+  await put("tasks", { ...t, completedAt: t.completedAt ? null : Date.now(), updatedAt: Date.now() });
 }
 async function log(id, undo) {
   const h = rows("habits").find((h) => h.id === id);

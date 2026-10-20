@@ -39,7 +39,7 @@ const path = require("node:path");
         },
         {
           key: "habit_logs/" + id + "-" + key(yesterday),
-          payload: { id: crypto.randomUUID(), habitID: id, dayKey: key(yesterday), count: 5, updatedAt: Date.now() },
+          payload: { id: crypto.randomUUID(), habitID: id, dayKey: key(yesterday), count: 1, updatedAt: Date.now() },
         },
       ]);
     }, weekly);
@@ -93,7 +93,7 @@ const path = require("node:path");
     if ((await p.getByLabel("Notes").inputValue()) !== "A small, clear commitment")
       throw Error("Conversion lost notes");
     await p.getByRole("button", { name: "Save", exact: true }).click();
-    // A restored recurring task must not lend its habit backup to future occurrences.
+    // A repeating task from an older device becomes a habit with the same ID.
     const original = await p.evaluate(async () => {
       const s = await window.orbit.read();
       return s.records.find((r) => r.key.startsWith("tasks/") && !r.deleted);
@@ -101,12 +101,20 @@ const path = require("node:path");
     await p.evaluate(async (r) => {
       await window.orbit.put(r.key, { ...r.payload, recurrenceRule: "FREQ=DAILY" });
     }, original);
-    await p.getByRole("checkbox", { name: "Complete Read for twenty minutes" }).click();
-    const next = await p.evaluate(async () => {
+    await p.getByRole("checkbox", { name: "Log Read for twenty minutes", exact: true }).waitFor();
+    const migrated = await p.evaluate(async (id) => {
       const s = await window.orbit.read();
-      return s.records.find((r) => r.key.startsWith("tasks/") && !r.deleted && !r.payload.completedAt);
-    });
-    if (!next || next.payload.conversionData) throw Error("Recurring child inherited a different item backup");
+      return s.records.find((r) => r.key === "habits/" + id && !r.deleted);
+    }, original.payload.id);
+    if (migrated?.payload.frequencyRule !== "DAILY") throw Error("Repeating task did not become a daily habit");
+    await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).click();
+    await p.getByRole("button", { name: "Make it a Task", exact: true }).click();
+    await p.getByRole("checkbox", { name: "Complete Read for twenty minutes" }).click();
+    const restored = await p.evaluate(
+      async (id) => (await window.orbit.read()).records.find((r) => r.key === "tasks/" + id),
+      original.payload.id,
+    );
+    if (restored.payload.recurrenceRule) throw Error("Make it a Task restored a repeat");
     await p.getByText("1 completed", { exact: true }).waitFor();
     await p.getByRole("button", { name: "Settings", exact: true }).click();
     await p.getByRole("heading", { name: "Account" }).waitFor();

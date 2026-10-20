@@ -60,4 +60,5 @@ function refreshCalendarDay() {
   else render();
 }
 window.addEventListener("focus", refreshCalendarDay);
+api.onWake(refreshCalendarDay);
 setInterval(refreshCalendarDay, 60000);

@@ -462,3 +462,28 @@ summary {
     scroll-behavior: auto !important;
   }
 }
+.consistency-strip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  max-width: 360px;
+}
+.strip-day {
+  display: grid;
+  gap: 4px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+}
+.strip-day i {
+  height: 28px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.strip-day.done i {
+  background: var(--accent);
+}
+.strip-day.off i {
+  background: transparent;
+  outline: 1px dashed var(--line);
+}

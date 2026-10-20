@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, safeStorage, session, protocol, net, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, safeStorage, session, protocol, net, dialog, powerMonitor } = require("electron");
 const { confirmationNotice } = require("./auth-links.cjs");
 const { PlannerTools, encodeBackup, decodeBackup } = require("./planner-tools.cjs");
 const { createHash, randomBytes } = require("node:crypto");
@@ -7,6 +7,7 @@ const fs = require("node:fs");
 const { pathToFileURL } = require("node:url");
 const { Store } = require("./store.cjs");
 const { Sync } = require("./sync.cjs");
+const { runMigrations } = require("./migrations.cjs");
 const { createClient } = require("@supabase/supabase-js");
 const config = require("./config.json");
 protocol.registerSchemesAsPrivileged([
@@ -60,9 +61,22 @@ app.whenReady().then(async () => {
   if (app.isPackaged && !process.env.ORBIT_TEST_DATA)
     app.setAsDefaultProtocolClient("orbit", process.env.PORTABLE_EXECUTABLE_FILE || process.execPath);
   store = new Store(path.join(app.getPath("userData"), "orbit.sqlite"));
+  const migrate = () => {
+    try {
+      return runMigrations(store) > 0;
+    } catch (e) {
+      console.error("Migration skipped:", e.message);
+      return false;
+    }
+  };
+  migrate();
   const notify = (kind = "data") => {
     if (kind === "status") window?.webContents.send("sync-status", { status: sync.status, syncing: sync.busy });
-    else window?.webContents.send("changed");
+    else {
+      // Records from older devices may still contain repeating tasks.
+      if (migrate()) void sync.run();
+      window?.webContents.send("changed");
+    }
   };
   const tokenPath = path.join(app.getPath("userData"), "session.enc");
   const authKey = config.url
@@ -351,6 +365,8 @@ app.whenReady().then(async () => {
   await window.loadURL("orbit://app");
   if (pendingRecoveryURL) void recoveryHandler();
   window.on("focus", () => void sync.run());
+  // A sleeping PC can miss midnight; tell the page to re-check the day.
+  for (const event of ["resume", "unlock-screen"]) powerMonitor.on(event, () => window?.webContents.send("wake"));
   setInterval(() => void sync.run(), 20000).unref();
   if (client) {
     client

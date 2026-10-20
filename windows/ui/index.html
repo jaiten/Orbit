@@ -70,16 +70,6 @@
             ><label>Time (optional)<input name="time" type="time" /></label
             ><label>Minutes<input name="duration" type="number" min="5" max="1440" value="30" /></label>
           </div>
-          <label
-            >Repeat<select name="recurrence">
-              <option value="">Does not repeat</option>
-              <option value="FREQ=DAILY">Daily</option>
-              <option value="FREQ=WEEKLY">Weekly</option>
-              <option value="FREQ=MONTHLY">Monthly</option>
-              <option value="FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR">Weekdays</option>
-              <option value="FREQ=WEEKLY;BYDAY=SA,SU">Weekends</option>
-            </select></label
-          >
         </details>
         <details class="capture-options">
           <summary>More options</summary>
@@ -116,11 +106,16 @@
         <label>Title<input name="title" required maxlength="500" /></label>
         <div class="fields">
           <label
-            >Frequency<select name="frequency">
+            >Repeats<select name="frequency">
               <option value="DAILY">Daily</option>
+              <option value="WEEKDAYS">Weekdays</option>
+              <option value="WEEKENDS">Weekends</option>
               <option value="WEEKLY">Weekly</option>
             </select></label
-          ><label>Target<input name="target" type="number" min="1" max="1000" value="1" required /></label>
+          ><label
+            ><span id="habit-target-label">Times a day</span
+            ><input name="target" type="number" min="1" max="1000" value="1" required
+          /></label>
         </div>
         <footer>
           <button type="button" id="move-habit" hidden>Make it a Task</button
@@ -188,6 +183,7 @@
       </form>
     </dialog>
     <script src="planning.js"></script>
+    <script src="habits.js"></script>
     <script src="conversions.js"></script>
     <script src="core.js"></script>
     <script src="pages/today.js"></script>

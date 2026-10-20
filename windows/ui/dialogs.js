@@ -18,12 +18,17 @@ function openTask(id, date) {
     editing?.hasTime && editing.dueDate ? new Date(editing.dueDate).toTimeString().slice(0, 5) : "";
   f.elements.duration.value = editing?.durationMinutes || 30;
   f.elements.priority.value = editing?.priority || 0;
-  f.elements.recurrence.value = editing?.recurrenceRule || "";
   $("#editor-title").textContent = editing ? "Edit Task" : "New Task";
   $("#delete-task").hidden = !editing;
   $("#move-task").hidden = !editing;
   $("#editor").showModal();
 }
+
+function updateTargetLabel() {
+  const weekly = $("#habit-form").elements.frequency.value === "WEEKLY";
+  $("#habit-target-label").textContent = weekly ? "Times a week" : "Times a day";
+}
+$("#habit-form").elements.frequency.onchange = updateTargetLabel;
 
 function openHabit(id) {
   editingHabit = rows("habits").find((h) => h.id === id) || null;
@@ -31,7 +36,8 @@ function openHabit(id) {
   f.reset();
   f.elements.title.value = editingHabit?.title || "";
   f.elements.target.value = editingHabit?.target || 1;
-  f.elements.frequency.value = editingHabit?.frequencyRule || "DAILY";
+  f.elements.frequency.value = OrbitHabits.schedule(editingHabit || {});
+  updateTargetLabel();
   $("#habit-editor-title").textContent = editingHabit ? "Edit Habit" : "New Habit";
   $("#delete-habit").hidden = !editingHabit;
   $("#move-habit").hidden = !editingHabit;
@@ -84,7 +90,6 @@ $("#task-form").onsubmit = (e) => {
       dueDate: due,
       durationMinutes: Number(f.elements.duration.value) || 30,
       priority: Number(f.elements.priority.value),
-      recurrenceRule: f.elements.recurrence.value,
       updatedAt: Date.now(),
     });
     $("#editor").close();
@@ -155,7 +160,7 @@ $("#evening-review").onclick = () => {
   $("#review-summary").textContent =
     `${done} ${done === 1 ? "task" : "tasks"} completed · ${habits} ${habits === 1 ? "habit" : "habits"} checked`;
   $("#review-items").innerHTML = rows("tasks")
-    .filter((t) => !t.completedAt && !t.recurrenceRule)
+    .filter((t) => !t.completedAt)
     .map(
       (t) =>
         `<label class="review-item"><input type="checkbox" name="items" value="${esc(t.id)}">${esc(t.title)}</label>`,
