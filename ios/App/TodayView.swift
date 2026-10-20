@@ -180,9 +180,10 @@ struct CheckTile: View {
     var move: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var actionEdge = 0
+    @State private var gestureMoved = false
     var body: some View {
         HStack(spacing: 0) {
-            Button(action: toggle) {
+            Button { if !gestureMoved { toggle() } } label: {
                 HStack(spacing: 10) {
                     Image(systemName: done ? "checkmark.circle.fill" : "circle")
                         .font(.system(size: 23, weight: .regular)).foregroundStyle(done ? color : color.opacity(0.65))
@@ -192,9 +193,9 @@ struct CheckTile: View {
                     }
                     Spacer(minLength: 0)
                 }.padding(.leading, 14).padding(.vertical, 16).frame(maxWidth: .infinity, minHeight: 72, alignment: .leading).contentShape(Rectangle())
-            }.buttonStyle(.plain).accessibilityLabel(completionLabel).accessibilityIdentifier("checklist-title")
+            }.buttonStyle(.plain).accessibilityLabel(completionLabel).accessibilityValue(subtitle).accessibilityIdentifier("checklist-title")
             if actionEdge == 0 {
-                Button(action: edit) { Image(systemName: "pencil").font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary).frame(width: 38, height: 54).contentShape(Rectangle()) }
+                Button { if !gestureMoved { edit() } } label: { Image(systemName: "pencil").font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary).frame(width: 38, height: 54).contentShape(Rectangle()) }
                     .buttonStyle(.plain).accessibilityLabel("Edit " + title)
             } else {
                 Button {
@@ -209,11 +210,15 @@ struct CheckTile: View {
         .background(.background, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(.primary.opacity(0.035)))
         .contentShape(Rectangle())
-        .simultaneousGesture(DragGesture(minimumDistance: 24).onEnded { value in
-            guard abs(value.translation.width) > abs(value.translation.height) * 1.4 else { return }
-            if value.translation.width < -36 { actionEdge = -1 }
-            else if value.translation.width > 36 { actionEdge = 1 }
-        })
+        .simultaneousGesture(DragGesture(minimumDistance: 10)
+            .onChanged { _ in gestureMoved = true }
+            .onEnded { value in
+                if abs(value.translation.width) > abs(value.translation.height) * 1.4 {
+                    if value.translation.width < -36 { actionEdge = -1 }
+                    else if value.translation.width > 36 { actionEdge = 1 }
+                }
+                Task { try? await Task.sleep(for: .milliseconds(150)); gestureMoved = false }
+            })
         .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: actionEdge)
     }
 }

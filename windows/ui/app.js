@@ -9,7 +9,7 @@ function showNotice(message){
  close.onclick=()=>{notice.hidden=true;};notice.replaceChildren(text,close);notice.hidden=false;
 }
 let actionBusy=false; async function action(fn){if(actionBusy)return;actionBusy=true;try{await fn();await load(true);}catch(e){showNotice(e.message);}finally{actionBusy=false;}}
-let contentSignature='',pendingRender=false;
+let contentSignature='',pendingRender=false,loadSequence=0;
 function interacting(){return !!document.querySelector('dialog[open], .floating-add[open]')||['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName);}
 function updateSync(value){
  const icon=$('#sync-status');const status=value.status||'Saved on this PC';
@@ -17,11 +17,11 @@ function updateSync(value){
  if($('#sync-details'))$('#sync-details').textContent=status;icon.title=status;icon.setAttribute('aria-label','Sync: '+status);
 }
 async function load(force=false){
- const next=await api.read();const signature=JSON.stringify({records:next.records.map(r=>({key:r.key,payload:r.payload,deleted:r.deleted,conflict:r.conflict})),email:next.email,configured:next.configured});
+ const sequence=++loadSequence;const next=await api.read();if(sequence!==loadSequence)return;const signature=JSON.stringify({records:next.records.map(r=>({key:r.key,payload:r.payload,deleted:r.deleted,conflict:r.conflict})),email:next.email,configured:next.configured});
  const notice=next.accountNotice;state=next;updateSync(next);
  if(notice){page='settings';showNotice(notice);force=true;}
  if(!force&&signature===contentSignature)return;
- if(!force&&interacting()){pendingRender=true;return;}
+ if(document.querySelector('dialog[open], .floating-add[open]')||(!force&&interacting())){pendingRender=true;return;}
  contentSignature=signature;pendingRender=false;render();
 }
 function flushPending(){if(pendingRender&&!interacting())void load(true);}
@@ -41,7 +41,7 @@ function taskRow(t){
 function habitCard(h){const n=progress(h),done=n>=h.target;return `<div class="habit-card check-tile ${h.title.length<=22?'short':'long'} ${done?'complete':''}">
  <button class="tile-toggle" role="checkbox" aria-label="${done?'Undo':'Log'} ${esc(h.title)}" aria-checked="${done}" data-habit-toggle="${esc(h.id)}" ${selected>dayKey(new Date())?'disabled':''}><span class="tick-symbol">${done?check:''}</span><span class="tile-copy"><span>${esc(h.title)}</span><small>${n} / ${h.target} ${h.frequencyRule==='WEEKLY'?'this week':'today'}</small></span></button>
  <button class="tile-edit" aria-label="Edit ${esc(h.title)}" data-habit-edit="${esc(h.id)}">${pencil}</button></div>`;}
-function versionSummary(p,deleted){if(deleted)return 'Removed item';return [p.title||p.name||'Item',p.notes,p.localDate?'Planned for '+p.localDate:'',p.count!==undefined?p.count+' check-ins':'',p.completedAt?'Completed':'',p.target?p.target+' times '+(p.frequencyRule==='WEEKLY'?'a week':'a day'):'',p.tags?.length?'Tags: '+p.tags.join(', '):'',p.subtasks?.length?'Steps: '+p.subtasks.map(s=>(s.completed?'✓ ':'')+s.title).join(', '):''].filter(Boolean).join('\n');}
+function versionSummary(p,deleted){if(deleted)return 'Removed item';return [p.title||p.name||'Item',p.notes,p.localDate?'Planned for '+p.localDate:'',p.count!==undefined?p.count+' check-ins':'',p.completedAt?'Completed':'',p.target?p.target+' times '+(p.frequencyRule==='WEEKLY'?'a week':'a day'):'',p.tags?.length?'Tags: '+p.tags.join(', '):'',p.priority?'Priority: '+['Normal','Low','Medium','High'][p.priority]:'',p.recurrenceRule?'Repeat: '+({'FREQ=DAILY':'Daily','FREQ=WEEKLY':'Weekly','FREQ=MONTHLY':'Monthly'}[p.recurrenceRule]||'Custom'):'',p.subtasks?.length?'Steps: '+p.subtasks.map(s=>(s.completed?'✓ ':'')+s.title).join(', '):''].filter(Boolean).join('\n');}
 function render(){document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('selected',b.dataset.page===page));$('#breadcrumb').textContent='Your space / '+({today:'Today',inbox:'Tasks',week:'Plan',habits:'Habits',settings:'Settings'}[page]);const tasks=rows('tasks').sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0));const habits=rows('habits');let html='';
 if(page==='today'){html=renderToday(tasks,habits);
 }else if(page==='inbox'){const inbox=tasks.filter(t=>!t.completedAt&&(!selectedList||t.listID===selectedList));html=`<div class="eyebrow">Keep it somewhere</div><h1>${esc(rows('lists').find(l=>l.id===selectedList)?.name||'Tasks')}</h1><p class="subtitle">Capture it now. Make room for it when you’re ready.</p>${inbox.map(taskRow).join('')||'<p class="empty">Nothing waiting here. A little breathing room.</p>'}<form class="quick" id="quick-add"><input name="title" aria-label="Capture a task" placeholder="Something for later…" required maxlength="500"><button>Add</button></form>`;

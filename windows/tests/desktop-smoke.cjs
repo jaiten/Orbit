@@ -42,6 +42,18 @@ const fs=require('node:fs');const os=require('node:os');const path=require('node
   await p.getByRole('heading',{name:'Connected, quietly'}).waitFor();
   await p.getByRole('button',{name:'Dismiss message'}).click();
   await p.locator('[data-page="today"]').click();
+  for(const title of ['Wash car','Call Mom']){
+   await p.getByRole('textbox',{name:'Add an intention'}).fill(title);
+   await p.getByRole('button',{name:'Add',exact:true}).click();
+   await p.getByRole('checkbox',{name:'Complete '+title,exact:true}).waitFor();
+  }
+  const first=await p.getByRole('checkbox',{name:'Complete Wash car',exact:true}).boundingBox();
+  const second=await p.getByRole('checkbox',{name:'Complete Call Mom',exact:true}).boundingBox();
+  if(Math.abs(first.y-second.y)>2||Math.abs(first.x-second.x)<20)throw Error('Short checklist tiles do not share a row');
+  await p.getByLabel('Add to-do or non-negotiable',{exact:true}).click();
+  await p.evaluate(async()=>{const r=(await window.orbit.read()).records.find(r=>r.payload.title==='Wash car');await window.orbit.put(r.key,{...r.payload,notes:'Synced while menu is open'});});
+  await p.getByRole('button',{name:'To-do',exact:true}).click();
+  await p.getByRole('button',{name:'Cancel',exact:true}).click();
   await p.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});
   await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setSize(900,700));
   if(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Horizontal overflow at compact window size');

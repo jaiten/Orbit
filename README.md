@@ -14,7 +14,7 @@ capture tasks, choose a manageable day, and keep small daily habits.
   if it contains records you need.
 - Sync: create/confirm an account in Windows **Settings & sync**, then sign in
   on iPhone in **Settings → Across your devices**. Use the same account on both.
-  Local items are imported into that account; offline storage remains available.
+  Local items are imported into that account; offline storage remains available. Realtime changes are received while both apps are open, with periodic catch-up after reconnect.
 
 For a physical iPhone, configure your Apple team, unique bundle IDs and matching
 App Group on both targets. Update `ORBIT_APP_GROUP` in `ios/project.yml`. The full
@@ -24,8 +24,8 @@ SwiftData app currently requires Xcode; WSL/xtool is not yet supported.
 
 | Area | Current behavior |
 | --- | --- |
-| iOS | Compact checklist Today, swipe delete/move, week/month calendar, task/list/habit CRUD, notes, tags, subtasks, reminders, recurrence, heatmaps |
-| Windows | Compact checklist Today, to-do/habit conversion, lists, next seven days, task/habit editors, natural-language quick-add, priority, time blocks, recurrence, completion, habit history |
+| iOS | Adaptive checklist tiles, large completion targets, separate edit controls, swipe delete/move, week/month calendar, task/list/habit CRUD, notes, tags, subtasks, reminders, recurrence, heatmaps |
+| Windows | Adaptive checklist tiles, one-off/routine sections, quiet sync status, to-do/habit conversion, lists, next seven days, task/habit editors, natural-language quick-add, priority, time blocks, recurrence, completion, habit history |
 | Sync | Separate Supabase backend, email/password accounts, durable outbox, tombstones, revision checks, conflict review, reconnect catch-up |
 | Widgets | Home Screen and Lock Screen widgets, interactive completion, focus Live Activity for Lock Screen and Dynamic Island |
 | Brand | Vector mark/wordmark, Windows/iOS icons, [brand guide](shared/brand/README.md) |
@@ -53,11 +53,22 @@ in iPhone Settings. A completed timer becomes stale; reopening Orbit clears it.
 Email setup and recovery: [confirmation guide](docs/email-confirmation.md).
 TestFlight uploads follow successful iOS checks on main: [release guide](docs/testflight.md).
 
+## Planning a day
+
+**For today** holds one-off tasks, such as cleaning the car on a chosen date.
+**Your routine** holds daily/weekly habits and recurring tasks. Completed items move
+below the active sections. The tile's main area completes it; the pencil edits it.
+Short titles share a row where there is room. Larger text uses the available width.
+
+Lists are optional folders such as Personal or Work. Tasks can stay in Inbox.
+
 ## Data
 
 SQLite on Windows and SwiftData on iOS save edits before network activity. When
 two devices edit one record concurrently, Settings lets you compare and choose a
-version. Sign-out preserves local data and the original account binding.
+version. Metadata-only differences resolve without prompting, and independent
+field changes merge using the last synced baseline. A real conflicting edit shows
+both readable versions before either is discarded. Sign-out preserves local data and the original account binding.
 [Sync details](docs/sync-plan.md). Windows sessions use OS encryption; iOS uses
 Keychain. Public client config includes only a publishable key. The database denies
 anonymous access and enforces owner-scoped reads and revision-checked writes.

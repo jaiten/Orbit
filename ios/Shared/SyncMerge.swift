@@ -34,6 +34,9 @@ enum SyncMerge {
         if let day = payload["localDate"] as? String { lines.append("Planned for " + day) }
         if let frequency = payload["frequencyRule"] as? String { lines.append("\(payload["target"] as? Int ?? 1) times \(frequency == "WEEKLY" ? "a week" : "a day")") }
         if let completed = payload["completedAt"], !(completed is NSNull) { lines.append("Completed") }
+        if let priority = payload["priority"] as? Int, priority > 0 { lines.append("Priority: " + ["Normal", "Low", "Medium", "High"][min(priority, 3)]) }
+        if let tags = payload["tags"] as? [String], !tags.isEmpty { lines.append("Tags: " + tags.joined(separator: ", ")) }
+        if let steps = payload["subtasks"] as? [[String: Any]], !steps.isEmpty { lines.append("Steps: " + steps.map { ($0["completed"] as? Bool == true ? "✓ " : "") + ($0["title"] as? String ?? "") }.joined(separator: ", ")) }
         return lines.joined(separator: "\n")
     }
 }
