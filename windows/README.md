@@ -1,7 +1,7 @@
 # Orbit for Windows
 
-A dedicated Electron planner with a two-column Today view, lists, a seven-day view,
-task/habit editing, recurring tasks, history, and sync. Quick-add understands phrases
+A dedicated Electron planner with a two-column Today view, lists, a calendar,
+task and habit editing, habit history, and sync. Quick add understands phrases
 such as `gym tomorrow 6am`. SQLite lives in Electron's userData directory.
 The packaged executable does not need Node or a browser installation.
 
@@ -36,11 +36,19 @@ catch up every eight seconds while active. Conflicts show a version comparison
 in Settings. Sessions use Windows safeStorage encryption; the renderer cannot
 read credentials or access Node. Only a publishable Supabase key is bundled.
 
+## Desktop
+
+- **Ctrl+N** quick add, **Ctrl+1–5** pages, **Ctrl+F** search lists, **Ctrl+/** all shortcuts.
+  On a focused item, **E** edits and **Delete** deletes.
+- Quick add from anywhere with **Ctrl+Shift+Space** (changeable in Settings). Closing
+  the window keeps Orbit in the tray so reminders still arrive; quit from the tray.
+- Task and habit reminders show as Windows notifications. Turn them off in Settings.
+- **Settings → Import & Export** writes a JSON backup (readable by iPhone too) or a
+  CSV of tasks. Importing shows what would be added or changed first.
+
 ## Scope
 
-Task notes, priorities, dates/times, durations, completion, and daily/weekly/monthly
-recurrence and list assignment are editable. Lists can be created and renamed.
-Existing iOS tags, subtasks and reminder values
-survive edits, but their dedicated Windows editors are not included yet. Windows
-notification scheduling, drag rescheduling, custom RRULEs, background service sync,
-and account recovery UI remain follow-up work.
+Task notes, dates, times, durations, completion and list assignment are editable.
+Existing iOS tags, subtasks and reminder offsets survive edits, but Windows has no
+editors for them yet. Drag rescheduling, background service sync and automatic
+updates remain follow-up work.

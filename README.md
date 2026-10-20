@@ -24,17 +24,19 @@ SwiftData app currently requires Xcode; WSL/xtool is not yet supported.
 
 | Area | Current behavior |
 | --- | --- |
-| iOS | Adaptive checklist tiles, large completion targets, separate edit controls, swipe delete/move, week/month calendar, task/list/habit CRUD, notes, tags, subtasks, reminders, recurrence, heatmaps |
-| Windows | Adaptive checklist tiles, one-off/routine sections, quiet sync status, to-do/habit conversion, lists, next seven days, task/habit editors, natural-language quick-add, priority, time blocks, recurrence, completion, habit history |
+| Both apps | Today (today plus overdue), Calendar, Lists with a built-in Someday list, Habits, Settings and Account; one quick add field with a preview chip; first-launch onboarding with optional examples; JSON and CSV export, JSON import with a preview |
+| iOS | Checklist tiles, swipe actions, week/month calendar, notes, tags, subtasks, reminders, Shortcuts and Siri (Add to Orbit, Complete Item), share sheet extension |
+| Windows | Two-column Today, keyboard shortcuts (Ctrl+N, Ctrl+1–5, Ctrl+F, Ctrl+/), reminders as Windows notifications, tray icon and a global quick add shortcut |
 | Sync | Separate Supabase backend, email/password accounts, durable outbox, tombstones, revision checks, conflict review, reconnect catch-up |
-| Widgets | Home Screen and Lock Screen widgets, interactive completion, focus Live Activity for Lock Screen and Dynamic Island |
-| Brand | Vector mark/wordmark, Windows/iOS icons, [brand guide](shared/brand/README.md) |
+| Widgets | Today widget in Progress and Checklist styles, Lock Screen widgets, interactive completion, focus Live Activity |
+| Brand | Vector mark/wordmark, Windows/iOS icons, [brand guide](shared/brand/README.md), colours and spacing from [design tokens](shared/design-tokens.json) |
 
-Desktop preserves iOS-only task fields when editing but does not yet expose all
-their editors. Windows reminders, automatic updates, custom recurrence rules,
-background sync services, and account recovery UI remain follow-up work. iOS
-reminders schedule the nearest 60 requests and refill on app interaction; OS
-delivery and widget refresh policies apply. Task/habit counts have no product caps.
+Only habits repeat. Older repeating tasks were converted to habits (daily, weekdays,
+weekends or weekly) with their history kept; monthly and custom repeats became one-off
+tasks. Habits reset at midnight and show “X of the last 7 days”, not streaks.
+Windows does not yet edit tags, subtasks or reminder offsets, but keeps them when
+saving. Automatic updates and background sync services are follow-up work. iOS
+reminders schedule the nearest 60 requests and refill on app interaction.
 
 ## Calendars and focus
 
@@ -55,12 +57,17 @@ TestFlight uploads follow successful iOS checks on main: [release guide](docs/te
 
 ## Planning a day
 
-**For today** holds one-off tasks, such as cleaning the car on a chosen date.
-**Your routine** holds daily/weekly habits and recurring tasks. Completed items move
-below the active sections. The tile's main area completes it; the pencil edits it.
-Short titles share a row where there is room. Larger text uses the available width.
+**Today** shows tasks dated today, anything overdue, and habits due today. Overdue
+tasks offer **Today**, **Later** (removes the date) and **Someday**. Undated tasks
+stay in their list until you add them to Today. Completed items move below the
+open ones. The tile's main area completes it; the pencil edits it.
 
-Lists are optional folders such as Personal or Work. Tasks can stay in Inbox.
+Quick add reads plain phrases such as `gym tomorrow 6pm`, `read every day`,
+`#work` or `someday`; the chip shows what will be created before you save. The
+phrase table is shared by both apps ([test cases](shared/test-cases)).
+
+All-day tasks keep their calendar day when you travel; timed tasks keep their
+moment. Habit reminders follow local time.
 
 ## Data
 
@@ -75,15 +82,18 @@ anonymous access and enforces owner-scoped reads and revision-checked writes.
 
 ## Validation
 
-GitHub builds the iOS app/widget and runs simulator XCTest. Windows unit tests cover
-offline persistence, tombstones, acknowledgment races, conflicts, account isolation,
-and network failure. Electron smoke tests cover list assignment, task create/edit/complete,
-habit log/undo, conversion round trips, compact dark layout, settings, and offline restart. iOS UI tests exercise swipe conversion and deletion. Hosted integration checks exercised two
+GitHub builds the iOS app, widget and share extension and runs simulator XCTest,
+including the shared rule tables in `shared/test-cases`. Windows unit tests cover
+the same tables plus offline persistence, tombstones, conflicts, reminders, import
+and export. The Electron smoke test covers onboarding, quick add, overdue and
+Someday moves, keyboard shortcuts, the conflict banner, import preview, CSV export,
+restart and midnight rollover. iOS UI tests cover onboarding, quick add and Account. Hosted integration checks exercised two
 clients and a second isolated account.
 
 ```powershell
 cd windows
 npm ci
+npm run lint
 npm test
 npm run test:desktop
 npm run pack

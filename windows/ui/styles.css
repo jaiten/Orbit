@@ -807,14 +807,15 @@ dialog footer .danger {
   gap: 2px;
   padding: 10px 14px;
   text-align: left;
+  background: var(--canvas);
 }
 .habit-suggestions button small {
   color: var(--muted);
   font-weight: 400;
 }
 .habit-suggestions button[aria-pressed="true"] {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  box-shadow: inset 0 0 0 1.5px var(--accent);
 }
 .onboarding-dots {
   display: flex;

@@ -5,17 +5,18 @@ device checks below remain outstanding; simulator success does not verify physic
 iPhone notifications, widgets or real-device sync.
 
 - [x] Generate with XcodeGen; build the app and extension without compiler errors.
-- [x] Run all thirteen XCTest cases, including persisted deletion sync and account isolation.
-- [ ] First launch is empty; sample data is only created by the explicit button.
+- [x] Run the XCTest suite, including the shared rule tables, persisted deletion sync and account isolation.
+- [ ] First launch shows onboarding once; examples are only added by Start with Examples and Remove Examples deletes only them.
+- [ ] Notifications are requested only after adding a timed item or habit, never at launch.
 - [ ] Quick-add `gym tomorrow 6am`; find it on tomorrow in Plan and after relaunch.
 - [ ] Create/edit/delete a list. Deleting it preserves tasks in Inbox.
 - [ ] Create/edit/cancel/delete a task with notes, tags, subtasks and two reminders.
-- [ ] Complete, reopen and recomplete a recurring task; only one successor exists.
+- [ ] Upgrade from a build with repeating tasks; each becomes a habit with its past completions as check-ins.
 - [ ] Reorder at least three to-dos; relaunch and verify the order is preserved.
 - [ ] Drag a time block to another day; verify its time and reminder offsets.
 - [ ] Navigate across month/year boundaries and daylight-saving transitions.
 - [ ] Log a multi-count daily habit, reach its target, undo a log, and relaunch.
-- [ ] Log a weekly habit across two days; verify the shared weekly target and streak.
+- [ ] Log a weekly habit across two days; verify the shared weekly target and “X of the last 7 days”.
 - [ ] Delete a habit and verify its logs and pending reminders disappear.
 - [ ] Enter two ideas; verify rotation and dismissal/restore without generated text.
 - [ ] Enable/deny notifications; create near-term reminders and verify on a device.
@@ -23,7 +24,8 @@ iPhone notifications, widgets or real-device sync.
 - [ ] Add every widget size; verify the same records as the app and tap-to-complete.
 - [ ] Reopen app after a widget edit; verify external store changes are visible.
 - [ ] Rapidly log from app/widget; check for duplicate per-day rows or lost counts.
-- [ ] Widget completions create recurrence successors and reschedule notifications.
+- [ ] Widget completions reschedule notifications; the Checklist style ticks items in place.
+- [ ] Share text and a link from Safari; Add to Orbit and Complete Item run from Shortcuts and Siri.
 - [ ] Check light/dark, largest accessibility text, VoiceOver, Reduce Motion,
   landscape, iPad multitasking, and long task titles for clipping or lost controls.
 - [ ] Try midnight rollover and changing device time zone with the app open.
