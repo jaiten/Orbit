@@ -42,16 +42,16 @@ struct OnboardingView: View {
 
     private var capture: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Welcome to Orbit").font(.largeTitle.bold())
+            Text("Welcome to Orbit").font(.largeTitle.bold()).tracking(-1)
             Text("Type anything. Orbit works out when.").foregroundStyle(.secondary)
-            TextField("Try “gym tomorrow 6pm” or “read every day”", text: $text)
-                .font(.title3).padding(14).background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
-                .focused($focused).submitLabel(.done).onSubmit(add).accessibilityIdentifier("onboarding-input")
-            if !result.title.isEmpty {
-                Text(QuickAdd.describe(result)).font(.footnote.weight(.medium)).foregroundStyle(accent.text)
-                    .padding(.horizontal, 10).padding(.vertical, 4).background(accent.fill.opacity(0.12), in: Capsule())
-                    .accessibilityIdentifier("onboarding-preview")
+            HStack(spacing: 10) {
+                Image(systemName: "plus").font(.body.weight(.medium)).foregroundStyle(.secondary)
+                TextField("gym tomorrow 6pm", text: $text)
+                    .font(.title3).focused($focused).submitLabel(.done).onSubmit(add).accessibilityIdentifier("onboarding-input")
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
             }
+            .padding(.horizontal, 14).frame(minHeight: 52).orbitSurface()
+            PreviewChip(text: result.title.isEmpty ? "" : QuickAdd.describe(result), identifier: "onboarding-preview").frame(minHeight: 34, alignment: .leading)
             Button("Add", action: add).buttonStyle(.borderedProminent).disabled(result.title.isEmpty)
             Button("Start with Examples") { save { try Examples.add(in: context); needsReminders = true } }
         }.onAppear { focused = true }
@@ -59,7 +59,7 @@ struct OnboardingView: View {
 
     private var habits: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Pick a habit or two").font(.largeTitle.bold())
+            Text("Pick a habit or two").font(.largeTitle.bold()).tracking(-1)
             Text("Habits repeat on their own and reset at midnight.").foregroundStyle(.secondary)
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                 ForEach(Array(OnboardingData.habitSuggestions.enumerated()), id: \.offset) { index, suggestion in
@@ -69,8 +69,9 @@ struct OnboardingView: View {
                             Text(suggestion.title).font(.body.weight(.medium)).foregroundStyle(.primary)
                             Text(detail(suggestion)).font(.caption).foregroundStyle(.secondary)
                         }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
-                            .background(on ? accent.fill.opacity(0.14) : Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(on ? accent.fill : .clear))
+                            .background(on ? accent.fill.opacity(0.14) : Color.orbitSurface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(on ? accent.fill : Color.orbitLine, lineWidth: on ? 1.5 : 1))
+                            .animation(.orbit, value: on)
                     }.buttonStyle(.plain).accessibilityAddTraits(on ? .isSelected : [])
                 }
             }
@@ -90,7 +91,7 @@ struct OnboardingView: View {
 
     private var sync: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Stay in sync").font(.largeTitle.bold())
+            Text("Stay in sync").font(.largeTitle.bold()).tracking(-1)
             Text("Sign in to keep your iPhone and PC in step. Everything stays on this iPhone until you do.").foregroundStyle(.secondary)
             Button("Set Up Sync") { finish(needsReminders, true) }.buttonStyle(.borderedProminent)
         }

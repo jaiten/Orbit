@@ -8,7 +8,6 @@ struct QuickCapture: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
     /// The day being viewed (Calendar); nil means today.
     var initialDate: Date? = nil
@@ -36,9 +35,6 @@ struct QuickCapture: View {
         listID == TodayRules.somedayID ? "Someday" : lists.first { $0.id == listID }?.name
     }
 
-    /// The chip's segments, so each can animate in and out as you type.
-    private var parts: [String] { preview.components(separatedBy: " · ").filter { !$0.isEmpty } }
-
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceM)) {
@@ -54,7 +50,7 @@ struct QuickCapture: View {
                 .background(DayTheme.canvas(scheme), in: RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusInput), style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusInput), style: .continuous)
                     .strokeBorder(focused ? accent.text : Color.orbitLine, lineWidth: focused ? 2 : 1))
-                chip.frame(minHeight: 34, alignment: .leading)
+                PreviewChip(text: preview, identifier: "quick-add-preview").frame(minHeight: 34, alignment: .leading)
                 Text("Try “read every day”, “#work” or “someday”.").font(.footnote).foregroundStyle(.secondary)
                 Spacer(minLength: 0)
             }
@@ -71,26 +67,6 @@ struct QuickCapture: View {
                 .onAppear { focused = true }.modifier(MutationErrorModifier(error: $error))
         }
         .presentationDetents([.medium, .large])
-    }
-
-    /// "Task · Tomorrow · 6:00 PM": segments fade and slide in as you type, and the pill's width springs.
-    @ViewBuilder private var chip: some View {
-        if !parts.isEmpty {
-            HStack(spacing: 6) {
-                ForEach(Array(parts.enumerated()), id: \.element) { index, part in
-                    HStack(spacing: 6) {
-                        if index > 0 { Text("·").opacity(0.5) }
-                        Text(part)
-                    }.transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 6)))
-                }
-            }
-            .font(.subheadline.weight(.medium)).foregroundStyle(accent.text)
-            .padding(.horizontal, 14).padding(.vertical, 6)
-            .background(accent.fill.opacity(DesignTokens.tintAccentFill), in: Capsule())
-            .animation(reduceMotion ? nil : .orbit, value: parts)
-            .accessibilityElement(children: .ignore).accessibilityLabel(preview)
-            .accessibilityAddTraits(.isStaticText).accessibilityIdentifier("quick-add-preview")
-        }
     }
 
     private func save(allowConflict: Bool = false) {

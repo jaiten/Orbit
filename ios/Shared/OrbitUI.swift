@@ -208,6 +208,34 @@ struct WeekSegments: View {
     }
 }
 
+/// "Task · Tomorrow · 6:00 PM": each segment fades and slides in as you type, and the pill's width
+/// springs. VoiceOver and UI tests read the whole phrase.
+struct PreviewChip: View {
+    let text: String
+    var identifier = "quick-add-preview"
+    @Environment(\.orbitAccent) private var accent
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private var parts: [String] { text.components(separatedBy: " · ").filter { !$0.isEmpty } }
+    var body: some View {
+        if !parts.isEmpty {
+            HStack(spacing: 6) {
+                ForEach(Array(parts.enumerated()), id: \.element) { index, part in
+                    HStack(spacing: 6) {
+                        if index > 0 { Text("·").opacity(0.5) }
+                        Text(part)
+                    }.transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 6)))
+                }
+            }
+            .font(.subheadline.weight(.medium)).foregroundStyle(accent.text)
+            .padding(.horizontal, 14).padding(.vertical, 6)
+            .background(accent.fill.opacity(DesignTokens.tintAccentFill), in: Capsule())
+            .animation(reduceMotion ? nil : .orbit, value: parts)
+            .accessibilityElement(children: .ignore).accessibilityLabel(text)
+            .accessibilityAddTraits(.isStaticText).accessibilityIdentifier(identifier)
+        }
+    }
+}
+
 /// The quiet field that opens quick add.
 struct AddField: View {
     var action: () -> Void

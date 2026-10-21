@@ -4,6 +4,7 @@ import SwiftData
 /// Settings: appearance, accent, reminders, calendars, widgets and your data. Account has its own screen.
 struct SettingsView: View {
     @Environment(\.orbitAccent) private var accent
+    @Environment(\.colorScheme) private var scheme
     @ObservedObject private var sync = SyncService.shared
     @State private var message: String?
     var body: some View {
@@ -23,7 +24,8 @@ struct SettingsView: View {
                     Text("Works offline. Sync runs while Orbit is open; widget changes sync the next time you open it.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
-            }.tint(accent.fill).navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
+            }.scrollContentBackground(.hidden).background(DayTheme.canvas(scheme))
+                .tint(accent.fill).navigationTitle("Settings").navigationBarTitleDisplayMode(.large)
                 .toolbar { ToolbarItem(placement: .topBarTrailing) { SyncIndicator() } }
                 .alert("Orbit", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
                     Button("OK") { message = nil }

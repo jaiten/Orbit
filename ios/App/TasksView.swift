@@ -3,6 +3,7 @@ import SwiftData
 
 struct TasksView: View {
     @Environment(\.orbitAccent) private var accent
+    @Environment(\.colorScheme) private var scheme
     @Environment(\.modelContext) private var context
     @State private var error: String?
     @Query(sort: \PlannerTask.sortOrder) private var tasks: [PlannerTask]
@@ -30,6 +31,7 @@ struct TasksView: View {
                     if filtered.isEmpty { ContentUnavailableView(listID == TodayRules.somedayID ? "Nothing for Someday" : "No Tasks", systemImage: "checklist") }
                     ForEach(filtered) { task in
                         TaskRow(task: task) { editing = task }.listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 4, trailing: 20))
                             .swipeActions(edge: .leading) {
                                 if task.completedAt == nil && !TodayRules.onDay(TodayRules.item(task), day: PlannerLogic.dayKey(.now), today: PlannerLogic.dayKey(.now)) {
                                     Button("Add to Today", systemImage: "sun.max") { change { TodayRules.moveToDay(task, day: .now) } }.tint(accent.fill)
@@ -37,7 +39,8 @@ struct TasksView: View {
                             }
                     }
                 }
-            }.tint(accent.fill).searchable(text: $search, prompt: "Search tasks or tags").navigationTitle("Lists")
+            }.listStyle(.insetGrouped).scrollContentBackground(.hidden).background(DayTheme.canvas(scheme))
+                .tint(accent.fill).searchable(text: $search, prompt: "Search tasks or tags").navigationTitle("Lists")
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) { Button("Edit Lists") { manageLists = true } }
                     ToolbarItem(placement: .topBarTrailing) { Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("New task") }
