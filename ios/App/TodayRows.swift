@@ -5,27 +5,15 @@ struct TodayItem: Identifiable {
     var task: PlannerTask? = nil
     var habit: Habit? = nil
     var id: String { task.map { "task-" + $0.id.uuidString } ?? "habit-" + habit!.id.uuidString }
-    var short: Bool { let title = task?.title ?? habit!.title; return title.count <= 18 && title.split(separator: " ").allSatisfy { $0.count <= 10 } && task?.hasTime != true && (task?.subtasks.isEmpty ?? true) }
-}
-
-/// Pairs short tiles side by side when there is room.
-struct TodayGroup: Identifiable {
-    let items: [TodayItem]
-    var id: String { items[0].id }
-    static func groups(_ items: [TodayItem], compact: Bool) -> [TodayGroup] {
-        var groups: [TodayGroup] = []; var index = 0
-        while index < items.count {
-            if compact, items[index].short, index + 1 < items.count, items[index + 1].short {
-                groups.append(TodayGroup(items: [items[index], items[index + 1]])); index += 2
-            } else { groups.append(TodayGroup(items: [items[index]])); index += 1 }
-        }
-        return groups
-    }
+    /// Identity plus done state, so lists animate when an item finishes or moves.
+    var state: String { id + (task?.completedAt == nil ? "" : "-done") }
 }
 
 struct TileMove { let title: String; let action: () -> Void }
 
-/// A checklist row: the large area completes it, the pencil edits it, a left swipe reveals Delete.
+/// A checklist row, as on the website: surface with a 1px line, 56pt tall. Tasks: the tick completes,
+/// the rest of the row opens it. Habits: a colour dot and the count; tapping the row logs one check-in.
+/// Overdue tasks show Today / Later / Someday. A left swipe reveals Delete.
 struct CheckTile: View {
     let title: String
     let subtitle: String
@@ -36,6 +24,13 @@ struct CheckTile: View {
     var edit: () -> Void
     var remove: () -> Void
     var moves: [TileMove] = []
+    /// Habit rows: a dot instead of a tick, and the whole row logs.
+    var habit = false
+    /// The detail is a habit count that has met its target (shown in the accent text colour).
+    var met = false
+    /// A trailing pencil, for habits on the Habits tab where tapping the row logs.
+    var showEdit = false
+    @Environment(\.orbitAccent) private var accent
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject private var homeDrag = HomeDrag.shared
     @State private var actionEdge = 0
@@ -48,7 +43,7 @@ struct CheckTile: View {
     var body: some View {
         ZStack(alignment: .trailing) {
             deleteButton
-            row.background(DayTheme.surface, in: shape)
+            row.orbitSurface()
                 .offset(x: max(-76, min(0, CGFloat(actionEdge == -1 ? -70 : 0) + dragOffset)))
         }
         .background(revealed ? Color.red : Color.clear, in: shape).clipShape(shape)
@@ -58,41 +53,68 @@ struct CheckTile: View {
             if !active { dragOffset = 0; Task { try? await Task.sleep(for: .milliseconds(150)); gestureMoved = false } }
         }
         .onChange(of: homeDrag.item) { _, value in if value != nil { actionEdge = 0; dragOffset = 0; gestureMoved = true } }
-        .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: actionEdge)
+        .animation(reduceMotion ? nil : .orbit, value: actionEdge)
     }
 
     private var deleteButton: some View {
         Button { remove(); actionEdge = 0 } label: {
-            Image(systemName: "xmark").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white).frame(width: 64, height: 72)
+            Image(systemName: "xmark").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white).frame(width: 64, height: 56)
         }.buttonStyle(.plain).accessibilityLabel("Delete").accessibilityHidden(!revealed).opacity(revealed ? 1 : 0)
     }
 
     private var row: some View {
-        HStack(spacing: 0) {
-            Button { if !gestureMoved && homeDrag.item == nil { if actionEdge == 0 { toggle() } else { actionEdge = 0 } } } label: { label }
-                .buttonStyle(.plain).accessibilityLabel(completionLabel).accessibilityValue(subtitle).accessibilityIdentifier("checklist-title")
-            if !moves.isEmpty {
-                Menu { ForEach(moves, id: \.title) { Button($0.title, action: $0.action) } } label: {
-                    Image(systemName: "calendar.badge.clock").font(.system(size: 13, weight: .medium)).foregroundStyle(.secondary).frame(width: 34, height: 54).contentShape(Rectangle())
-                }.accessibilityLabel("Move " + title)
+        VStack(alignment: .leading, spacing: 0) {
+            if habit {
+                HStack(spacing: 0) {
+                    Button(action: tapMain) { line(leading: AnyView(dot)) }
+                        .buttonStyle(OrbitPress()).accessibilityLabel(completionLabel).accessibilityValue(subtitle).accessibilityIdentifier("checklist-title")
+                    if showEdit {
+                        Button(action: tapEdit) {
+                            Image(systemName: "pencil").font(.system(size: 13, weight: .medium)).foregroundStyle(.secondary).frame(width: 44, height: 56).contentShape(Rectangle())
+                        }.buttonStyle(.plain).accessibilityLabel("Edit " + title)
+                    }
+                }
+            } else {
+                HStack(spacing: 0) {
+                    Button(action: tapMain) { OrbitTick(done: done, color: color).frame(width: 46, height: 56).contentShape(Rectangle()) }
+                        .buttonStyle(.plain).accessibilityLabel(completionLabel)
+                    Button(action: tapEdit) { line(leading: nil).padding(.leading, -2) }
+                        .buttonStyle(OrbitPress()).accessibilityLabel("Edit " + title).accessibilityValue(subtitle).accessibilityIdentifier("checklist-title")
+                }
             }
-            Button { if !gestureMoved { edit() } } label: {
-                Image(systemName: "pencil").font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary).frame(width: 38, height: 54).contentShape(Rectangle())
-            }.buttonStyle(.plain).accessibilityLabel("Edit " + title)
+            if !moves.isEmpty {
+                HStack(spacing: 8) {
+                    ForEach(moves, id: \.title) { move in
+                        Button(move.title) { move.action() }
+                            .font(.subheadline.weight(.medium)).foregroundStyle(accent.text)
+                            .padding(.horizontal, 14).padding(.vertical, 6)
+                            .background(accent.fill.opacity(DesignTokens.tintAccentFill), in: Capsule())
+                            .buttonStyle(OrbitPress())
+                    }
+                }.padding(.leading, 50).padding(.bottom, 14).padding(.top, -4)
+            }
         }
     }
 
-    private var label: some View {
-        HStack(spacing: 10) {
-            Image(systemName: done ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 23, weight: .regular)).foregroundStyle(done ? color : color.opacity(0.65))
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.subheadline.weight(.medium)).foregroundStyle(done ? .secondary : .primary).strikethrough(done).fixedSize(horizontal: false, vertical: true)
-                if !subtitle.isEmpty { Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(2) }
+    private func line(leading: AnyView?) -> some View {
+        HStack(spacing: 12) {
+            if let leading { leading }
+            Text(title).font(.body).foregroundStyle(done && !habit ? .secondary : .primary)
+                .strikethrough(done && !habit, color: .secondary).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: done)
+            Spacer(minLength: 8)
+            if !subtitle.isEmpty {
+                Text(subtitle).font(.footnote).monospacedDigit().foregroundStyle(met ? accent.text : .secondary).lineLimit(1)
             }
-            Spacer(minLength: 0)
-        }.padding(.leading, 14).padding(.vertical, 16).frame(maxWidth: .infinity, minHeight: 72, alignment: .leading).contentShape(Rectangle())
+        }
+        .padding(.leading, habit ? 14 : 0).padding(.trailing, habit && showEdit ? 0 : 14)
+        .frame(minHeight: 56).contentShape(Rectangle())
     }
+
+    private var dot: some View { HabitDot(done: done, color: color) }
+
+    private func tapMain() { if !gestureMoved && homeDrag.item == nil { if actionEdge == 0 { toggle() } else { actionEdge = 0 } } }
+    private func tapEdit() { if !gestureMoved && homeDrag.item == nil { if actionEdge == 0 { edit() } else { actionEdge = 0 } } }
 
     private func swipeChanged(_ x: CGFloat) {
         gestureMoved = true
@@ -125,6 +147,22 @@ struct CheckTile: View {
                     dragOffset = 0
                 }
             }
+    }
+}
+
+/// A habit's 10pt colour dot; it pops when the habit is checked.
+private struct HabitDot: View {
+    let done: Bool
+    let color: Color
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var pop: CGFloat = 1
+    var body: some View {
+        Circle().fill(color).frame(width: DesignTokens.rowDot, height: DesignTokens.rowDot).scaleEffect(pop)
+            .onChange(of: done) { _, now in
+                guard now, !reduceMotion else { return }
+                withAnimation(.easeOut(duration: 0.16)) { pop = 1.5 } completion: { withAnimation(.orbit) { pop = 1 } }
+            }
+            .accessibilityHidden(true)
     }
 }
 
@@ -187,13 +225,15 @@ struct HabitRow: View {
     let logs: [HabitLog]
     let date: Date
     var edit: (() -> Void)? = nil
+    /// Show a pencil (the Habits tab); on Today, habits are edited from there.
+    var editable = false
     @State private var error: String?
     @State private var feedback = 0
     private var checked: Bool { PlannerLogic.checkedToday(habit, logs: logs, at: date) }
     var body: some View {
         CheckTile(title: habit.title, subtitle: PlannerLogic.detail(habit, logs: logs, at: date), done: checked, color: DayTheme.color(habit.color),
                   completionLabel: (checked ? "Undo " : "Log ") + habit.title,
-                  toggle: toggle, edit: { edit?() }, remove: { change { try Conversions.remove(habit, in: context) } })
+                  toggle: toggle, edit: { edit?() }, remove: { change { try Conversions.remove(habit, in: context) } }, habit: true, met: checked, showEdit: editable)
             .modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
     }
     private func toggle() {

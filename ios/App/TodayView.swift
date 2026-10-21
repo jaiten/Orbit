@@ -21,19 +21,16 @@ struct TodayView: View {
     @Query(sort: \Habit.createdAt) private var habits: [Habit]
     @Query private var logs: [HabitLog]
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
-    @AppStorage("homeSections") private var homeSections = "consistency,progress,today,routine,completed,calendar"
-    @AppStorage("hiddenHomeSections") private var hiddenSections = ""
+    @AppStorage("homeSections") private var homeSections = HomeLayoutEditor.defaultSections
+    @AppStorage("hiddenHomeSections") private var hiddenSections = HomeLayoutEditor.defaultHidden
     @State private var editing: PlannerTask?
     @State private var editingHabit: Habit?
     @State private var addingTask = false
     @State private var customizing = false
     @State private var reviewing = false
-    @State private var completedExpanded = true
-    @State private var contentWidth: CGFloat = 0
+    @State private var entered = false
     @State private var error: String?
     @State private var day = Calendar.current.startOfDay(for: .now)
-    @Environment(\.dynamicTypeSize) private var typeSize
-    @ScaledMetric(relativeTo: .body) private var tileWidth: CGFloat = 150
     @ObservedObject private var homeDrag = HomeDrag.shared
     @ObservedObject private var calendars = CalendarBridge.shared
 
@@ -56,8 +53,7 @@ struct TodayView: View {
         NavigationStack {
             page
                 .navigationTitle("Today").navigationBarTitleDisplayMode(.inline)
-                .toolbar { toolbar }
-                .safeAreaInset(edge: .bottom, alignment: .trailing, spacing: 0) { addButton }
+                .toolbar(.hidden, for: .navigationBar)
                 .modifier(TodaySheets(addingTask: $addingTask, reviewing: $reviewing, customizing: $customizing, editing: $editing, editingHabit: $editingHabit))
                 .modifier(MutationErrorModifier(error: $error))
         }
@@ -71,26 +67,24 @@ struct TodayView: View {
             .onAppear { homeDrag.accept = { id, routine in _ = move([id], routine: routine) } }
             .onDisappear { homeDrag.reset(); homeDrag.accept = nil }
             .background(DayTheme.canvas(scheme)).tint(accent.fill)
-            .animation(reduceMotion ? nil : .snappy(duration: 0.22), value: done)
+            .onAppear { if !entered { entered = true } }
             .task { refresh(); while !Task.isCancelled { try? await Task.sleep(for: .seconds(60)); if !Task.isCancelled { refresh() } } }
             .onChange(of: phase) { _, value in if value == .active { refresh() } }
             .onReceive(TimeChanges.publisher) { _ in refresh() }
     }
 
     private var content: some View {
-        VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceXl)) {
-            Text(day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())).font(.caption).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceXxl)) {
+            header
             FocusBanner()
             ConflictBanner()
+            if !sections.contains("progress") { AddField { addingTask = true } }
             ForEach(sections, id: \.self) { section in
                 homeSection(section).zIndex(homeDrag.source == section ? 100 : 0)
             }
         }
-        .background(GeometryReader { proxy in
-            Color.clear.onAppear { contentWidth = proxy.size.width }
-                .onChange(of: proxy.size.width) { _, width in contentWidth = width }
-        })
-        .padding(.horizontal, CGFloat(DesignTokens.spaceXl)).padding(.bottom, CGFloat(DesignTokens.spaceL))
+        .padding(.top, CGFloat(DesignTokens.spaceS))
+        .padding(.horizontal, CGFloat(DesignTokens.screenPadding)).padding(.bottom, CGFloat(DesignTokens.spaceSection))
         .frame(maxWidth: 760).frame(maxWidth: .infinity)
         // Hold a tile to move it between Tasks and Habits; one recognizer for the whole page.
         .background(TileHoldInstaller())
@@ -99,54 +93,57 @@ struct TodayView: View {
         }
     }
 
-    @ToolbarContentBuilder private var toolbar: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
-            Button { customizing = true } label: { Image(systemName: "slider.horizontal.3") }.accessibilityLabel("Edit Today")
-        }
-        ToolbarItem(placement: .topBarTrailing) {
-            HStack {
-                Button { reviewing = true } label: { Image(systemName: "moon") }.accessibilityLabel("Evening review")
-                SyncIndicator()
+    /// Eyebrow date, large title and subtitle, as on the website; the small tools sit top right.
+    private var header: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 2) {
+                Eyebrow(text: day.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+                Text("Today").font(.largeTitle.bold()).tracking(-1).accessibilityAddTraits(.isHeader)
+                Text("Make room for what matters.").font(.body).foregroundStyle(.secondary)
             }
+            Spacer()
+            HStack(spacing: 2) {
+                Button { customizing = true } label: { Image(systemName: "slider.horizontal.3").frame(width: 36, height: 36) }.accessibilityLabel("Edit Today")
+                Button { reviewing = true } label: { Image(systemName: "moon").frame(width: 36, height: 36) }.accessibilityLabel("Evening review")
+                SyncIndicator()
+            }.font(.body).foregroundStyle(.secondary).buttonStyle(.plain).padding(.top, 2)
         }
     }
 
-    private var addButton: some View {
-        Button { addingTask = true } label: {
-            Image(systemName: "plus").font(.title2.weight(.medium)).foregroundStyle(.white)
-                .frame(width: 54, height: 54).background(accent.fill, in: Circle())
-                .shadow(color: .black.opacity(0.13), radius: 10, y: 4)
-        }.accessibilityLabel("Add").padding(.trailing, 20).padding(.bottom, 10)
-    }
+    /// Finished items settle below the open ones in the same list, so the tick plays in place first.
+    private var showDone: Bool { sections.contains("completed") }
 
     @ViewBuilder private func homeSection(_ id: String) -> some View {
         switch id {
-        case "consistency": ConsistencyStrip(habits: habits, logs: logs)
+        case "consistency": ConsistencyStrip(habits: habits, logs: logs).orbitCard()
         case "progress":
-            HStack(spacing: 14) {
-                Text("\(done) of \(total) done").font(.caption).foregroundStyle(.secondary)
-                ProgressView(value: Double(done), total: Double(max(1, total))).tint(accent.fill).frame(maxWidth: 130)
+            VStack(spacing: 12) {
+                PlanCard(done: done, total: total, accent: accent.fill)
+                AddField { addingTask = true }
             }
         case "today":
-            checklistSection("Tasks", items: relevant.filter { $0.completedAt == nil }.map { TodayItem(task: $0) }, empty: "Nothing planned for today.")
-                .modifier(HomeDropArea(id: "today"))
+            let today = PlannerLogic.dayKey(.now)
+            let open = relevant.filter { $0.completedAt == nil }
+            let overdue = open.filter { TodayRules.isOverdue(TodayRules.item($0), today: today) }
+            let planned = open.filter { !overdue.contains($0) }.sorted { a, b in
+                if a.hasTime != b.hasTime { return a.hasTime }
+                return a.hasTime ? (a.dueDate ?? .distantFuture) < (b.dueDate ?? .distantFuture) : a.sortOrder < b.sortOrder
+            }
+            let finished = showDone ? relevant.filter { $0.completedAt != nil } : []
+            VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceXxl)) {
+                if !overdue.isEmpty { checklistSection("Overdue", items: overdue.map { TodayItem(task: $0) }, empty: "") }
+                checklistSection("Your day", note: "Today", items: (planned + finished).map { TodayItem(task: $0) }, empty: "Nothing planned for today.")
+            }.modifier(HomeDropArea(id: "today"))
         case "routine":
-            checklistSection("Habits", items: dueHabits.filter { !PlannerLogic.checkedToday($0, logs: logs, at: day) }.map { TodayItem(habit: $0) }, empty: "Hold and drag a task here to make it a habit.")
+            let open = dueHabits.filter { !PlannerLogic.checkedToday($0, logs: logs, at: day) }
+            checklistSection("Habits", note: "Repeats", items: (open + (showDone ? checkedHabits : [])).map { TodayItem(habit: $0) }, empty: "Hold and drag a task here to make it a habit.")
                 .modifier(HomeDropArea(id: "routine"))
-        case "completed": completedSection
+        case "completed": EmptyView()
         case "calendar": if calendars.connected { calendarSection }
         default:
             if let list = lists.first(where: { "list:" + $0.id.uuidString == id }) {
                 checklistSection(list.name, items: tasks.filter { $0.listID == list.id && $0.completedAt == nil }.map { TodayItem(task: $0) }, empty: "No tasks.")
             }
-        }
-    }
-
-    @ViewBuilder private var completedSection: some View {
-        let completed = relevant.filter { $0.completedAt != nil }.map { TodayItem(task: $0) } + checkedHabits.map { TodayItem(habit: $0) }
-        if !completed.isEmpty {
-            DisclosureGroup("Completed · \(completed.count)", isExpanded: $completedExpanded) { checklist(completed).padding(.top, 10) }
-                .font(.subheadline).foregroundStyle(.secondary)
         }
     }
 
@@ -158,25 +155,26 @@ struct TodayView: View {
         }
     }
 
-    private func checklistSection(_ title: String, items: [TodayItem], empty: String) -> some View {
+    private func checklistSection(_ title: String, note: String = "", items: [TodayItem], empty: String) -> some View {
         VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceS)) {
-            HStack { Text(title).font(.headline); Spacer(); Text("\(items.count)").font(.caption).foregroundStyle(.tertiary) }
-            if items.isEmpty { Text(empty).font(.subheadline).foregroundStyle(.secondary).padding(.vertical, 8) }
+            SectionLabel(title: title, note: note)
+            if items.isEmpty && !empty.isEmpty { Text(empty).font(.subheadline).foregroundStyle(.secondary).padding(.horizontal, 4).padding(.vertical, 8) }
             checklist(items)
         }
     }
 
+    /// One row per item. Rows spring to new places when items finish or move, and slide in
+    /// one after another the first time Today appears.
     private func checklist(_ items: [TodayItem]) -> some View {
-        let compact = !typeSize.isAccessibilitySize && contentWidth >= tileWidth * 2 + CGFloat(DesignTokens.spaceS)
-        return VStack(spacing: CGFloat(DesignTokens.spaceS)) {
-            ForEach(TodayGroup.groups(items, compact: compact)) { group in
-                if group.items.count == 2 {
-                    HStack(alignment: .top, spacing: CGFloat(DesignTokens.spaceS)) {
-                        ForEach(group.items) { item in itemView(item).frame(maxWidth: .infinity) }
-                    }
-                } else { itemView(group.items[0]) }
+        VStack(spacing: CGFloat(DesignTokens.spaceS)) {
+            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                itemView(item)
+                    .transition(reduceMotion ? .opacity : .asymmetric(insertion: .opacity.combined(with: .offset(x: -CGFloat(DesignTokens.rowSlide))), removal: .opacity.combined(with: .offset(x: 24))))
+                    .opacity(entered ? 1 : 0).offset(x: entered || reduceMotion ? 0 : -CGFloat(DesignTokens.rowSlide))
+                    .animation(reduceMotion ? .easeOut(duration: 0.2) : .orbit.delay(Double(min(index, 10)) * DesignTokens.staggerSeconds), value: entered)
             }
         }
+        .animation(reduceMotion ? nil : .orbit, value: items.map(\.state))
     }
 
     @ViewBuilder private func itemView(_ item: TodayItem) -> some View {

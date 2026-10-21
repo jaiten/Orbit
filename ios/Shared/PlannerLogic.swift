@@ -45,10 +45,10 @@ enum PlannerLogic {
     static func checkedDays(_ habit: Habit, logs: [HabitLog], ending date: Date, days: Int = 7, calendar: Calendar = .current) -> Int {
         HabitRules.checkedDays(rule: habit.frequencyRule, target: habit.target, counts: counts(habit, logs: logs), day: dayKey(date, calendar: calendar), days: days)
     }
-    /// For example "Weekdays · 1/1 today" or "2/3 this week".
+    /// For example "Weekdays · 1 of 1 today" or "2 of 3 this week", as on Windows.
     static func detail(_ habit: Habit, logs: [HabitLog], at date: Date) -> String {
         let schedule = HabitRules.schedule(habit.frequencyRule)
-        let count = "\(progress(habit, logs: logs, at: date))/\(habit.target) \(schedule == "WEEKLY" ? "this week" : "today")"
+        let count = "\(progress(habit, logs: logs, at: date)) of \(habit.target) \(schedule == "WEEKLY" ? "this week" : "today")"
         return schedule == "DAILY" || schedule == "WEEKLY" ? count : HabitRules.label(schedule) + " · " + count
     }
 }

@@ -45,11 +45,12 @@ struct RootView: View {
     @State private var showAccount = false
     var body: some View {
         TabView(selection: $selectedTab) {
-            TodayView().tabItem { Label("Today", systemImage: "sun.max") }.tag(0)
-            CalendarView().tabItem { Label("Calendar", systemImage: "calendar") }.tag(1)
-            TasksView().tabItem { Label("Lists", systemImage: "checklist") }.tag(2)
-            HabitsView().tabItem { Label("Habits", systemImage: "leaf") }.tag(3)
-            SettingsView().tabItem { Label("Settings", systemImage: "gearshape") }.tag(4)
+            // Line icons, as on the website; the selected tab takes the accent.
+            TodayView().tabItem { Label("Today", systemImage: "sun.max").environment(\.symbolVariants, .none) }.tag(0)
+            CalendarView().tabItem { Label("Calendar", systemImage: "calendar").environment(\.symbolVariants, .none) }.tag(1)
+            TasksView().tabItem { Label("Lists", systemImage: "checklist").environment(\.symbolVariants, .none) }.tag(2)
+            HabitsView().tabItem { Label("Habits", systemImage: "repeat").environment(\.symbolVariants, .none) }.tag(3)
+            SettingsView().tabItem { Label("Settings", systemImage: "gearshape").environment(\.symbolVariants, .none) }.tag(4)
         }
         .overlay(alignment: .bottom) {
             if let change = undo.change {
@@ -61,7 +62,7 @@ struct RootView: View {
                     .task(id: change.created) { try? await Task.sleep(for: .seconds(8)); if undo.change?.created == change.created { undo.dismiss() } }
             }
         }
-        .tint(DayTheme.accentColor(accentTheme))
+        .tint(DayTheme.accentText(accentTheme))
         // The one source for the accent: every view reads it from the environment and updates at once.
         .environment(\.orbitAccent, OrbitAccent(name: accentTheme))
         .preferredColorScheme(appearance == "system" ? nil : (appearance == "dark" ? .dark : .light))

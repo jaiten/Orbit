@@ -4,15 +4,19 @@ import SwiftData
 /// Home layout is a device preference, never a destructive edit to planner data.
 struct HomeLayoutEditor: View {
     @Environment(\.orbitAccent) private var accent
-    @AppStorage("homeSections") private var stored = "consistency,progress,today,routine,completed,calendar"
-    @AppStorage("hiddenHomeSections") private var hidden = ""
+    /// Defaults follow the website: your plan, tasks, habits, then finished items below them.
+    /// Consistency is off by default (History has it) but can be switched back on.
+    static let defaultSections = "progress,today,routine,completed,calendar,consistency"
+    static let defaultHidden = "consistency"
+    @AppStorage("homeSections") private var stored = defaultSections
+    @AppStorage("hiddenHomeSections") private var hidden = defaultHidden
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
     @Environment(\.dismiss) private var dismiss
     private var sections: [String] { stored.split(separator: ",").map(String.init) }
     static func title(_ id: String, lists: [TaskList]) -> String {
         switch id {
         case "consistency": return "Consistency"
-        case "progress": return "Daily progress"
+        case "progress": return "Your plan"
         case "today": return "Tasks"
         case "routine": return "Habits"
         case "completed": return "Completed"

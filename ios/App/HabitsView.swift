@@ -14,7 +14,7 @@ struct HabitsView: View {
                 VStack(alignment: .leading, spacing: 24) {
                     if habits.isEmpty { ContentUnavailableView("No Habits", systemImage: "leaf", description: Text("Tap + to add one.")) }
                     ForEach(habits) { habit in
-                        HabitRow(habit: habit, logs: logs, date: .now, edit: { editing = habit })
+                        HabitRow(habit: habit, logs: logs, date: .now, edit: { editing = habit }, editable: true)
                     }
                     if !habits.isEmpty {
                         NavigationLink { HabitHistoryIndex() } label: {
