@@ -17,13 +17,13 @@ struct DayEntry: TimelineEntry {
     let completedHabits: Int
     let totalHabits: Int
     var unavailable = false
+    /// Today's plan: tasks for today (open or finished today) and habits due today.
+    var doneToday = 0
+    var totalToday = 0
     /// Overall habit progress per day, oldest first; enough days for the widest Grid widget.
     var consistency: [Double] = []
     /// The first few habits, each with its own days, for the large Grid widget.
     var grids: [HabitGrid] = []
-    /// Today's plan: tasks for today (open or finished today) and habits due today.
-    var doneToday = 0
-    var totalToday = 0
     static let gridDays = 245
     private static let sample = (0..<gridDays).map { Double(($0 * 7 + $0 / 3) % 5) / 4 }
     static let placeholder = DayEntry(date: .now, items: [WidgetItem(id: "preview", title: "Morning walk", subtitle: "8:00 AM", habit: false, date: nil)], completedHabits: 1, totalHabits: 3, doneToday: 2, totalToday: 5,
