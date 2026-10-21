@@ -16,7 +16,7 @@ jobs:
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate project
@@ -38,7 +38,7 @@ jobs:
       - name: Print Today screenshot for manual runs
         if: always() && github.event_name == 'workflow_dispatch'
         run: python3 scripts/print_screenshot.py TestAttachments "Orbit Today screenshot" || true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: ios-test-results

@@ -31,7 +31,7 @@ jobs:
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - name: Check required credentials
@@ -39,7 +39,7 @@ jobs:
           for name in CERTIFICATE_P12_BASE64 P12_PASSWORD APP_PROFILE_BASE64 WIDGET_PROFILE_BASE64 ASC_KEY_ID ASC_ISSUER_ID ASC_PRIVATE_KEY; do
             if [ -z "${!name}" ]; then echo "::error::Missing GitHub secret: $name"; exit 1; fi
           done
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Install build tools
