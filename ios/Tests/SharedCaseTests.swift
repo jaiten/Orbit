@@ -12,6 +12,12 @@ final class SharedCaseTests: XCTestCase {
         return try XCTUnwrap(object?["cases"] as? [[String: Any]])
     }
 
+    func testHabitColorCases() throws {
+        for c in try Self.cases("habit-colors") {
+            XCTAssertEqual(HabitRules.nextColor(c["existing"] as! [String]), c["expect"] as? String, c["name"] as? String ?? "")
+        }
+    }
+
     func testHabitCases() throws {
         let cases = try Self.cases("habits")
         XCTAssertFalse(cases.isEmpty)

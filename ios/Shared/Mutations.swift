@@ -3,12 +3,13 @@ import SwiftData
 import WidgetKit
 
 @MainActor enum Mutations {
-    static func save(_ context: ModelContext, undoable: Bool = true) throws {
+    /// Saves and syncs. Deletions and moves can be undone (UndoJournal decides); `undoKind` forces it, as imports do.
+    static func save(_ context: ModelContext, undoable: Bool = true, undoKind: UndoJournal.Kind? = nil) throws {
         do {
             let before = Dictionary(uniqueKeysWithValues: try context.fetch(FetchDescriptor<SyncEntry>()).filter { $0.key != "owner" && !$0.tombstone }.map { ($0.key, $0.payload) })
             let after = try SyncRecords.snapshots(context)
             try SyncRecords.capture(context, snapshots: after); try context.save()
-            if undoable { UndoJournal.shared.record(before: before, after: after) }
+            if undoable { UndoJournal.shared.record(before: before, after: after, kind: undoKind) }
             WidgetCenter.shared.reloadAllTimelines(); NotificationCenter.default.post(name: .init("OrbitLocalChange"), object: nil)
         }
         catch { context.rollback(); throw error }

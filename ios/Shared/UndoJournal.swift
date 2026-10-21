@@ -3,12 +3,40 @@ import SwiftData
 
 @MainActor final class UndoJournal: ObservableObject {
     static let shared = UndoJournal()
-    struct Change { let before: [String: String]; let after: [String: String]; let keys: Set<String>; let created: Date }
+    enum Kind: String {
+        case deleted = "Deleted", moved = "Moved", imported = "Imported"
+        /// For the shake prompt: "Undo delete?"
+        var verb: String {
+            switch self {
+            case .deleted: return "delete"
+            case .moved: return "move"
+            case .imported: return "import"
+            }
+        }
+    }
+    struct Change { let before: [String: String]; let after: [String: String]; let keys: Set<String>; let created: Date; var kind: Kind = .moved }
     @Published private(set) var change: Change?
-    func record(before: [String: String], after: [String: String]) {
+    /// Records a change if it is worth undoing (see `kind`); `kind` forces one, as imports do.
+    func record(before: [String: String], after: [String: String], kind forced: Kind? = nil) {
         let keys = Set(before.keys).union(after.keys).filter { before[$0] != after[$0] }
-        guard !keys.isEmpty else { return }
-        change = Change(before: before.filter { keys.contains($0.key) }, after: after.filter { keys.contains($0.key) }, keys: keys, created: .now)
+        guard !keys.isEmpty, let kind = forced ?? Self.kind(keys: keys, before: before, after: after) else { return }
+        change = Change(before: before.filter { keys.contains($0.key) }, after: after.filter { keys.contains($0.key) }, keys: keys, created: .now, kind: kind)
+    }
+
+    /// Only deleting something or moving a task (another list or day, Later, Someday, into a habit) offers
+    /// Undo. Ticks, check-ins and edits are easy to redo by hand. Same rule as Windows (planner-tools.cjs).
+    static func kind(keys: Set<String>, before: [String: String], after: [String: String]) -> Kind? {
+        let removed = keys.filter { before[$0] != nil && after[$0] == nil }
+        let added = keys.filter { before[$0] == nil && after[$0] != nil }
+        if !removed.isEmpty { return added.contains { $0.hasPrefix("tasks/") || $0.hasPrefix("habits/") } ? .moved : .deleted }
+        let moved = keys.contains { key in
+            guard key.hasPrefix("tasks/"), let old = before[key].flatMap({ try? SyncRecords.object($0) }),
+                  let now = after[key].flatMap({ try? SyncRecords.object($0) }) else { return false }
+            return ["listID", "localDate", "dueDate"].contains { field in
+                String(describing: old[field] ?? NSNull()) != String(describing: now[field] ?? NSNull())
+            }
+        }
+        return moved ? .moved : nil
     }
     func undo(in context: ModelContext) throws {
         guard let change, Date.now.timeIntervalSince(change.created) < 30 else { dismiss(); return }

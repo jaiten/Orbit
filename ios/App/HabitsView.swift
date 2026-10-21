@@ -174,7 +174,8 @@ struct HabitEditor: View {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Save", action: save).disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
                 }.onAppear {
-                    guard let habit else { return }
+                    // A new habit starts in the next colour, so habits mix; any colour can still be chosen.
+                    guard let habit else { color = (try? QuickAddSaver.nextHabitColor(in: context)) ?? "sage"; return }
                     title = habit.title; frequency = HabitRules.schedule(habit.frequencyRule); target = habit.target; color = habit.color; icon = habit.icon
                     reminderEnabled = habit.reminderMinutes != nil; nudgeEnabled = habit.nudgeMinutes != nil
                     reminder = time(habit.reminderMinutes ?? 540); nudge = time(habit.nudgeMinutes ?? 1200)

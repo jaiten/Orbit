@@ -68,7 +68,7 @@ struct BackupView: View {
                 var payload = record["payload"] as! [String: Any]; payload["updatedAt"] = Date.now.timeIntervalSince1970 * 1000
                 try SyncRecords.apply(["key": record["key"]!, "payload": payload, "deleted": false], context: context)
             }
-            try Mutations.save(context); Task { try? await refreshReminders(context) }
+            try Mutations.save(context, undoKind: .imported); Task { try? await refreshReminders(context) }
             self.plan = nil
             message = chosen.isEmpty ? "Nothing new to import." : "Imported \(chosen.count) \(chosen.count == 1 ? "item" : "items"). You can Undo right away."
         } catch { context.rollback(); self.plan = nil; self.error = error.localizedDescription }

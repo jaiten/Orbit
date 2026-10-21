@@ -77,9 +77,12 @@ struct OnboardingView: View {
             }
             Button("Continue") {
                 save {
+                    var picked: [String] = []
                     for index in chosen.sorted() {
                         let suggestion = OnboardingData.habitSuggestions[index]
-                        let habit = Habit(title: suggestion.title, frequencyRule: suggestion.frequencyRule, target: suggestion.target)
+                        // Each new habit gets the next colour, counting the ones picked just before it.
+                        let color = try QuickAddSaver.nextHabitColor(in: context, adding: picked); picked.append(color)
+                        let habit = Habit(title: suggestion.title, frequencyRule: suggestion.frequencyRule, target: suggestion.target, color: color)
                         habit.reminderMinutes = suggestion.reminderMinutes
                         context.insert(habit)
                     }

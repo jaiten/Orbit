@@ -12,7 +12,7 @@ import SwiftData
         guard !result.title.isEmpty else { throw CocoaError(.validationMissingMandatoryProperty) }
         if result.kind == .habit {
             // Anything that repeats is a habit; a time becomes its reminder.
-            let habit = Habit(title: result.title, frequencyRule: result.schedule ?? "DAILY")
+            let habit = Habit(title: result.title, frequencyRule: result.schedule ?? "DAILY", color: try nextHabitColor(in: context))
             habit.reminderMinutes = result.time
             context.insert(habit)
         } else {
@@ -24,6 +24,13 @@ import SwiftData
         }
         try Mutations.save(context)
         return QuickAdd.describe(result)
+    }
+
+    /// A new habit's default colour, so habits mix (HabitRules.nextColor over existing habits, oldest first).
+    /// `adding` are colours of habits about to be inserted.
+    static func nextHabitColor(in context: ModelContext, adding: [String] = []) throws -> String {
+        let habits = try context.fetch(FetchDescriptor<Habit>(sortBy: [SortDescriptor(\.createdAt)]))
+        return HabitRules.nextColor(habits.map(\.color) + adding)
     }
 
     /// Someday wins; then a #list (created when new); then the list being viewed. A dated item can't stay in Someday.
