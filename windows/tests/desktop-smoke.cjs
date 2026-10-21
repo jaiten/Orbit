@@ -181,7 +181,14 @@ const remove = (folder) => {
     if (second.y <= first.y || Math.abs(first.x - second.x) > 2) throw Error("Today rows do not stack");
     // Keyboard: pages, focused-item toggle/edit/delete, help, search.
     await p.keyboard.press("Control+2");
-    await p.getByRole("heading", { name: "Calendar", exact: true }).waitFor();
+    // Calendar: a week of day tiles; the arrows move a week and Today comes back.
+    await p.getByRole("group", { name: "Days" }).waitFor();
+    const firstDay = () => p.locator(".day-tile").first().getAttribute("data-day");
+    const thisWeek = await firstDay();
+    await p.getByRole("button", { name: "Next week" }).click();
+    if ((await firstDay()) === thisWeek) throw Error("Next week did not move the calendar");
+    await p.locator(".week-nav .pill").click();
+    if ((await firstDay()) !== thisWeek) throw Error("Today did not return to this week");
     await p.keyboard.press("Control+1");
     // Clear any earlier Undo (a move a moment ago), then tick: ticking never offers Undo.
     await p.evaluate(() => {

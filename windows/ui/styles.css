@@ -13,6 +13,17 @@
 :root[data-appearance="dark"] {
   color-scheme: dark;
 }
+:root {
+  --sheen: 0.5;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-appearance="light"]) {
+    --sheen: 0.11;
+  }
+}
+:root[data-appearance="dark"] {
+  --sheen: 0.11;
+}
 body {
   margin: 0;
   min-height: 100vh;
@@ -131,7 +142,10 @@ kbd {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  background: color-mix(in srgb, var(--ink) var(--tint-sidebar), var(--canvas));
+  /* A soft sheen from the top-left, as on the website's Windows app; strongest in dark mode. */
+  background: linear-gradient(120deg, rgb(255 255 255 / var(--sheen)) 0%, rgb(255 255 255 / 0) 70%),
+    color-mix(in srgb, var(--ink) var(--tint-sidebar), var(--canvas));
+  box-shadow: inset -1px 0 0 color-mix(in srgb, var(--line) 60%, transparent);
 }
 .search-field {
   display: flex;
@@ -688,19 +702,85 @@ main {
   color: var(--muted);
 }
 
-/* Calendar */
-.week-day .section-label {
-  align-items: center;
+/* Calendar: a row of day tiles; the chosen day is filled */
+.calendar-page {
+  max-width: 760px;
 }
-.week-day:first-of-type .section-label {
-  margin-top: 0;
+.week-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-l);
+}
+.week-nav .pill {
+  padding: 5px 14px;
+}
+.day-tiles {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-s);
+  margin-bottom: var(--space-s);
+}
+.day-tile {
+  position: relative;
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  padding: 12px 12px 14px;
+  border-radius: var(--radius-row);
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line);
+  text-align: left;
+  transition:
+    background-color var(--motion),
+    color var(--motion),
+    transform var(--spring-lift-duration) var(--spring-lift);
+}
+.day-tile:hover {
+  background: var(--surface);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+.day-tile span {
+  font-size: 12px;
+  opacity: 0.7;
+}
+.day-tile strong {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+.day-tile.today:not(.selected) strong {
+  color: var(--accent-text);
+}
+.day-tile i {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.day-tile i.busy {
+  background: var(--accent);
+}
+.day-tile.selected,
+.day-tile.selected:hover {
+  background: var(--accent-button);
+  color: var(--on-accent);
+  box-shadow: none;
+}
+.day-tile.selected i.busy {
+  background: var(--on-accent);
 }
 .day-date {
   margin-left: 6px;
   color: var(--muted);
   font-weight: 400;
 }
-.week-day .pill {
+.calendar-page .section-label {
+  align-items: center;
+}
+.calendar-page .section-label .pill {
   padding: 3px 12px;
   font-size: 12px;
 }

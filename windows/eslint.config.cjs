@@ -113,6 +113,8 @@ const shared = Object.fromEntries(
     "showChip",
     "weekSegments",
     "nextHabitColor",
+    "calendarStart",
+    "calendarDay",
   ].map((name) => [name, "writable"]),
 );
 
