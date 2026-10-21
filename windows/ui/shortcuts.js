@@ -8,6 +8,7 @@ const SHORTCUT_HELP = [
   ["E", "Edit the focused item"],
   ["Delete", "Delete the focused item (Undo appears)"],
   ["Esc", "Close a dialog"],
+  ["Ctrl+Z", "Undo a delete or move"],
   ["Ctrl+/", "Show these shortcuts"],
 ];
 
@@ -50,6 +51,7 @@ document.addEventListener("keydown", (e) => {
       goTo("lists");
       $("#search")?.focus();
     } else if (key === "/") openShortcuts();
+    else if (key === "z" && !e.shiftKey && !$("#undo-toast").hidden) void action(() => api.undo());
     else return;
     e.preventDefault();
     return;

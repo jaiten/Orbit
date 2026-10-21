@@ -21,8 +21,9 @@ test("undo refuses to replace a changed synced record", () => {
   const s = new Store(":memory:"),
     t = new PlannerTools(s);
   try {
-    t.change([{ key: "tasks/" + id, payload: { id, title: "Read" } }]);
-    s.put("tasks/" + id, { id, title: "Different device" });
+    t.change([{ key: "tasks/" + id, payload: { id, title: "Read", listID: null } }]);
+    t.change([{ key: "tasks/" + id, payload: { id, title: "Read", listID: "someday" } }]);
+    s.put("tasks/" + id, { id, title: "Different device", listID: "someday" });
     assert.throws(() => t.undo(), /changed on another device/);
     assert.equal(s.rows()[0].payload.title, "Different device");
   } finally {
@@ -107,4 +108,35 @@ test("importing never silently overwrites: new, same and changed items are told 
     decodeBackup(JSON.stringify({ format: "orbit-backup", version: 1, records: sample })),
     "version 1 still imports",
   );
+});
+
+test("only deletions, moves and imports offer Undo; ticks, check-ins and edits don't", () => {
+  const s = new Store(":memory:"),
+    t = new PlannerTools(s);
+  const task = { id, title: "Read", listID: null, localDate: "2026-10-21", dueDate: null, completedAt: null };
+  try {
+    t.change([{ key: "tasks/" + id, payload: task }]);
+    assert.equal(t.last, null, "creating");
+    t.change([{ key: "tasks/" + id, payload: { ...task, completedAt: 1 } }]);
+    assert.equal(t.last, null, "ticking off");
+    t.change([{ key: "tasks/" + id, payload: { ...task, title: "Read more" } }]);
+    assert.equal(t.last, null, "renaming");
+    t.change([{ key: "habit_logs/" + id + "-2026-10-21", payload: { habitID: id, dayKey: "2026-10-21", count: 1 } }]);
+    assert.equal(t.last, null, "logging a habit");
+    t.change([{ key: "tasks/" + id, payload: { ...task, title: "Read more", localDate: null } }]);
+    assert.equal(t.last?.kind, "moved", "Later");
+    t.change([{ key: "tasks/" + id, payload: { ...task, title: "Read more", localDate: null, listID: "someday" } }]);
+    assert.equal(t.last?.kind, "moved", "Someday");
+    t.change([
+      { key: "tasks/" + id, payload: task, deleted: true },
+      { key: "habits/" + id, payload: { id, title: "Read" } },
+    ]);
+    assert.equal(t.last?.kind, "moved", "made into a habit");
+    t.change([{ key: "habits/" + id, payload: { id, title: "Read" }, deleted: true }]);
+    assert.equal(t.last?.kind, "deleted", "deleting");
+    t.change([{ key: "tasks/" + id, payload: { ...task, title: "Imported" } }], "imported");
+    assert.equal(t.last?.kind, "imported", "importing");
+  } finally {
+    s.close();
+  }
 });

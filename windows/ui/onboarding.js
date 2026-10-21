@@ -14,7 +14,6 @@ function newHabit(fields, now = Date.now()) {
   return {
     id: crypto.randomUUID(),
     target: 1,
-    color: "sage",
     icon: "leaf",
     reminderMinutes: null,
     nudgeMinutes: null,
@@ -159,9 +158,12 @@ function bindOnboarding() {
   );
   if ($("#add-habits"))
     $("#add-habits").onclick = () => {
-      const now = Date.now();
+      const now = Date.now(),
+        picked = [];
       const changes = [...chosenHabits].map((i) => {
-        const habit = newHabit(OrbitOnboardingData.habitSuggestions[i], now + i);
+        // Each new habit gets the next colour, counting the ones picked just before it.
+        const habit = newHabit({ ...OrbitOnboardingData.habitSuggestions[i], color: nextHabitColor(picked) }, now + i);
+        picked.push(habit.color);
         return { key: "habits/" + habit.id, payload: habit };
       });
       void (changes.length ? api.batch(changes) : Promise.resolve())

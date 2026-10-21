@@ -30,3 +30,7 @@ for (const c of require("../../shared/test-cases/consistency.json").cases) {
     assert.ok(Math.abs(habits.consistency(c.habits, c.logs, c.day) - c.expect) < 1e-9);
   });
 }
+
+const colors = require("../../shared/test-cases/habit-colors.json");
+for (const c of colors.cases)
+  test(`new habit colour: ${c.name}`, () => assert.equal(habits.nextColor(c.existing), c.expect));

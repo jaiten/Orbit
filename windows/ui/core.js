@@ -205,6 +205,14 @@ const pencil =
 const plus = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
 const HABIT_COLORS = ["sage", "lavender", "honey", "clay"];
 const colorName = (c) => (HABIT_COLORS.includes(c) ? c : "sage");
+/** Default colour for a new habit, so habits mix (OrbitHabits.nextColor); `extra` are colours about to be added. */
+const nextHabitColor = (extra = []) =>
+  OrbitHabits.nextColor([
+    ...rows("habits")
+      .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
+      .map((h) => h.color),
+    ...extra,
+  ]);
 
 // The item just completed or checked: its tick plays the completion animation once, on the next render.
 let poppedID = null;

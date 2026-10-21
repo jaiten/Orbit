@@ -1,0 +1,13 @@
+{
+  "description": "A new habit's default colour: the least used so far, never the same as the newest habit's, trying colours in order after the newest one. Existing colours are listed oldest first.",
+  "order": ["sage", "lavender", "clay", "honey"],
+  "cases": [
+    { "name": "first habit", "existing": [], "expect": "sage" },
+    { "name": "second habit", "existing": ["sage"], "expect": "lavender" },
+    { "name": "fills every colour once", "existing": ["sage", "lavender", "clay"], "expect": "honey" },
+    { "name": "then starts again", "existing": ["sage", "lavender", "clay", "honey"], "expect": "sage" },
+    { "name": "fills a colour the user skipped", "existing": ["sage", "clay"], "expect": "honey" },
+    { "name": "never repeats the newest", "existing": ["lavender", "clay", "honey", "sage", "sage"], "expect": "lavender" },
+    { "name": "unknown colours are ignored", "existing": ["purple"], "expect": "sage" }
+  ]
+}

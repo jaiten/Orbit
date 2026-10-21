@@ -190,6 +190,8 @@ const remove = (folder) => {
       throw Error("Focus left the toggled item");
     await p.keyboard.press("Enter");
     await p.getByRole("checkbox", { name: "Complete Wash car", exact: true }).waitFor();
+    // Ticking off and reopening never offer Undo; deleting and moving do.
+    if (await p.locator("#undo-toast").isVisible()) throw Error("Undo appeared for a tick");
     await p.keyboard.press("e");
     await p.locator("#editor[open]").waitFor();
     await p.keyboard.press("Escape");

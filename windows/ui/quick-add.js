@@ -91,7 +91,7 @@ function quickRecords(result) {
       title: result.title,
       frequencyRule: result.schedule,
       target: 1,
-      color: "sage",
+      color: nextHabitColor(),
       icon: "leaf",
       reminderMinutes: result.time,
       nudgeMinutes: null,

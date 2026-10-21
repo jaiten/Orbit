@@ -227,6 +227,7 @@ app.whenReady().then(async () => {
       records: store.rows(),
       undoAvailable: plannerTools.available,
       undoCreatedAt: plannerTools.last?.created,
+      undoKind: plannerTools.last?.kind,
       recoveryReady,
       accountNotice: notice,
       status: sync.status,
@@ -306,7 +307,10 @@ app.whenReady().then(async () => {
     }
     if (mode === "restore" && pendingBackup) {
       const chosen = [...pendingBackup.added, ...(replaceChanged === true ? pendingBackup.changed : [])];
-      plannerTools.change(chosen.map((r) => ({ ...r, payload: { ...r.payload, updatedAt: Date.now() } })));
+      plannerTools.change(
+        chosen.map((r) => ({ ...r, payload: { ...r.payload, updatedAt: Date.now() } })),
+        "imported",
+      );
       pendingBackup = null;
       notify();
       void sync.run();

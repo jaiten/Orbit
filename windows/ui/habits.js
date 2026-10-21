@@ -76,6 +76,22 @@
   function label(habit) {
     return { DAILY: "Daily", WEEKDAYS: "Weekdays", WEEKENDS: "Weekends", WEEKLY: "Weekly" }[schedule(habit)];
   }
+  const COLORS = ["sage", "lavender", "clay", "honey"];
+  /**
+   * A new habit's default colour, so habits mix: the least used so far, never the newest habit's,
+   * trying colours in order after the newest one. `existing` is habit colours, oldest first.
+   */
+  function nextColor(existing) {
+    const counts = Object.fromEntries(COLORS.map((c) => [c, 0]));
+    existing.forEach((c) => {
+      if (c in counts) counts[c] += 1;
+    });
+    const last = existing[existing.length - 1];
+    const start = COLORS.includes(last) ? COLORS.indexOf(last) + 1 : 0;
+    const order = COLORS.map((_, i) => COLORS[(start + i) % COLORS.length]);
+    const fewest = Math.min(...COLORS.map((c) => counts[c]));
+    return order.find((c) => counts[c] === fewest && c !== last) ?? order.find((c) => c !== last);
+  }
 
   const api = {
     SCHEDULES,
@@ -92,6 +108,8 @@
     checkedDays,
     consistency,
     label,
+    COLORS,
+    nextColor,
   };
   if (typeof module === "object") module.exports = api;
   else root.OrbitHabits = api;

@@ -112,6 +112,7 @@ const shared = Object.fromEntries(
     "spring",
     "showChip",
     "weekSegments",
+    "nextHabitColor",
   ].map((name) => [name, "writable"]),
 );
 

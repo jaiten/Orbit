@@ -152,12 +152,36 @@ function encodeTasksCSV(rows, somedayID) {
   );
   return [header.join(","), ...lines].join("\r\n") + "\r\n";
 }
+/**
+ * Which changes are worth an Undo: deleting something, or moving a task (to another list or day,
+ * Later or Someday, or into a habit). Ticks, check-ins and edits are easy to redo by hand, so they
+ * get none. Returns "deleted", "moved" or null. The iPhone app uses the same rule (UndoJournal.kind).
+ */
+function undoKind(before, after) {
+  const keys = [...before.keys()];
+  const removed = keys.filter((k) => before.get(k) && !after.get(k));
+  const added = keys.filter((k) => !before.get(k) && after.get(k));
+  if (removed.length) return added.some((k) => /^(tasks|habits)\//.test(k)) ? "moved" : "deleted";
+  const moved = keys.some((k) => {
+    const old = before.get(k),
+      now = after.get(k);
+    return (
+      k.startsWith("tasks/") &&
+      old &&
+      now &&
+      ["listID", "localDate", "dueDate"].some((field) => (old[field] ?? null) !== (now[field] ?? null))
+    );
+  });
+  return moved ? "moved" : null;
+}
+
 class PlannerTools {
   constructor(store) {
     this.store = store;
     this.last = null;
   }
-  change(changes) {
+  /** Applies changes. Deletions and moves can be undone; `kind` forces one (imports are always undoable). */
+  change(changes, kind = null) {
     const before = new Map(
       this.store
         .rows()
@@ -174,12 +198,13 @@ class PlannerTools {
     const keys = [...new Set([...before.keys(), ...after.keys()])].filter(
       (k) => !isDeepStrictEqual(before.get(k), after.get(k)),
     );
-    if (keys.length)
-      this.last = {
-        before: new Map(keys.map((k) => [k, before.get(k)])),
-        after: new Map(keys.map((k) => [k, after.get(k)])),
-        created: Date.now(),
-      };
+    if (!keys.length) return;
+    const changed = {
+      before: new Map(keys.map((k) => [k, before.get(k)])),
+      after: new Map(keys.map((k) => [k, after.get(k)])),
+    };
+    const what = kind ?? undoKind(changed.before, changed.after);
+    if (what) this.last = { ...changed, kind: what, created: Date.now() };
   }
   get available() {
     return !!this.last && Date.now() - this.last.created < 30000;
@@ -207,4 +232,4 @@ class PlannerTools {
     this.last = null;
   }
 }
-module.exports = { decodeBackup, encodeBackup, planImport, encodeTasksCSV, PlannerTools };
+module.exports = { decodeBackup, encodeBackup, planImport, encodeTasksCSV, PlannerTools, undoKind };

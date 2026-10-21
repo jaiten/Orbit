@@ -44,6 +44,7 @@ function openHabit(id, draft = null) {
   f.elements.title.value = source?.title || "";
   f.elements.target.value = source?.target || 1;
   f.elements.frequency.value = OrbitHabits.schedule(source || {});
+  f.elements.color.value = editingHabit?.color || draft?.color || nextHabitColor();
   updateTargetLabel();
   $("#habit-editor-title").textContent = editingHabit ? "Edit Habit" : "New Habit";
   $("#delete-habit").hidden = !editingHabit;
@@ -124,7 +125,6 @@ $("#habit-form").onsubmit = (e) => {
       ...(editingHabit || {
         id: crypto.randomUUID(),
         createdAt: Date.now(),
-        color: "sage",
         icon: "leaf",
         reminderMinutes: habitDraft?.reminderMinutes ?? null,
         nudgeMinutes: null,
@@ -132,6 +132,7 @@ $("#habit-form").onsubmit = (e) => {
       title: f.elements.title.value.trim(),
       target: Number(f.elements.target.value),
       frequencyRule: f.elements.frequency.value,
+      color: f.elements.color.value,
       updatedAt: Date.now(),
     });
     $("#habit-editor").close();
@@ -210,18 +211,56 @@ $("#review-form").onsubmit = (e) => {
   });
 };
 
+// The toast only appears for deletions, moves and imports. It springs up and fades in, and slides
+// away the same way; Ctrl+Z undoes too.
 let undoTimer, lastUndoCreated;
-function updateUndo(next) {
+const UNDO_LABEL = { deleted: "Deleted", moved: "Moved", imported: "Imported" };
+function showUndo(visible) {
   const box = $("#undo-toast");
-  if (!next.undoAvailable) {
+  if (visible === !box.hidden && !box.classList.contains("leaving")) return;
+  if (visible) {
+    box.classList.remove("leaving");
+    box.hidden = false;
+    const { easing, duration } = spring("ui");
+    box.animate(
+      reducedMotion()
+        ? [{ opacity: 0 }, { opacity: 1 }]
+        : [
+            { opacity: 0, transform: "translate(-50%, 24px) scale(0.96)" },
+            { opacity: 1, transform: "translate(-50%, 0) scale(1)" },
+          ],
+      { duration: reducedMotion() ? 200 : duration, easing: reducedMotion() ? "ease-out" : easing },
+    );
+    return;
+  }
+  box.classList.add("leaving");
+  const out = box.animate(
+    reducedMotion()
+      ? [{ opacity: 1 }, { opacity: 0 }]
+      : [
+          { opacity: 1, transform: "translate(-50%, 0)" },
+          { opacity: 0, transform: "translate(-50%, 16px)" },
+        ],
+    { duration: 220, easing: "ease-in", fill: "forwards" },
+  );
+  out.onfinish = () => {
+    if (!box.classList.contains("leaving")) return;
+    box.classList.remove("leaving");
     box.hidden = true;
+    out.cancel();
+  };
+}
+function updateUndo(next) {
+  if (!next.undoAvailable) {
+    showUndo(false);
     return;
   }
   if (lastUndoCreated === next.undoCreatedAt) return;
   lastUndoCreated = next.undoCreatedAt;
-  box.hidden = false;
+  $("#undo-label").textContent = UNDO_LABEL[next.undoKind] || "Saved";
+  showUndo(true);
   clearTimeout(undoTimer);
-  undoTimer = setTimeout(() => (box.hidden = true), 8000);
+  undoTimer = setTimeout(() => showUndo(false), 8000);
 }
 $("#undo-change").onclick = () => action(() => api.undo());
-$("#dismiss-undo").onclick = () => ($("#undo-toast").hidden = true);
+$("#dismiss-undo").onclick = () => showUndo(false);

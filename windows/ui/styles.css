@@ -1142,7 +1142,9 @@ dialog footer .danger {
   padding: 6px 6px 6px 18px;
   border-radius: var(--radius-chip);
   background: var(--surface);
-  box-shadow: 0 8px 30px color-mix(in srgb, black 18%, transparent);
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 24px 48px -16px color-mix(in srgb, black 30%, transparent);
 }
 .undo-toast[hidden] {
   display: none;
