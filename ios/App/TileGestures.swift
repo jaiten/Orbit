@@ -51,6 +51,10 @@ struct TileHoldInstaller: UIViewRepresentable {
             HomeDrag.shared.note("ask \(Int(point.x)),\(Int(point.y)) hit=\(hit ?? "none") tiles=\(HomeDrag.shared.tiles.values.map { "\(Int($0.minX)),\(Int($0.minY)),\(Int($0.width))x\(Int($0.height))" })")
             return hit != nil
         }
+        /// SwiftUI's own touch handling (buttons, the swipe) claims a touch as soon as it lands, which
+        /// would block a hold that has to wait. Running alongside it is safe: once the hold begins it
+        /// cancels those touches, so the tile's button doesn't also fire.
+        func gestureRecognizer(_ recognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
     }
 
     final class InstallerView: UIView {
