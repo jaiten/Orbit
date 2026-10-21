@@ -162,7 +162,7 @@ $("#password-form").onsubmit = (e) => {
   });
 };
 
-$("#evening-review").onclick = () => {
+function openEveningReview() {
   const today = dayKey(new Date());
   const done = rows("tasks").filter((t) => t.completedAt && dayKey(new Date(t.completedAt)) === today).length;
   const habits = rows("habits").filter((h) => checked(h, today)).length;
@@ -176,7 +176,7 @@ $("#evening-review").onclick = () => {
     )
     .join("");
   $("#review-editor").showModal();
-};
+}
 $("#review-form").onsubmit = (e) => {
   e.preventDefault();
   const ids = [...e.target.querySelectorAll("input:checked")].map((i) => i.value);

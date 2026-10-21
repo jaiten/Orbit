@@ -102,4 +102,3 @@ $("#quick-add-details").onclick = () => {
   const { task } = quickRecords(result.title ? result : { ...result, title: "" });
   openTask(null, task.localDate ?? "", task);
 };
-$("#new-task").onclick = () => openQuickAdd();

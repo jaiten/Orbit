@@ -20,11 +20,15 @@ function renderInbox(tasks) {
   const name =
     selectedList === SOMEDAY ? "Someday" : rows("lists").find((l) => l.id === selectedList)?.name || "All Tasks";
   const empty = selectedList === SOMEDAY ? "Ideas for later go here." : "No tasks here.";
-  return `<div class="list-header">
-      <h1>${esc(name)}</h1>
+  const note = selectedList === SOMEDAY ? "Not now" : selectedList ? "List" : "Everything open";
+  return `<div class="narrow">
+    <header class="page-head">
+      <div><div class="eyebrow">Lists</div><h1>${esc(name)}</h1><p class="subtitle">${note}</p></div>
       <input id="search" type="search" placeholder="Search" aria-label="Search tasks" value="${esc(searchQuery)}" />
-    </div>
-    <div class="check-list">${inbox.map(taskRow).join("") || `<p class="empty">${empty}</p>`}</div>`;
+    </header>
+    ${addField()}
+    <div class="check-list">${inbox.map(taskRow).join("") || `<p class="empty">${empty}</p>`}</div>
+  </div>`;
 }
 
 function renderLists() {

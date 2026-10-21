@@ -127,6 +127,8 @@ function updateSync(value) {
         ? "synced"
         : "local";
   if ($("#sync-details")) $("#sync-details").textContent = status;
+  // The sidebar shows the short form ("Saved locally"); the full message is in the tooltip and Account.
+  $("#sync-text").textContent = status.split(" · ")[0];
   icon.title = status;
   icon.setAttribute("aria-label", "Sync: " + status);
 }
@@ -194,13 +196,53 @@ function dueOn(h, date = selected) {
 }
 function habitDetail(h, date = selected) {
   const schedule = OrbitHabits.schedule(h);
-  const count = `${progress(h, date)} / ${h.target} ${schedule === "WEEKLY" ? "this week" : "today"}`;
+  const count = `${progress(h, date)} of ${h.target} ${schedule === "WEEKLY" ? "this week" : "today"}`;
   return schedule === "DAILY" || schedule === "WEEKLY" ? count : `${OrbitHabits.label(h)} · ${count}`;
 }
 
 const pencil =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15z"/></svg>';
-const check = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 10 3.2 3.2L15 6.5"/></svg>';
+const plus = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+const HABIT_COLORS = ["sage", "lavender", "honey", "clay"];
+const colorName = (c) => (HABIT_COLORS.includes(c) ? c : "sage");
+
+// The item just completed or checked: its tick plays the completion animation once, on the next render.
+let poppedID = null;
+/** Round checkbox: a coral ring; done fills it and draws a white tick. */
+function tick(done, pop = false) {
+  return `<span class="tick ${done ? "done" : ""} ${pop && done ? "pop" : ""}" aria-hidden="true"><i></i><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>`;
+}
+/** Section heading with a tiny uppercase note on the right ("Time blocks"). */
+function sectionLabel(title, note = "") {
+  return `<div class="section-label"><h2>${title}</h2>${note ? `<span>${note}</span>` : ""}</div>`;
+}
+/** The quiet field that opens quick add. */
+function addField(hint = "Add a task · gym tomorrow 6pm") {
+  return `<button class="add-field" data-quick-add aria-label="Add a task" aria-keyshortcuts="Control+N">${plus}<span>${hint}</span><kbd aria-hidden="true">Ctrl+N</kbd></button>`;
+}
+/** "Your plan": the day's count and a bar that fills with a spring. */
+function planCard(done, total) {
+  return `<div class="card plan-card">
+    <div class="eyebrow">Your plan</div>
+    <div class="plan-count">${done} of ${total} done</div>
+    <div class="plan-bar" role="progressbar" aria-label="Daily progress" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${done}"><i data-fill="${total ? done / total : 0}"></i></div>
+  </div>`;
+}
+/**
+ * GitHub-style boxes: a column per week, a row per day, oldest first.
+ * Opacity is set from data-o after render (the page's CSP blocks inline styles).
+ */
+function boxGrid(levels, color, label, weeks = 12) {
+  const done = levels.filter((l) => l >= 1).length;
+  const cells = levels
+    .map((level) =>
+      level < 0
+        ? '<i class="future"></i>'
+        : `<i data-o="${level <= 0 ? 0 : (0.3 + 0.7 * Math.min(1, level)).toFixed(2)}"></i>`,
+    )
+    .join("");
+  return `<div class="box-grid fill-${color}" role="img" aria-label="${esc(label)}: ${done} of ${levels.length} days over the last ${weeks} weeks">${cells}</div>`;
+}
 
 function taskRow(t) {
   const time =
@@ -211,29 +253,40 @@ function taskRow(t) {
     .filter(Boolean)
     .join(" · ");
   const onToday = OrbitPlanner.onDay(planItem(t), today());
-  const id = esc(t.id);
-  const moves = overdue
-    ? `<div class="tile-actions" aria-label="Move ${esc(t.title)}">
-        <button data-today="${id}">Today</button><button data-later="${id}">Later</button><button data-someday="${id}">Someday</button>
-      </div>`
-    : page === "lists" && !t.completedAt && !onToday
-      ? `<button class="today-action" data-today="${id}">Add to Today</button>`
+  const id = esc(t.id),
+    title = esc(t.title);
+  const addToToday =
+    page === "lists" && !t.completedAt && !onToday
+      ? `<button class="pill today-action" data-today="${id}">Add to Today</button>`
       : "";
+  const moves = overdue
+    ? `<div class="row-pills" role="group" aria-label="Move ${title}">
+        <button class="pill" data-today="${id}">Today</button><button class="pill" data-later="${id}">Later</button><button class="pill" data-someday="${id}">Someday</button>
+      </div>`
+    : "";
   const search = [t.title, t.notes, ...(t.tags || [])].join(" ").toLowerCase();
-  return `<div class="task-row check-tile ${t.completedAt ? "complete" : ""} ${overdue ? "overdue" : ""}" data-search="${esc(search)}">
-    <button class="tile-toggle" role="checkbox" aria-label="${t.completedAt ? "Reopen" : "Complete"} ${esc(t.title)}" aria-checked="${!!t.completedAt}" data-toggle="${id}">
-      <span class="tick-symbol">${t.completedAt ? check : ""}</span>
-      <span class="tile-copy"><span>${esc(t.title)}</span>${detail ? `<small>${detail}</small>` : ""}</span>
-    </button>
-    <button class="tile-edit" aria-label="Edit ${esc(t.title)}" data-edit="${id}">${pencil}</button>
+  return `<div class="row task-row check-tile ${t.completedAt ? "complete" : ""} ${overdue ? "overdue" : ""}" data-flip="task-${id}" data-search="${esc(search)}">
+    <div class="row-line">
+      <button class="row-tick" role="checkbox" aria-label="${t.completedAt ? "Reopen" : "Complete"} ${title}" aria-checked="${!!t.completedAt}" data-toggle="${id}">${tick(!!t.completedAt, poppedID === t.id)}</button
+      ><button class="row-body" aria-label="Edit ${title}" data-edit="${id}"><span class="row-title">${title}</span>${detail ? `<span class="row-detail">${detail}</span>` : ""}</button
+      >${addToToday}
+    </div>
     ${moves}
   </div>`;
 }
-function habitCard(h) {
+/** A habit: colour dot, title and count. Tapping logs one check-in; right-click (or E) edits. */
+function habitCard(h, { editable = false } = {}) {
   const done = checked(h);
-  return `<div class="habit-card check-tile ${done ? "complete" : ""}">
- <button class="tile-toggle" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${esc(h.title)}" aria-checked="${done}" data-habit-toggle="${esc(h.id)}" ${selected > dayKey(new Date()) ? "disabled" : ""}><span class="tick-symbol">${done ? check : ""}</span><span class="tile-copy"><span>${esc(h.title)}</span><small>${habitDetail(h)}</small></span></button>
- <button class="tile-edit" aria-label="Edit ${esc(h.title)}" data-habit-edit="${esc(h.id)}">${pencil}</button></div>`;
+  const id = esc(h.id),
+    title = esc(h.title);
+  return `<div class="row habit-row check-tile ${done ? "complete" : ""}" data-flip="habit-${id}">
+    <div class="row-line">
+      <button class="row-body" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-menu="${id}" ${selected > dayKey(new Date()) ? "disabled" : ""}
+        ><span class="dot ${colorName(h.color)} ${poppedID === h.id && done ? "pop" : ""}" aria-hidden="true"></span
+        ><span class="row-title">${title}</span><span class="row-detail ${done ? "met" : ""}">${habitDetail(h)}</span></button
+      >${editable ? `<button class="row-edit" aria-label="Edit ${title}" data-habit-edit="${id}">${pencil}</button>` : ""}
+    </div>
+  </div>`;
 }
 
 function newTask(title, date) {
@@ -260,6 +313,7 @@ function newTask(title, date) {
 async function toggle(id) {
   const t = rows("tasks").find((t) => t.id === id);
   if (!t) return;
+  poppedID = t.completedAt ? null : t.id;
   await put("tasks", { ...t, completedAt: t.completedAt ? null : Date.now(), updatedAt: Date.now() });
 }
 async function log(id, undo) {
@@ -269,6 +323,7 @@ async function log(id, undo) {
   if (!undo && checked(h)) return;
   const data = old || { id: crypto.randomUUID(), habitID: id, dayKey: selected, count: 0 };
   data.count = Math.max(0, data.count + (undo ? -1 : 1));
+  poppedID = undo ? null : id;
   data.updatedAt = Date.now();
   data._key = `habit_logs/${id}-${selected}`;
   await put("habit_logs", data);
@@ -288,14 +343,25 @@ function bindTiles() {
           )),
     );
   document.querySelectorAll("[data-habit-edit]").forEach((b) => (b.onclick = () => openHabit(b.dataset.habitEdit)));
+  document.querySelectorAll("[data-habit-menu]").forEach(
+    (b) =>
+      (b.oncontextmenu = (e) => {
+        e.preventDefault();
+        openHabit(b.dataset.habitMenu);
+      }),
+  );
+  document.querySelectorAll("[data-quick-add]").forEach((b) => (b.onclick = () => openQuickAdd()));
+  // Choosing Today, Later or Someday springs the row away before the list re-forms.
   const move = (attribute, change) =>
-    document
-      .querySelectorAll(`[data-${attribute}]`)
-      .forEach(
-        (b) =>
-          (b.onclick = () =>
-            action(() => saveTasks([change(rows("tasks").find((t) => t.id === b.getAttribute("data-" + attribute)))]))),
-      );
+    document.querySelectorAll(`[data-${attribute}]`).forEach(
+      (b) =>
+        (b.onclick = () =>
+          action(async () => {
+            const row = b.closest(".row");
+            if (row && attribute !== "today") await leave(row);
+            await saveTasks([change(rows("tasks").find((t) => t.id === b.getAttribute("data-" + attribute)))]);
+          })),
+    );
   move("today", (t) => OrbitPlanner.moveToDay(t, today()));
   move("later", (t) => OrbitPlanner.moveLater(t));
   move("someday", (t) => OrbitPlanner.moveToSomeday(t));

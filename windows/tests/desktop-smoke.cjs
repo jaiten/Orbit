@@ -22,7 +22,7 @@ const remove = (folder) => {
     app = await electron.launch(options);
     const p = await app.firstWindow();
     const quickAdd = async (text, preview) => {
-      await p.getByRole("button", { name: "+ Add", exact: true }).click();
+      await p.getByRole("button", { name: "Add a task", exact: true }).first().click();
       await p.getByRole("textbox", { name: "Quick add" }).fill(text);
       if (preview) await p.locator("#quick-add-preview").getByText(preview, { exact: true }).waitFor();
       await p.getByRole("button", { name: "Add", exact: true }).click();
@@ -107,12 +107,13 @@ const remove = (folder) => {
     await p.locator("#quick-add-preview").getByText("Habit · Daily", { exact: true }).waitFor();
     await p.getByRole("button", { name: "Add", exact: true }).click();
     await p.getByRole("checkbox", { name: "Log Morning walk", exact: true }).click();
-    await p.getByText("1 / 1 today", { exact: true }).waitFor();
+    await p.getByText("1 of 1 today", { exact: true }).waitFor();
     await p.getByRole("checkbox", { name: "Undo Morning walk", exact: true }).click();
-    await p.getByText("0 / 1 today", { exact: true }).waitFor();
+    await p.getByText("0 of 1 today", { exact: true }).waitFor();
     await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).click();
     await p.getByRole("button", { name: "Make it a Habit", exact: true }).click();
-    await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).click();
+    // Habits on Today log on click; right-click edits them.
+    await p.getByRole("checkbox", { name: "Log Read for twenty minutes", exact: true }).click({ button: "right" });
     await p.getByRole("button", { name: "Make it a Task", exact: true }).click();
     await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).click();
     if ((await p.getByLabel("Notes").inputValue()) !== "A small, clear commitment")
@@ -132,7 +133,7 @@ const remove = (folder) => {
       return s.records.find((r) => r.key === "habits/" + id && !r.deleted);
     }, original.payload.id);
     if (migrated?.payload.frequencyRule !== "DAILY") throw Error("Repeating task did not become a daily habit");
-    await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).click();
+    await p.getByRole("checkbox", { name: "Log Read for twenty minutes", exact: true }).click({ button: "right" });
     await p.getByRole("button", { name: "Make it a Task", exact: true }).click();
     await p.getByRole("checkbox", { name: "Complete Read for twenty minutes" }).click();
     const restored = await p.evaluate(
@@ -172,6 +173,8 @@ const remove = (folder) => {
       await quickAdd(title);
       await p.getByRole("checkbox", { name: "Complete " + title, exact: true }).waitFor();
     }
+    // Rows spring into place; measure once they have settled.
+    await p.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))));
     const first = await p.getByRole("checkbox", { name: "Complete Wash car", exact: true }).boundingBox();
     const second = await p.getByRole("checkbox", { name: "Complete Call Mom", exact: true }).boundingBox();
     // Rows stack one per line, as in docs/mockups/windows-today.png.
@@ -290,7 +293,7 @@ const remove = (folder) => {
       (await window.orbit.read()).records.find((r) => r.key === "lists/00000000-0000-4000-8000-000000000001"),
     );
     if (someday?.payload.name !== "Someday") throw Error("Someday list was not created");
-    await p.getByRole("button", { name: "+ Add", exact: true }).click();
+    await p.getByRole("button", { name: "Add a task", exact: true }).first().click();
     await p.getByRole("textbox", { name: "Quick add" }).fill("Plan picnic tomorrow 1pm #weekend");
     await p.locator("#quick-add-preview").getByText("Task · Tomorrow · 1:00 PM · #weekend", { exact: true }).waitFor();
     await p.getByRole("button", { name: "More details…", exact: true }).click();
@@ -346,7 +349,7 @@ const remove = (folder) => {
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(900, 700));
     if (await p.evaluate(() => document.documentElement.scrollWidth > innerWidth))
       throw Error("Horizontal overflow at compact window size");
-    await p.getByRole("button", { name: "+ Add", exact: true }).waitFor();
+    await p.getByRole("button", { name: "Add a task", exact: true }).first().waitFor();
     await p.emulateMedia({ colorScheme: "light" });
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1320, 900));
     await p.screenshot({ path: path.resolve(__dirname, "../assets/desktop-preview.png"), fullPage: true });
@@ -355,7 +358,7 @@ const remove = (folder) => {
     app = await electron.launch(options);
     const q = await app.firstWindow();
     await q.getByText("1 completed", { exact: true }).waitFor();
-    await q.getByText("0 / 1 today", { exact: true }).waitFor();
+    await q.getByText("0 of 1 today", { exact: true }).waitFor();
     const late = new Date();
     late.setHours(23, 59, 0, 0);
     await q.clock.install({ time: late });

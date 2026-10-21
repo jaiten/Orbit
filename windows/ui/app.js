@@ -1,4 +1,5 @@
-// Page routing and start-up. Pages live in ui/pages; shared helpers in core.js.
+// Page routing and start-up. Pages live in ui/pages; shared helpers in core.js, motion in motion.js.
+let shownView = null;
 function render() {
   // Keep keyboard focus on the same item across re-renders (Space/Enter toggles it repeatedly).
   const focused = document.activeElement?.closest?.("[data-toggle], [data-habit-toggle]");
@@ -22,9 +23,18 @@ function render() {
     account: renderAccount,
     review: renderReview,
   };
+  // A new page enters with a stagger; the same page re-forms with rows springing to their new places.
+  const view = page + "|" + (selectedList || "") + "|" + (page === "habit-history" ? historyHabitID : "");
+  const before = view === shownView ? captureRows() : null;
+  shownView = view;
   $("#content").innerHTML = (pages[page] || renderSettings)();
   renderLists();
   bind();
+  applyFills();
+  if (before) settleRows(before);
+  else enterPage();
+  movePill();
+  poppedID = null;
   if (focusSelector) document.querySelector(focusSelector)?.focus();
   if (state.recoveryReady && !$("#password-editor").open) $("#password-editor").showModal();
 }
@@ -48,6 +58,12 @@ document.querySelectorAll("[data-page]").forEach(
       render();
     }),
 );
+$("#sidebar-search").onclick = () => {
+  page = "lists";
+  selectedList = null;
+  render();
+  $("#search")?.focus();
+};
 $("#sync-status").onclick = () => {
   page = "account";
   selectedList = null;

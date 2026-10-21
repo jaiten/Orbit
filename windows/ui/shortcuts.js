@@ -61,7 +61,9 @@ document.addEventListener("keydown", (e) => {
   if (!tile) return;
   if (key === "e") {
     e.preventDefault();
-    tile.querySelector(".tile-edit")?.click();
+    const habit = tile.querySelector("[data-habit-menu]")?.dataset.habitMenu;
+    if (habit) openHabit(habit);
+    else tile.querySelector("[data-edit]")?.click();
   } else if (e.key === "Delete") {
     e.preventDefault();
     void action(() => deleteItem(tile));

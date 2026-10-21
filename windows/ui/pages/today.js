@@ -1,13 +1,18 @@
-function consistencyGrid(habits, days = 28) {
+/** Days for a 12-week grid: whole weeks in the locale's order, ending with the current week. Future days are null. */
+function gridDays(weeks = 12) {
+  const first = OrbitHabits.addDays(OrbitHabits.weekStartKey(today(), weekStart), -7 * (weeks - 1));
+  return Array.from({ length: weeks * 7 }, (_, i) => OrbitHabits.addDays(first, i));
+}
+/** Share of the day's habits checked, for each day of the grid. */
+function consistencyLevels(habits, days = gridDays()) {
   const logs = habitLogs();
   const entries = habits.map((h) => ({ ...h, createdDay: h.createdAt ? dayKey(new Date(h.createdAt)) : null }));
-  const cells = Array.from({ length: days }, (_, i) => {
-    const key = OrbitHabits.addDays(today(), i - days + 1);
-    const value = OrbitHabits.consistency(entries, logs, key);
-    return `<i class="l${Math.round(value * 4)}" title="${key}: ${Math.round(value * 100)}%"></i>`;
-  }).join("");
-  return `<div class="consistency-grid" aria-label="Habit consistency, last 4 weeks">${cells}</div>`;
+  return days.map((key) => (key > today() ? -1 : OrbitHabits.consistency(entries, logs, key)));
 }
+
+const moon =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z"/></svg>';
+const checklist = (items, row = taskRow) => `<div class="check-list">${items.map((i) => row(i)).join("")}</div>`;
 
 function renderToday(tasks, allHabits) {
   // Today: dated today or earlier and still open, or finished today. Undated and Someday items stay in Lists.
@@ -17,24 +22,33 @@ function renderToday(tasks, allHabits) {
     complete = relevant.filter((t) => t.completedAt);
   // Timed tasks first, in time order; then the rest as arranged.
   open.sort((a, b) => (a.hasTime ? a.dueDate : Infinity) - (b.hasTime ? b.dueDate : Infinity));
+  const overdue = open.filter((t) => OrbitPlanner.isOverdue(planItem(t), today()));
+  const timed = open.filter((t) => t.hasTime && !overdue.includes(t)),
+    untimed = open.filter((t) => !t.hasTime && !overdue.includes(t));
   const habitsDone = habits.filter((h) => checked(h)).length;
   const done = complete.length + habitsDone,
     total = relevant.length + habits.length;
   const date = localDay(selected);
-  const heading = selected === today() ? "Today" : date.toLocaleDateString([], { weekday: "long" });
-  const eyebrow = date.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }).toUpperCase();
+  const isToday = selected === today();
+  const heading = isToday ? "Today" : date.toLocaleDateString([], { weekday: "long" });
+  const eyebrow = date.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
   return `<div class="today-layout">
+    <header class="page-head">
+        <div><div class="eyebrow">${eyebrow}</div><h1>${heading}</h1>${isToday ? '<p class="subtitle">Make room for what matters.</p>' : ""}</div>
+        <button class="icon-button" data-evening-review aria-label="Evening review" title="Evening review">${moon}</button>
+      </header>
     <section class="today-main">
-      <div class="eyebrow">${eyebrow}</div>
-      <h1>${heading}</h1>
+      ${addField()}
       ${conflictBanner()}
-      <div class="section-heading"><h2>Tasks</h2><span>${open.length || ""}</span></div>
-      <div class="check-list">${open.map(taskRow).join("") || '<p class="empty">Nothing planned for today.</p>'}</div>
+      ${overdue.length ? sectionLabel("Overdue") + checklist(overdue) : ""}
+      ${timed.length ? sectionLabel("On the agenda", "Time blocks") + checklist(timed) : ""}
+      ${untimed.length ? sectionLabel("At your own pace", "To-dos") + checklist(untimed) : ""}
+      ${open.length ? "" : '<p class="empty">Nothing planned for today.</p>'}
       ${
         complete.length
           ? `<details class="completed-items" ${completedOpen ? "open" : ""}>
-              <summary>${complete.length} completed</summary>
-              <div class="check-list">${complete.map(taskRow).join("")}</div>
+              <summary class="section-label"><h2>${complete.length} completed</h2><span>Done</span></summary>
+              ${checklist(complete)}
             </details>`
           : ""
       }
@@ -43,23 +57,19 @@ function renderToday(tasks, allHabits) {
       </div>
     </section>
     <aside class="today-side" aria-label="Progress">
-      <div class="card progress-card">
-        <div class="caption">Today</div>
-        <div class="progress-value">${done} of ${total} done</div>
-        <progress max="${Math.max(total, 1)}" value="${done}" aria-label="Daily progress"></progress>
-      </div>
+      ${planCard(done, total)}
+      ${habits.length ? sectionLabel("Habits", `${habitsDone} of ${habits.length}`) + checklist(habits, habitCard) : ""}
       ${
-        habits.length
-          ? `<div class="section-heading"><h2>Habits</h2><span>${habitsDone}/${habits.length}</span></div>
-             <div class="check-list">${habits.map(habitCard).join("")}</div>`
+        allHabits.length
+          ? `<div class="card grid-card"><div class="eyebrow">Habits · last 12 weeks</div>${boxGrid(consistencyLevels(allHabits), "accent", "Habits")}</div>`
           : ""
       }
-      ${allHabits.length ? `<div class="card"><div class="caption">Last 4 weeks</div>${consistencyGrid(allHabits)}</div>` : ""}
     </aside>
   </div>`;
 }
 
 function bindToday() {
+  document.querySelectorAll("[data-evening-review]").forEach((b) => (b.onclick = openEveningReview));
   if ($(".completed-items"))
     $(".completed-items").ontoggle = (e) => {
       completedOpen = e.target.open;
