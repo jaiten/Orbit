@@ -95,18 +95,10 @@ struct TodayView: View {
 
     /// Eyebrow date, large title and subtitle, as on the website; the small tools sit top right.
     private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 2) {
-                Eyebrow(text: day.formatted(.dateTime.weekday(.wide).month(.wide).day()))
-                Text("Today").font(.largeTitle.bold()).tracking(-1).accessibilityAddTraits(.isHeader)
-                Text("Make room for what matters.").font(.body).foregroundStyle(.secondary)
-            }
-            Spacer()
-            HStack(spacing: 2) {
-                Button { customizing = true } label: { Image(systemName: "slider.horizontal.3").frame(width: 36, height: 36) }.accessibilityLabel("Edit Today")
-                Button { reviewing = true } label: { Image(systemName: "moon").frame(width: 36, height: 36) }.accessibilityLabel("Evening review")
-                SyncIndicator()
-            }.font(.body).foregroundStyle(.secondary).buttonStyle(.plain).padding(.top, 2)
+        PageHeader(eyebrow: day.formatted(.dateTime.weekday(.wide).month(.wide).day()), title: "Today", subtitle: "Make room for what matters.") {
+            Button { customizing = true } label: { Image(systemName: "slider.horizontal.3").frame(width: 36, height: 36) }.accessibilityLabel("Edit Today")
+            Button { reviewing = true } label: { Image(systemName: "moon").frame(width: 36, height: 36) }.accessibilityLabel("Evening review")
+            SyncIndicator()
         }
     }
 

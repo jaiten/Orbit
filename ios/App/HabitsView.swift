@@ -11,106 +11,123 @@ struct HabitsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    if habits.isEmpty { ContentUnavailableView("No Habits", systemImage: "leaf", description: Text("Tap + to add one.")) }
-                    ForEach(habits) { habit in
-                        HabitRow(habit: habit, logs: logs, date: .now, edit: { editing = habit }, editable: true)
+                VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceXxl)) {
+                    PageHeader(eyebrow: "Repeats", title: "Habits", subtitle: "Habits reset at midnight. Miss a day? Nothing breaks.") {
+                        Button { adding = true } label: { Image(systemName: "plus").frame(width: 36, height: 36) }.accessibilityLabel("New habit")
+                    }
+                    if habits.isEmpty { ContentUnavailableView("No Habits", systemImage: "repeat", description: Text("Tap + to add one.")) }
+                    VStack(spacing: CGFloat(DesignTokens.spaceS)) {
+                        ForEach(habits) { habit in
+                            HabitRow(habit: habit, logs: logs, date: .now, edit: { editing = habit }, editable: true)
+                        }
                     }
                     if !habits.isEmpty {
                         NavigationLink { HabitHistoryIndex() } label: {
-                            Label("History", systemImage: "chart.bar.xaxis").frame(maxWidth: .infinity, alignment: .leading).padding(16)
-                        }.background(DayTheme.surface, in: RoundedRectangle(cornerRadius: DayTheme.rowRadius, style: .continuous))
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Eyebrow(text: "History")
+                                    Text("The last 7 days, for every habit").font(.body).foregroundStyle(.primary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
+                            }.orbitCard()
+                        }.buttonStyle(OrbitPress()).accessibilityLabel("History")
                     }
-                }.padding(20).frame(maxWidth: 760).frame(maxWidth: .infinity)
+                }.padding(.horizontal, CGFloat(DesignTokens.screenPadding)).padding(.vertical, CGFloat(DesignTokens.spaceS))
+                    .frame(maxWidth: 760).frame(maxWidth: .infinity)
             }.background(DayTheme.canvas(scheme)).navigationTitle("Habits").navigationBarTitleDisplayMode(.inline)
-                .toolbar { Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("New habit") }
+                .toolbar(.hidden, for: .navigationBar)
                 .sheet(isPresented: $adding) { HabitEditor() }.sheet(item: $editing) { HabitEditor(habit: $0) }
         }
     }
 }
 
-/// Every habit's history on one screen, so there is nothing to open one by one.
-/// Each habit still links to its full list of check-ins.
+/// Every habit's history on one screen, so there is nothing to open one by one: a card per habit with
+/// the last 7 days as segments and the last 12 weeks as boxes, in the habit's colour.
 struct HabitHistoryIndex: View {
+    @Environment(\.colorScheme) private var scheme
     @Query(sort: \Habit.createdAt) private var habits: [Habit]
     @Query private var logs: [HabitLog]
     var body: some View {
-        List {
-            ForEach(habits) { habit in
-                Section {
-                    HabitWeekStrip(habit: habit, logs: logs)
-                    HabitHeatmap(habit: habit, logs: logs)
-                    NavigationLink("Check-ins") { HabitHistoryDetail(habit: habit) }
-                } header: {
-                    HStack {
-                        Text(habit.title).font(.headline).foregroundStyle(.primary)
-                        Spacer()
-                        Text("\(PlannerLogic.checkedDays(habit, logs: logs, ending: .now)) of the last 7 days")
-                    }.textCase(nil)
+        ScrollView {
+            VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceM)) {
+                Text("The last 7 days and 12 weeks, for every habit.").font(.subheadline).foregroundStyle(.secondary).padding(.horizontal, 4)
+                ForEach(habits) { habit in
+                    VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceM)) {
+                        HStack(spacing: 10) {
+                            Circle().fill(DayTheme.color(habit.color)).frame(width: DesignTokens.rowDot, height: DesignTokens.rowDot)
+                            Text(habit.title).font(.body.weight(.semibold))
+                            Spacer()
+                            Text("\(PlannerLogic.checkedDays(habit, logs: logs, ending: .now)) of the last 7 days").font(.footnote).foregroundStyle(.secondary)
+                        }
+                        Text(PlannerLogic.detail(habit, logs: logs, at: .now)).font(.footnote).foregroundStyle(.secondary).padding(.leading, 20).padding(.top, -8)
+                        HabitHistoryCharts(habit: habit, logs: logs)
+                        NavigationLink { HabitHistoryDetail(habit: habit) } label: {
+                            HStack { Text("Check-ins"); Spacer(); Image(systemName: "chevron.right").font(.caption.weight(.semibold)) }
+                                .font(.footnote).foregroundStyle(.secondary)
+                        }.accessibilityLabel("Check-ins")
+                    }.orbitCard()
                 }
-            }
-        }.navigationTitle("History").navigationBarTitleDisplayMode(.inline)
+            }.padding(.horizontal, CGFloat(DesignTokens.screenPadding)).padding(.vertical, CGFloat(DesignTokens.spaceS))
+                .frame(maxWidth: 760).frame(maxWidth: .infinity)
+        }.background(DayTheme.canvas(scheme)).navigationTitle("History").navigationBarTitleDisplayMode(.inline)
     }
 }
+
 struct HabitHistoryDetail: View {
     let habit: Habit
+    @Environment(\.colorScheme) private var scheme
     @Query private var logs: [HabitLog]
+    private var recent: [HabitLog] { logs.filter { $0.habitID == habit.id && $0.count > 0 }.sorted { $0.dayKey > $1.dayKey }.prefix(90).map { $0 } }
     var body: some View {
-        List {
-            Section {
-                HabitWeekStrip(habit: habit, logs: logs)
-            } header: { Text("\(PlannerLogic.checkedDays(habit, logs: logs, ending: .now)) of the last 7 days") }
-            Section("Last 12 weeks") { HabitHeatmap(habit: habit, logs: logs) }
-            Section {
-                LabeledContent("Repeats", value: HabitRules.label(habit.frequencyRule))
-                LabeledContent("Check-ins", value: "\(logs.filter { $0.habitID == habit.id }.reduce(0) { $0 + $1.count })")
-            }
-            Section("Recent days") {
-                ForEach(logs.filter { $0.habitID == habit.id && $0.count > 0 }.sorted { $0.dayKey > $1.dayKey }.prefix(90)) { log in
-                    LabeledContent(log.dayKey, value: "\(log.count) check-in\(log.count == 1 ? "" : "s")")
+        ScrollView {
+            VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceXxl)) {
+                VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceM)) {
+                    Eyebrow(text: "\(PlannerLogic.checkedDays(habit, logs: logs, ending: .now)) of the last 7 days")
+                    HabitHistoryCharts(habit: habit, logs: logs)
+                }.orbitCard()
+                VStack(alignment: .leading, spacing: 0) {
+                    LabeledContent("Repeats", value: HabitRules.label(habit.frequencyRule)).padding(.vertical, 12)
+                    Divider().overlay(Color.orbitLine)
+                    LabeledContent("Check-ins", value: "\(logs.filter { $0.habitID == habit.id }.reduce(0) { $0 + $1.count })").padding(.vertical, 12)
+                }.padding(.horizontal, 18).orbitSurface(radius: CGFloat(DesignTokens.radiusCard))
+                VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceS)) {
+                    SectionLabel(title: "Recent days")
+                    if recent.isEmpty { Text("No check-ins yet.").font(.subheadline).foregroundStyle(.secondary).padding(.horizontal, 4) }
+                    else {
+                        VStack(spacing: 0) {
+                            ForEach(Array(recent.enumerated()), id: \.element.id) { index, log in
+                                if index > 0 { Divider().overlay(Color.orbitLine) }
+                                LabeledContent(log.dayKey, value: "\(log.count) check-in\(log.count == 1 ? "" : "s")").monospacedDigit().padding(.vertical, 11)
+                            }
+                        }.padding(.horizontal, 18).orbitSurface(radius: CGFloat(DesignTokens.radiusCard))
+                    }
                 }
-            }
-        }.navigationTitle(habit.title).navigationBarTitleDisplayMode(.inline)
+            }.padding(.horizontal, CGFloat(DesignTokens.screenPadding)).padding(.vertical, CGFloat(DesignTokens.spaceS))
+                .frame(maxWidth: 760).frame(maxWidth: .infinity)
+        }.background(DayTheme.canvas(scheme)).navigationTitle(habit.title).navigationBarTitleDisplayMode(.inline)
     }
 }
 
-/// The last seven days for one habit. Days it isn't scheduled are outlined, never counted as missed.
-struct HabitWeekStrip: View {
+/// One habit's last 7 days (segments with weekday letters) and last 12 weeks (boxes).
+/// Days it isn't scheduled read as empty, never as missed.
+struct HabitHistoryCharts: View {
     let habit: Habit
     let logs: [HabitLog]
-    private var days: [Date] { (-6...0).map { Calendar.current.date(byAdding: .day, value: $0, to: .now)! } }
     var body: some View {
-        HStack(spacing: 6) {
-            ForEach(days, id: \.self) { day in
-                let done = PlannerLogic.checkedToday(habit, logs: logs, at: day)
-                let scheduled = HabitRules.scheduledOn(rule: habit.frequencyRule, day: PlannerLogic.dayKey(day))
-                VStack(spacing: 4) {
-                    RoundedRectangle(cornerRadius: 6).fill(done ? DayTheme.color(habit.color) : DayTheme.color(habit.color).opacity(scheduled ? 0.12 : 0))
-                        .overlay { if !scheduled { RoundedRectangle(cornerRadius: 6).strokeBorder(.secondary.opacity(0.4), style: StrokeStyle(lineWidth: 1, dash: [3])) } }
-                        .frame(height: 28)
-                    Text(day.formatted(.dateTime.weekday(.narrow))).font(.caption2).foregroundStyle(.secondary)
-                }.frame(maxWidth: .infinity)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("\(day.formatted(.dateTime.weekday(.wide))): \(done ? "checked" : scheduled ? "not checked" : "not scheduled")")
-            }
-        }.padding(.vertical, 4)
-    }
-}
-
-struct HabitHeatmap: View {
-    @Environment(\.orbitAccent) private var accent
-    let habit: Habit
-    let logs: [HabitLog]
-    private var days: [Date] { (-83...0).map { Calendar.current.date(byAdding: .day, value: $0, to: .now)! } }
-    var body: some View {
-        LazyHGrid(rows: Array(repeating: GridItem(.fixed(12), spacing: 4), count: 7), spacing: 4) {
-            ForEach(days, id: \.self) { day in
-                let count = logs.filter { $0.habitID == habit.id && $0.dayKey == PlannerLogic.dayKey(day) }.reduce(0) { $0 + $1.count }
-                RoundedRectangle(cornerRadius: 3).fill(DayTheme.color(habit.color).opacity(count == 0 ? 0.10 : min(1, 0.35 + Double(count) / Double(PlannerLogic.dailyTarget(habit)) * 0.65)))
-                    .frame(width: 12, height: 12)
-                    .accessibilityLabel("\(day.formatted(date: .abbreviated, time: .omitted)): \(count) completions")
-            }
-        }.frame(height: 108)
+        let color = DayTheme.color(habit.color)
+        let week = (-6...0).map { Calendar.current.date(byAdding: .day, value: $0, to: .now)! }
+        let counts = PlannerLogic.counts(habit, logs: logs)
+        let target = Double(PlannerLogic.dailyTarget(habit))
+        let today = PlannerLogic.dayKey(.now)
+        VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
+            WeekSegments(done: week.map { PlannerLogic.checkedToday(habit, logs: logs, at: $0) }, days: week, color: color)
+            BoxGrid(levels: BoxGrid.days().map { day -> Double? in
+                let key = PlannerLogic.dayKey(day)
+                return key > today ? nil : Double(counts[key] ?? 0) / target
+            }, color: color)
+            .accessibilityLabel("\(habit.title), last 12 weeks")
+        }
     }
 }
 

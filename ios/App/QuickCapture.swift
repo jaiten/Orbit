@@ -1,12 +1,14 @@
 import SwiftUI
 import SwiftData
 
-/// One text field. The chip shows what will be created ("Task · Tomorrow · 6:00 PM") before saving;
-/// details can be added afterwards with the pencil.
+/// One rounded field, as on the website. The chip shows what will be created ("Task · Tomorrow · 6:00 PM")
+/// before saving; details can be added afterwards by opening the item.
 struct QuickCapture: View {
     @Environment(\.orbitAccent) private var accent
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
     /// The day being viewed (Calendar); nil means today.
     var initialDate: Date? = nil
@@ -34,21 +36,31 @@ struct QuickCapture: View {
         listID == TodayRules.somedayID ? "Someday" : lists.first { $0.id == listID }?.name
     }
 
+    /// The chip's segments, so each can animate in and out as you type.
+    private var parts: [String] { preview.components(separatedBy: " · ").filter { !$0.isEmpty } }
+
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    TextField("Title", text: $text, axis: .vertical)
+            VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceM)) {
+                Eyebrow(text: "Quick add")
+                HStack(spacing: 10) {
+                    Image(systemName: "plus").font(.body.weight(.medium)).foregroundStyle(.secondary)
+                    TextField("gym tomorrow 6pm", text: $text, axis: .vertical)
                         .font(.title3).focused($focused).accessibilityIdentifier("task-title-input")
+                        .textInputAutocapitalization(.never).autocorrectionDisabled()
                         .onSubmit { save() }
-                    if !preview.isEmpty {
-                        Text(preview).font(.footnote.weight(.medium)).foregroundStyle(accent.fill)
-                            .padding(.horizontal, 10).padding(.vertical, 4)
-                            .background(accent.fill.opacity(0.12), in: Capsule())
-                            .accessibilityIdentifier("quick-add-preview")
-                    }
-                } footer: { Text("Try “gym tomorrow 6pm”, “read every day”, “#work” or “someday”.") }
-            }.tint(accent.fill).navigationTitle("New Item").navigationBarTitleDisplayMode(.inline)
+                }
+                .padding(.horizontal, 14).frame(minHeight: 52)
+                .background(DayTheme.canvas(scheme), in: RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusInput), style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusInput), style: .continuous)
+                    .strokeBorder(focused ? accent.text : Color.orbitLine, lineWidth: focused ? 2 : 1))
+                chip.frame(minHeight: 34, alignment: .leading)
+                Text("Try “read every day”, “#work” or “someday”.").font(.footnote).foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+            }
+            .padding(CGFloat(DesignTokens.screenPadding))
+            .background(Color.orbitSurface)
+            .tint(accent.fill).navigationTitle("New Item").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.disabled(result.title.isEmpty) }
@@ -57,6 +69,27 @@ struct QuickCapture: View {
                     Button("Save Anyway") { save(allowConflict: true) }; Button("Change Time", role: .cancel) {}
                 } message: { Text(conflictTitles.joined(separator: ", ")) }
                 .onAppear { focused = true }.modifier(MutationErrorModifier(error: $error))
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    /// "Task · Tomorrow · 6:00 PM": segments fade and slide in as you type, and the pill's width springs.
+    @ViewBuilder private var chip: some View {
+        if !parts.isEmpty {
+            HStack(spacing: 6) {
+                ForEach(Array(parts.enumerated()), id: \.element) { index, part in
+                    HStack(spacing: 6) {
+                        if index > 0 { Text("·").opacity(0.5) }
+                        Text(part)
+                    }.transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 6)))
+                }
+            }
+            .font(.subheadline.weight(.medium)).foregroundStyle(accent.text)
+            .padding(.horizontal, 14).padding(.vertical, 6)
+            .background(accent.fill.opacity(DesignTokens.tintAccentFill), in: Capsule())
+            .animation(reduceMotion ? nil : .orbit, value: parts)
+            .accessibilityElement(children: .ignore).accessibilityLabel(preview)
+            .accessibilityAddTraits(.isStaticText).accessibilityIdentifier("quick-add-preview")
         }
     }
 

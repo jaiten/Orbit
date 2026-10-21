@@ -30,6 +30,31 @@ struct Eyebrow: View {
     }
 }
 
+/// Eyebrow, large title (tight tracking) and a muted subtitle, with small tools on the right.
+struct PageHeader<Trailing: View>: View {
+    let eyebrow: String
+    let title: String
+    var subtitle = ""
+    @ViewBuilder var trailing: Trailing
+    init(eyebrow: String, title: String, subtitle: String = "", @ViewBuilder trailing: () -> Trailing) {
+        self.eyebrow = eyebrow; self.title = title; self.subtitle = subtitle; self.trailing = trailing()
+    }
+    var body: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 2) {
+                Eyebrow(text: eyebrow)
+                Text(title).font(.largeTitle.bold()).tracking(-1).accessibilityAddTraits(.isHeader)
+                if !subtitle.isEmpty { Text(subtitle).font(.body).foregroundStyle(.secondary) }
+            }
+            Spacer(minLength: 8)
+            HStack(spacing: 2) { trailing }.font(.body).foregroundStyle(.secondary).buttonStyle(.plain).padding(.top, 2)
+        }
+    }
+}
+extension PageHeader where Trailing == EmptyView {
+    init(eyebrow: String, title: String, subtitle: String = "") { self.init(eyebrow: eyebrow, title: title, subtitle: subtitle) { EmptyView() } }
+}
+
 /// A section title with a tiny uppercase note on the right ("Habits · REPEATS").
 struct SectionLabel: View {
     let title: String
