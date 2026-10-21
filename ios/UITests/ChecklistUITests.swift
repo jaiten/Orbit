@@ -23,7 +23,7 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Log Read a few pages")).firstMatch.waitForExistence(timeout: 5),
                       "Drag trace: \(trace.exists ? trace.label : "missing") | row \(row.frame) | Habits \(routine.frame)")
         let habit = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Log Read a few pages")).firstMatch
-        habit.press(forDuration: 1.2, thenDragTo: app.scrollViews.firstMatch.staticTexts["Tasks"])
+        habit.press(forDuration: 1.2, thenDragTo: app.scrollViews.firstMatch.staticTexts["Your day"])
         XCTAssertTrue(app.buttons["Complete Read a few pages"].waitForExistence(timeout: 5))
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "Orbit Today checklist"; screenshot.lifetime = .keepAlways; add(screenshot)
