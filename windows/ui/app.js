@@ -8,8 +8,12 @@ function render() {
     : focused?.dataset.habitToggle
       ? `[data-habit-toggle="${focused.dataset.habitToggle}"]`
       : null;
-  // Account and Review are reached from Settings and Today; Settings stays highlighted for them.
-  const navPage = ["account", "review"].includes(page) ? "settings" : page;
+  // Account and Review are reached from Settings and Today, History from Habits; their parent stays highlighted.
+  const navPage = ["account", "review"].includes(page)
+    ? "settings"
+    : ["history", "habit-history"].includes(page)
+      ? "habits"
+      : page;
   document.querySelectorAll("[data-page]").forEach((b) => b.classList.toggle("selected", b.dataset.page === navPage));
   const tasks = rows("tasks").sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   const habits = rows("habits").sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));

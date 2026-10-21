@@ -63,10 +63,10 @@ const remove = (folder) => {
     await p.getByRole("checkbox", { name: "Log Gym weekly test", exact: true }).waitFor();
     // History shows every habit at once; each still links to its check-ins.
     await p.locator('[data-page="habits"]').click();
-    await p.getByRole("button", { name: "History →", exact: true }).click();
+    await p.getByRole("button", { name: /^History/ }).click();
     await p.getByRole("heading", { name: "History", exact: true }).waitFor();
     await p.getByRole("button", { name: "Gym weekly test 1 of the last 7 days →", exact: true }).waitFor();
-    if ((await p.locator(".habit-history .heatmap .logged").count()) !== 1)
+    if ((await p.locator('.habit-history .box-grid i[data-o]:not([data-o="0"])').count()) !== 1)
       throw Error("History grid is missing a check-in");
     await p.getByRole("button", { name: "Gym weekly test 1 of the last 7 days →", exact: true }).click();
     await p.getByRole("heading", { name: "Gym weekly test", exact: true }).waitFor();
