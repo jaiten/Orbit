@@ -183,6 +183,12 @@ const remove = (folder) => {
     await p.keyboard.press("Control+2");
     await p.getByRole("heading", { name: "Calendar", exact: true }).waitFor();
     await p.keyboard.press("Control+1");
+    // Clear any earlier Undo (a move a moment ago), then tick: ticking never offers Undo.
+    await p.evaluate(() => {
+      const box = document.querySelector("#undo-toast");
+      if (!box.hidden) document.querySelector("#dismiss-undo").click();
+    });
+    await p.locator("#undo-toast").waitFor({ state: "hidden" });
     await p.getByRole("checkbox", { name: "Complete Wash car", exact: true }).focus();
     await p.keyboard.press("Space");
     await p.getByRole("checkbox", { name: "Reopen Wash car", exact: true }).waitFor();
@@ -190,7 +196,7 @@ const remove = (folder) => {
       throw Error("Focus left the toggled item");
     await p.keyboard.press("Enter");
     await p.getByRole("checkbox", { name: "Complete Wash car", exact: true }).waitFor();
-    // Ticking off and reopening never offer Undo; deleting and moving do.
+    await p.waitForTimeout(300);
     if (await p.locator("#undo-toast").isVisible()) throw Error("Undo appeared for a tick");
     await p.keyboard.press("e");
     await p.locator("#editor[open]").waitFor();

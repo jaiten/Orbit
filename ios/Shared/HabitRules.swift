@@ -37,6 +37,18 @@ enum HabitRules {
     static func label(_ rule: String) -> String {
         ["DAILY": "Daily", "WEEKDAYS": "Weekdays", "WEEKENDS": "Weekends", "WEEKLY": "Weekly"][schedule(rule)]!
     }
+    static let colors = ["sage", "lavender", "clay", "honey"]
+    /// A new habit's default colour, so habits mix: the least used so far, never the newest habit's,
+    /// trying colours in order after the newest one. `existing` is habit colours, oldest first. Same as Windows.
+    static func nextColor(_ existing: [String]) -> String {
+        var counts = Dictionary(uniqueKeysWithValues: colors.map { ($0, 0) })
+        for color in existing where counts[color] != nil { counts[color]! += 1 }
+        let last = existing.last
+        let start = last.flatMap { colors.firstIndex(of: $0) }.map { $0 + 1 } ?? 0
+        let order = colors.indices.map { colors[(start + $0) % colors.count] }
+        let fewest = colors.map { counts[$0]! }.min() ?? 0
+        return order.first { counts[$0] == fewest && $0 != last } ?? order.first { $0 != last } ?? "sage"
+    }
     static func dailyTarget(rule: String, target: Int) -> Int { schedule(rule) == "WEEKLY" ? 1 : max(1, target) }
     static func scheduledOn(rule: String, day: String) -> Bool {
         switch schedule(rule) {
