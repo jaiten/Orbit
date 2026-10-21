@@ -775,7 +775,7 @@ main {
 .history-charts {
   display: grid;
   grid-template-columns: minmax(200px, 1fr) minmax(180px, 220px);
-  align-items: end;
+  align-items: center;
   gap: var(--space-xxl);
 }
 .week-segments {
