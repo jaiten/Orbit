@@ -177,7 +177,7 @@ const remove = (folder) => {
     await p.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))));
     const first = await p.getByRole("checkbox", { name: "Complete Wash car", exact: true }).boundingBox();
     const second = await p.getByRole("checkbox", { name: "Complete Call Mom", exact: true }).boundingBox();
-    // Rows stack one per line, as in docs/mockups/windows-today.png.
+    // Rows stack one per line, as in docs/mockups/windows-today.png (the website layout).
     if (second.y <= first.y || Math.abs(first.x - second.x) > 2) throw Error("Today rows do not stack");
     // Keyboard: pages, focused-item toggle/edit/delete, help, search.
     await p.keyboard.press("Control+2");
