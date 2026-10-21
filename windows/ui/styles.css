@@ -688,14 +688,38 @@ main {
   color: var(--muted);
 }
 
-/* Lists, Calendar, Habits */
-.week-day .check-list {
-  margin-bottom: var(--space-s);
+/* Calendar */
+.week-day .section-label {
+  align-items: center;
 }
-.week-day .section-heading button {
+.week-day:first-of-type .section-label {
+  margin-top: 0;
+}
+.day-date {
+  margin-left: 6px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.week-day .pill {
+  padding: 3px 12px;
   font-size: 12px;
-  color: var(--accent-text);
 }
+
+/* Settings: Account row */
+.account-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 640px;
+  text-align: left;
+}
+.account-row:hover {
+  background: var(--surface);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+
+/* Habits */
 .history-card {
   display: flex;
   align-items: center;
@@ -866,13 +890,20 @@ label.toggle {
   background: var(--canvas);
 }
 .settings-block {
+  max-width: 640px;
   background: var(--surface);
   border-radius: var(--radius-card);
+  box-shadow: 0 0 0 1px var(--line);
   padding: 18px;
   margin: var(--space-l) 0;
 }
 .settings-block h2 {
-  margin-bottom: var(--space-s);
+  margin-bottom: var(--space-m);
+  font-size: var(--type-eyebrow);
+  font-weight: 600;
+  letter-spacing: var(--type-eyebrow-tracking);
+  text-transform: uppercase;
+  color: var(--muted);
 }
 .settings-block form,
 .settings-block label {
@@ -880,16 +911,33 @@ label.toggle {
   gap: var(--space-xs);
   margin: var(--space-s) 0;
 }
+.settings-block label.toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-s);
+}
+input[type="checkbox"] {
+  accent-color: var(--accent-button);
+  width: 16px;
+  height: 16px;
+}
+.settings-block > button {
+  margin: var(--space-xs) var(--space-xs) 0 0;
+  box-shadow: 0 0 0 1px var(--line);
+}
 .accent-options {
   display: flex;
   gap: var(--space-s);
 }
 .accent-options button {
-  border: 1px solid var(--line);
+  border-radius: var(--radius-chip);
+  padding: 6px 16px;
+  box-shadow: 0 0 0 1px var(--line);
 }
 .accent-options button[aria-pressed="true"] {
-  border-color: var(--accent);
   color: var(--accent-text);
+  background: color-mix(in srgb, var(--accent) var(--tint-accent-fill), transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
   font-weight: 600;
 }
 .version-options {
@@ -923,10 +971,16 @@ dialog {
   padding: var(--space-xxl);
   background: var(--surface);
   color: var(--ink);
-  box-shadow: 0 20px 60px color-mix(in srgb, black 25%, transparent);
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 24px 48px -16px color-mix(in srgb, black 30%, transparent);
+}
+dialog[open] {
+  animation: card-in var(--spring-ui-duration) var(--spring-ui);
 }
 dialog::backdrop {
-  background: color-mix(in srgb, black 25%, transparent);
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+  backdrop-filter: blur(2px);
 }
 dialog h2 {
   font-size: 17px;
@@ -948,7 +1002,7 @@ input:not([type="checkbox"]),
 textarea,
 select {
   width: 100%;
-  padding: 9px 12px;
+  padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius-input);
   background: var(--canvas);

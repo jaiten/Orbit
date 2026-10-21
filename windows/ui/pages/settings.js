@@ -22,7 +22,8 @@ function choiceButtons(attribute, values, current) {
 
 function renderSettings() {
   const root = document.documentElement.dataset;
-  return `<h1>Settings</h1>
+  return `<header class="page-head"><div><div class="eyebrow">Orbit</div><h1>Settings</h1></div></header>
+    <button class="card account-row" data-open-page="account"><span>Account</span><span class="secondary">${esc(state.email || "Not signed in")} →</span></button>
     <section class="settings-block">
       <h2>Appearance</h2>
       <div class="accent-options">${choiceButtons("appearance", appearances, root.appearance)}</div>
@@ -54,8 +55,7 @@ function renderSettings() {
       <p class="secondary">Removes the example tasks, list and habits. Anything you added stays.</p>
     </section>`
         : ""
-    }
-    <button class="history-link" data-open-page="account">Account <span>${esc(state.email || "Not signed in")} →</span></button>`;
+    }`;
 }
 
 function bindSettings() {
