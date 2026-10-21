@@ -64,14 +64,22 @@
     </main>
     <dialog id="quick-add-dialog" class="quick-add-dialog">
       <form id="quick-add-form">
-        <input
-          name="text"
-          aria-label="Quick add"
-          placeholder="Try “gym tomorrow 6pm”, “read every day” or “#work”"
-          maxlength="500"
-          autocomplete="off"
-        />
-        <p id="quick-add-preview" class="chip" aria-live="polite" hidden></p>
+        <div class="eyebrow">Quick add</div>
+        <label class="quick-field">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+          <input
+            name="text"
+            aria-label="Quick add"
+            placeholder="gym tomorrow 6pm"
+            maxlength="500"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </label>
+        <div class="chip-row" aria-live="polite">
+          <p id="quick-add-preview" class="chip" hidden></p>
+        </div>
+        <p class="quick-hint">Try “read every day”, “#work” or “someday”.</p>
         <footer>
           <button type="button" id="quick-add-details">More details…</button
           ><button type="button" data-close>Cancel</button><button class="primary" type="submit">Add</button>

@@ -977,19 +977,96 @@ dialog footer {
 dialog footer .danger {
   margin-right: auto;
 }
-.quick-add-dialog input[name="text"] {
+/* Quick add: a centred 480px card over a dimmed, slightly blurred window */
+.quick-add-dialog {
+  width: min(480px, calc(100vw - 48px));
+  margin-top: 96px;
+  padding: var(--space-xl);
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 24px 48px -16px color-mix(in srgb, black 30%, transparent);
+}
+.quick-add-dialog[open] {
+  animation: card-in var(--spring-ui-duration) var(--spring-ui);
+}
+.quick-add-dialog[open]::backdrop {
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+  backdrop-filter: blur(2px);
+  animation: fade-in 200ms ease-out;
+}
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+.quick-field {
+  display: flex !important;
+  align-items: center;
+  gap: var(--space-s);
+  margin: var(--space-s) 0 0 !important;
+  padding: 0 var(--space-l);
+  border-radius: var(--radius-row);
+  background: var(--canvas);
+  box-shadow: 0 0 0 1px var(--line);
+  color: var(--muted);
+}
+.quick-field:focus-within {
+  box-shadow: 0 0 0 2px var(--accent-text);
+}
+.quick-field svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.quick-field input {
+  height: 48px;
+  padding: 0;
+  border: 0;
+  background: transparent;
   font-size: 17px;
-  padding: 12px 14px;
+  color: var(--ink);
+  outline: none;
+}
+.chip-row {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  margin-top: var(--space-m);
 }
 .chip {
-  display: inline-block;
-  margin: 10px 0 0;
-  padding: 4px 10px;
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 5px 14px;
   border-radius: var(--radius-chip);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
   color: var(--accent-text);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  background: color-mix(in srgb, var(--accent) var(--tint-accent-fill), transparent);
+}
+.chip[hidden] {
+  display: none;
+}
+.chip .sep {
+  opacity: 0.5;
+  white-space: pre;
+}
+.quick-hint {
+  margin: var(--space-s) 0 0;
+  color: var(--muted);
+  font-size: var(--type-detail);
 }
 .review-item {
   display: flex;

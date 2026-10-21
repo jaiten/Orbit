@@ -108,6 +108,10 @@ const shared = Object.fromEntries(
     "colorName",
     "gridDays",
     "consistencyLevels",
+    "reducedMotion",
+    "spring",
+    "showChip",
+    "weekSegments",
   ].map((name) => [name, "writable"]),
 );
 

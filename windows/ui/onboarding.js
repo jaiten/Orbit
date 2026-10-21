@@ -130,8 +130,7 @@ function bindOnboarding() {
     const parse = () => OrbitPlanning.parse(form.elements.text.value, null);
     form.elements.text.oninput = () => {
       const text = OrbitPlanning.describe(parse());
-      $("#onboarding-preview").textContent = text;
-      $("#onboarding-preview").hidden = !text;
+      showChip($("#onboarding-preview"), text);
     };
     form.onsubmit = (e) => {
       e.preventDefault();

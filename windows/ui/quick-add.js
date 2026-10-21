@@ -32,8 +32,46 @@ function updateQuickPreview() {
   const listName = contextListName();
   if (text && result.kind === "task" && !result.someday && !result.list && listName) text += " · " + listName;
   if (text && quickContext.listID === SOMEDAY && result.kind === "task" && !result.date) text = "Someday";
-  $("#quick-add-preview").textContent = text;
-  $("#quick-add-preview").hidden = !text;
+  showChip($("#quick-add-preview"), text);
+}
+
+/**
+ * The chip says what will be created ("Task · Tomorrow · 6:00 PM"). Its segments fade in and out as
+ * you type and its width springs, like the website. textContent stays the plain phrase for tests and
+ * screen readers.
+ */
+function showChip(chip, text) {
+  const before = chip.hidden ? 0 : chip.getBoundingClientRect().width;
+  const old = [...chip.querySelectorAll(".part")].map((p) => p.dataset.part);
+  chip.hidden = !text;
+  chip.setAttribute("aria-label", text);
+  chip.replaceChildren(
+    ...text
+      .split(" · ")
+      .filter(Boolean)
+      .flatMap((part, i) => {
+        const span = document.createElement("span");
+        span.className = "part";
+        span.dataset.part = part;
+        span.textContent = part;
+        if (!old.includes(part) && !reducedMotion())
+          span.animate(
+            [
+              { opacity: 0, transform: "translateY(6px)" },
+              { opacity: 1, transform: "none" },
+            ],
+            spring("ui"),
+          );
+        if (i === 0) return [span];
+        const dot = document.createElement("span");
+        dot.className = "sep";
+        dot.textContent = " · ";
+        return [dot, span];
+      }),
+  );
+  const after = chip.hidden ? 0 : chip.getBoundingClientRect().width;
+  if (before && after && Math.abs(before - after) > 1 && !reducedMotion())
+    chip.animate([{ width: before + "px" }, { width: after + "px" }], spring("ui"));
 }
 
 /** Finds a list by name (ignoring case) or prepares a new one. */
