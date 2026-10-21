@@ -1,28 +1,171 @@
 {
-  "description": "Single source for colours, spacing and radii. Run `npm run tokens` in windows/ to regenerate windows/ui/tokens.css and ios/Shared/DesignTokens.swift; a Windows test fails when they drift.",
+  "description": "Single source for colours, spacing, radii, type, row metrics and motion. Run `npm run generate` in windows/ to regenerate windows/ui/tokens.css and ios/Shared/DesignTokens.swift; a Windows test fails when they drift.",
   "accents": {
-    "coral": { "fill": "#E87359", "text": { "light": "#B74F38", "dark": "#E87359" } },
-    "sage": { "fill": "#6E8C78", "text": { "light": "#5C7564", "dark": "#6F8D79" } },
-    "lavender": { "fill": "#8C85BF", "text": { "light": "#7067AF", "dark": "#8C85BF" } },
-    "honey": { "fill": "#D19E4D", "text": { "light": "#926826", "dark": "#D19E4D" } }
+    "coral": {
+      "fill": "#E87359",
+      "text": {
+        "light": "#B74F38",
+        "dark": "#E87359"
+      }
+    },
+    "sage": {
+      "fill": "#6E8C78",
+      "text": {
+        "light": "#5C7564",
+        "dark": "#6F8D79"
+      }
+    },
+    "lavender": {
+      "fill": "#8C85BF",
+      "text": {
+        "light": "#7067AF",
+        "dark": "#8C85BF"
+      }
+    },
+    "honey": {
+      "fill": "#D19E4D",
+      "text": {
+        "light": "#926826",
+        "dark": "#D19E4D"
+      }
+    }
   },
   "accentNotes": "Fill colours are used for ticks, progress, selection and buttons. Text colours meet WCAG AA (4.5:1) on the canvas and surface of each appearance: coral text is #B74F38 in light mode (5.0:1 on white, 4.6:1 on canvas) and #E87359 in dark mode (6.2:1). White text on a coral fill is only 3:1, so filled light-mode buttons use the text colour as their fill.",
-  "palette": { "sage": "#6E8C78", "clay": "#D97A66", "lavender": "#8C85BF", "honey": "#D19E4D" },
+  "palette": {
+    "sage": "#6E8C78",
+    "clay": "#D97A66",
+    "lavender": "#8C85BF",
+    "honey": "#D19E4D"
+  },
   "surfaces": {
-    "canvas": { "light": "#F5F5F7", "dark": "#141416" },
-    "sidebar": { "light": "#EBEBEE", "dark": "#1B1B1D" },
-    "surface": { "light": "#FFFFFF", "dark": "#1F1F21" },
-    "ink": { "light": "#1D1D1F", "dark": "#F5F5F7" },
-    "muted": { "light": "#6D6D73", "dark": "#A6A6AD" },
-    "line": { "light": "#E4E4E8", "dark": "#323236" },
-    "danger": { "light": "#C42B1C", "dark": "#FF8A80" }
+    "canvas": {
+      "light": "#F5F5F7",
+      "dark": "#141416"
+    },
+    "sidebar": {
+      "light": "#EBEBEE",
+      "dark": "#1B1B1D"
+    },
+    "surface": {
+      "light": "#FFFFFF",
+      "dark": "#1F1F21"
+    },
+    "ink": {
+      "light": "#1D1D1F",
+      "dark": "#F5F5F7"
+    },
+    "muted": {
+      "light": "#6D6D73",
+      "dark": "#A6A6AD"
+    },
+    "line": {
+      "light": "#E4E4E8",
+      "dark": "#323236"
+    },
+    "danger": {
+      "light": "#C42B1C",
+      "dark": "#FF8A80"
+    }
   },
-  "spacing": { "xs": 4, "s": 8, "m": 12, "l": 16, "xl": 20, "xxl": 24, "section": 32 },
-  "radii": { "card": 18, "row": 12, "input": 12, "chip": 999 },
+  "spacing": {
+    "xs": 4,
+    "s": 8,
+    "m": 12,
+    "l": 16,
+    "xl": 20,
+    "xxl": 24,
+    "section": 32
+  },
+  "radii": {
+    "card": 18,
+    "row": 12,
+    "input": 12,
+    "chip": 999
+  },
   "type": {
-    "display": { "ios": "SF Pro via system", "windows": "Segoe UI Variable", "size": 30 },
-    "body": { "ios": "SF Pro via system", "windows": "Segoe UI Variable", "size": 14 },
-    "caption": { "size": 11 }
+    "title": {
+      "size": 36,
+      "tracking": -0.03,
+      "weight": "bold"
+    },
+    "eyebrow": {
+      "size": 11,
+      "tracking": 0.1,
+      "weight": "semibold"
+    },
+    "plan": {
+      "size": 22,
+      "tracking": -0.02,
+      "weight": "medium"
+    },
+    "section": {
+      "size": 15,
+      "weight": "semibold"
+    },
+    "body": {
+      "size": 15
+    },
+    "rowLarge": {
+      "size": 17
+    },
+    "detail": {
+      "size": 13
+    },
+    "fonts": {
+      "ios": "SF Pro via system",
+      "windows": "Segoe UI Variable"
+    }
   },
-  "motion": { "standardMilliseconds": 200, "respectReducedMotion": true }
+  "motion": {
+    "standardMilliseconds": 200,
+    "respectReducedMotion": true,
+    "springs": {
+      "ui": {
+        "stiffness": 300,
+        "damping": 30,
+        "mass": 1
+      },
+      "lift": {
+        "stiffness": 400,
+        "damping": 28,
+        "mass": 1
+      },
+      "soft": {
+        "stiffness": 120,
+        "damping": 24,
+        "mass": 1.1
+      }
+    },
+    "staggerMilliseconds": 50,
+    "rowSlide": 20,
+    "tickDrawMilliseconds": 280,
+    "tickPop": 1.14,
+    "pressScale": 0.97
+  },
+  "rows": {
+    "height": 46,
+    "heightLarge": 56,
+    "tick": 24,
+    "tickLarge": 26,
+    "tickRing": 2,
+    "dot": 10
+  },
+  "layout": {
+    "sidebarWidth": 216,
+    "screenPadding": 20
+  },
+  "tints": {
+    "accentFill": 0.12,
+    "tickRing": 0.45,
+    "progressTrack": 0.08,
+    "gridTrack": 0.07,
+    "sidebar": 0.04,
+    "rowHover": 0.04
+  },
+  "grid": {
+    "weeks": 12,
+    "gap": 3,
+    "radius": 3,
+    "minOpacity": 0.3
+  }
 }

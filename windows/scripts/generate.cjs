@@ -6,12 +6,50 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const root = path.resolve(__dirname, "../..");
+const kebab = (name) => name.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase());
+const cap = (name) => name[0].toUpperCase() + name.slice(1);
 const files = {
   css: path.join(root, "windows/ui/tokens.css"),
   swift: path.join(root, "ios/Shared/DesignTokens.swift"),
   onboardingJS: path.join(root, "windows/ui/onboarding-data.js"),
   onboardingSwift: path.join(root, "ios/Shared/OnboardingData.swift"),
 };
+
+/**
+ * A spring as CSS: simulates the motion (mass, stiffness, damping) until it settles and
+ * returns `linear()` easing points plus the duration, so Windows moves like the website.
+ */
+function springCurve({ stiffness, damping, mass = 1 }) {
+  const dt = 1 / 600;
+  let x = 0,
+    v = 0,
+    t = 0,
+    still = 0;
+  const samples = [0];
+  while (t < 2 && still < 0.05) {
+    const a = (-stiffness * (x - 1) - damping * v) / mass;
+    v += a * dt;
+    x += v * dt;
+    t += dt;
+    samples.push(x);
+    still = Math.abs(x - 1) < 0.001 && Math.abs(v) < 0.01 ? still + dt : 0;
+  }
+  const points = 24;
+  const curve = Array.from(
+    { length: points + 1 },
+    (_, i) => +samples[Math.round((i / points) * (samples.length - 1))].toFixed(3),
+  );
+  curve[points] = 1;
+  return { easing: `linear(${curve.join(", ")})`, ms: Math.round(t * 1000) };
+}
+/** A spring in SwiftUI terms: response is the undamped period, dampingFraction the damping ratio (capped at 1). */
+function springSwift({ stiffness, damping, mass = 1 }) {
+  const omega = Math.sqrt(stiffness / mass);
+  return {
+    response: +((2 * Math.PI) / omega).toFixed(2),
+    damping: +Math.min(1, damping / (2 * Math.sqrt(stiffness * mass))).toFixed(2),
+  };
+}
 
 function generate(tokens = JSON.parse(fs.readFileSync(path.join(root, "shared/design-tokens.json"), "utf8"))) {
   const header = "Generated from shared/design-tokens.json by windows/scripts/generate.cjs. Do not edit.";
@@ -25,6 +63,28 @@ function generate(tokens = JSON.parse(fs.readFileSync(path.join(root, "shared/de
     ...Object.entries(tokens.spacing).map(([name, value]) => `  --space-${name}: ${value}px;`),
     ...Object.entries(tokens.radii).map(([name, value]) => `  --radius-${name}: ${value}px;`),
     `  --motion: ${tokens.motion.standardMilliseconds}ms;`,
+    ...Object.entries(tokens.type)
+      .filter(([, v]) => v.size)
+      .flatMap(([name, v]) => [
+        `  --type-${kebab(name)}: ${v.size}px;`,
+        ...(v.tracking !== undefined ? [`  --type-${kebab(name)}-tracking: ${v.tracking}em;`] : []),
+      ]),
+    ...Object.entries(tokens.rows).map(([name, value]) => `  --row-${kebab(name)}: ${value}px;`),
+    ...Object.entries(tokens.layout).map(([name, value]) => `  --${kebab(name)}: ${value}px;`),
+    ...Object.entries(tokens.tints).map(([name, value]) => `  --tint-${kebab(name)}: ${Math.round(value * 100)}%;`),
+    `  --grid-weeks: ${tokens.grid.weeks};`,
+    `  --grid-gap: ${tokens.grid.gap}px;`,
+    `  --grid-radius: ${tokens.grid.radius}px;`,
+    `  --grid-min-opacity: ${tokens.grid.minOpacity};`,
+    ...Object.entries(tokens.motion.springs).flatMap(([name, spring]) => {
+      const curve = springCurve(spring);
+      return [`  --spring-${name}: ${curve.easing};`, `  --spring-${name}-duration: ${curve.ms}ms;`];
+    }),
+    `  --stagger: ${tokens.motion.staggerMilliseconds}ms;`,
+    `  --row-slide: ${tokens.motion.rowSlide}px;`,
+    `  --tick-draw: ${tokens.motion.tickDrawMilliseconds}ms;`,
+    `  --tick-pop: ${tokens.motion.tickPop};`,
+    `  --press-scale: ${tokens.motion.pressScale};`,
     "}",
     ...Object.entries(tokens.accents).flatMap(([name, accent]) => [
       `${name === "coral" ? ":root,\n" : ""}:root[data-accent="${name}"] {`,
@@ -58,6 +118,30 @@ function generate(tokens = JSON.parse(fs.readFileSync(path.join(root, "shared/de
       ([name, value]) => `    static let radius${name[0].toUpperCase() + name.slice(1)}: Double = ${value}`,
     ),
     `    static let motionSeconds: Double = ${tokens.motion.standardMilliseconds / 1000}`,
+    ...Object.entries(tokens.type)
+      .filter(([, v]) => v.size)
+      .flatMap(([name, v]) => [
+        `    static let type${cap(name)}: Double = ${v.size}`,
+        ...(v.tracking !== undefined ? [`    static let type${cap(name)}Tracking: Double = ${v.tracking}`] : []),
+      ]),
+    ...Object.entries(tokens.rows).map(([name, value]) => `    static let row${cap(name)}: Double = ${value}`),
+    ...Object.entries(tokens.layout).map(([name, value]) => `    static let ${name}: Double = ${value}`),
+    ...Object.entries(tokens.tints).map(([name, value]) => `    static let tint${cap(name)}: Double = ${value}`),
+    `    static let gridWeeks = ${tokens.grid.weeks}`,
+    `    static let gridGap: Double = ${tokens.grid.gap}`,
+    `    static let gridRadius: Double = ${tokens.grid.radius}`,
+    `    static let gridMinOpacity: Double = ${tokens.grid.minOpacity}`,
+    ...Object.entries(tokens.motion.springs).flatMap(([name, spring]) => {
+      const swift = springSwift(spring);
+      return [
+        `    static let spring${cap(name)}: (response: Double, damping: Double) = (${swift.response}, ${swift.damping})`,
+      ];
+    }),
+    `    static let staggerSeconds: Double = ${tokens.motion.staggerMilliseconds / 1000}`,
+    `    static let rowSlide: Double = ${tokens.motion.rowSlide}`,
+    `    static let tickDrawSeconds: Double = ${tokens.motion.tickDrawMilliseconds / 1000}`,
+    `    static let tickPop: Double = ${tokens.motion.tickPop}`,
+    `    static let pressScale: Double = ${tokens.motion.pressScale}`,
     "}",
     "",
   ].join("\n");

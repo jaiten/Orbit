@@ -24,6 +24,45 @@
   --radius-input: 12px;
   --radius-chip: 999px;
   --motion: 200ms;
+  --type-title: 36px;
+  --type-title-tracking: -0.03em;
+  --type-eyebrow: 11px;
+  --type-eyebrow-tracking: 0.1em;
+  --type-plan: 22px;
+  --type-plan-tracking: -0.02em;
+  --type-section: 15px;
+  --type-body: 15px;
+  --type-row-large: 17px;
+  --type-detail: 13px;
+  --row-height: 46px;
+  --row-height-large: 56px;
+  --row-tick: 24px;
+  --row-tick-large: 26px;
+  --row-tick-ring: 2px;
+  --row-dot: 10px;
+  --sidebar-width: 216px;
+  --screen-padding: 20px;
+  --tint-accent-fill: 12%;
+  --tint-tick-ring: 45%;
+  --tint-progress-track: 8%;
+  --tint-grid-track: 7%;
+  --tint-sidebar: 4%;
+  --tint-row-hover: 4%;
+  --grid-weeks: 12;
+  --grid-gap: 3px;
+  --grid-radius: 3px;
+  --grid-min-opacity: 0.3;
+  --spring-ui: linear(0, 0.079, 0.225, 0.4, 0.55, 0.684, 0.782, 0.86, 0.911, 0.949, 0.972, 0.987, 0.996, 1, 1.003, 1.003, 1.003, 1.003, 1.002, 1.002, 1.001, 1.001, 1.001, 1, 1);
+  --spring-ui-duration: 582ms;
+  --spring-lift: linear(0, 0.106, 0.318, 0.557, 0.746, 0.884, 0.972, 1.02, 1.04, 1.042, 1.035, 1.026, 1.017, 1.009, 1.004, 1, 0.999, 0.998, 0.998, 0.999, 0.999, 0.999, 1, 1, 1);
+  --spring-lift-duration: 607ms;
+  --spring-soft: linear(0, 0.079, 0.236, 0.395, 0.54, 0.654, 0.743, 0.813, 0.863, 0.9, 0.929, 0.948, 0.963, 0.973, 0.981, 0.986, 0.99, 0.993, 0.995, 0.996, 0.997, 0.998, 0.999, 0.999, 1);
+  --spring-soft-duration: 1055ms;
+  --stagger: 50ms;
+  --row-slide: 20px;
+  --tick-draw: 280ms;
+  --tick-pop: 1.14;
+  --press-scale: 0.97;
 }
 :root,
 :root[data-accent="coral"] {
