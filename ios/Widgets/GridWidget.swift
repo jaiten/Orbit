@@ -58,34 +58,47 @@ struct GridWidgetView: View {
             .widgetURL(URL(string: "orbit://today"))
     }
     private var summary: String { "\(entry.completedHabits) of \(entry.totalHabits) habits checked today" }
+    /// Weeks per size, as on the website; boxes are square and sized by the height available.
+    private var weeks: Int { family == .systemSmall ? 8 : family == .systemMedium ? 18 : 16 }
+    /// Daily values (oldest first, ending today) laid out in whole weeks; days still to come are nil.
+    private func levels(_ values: [Double]) -> [Double?] {
+        let today = Calendar.current.startOfDay(for: .now)
+        return BoxGrid.days(weeks: weeks).map { day -> Double? in
+            let ago = Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: day), to: today).day ?? 0
+            if ago < 0 { return nil }
+            return ago < values.count ? values[values.count - 1 - ago] : 0
+        }
+    }
     @ViewBuilder private var content: some View {
         switch family {
         case .accessoryRectangular:
             ActivityGrid(values: entry.consistency, color: .primary, cell: 6, spacing: 2, label: summary)
         case .systemLarge where !entry.grids.isEmpty:
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 12) {
                 header
                 ForEach(entry.grids.prefix(3)) { grid in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(grid.title).font(.caption.weight(.semibold)).lineLimit(1)
-                        ActivityGrid(values: grid.values, color: DayTheme.color(grid.color), cell: 8, spacing: 2, label: grid.title + " history")
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(grid.title).font(.footnote).lineLimit(1)
+                        BoxGrid(levels: levels(grid.values), color: DayTheme.color(grid.color), weeks: weeks, gap: 2)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                            .accessibilityLabel(grid.title + " history")
                     }
                 }
-                Spacer(minLength: 0)
             }
         default:
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 10) {
                 header
-                Spacer(minLength: 0)
-                ActivityGrid(values: entry.consistency, color: DayTheme.accent, label: summary)
+                BoxGrid(levels: levels(entry.consistency), color: DayTheme.accent, weeks: weeks, gap: 2)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    .accessibilityLabel(summary)
             }
         }
     }
     private var header: some View {
-        HStack {
-            Text("Habits").font(.headline)
+        HStack(alignment: .firstTextBaseline) {
+            Eyebrow(text: "Habits")
             Spacer()
-            Text("\(entry.completedHabits)/\(entry.totalHabits) today").font(.caption).foregroundStyle(.secondary)
+            Text(family == .systemSmall ? "\(entry.completedHabits)/\(entry.totalHabits)" : "Last \(weeks) weeks").font(.caption).foregroundStyle(.secondary)
         }
     }
 }

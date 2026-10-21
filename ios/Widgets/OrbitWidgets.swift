@@ -21,9 +21,12 @@ struct DayEntry: TimelineEntry {
     var consistency: [Double] = []
     /// The first few habits, each with its own days, for the large Grid widget.
     var grids: [HabitGrid] = []
+    /// Today's plan: tasks for today (open or finished today) and habits due today.
+    var doneToday = 0
+    var totalToday = 0
     static let gridDays = 245
     private static let sample = (0..<gridDays).map { Double(($0 * 7 + $0 / 3) % 5) / 4 }
-    static let placeholder = DayEntry(date: .now, items: [WidgetItem(id: "preview", title: "Morning walk", subtitle: "8:00 AM", habit: false, date: nil)], completedHabits: 1, totalHabits: 3,
+    static let placeholder = DayEntry(date: .now, items: [WidgetItem(id: "preview", title: "Morning walk", subtitle: "8:00 AM", habit: false, date: nil)], completedHabits: 1, totalHabits: 3, doneToday: 2, totalToday: 5,
         consistency: sample, grids: [HabitGrid(id: "1", title: "Read a few pages", color: "lavender", values: sample),
                                      HabitGrid(id: "2", title: "Drink water", color: "sage", values: Array(sample.reversed())),
                                      HabitGrid(id: "3", title: "Move your body", color: "clay", values: sample.map { 1 - $0 })])
@@ -53,6 +56,8 @@ struct DayProvider: TimelineProvider {
                     if $0.hasTime { return ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture) }
                     return $0.sortOrder < $1.sortOrder
                 }
+            let today = PlannerLogic.dayKey(.now)
+            let planned = try context.fetch(FetchDescriptor<PlannerTask>()).filter { TodayRules.onDay(TodayRules.item($0), day: today, today: today) }
             let allHabits = try context.fetch(FetchDescriptor<Habit>(sortBy: [SortDescriptor(\Habit.createdAt)]))
             let logs = try context.fetch(FetchDescriptor<HabitLog>())
             let habits = allHabits.filter { PlannerLogic.isDue($0, logs: logs, at: .now) }
@@ -66,7 +71,8 @@ struct DayProvider: TimelineProvider {
                     subtitle: PlannerLogic.detail($0, logs: logs, at: .now), habit: true, date: nil)
             }
             return DayEntry(date: .now, items: taskItems + habitItems, completedHabits: habits.count - habitItems.count,
-                totalHabits: habits.count, consistency: PlannerLogic.consistencySeries(habits: allHabits, logs: logs, ending: .now, days: DayEntry.gridDays),
+                totalHabits: habits.count, doneToday: planned.filter { $0.completedAt != nil }.count + habits.count - habitItems.count,
+                totalToday: planned.count + habits.count, consistency: PlannerLogic.consistencySeries(habits: allHabits, logs: logs, ending: .now, days: DayEntry.gridDays),
                 grids: allHabits.prefix(3).map { habit in
                     HabitGrid(id: habit.id.uuidString, title: habit.title, color: habit.color,
                               values: PlannerLogic.consistencySeries(habits: [habit], logs: logs, ending: .now, days: DayEntry.gridDays))
@@ -97,42 +103,54 @@ struct DayWidgetView: View {
                         Text(entry.items.first?.subtitle ?? "").font(.caption)
                     }
                 case .systemSmall:
-                    VStack(alignment: .leading, spacing: 10) {
-                        Label("Orbit", systemImage: "sun.max").font(.caption).foregroundStyle(DayTheme.accent)
-                        if let next = entry.items.first(where: { !$0.habit && ($0.date ?? .distantPast) > entry.date }), let date = next.date {
-                            Text(date, style: .relative).font(.system(.title2, design: .rounded).bold()).minimumScaleFactor(0.7)
-                            Text(next.title).font(.caption).lineLimit(2)
-                        } else {
-                            Text("\(entry.completedHabits)/\(entry.totalHabits)").font(.system(size: 36, weight: .semibold, design: .rounded))
-                            Text("Habits done today").font(.caption)
-                        }
-                        Spacer(minLength: 0)
-                        Text(entry.items.isEmpty ? "Nothing left today" : "\(entry.items.count) left today").font(.caption2).foregroundStyle(.secondary)
-                    }.frame(maxWidth: .infinity, alignment: .leading)
-                default:
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("Today").font(.headline)
-                            Spacer()
-                            Image(systemName: "sun.max").foregroundStyle(DayTheme.accent)
-                        }
-                        ConsistencyWidgetGrid(values: Array(entry.consistency.suffix(DayTheme.sharedDefaults?.integer(forKey: "consistencyRange") == 30 ? 30 : 7)), compact: true)
-                        if entry.items.isEmpty { Text("Nothing left today.").font(.subheadline).foregroundStyle(.secondary) }
-                        ForEach(entry.items.prefix(family == .systemLarge ? 5 : 2)) { item in
-                            HStack(spacing: 8) {
-                                Button(intent: CompleteItemIntent(itemID: item.id, isHabit: item.habit)) {
-                                    Image(systemName: item.habit ? "plus.circle" : "circle").font(.title3).foregroundStyle(DayTheme.accent)
-                                }.buttonStyle(.plain).accessibilityLabel("\(item.habit ? "Log" : "Complete") \(item.title)")
-                                Text(item.title).font(.caption).lineLimit(1)
-                                Spacer(minLength: 0)
-                                Text(item.subtitle).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                    // A ring, as on the website: the count in the middle and "2 of 5 done" below.
+                    VStack(spacing: 8) {
+                        Eyebrow(text: "Today").frame(maxWidth: .infinity, alignment: .leading)
+                        ZStack {
+                            Circle().stroke(Color.orbitTrack(DesignTokens.tintProgressTrack), lineWidth: 8)
+                            Circle().trim(from: 0, to: entry.totalToday == 0 ? 0 : CGFloat(entry.doneToday) / CGFloat(entry.totalToday))
+                                .stroke(DayTheme.accent, style: StrokeStyle(lineWidth: 8, lineCap: .round)).rotationEffect(.degrees(-90))
+                            HStack(alignment: .firstTextBaseline, spacing: 1) {
+                                Text("\(entry.doneToday)").font(.title2.weight(.semibold)).monospacedDigit()
+                                Text("/\(entry.totalToday)").font(.footnote).foregroundStyle(.secondary)
                             }
-                        }
-                        Spacer(minLength: 0)
-                        if entry.items.count > (family == .systemLarge ? 5 : 2) {
-                            Text("+\(entry.items.count - (family == .systemLarge ? 5 : 2)) more in Orbit").font(.caption2).foregroundStyle(.secondary)
-                        }
+                        }.frame(width: 76, height: 76)
+                        Text("\(entry.doneToday) of \(entry.totalToday) done").font(.caption).foregroundStyle(.secondary)
                     }
+                default:
+                    VStack(alignment: .leading, spacing: 0) {
+                        Eyebrow(text: "Your plan")
+                        Text("\(entry.doneToday) of \(entry.totalToday) done").font(.title2.weight(.semibold)).tracking(-0.6).monospacedDigit().padding(.top, 2)
+                        Capsule().fill(Color.orbitTrack(DesignTokens.tintProgressTrack)).frame(height: 7)
+                            .overlay(alignment: .leading) {
+                                GeometryReader { proxy in
+                                    Capsule().fill(DayTheme.accent).frame(width: proxy.size.width * (entry.totalToday == 0 ? 0 : CGFloat(entry.doneToday) / CGFloat(entry.totalToday)))
+                                }
+                            }.clipShape(Capsule()).padding(.top, 10)
+                        if family == .systemLarge {
+                            VStack(alignment: .leading, spacing: 10) {
+                                if entry.items.isEmpty { Text("Nothing left today.").font(.subheadline).foregroundStyle(.secondary) }
+                                ForEach(entry.items.prefix(5)) { item in
+                                    HStack(spacing: 10) {
+                                        Button(intent: CompleteItemIntent(itemID: item.id, isHabit: item.habit)) {
+                                            OrbitTick(done: false, color: DayTheme.accent, size: 22)
+                                        }.buttonStyle(.plain).accessibilityLabel("\(item.habit ? "Log" : "Complete") \(item.title)")
+                                        Text(item.title).font(.subheadline).lineLimit(1)
+                                        Spacer(minLength: 0)
+                                        Text(item.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                    }
+                                }
+                                if entry.items.count > 5 { Text("+\(entry.items.count - 5) more in Orbit").font(.caption2).foregroundStyle(.secondary) }
+                            }.padding(.top, 18)
+                            Spacer(minLength: 0)
+                        } else {
+                            Spacer(minLength: 0)
+                            if let next = entry.items.first {
+                                (Text("Next · ").foregroundStyle(.secondary) + Text(next.title) + Text(next.subtitle.isEmpty ? "" : " · " + next.subtitle).foregroundStyle(.secondary))
+                                    .font(.subheadline).lineLimit(1)
+                            } else { Text("Nothing left today.").font(.subheadline).foregroundStyle(.secondary) }
+                        }
+                    }.frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }.containerBackground(for: .widget) { Color(uiColor: .systemBackground) }
@@ -200,8 +218,8 @@ struct ChecklistWidgetView: View {
     private var limit: Int { family == .systemLarge ? 8 : family == .systemMedium ? 3 : 4 }
     var body: some View {
         VStack(alignment: .leading, spacing: family == .systemSmall ? 6 : 8) {
-            HStack {
-                Text("Today").font(.headline)
+            HStack(alignment: .firstTextBaseline) {
+                Eyebrow(text: "Checklist")
                 Spacer()
                 Text(entry.items.isEmpty ? "Done" : "\(entry.items.count) left").font(.caption).foregroundStyle(.secondary)
             }
@@ -209,11 +227,11 @@ struct ChecklistWidgetView: View {
             ForEach(entry.items.prefix(limit)) { item in
                 HStack(spacing: 8) {
                     Button(intent: CompleteItemIntent(itemID: item.id, isHabit: item.habit)) {
-                        Image(systemName: "circle").font(family == .systemSmall ? .body : .title3).foregroundStyle(DayTheme.accent)
+                        OrbitTick(done: false, color: DayTheme.accent, size: family == .systemSmall ? 20 : 24)
                     }.buttonStyle(.plain).accessibilityLabel("\(item.habit ? "Log" : "Complete") \(item.title)")
-                    Text(item.title).font(.caption).lineLimit(1)
+                    Text(item.title).font(family == .systemSmall ? .caption : .subheadline).lineLimit(1)
                     Spacer(minLength: 0)
-                    if family != .systemSmall { Text(item.subtitle).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
+                    if family != .systemSmall { Text(item.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
                 }
             }
             Spacer(minLength: 0)
