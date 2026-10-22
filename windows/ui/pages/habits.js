@@ -1,5 +1,5 @@
 function renderHabits(habits) {
-  const head = `<header class="page-head"><div><div class="eyebrow">Repeats</div><h1>Habits</h1><p class="subtitle">Habits reset at midnight. Miss a day? Nothing breaks.</p></div></header>`;
+  const head = `<header class="page-head"><div><div class="eyebrow">Repeats</div><h1>Habits</h1><p class="subtitle">Your routines, reminders and progress.</p></div></header>`;
   if (!habits.length)
     return `<div class="narrow">${head}<p class="empty">No habits yet. Try adding “read every day”.</p></div>`;
   return `<div class="narrow">${head}

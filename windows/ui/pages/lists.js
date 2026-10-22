@@ -1,3 +1,4 @@
+const collapsedTaskGroups = new Set(["Completed"]);
 let searchQuery = "";
 /** Hides rows that don't match the search; the text includes notes and tags. */
 function applySearch() {
@@ -12,22 +13,39 @@ function bindLists() {
     searchQuery = e.target.value;
     applySearch();
   };
+  document.querySelectorAll("[data-task-group]").forEach((group) => {
+    group.ontoggle = () => {
+      if (group.open) collapsedTaskGroups.delete(group.dataset.taskGroup);
+      else collapsedTaskGroups.add(group.dataset.taskGroup);
+    };
+  });
+  document.querySelectorAll("[data-new-list]").forEach((button) => (button.onclick = () => openList()));
   applySearch();
 }
 
 function renderInbox(tasks) {
-  const inbox = tasks.filter((t) => !t.completedAt && (!selectedList || t.listID === selectedList));
+  const inbox = tasks.filter((t) => !selectedList || t.listID === selectedList);
   const name =
     selectedList === SOMEDAY ? "Someday" : rows("lists").find((l) => l.id === selectedList)?.name || "All Tasks";
   const empty = selectedList === SOMEDAY ? "Ideas for later go here." : "No tasks here.";
-  const note = selectedList === SOMEDAY ? "Not now" : selectedList ? "List" : "Everything open";
+  const note = selectedList === SOMEDAY ? "Ideas for another time" : "Tasks grouped by day";
   return `<div class="narrow">
     <header class="page-head">
-      <div><div class="eyebrow">Lists</div><h1>${esc(name)}</h1><p class="subtitle">${note}</p></div>
+      <div><div class="eyebrow">Lists</div><h1>Lists</h1><p class="subtitle">${esc(name)} · ${note}</p></div>
       <input id="search" type="search" placeholder="Search" aria-label="Search tasks" value="${esc(searchQuery)}" />
     </header>
+    <button data-new-list>+ New list</button>
     ${addField()}
-    <div class="check-list">${inbox.map(taskRow).join("") || `<p class="empty">${empty}</p>`}</div>
+    ${
+      ["Today", "Overdue", "Upcoming", "No date", "Someday", "Completed"]
+        .map((group) => {
+          const items = inbox.filter((task) => OrbitPlanner.dateGroup(planItem(task), today()) === group);
+          return items.length
+            ? `<details class="task-date-group" data-task-group="${group}" ${collapsedTaskGroups.has(group) ? "" : "open"}><summary>${group} (${items.length})</summary><div class="check-list">${items.map(taskRow).join("")}</div></details>`
+            : "";
+        })
+        .join("") || `<p class="empty">${empty}</p>`
+    }
   </div>`;
 }
 
@@ -62,6 +80,11 @@ function openList(id) {
   f.elements.name.value = editingList?.name || "";
   f.elements.color.value = editingList?.color || "sage";
   $("#delete-list").hidden = !editingList;
+  $("#list-order-controls").hidden = !editingList;
+  const ordered = orderedLists();
+  const index = ordered.findIndex((list) => list.id === id);
+  $("#list-move-up").disabled = index <= 0;
+  $("#list-move-down").disabled = index < 0 || index === ordered.length - 1;
   $("#list-editor-title").textContent = editingList ? "Edit List" : "New List";
   $("#list-editor").showModal();
 }
@@ -73,7 +96,10 @@ $("#list-form").onsubmit = (e) => {
   if (!f.elements.name.value.trim()) return;
   action(async () => {
     await put("lists", {
-      ...(editingList || { id: crypto.randomUUID(), sortOrder: rows("lists").length }),
+      ...(rows("lists").find((list) => list.id === editingList?.id) || {
+        id: crypto.randomUUID(),
+        sortOrder: rows("lists").length,
+      }),
       name: f.elements.name.value.trim(),
       color: f.elements.color.value,
       updatedAt: Date.now(),
@@ -97,3 +123,28 @@ $("#confirm-delete-list").onclick = () =>
     $("#list-editor").close();
     $("#list-delete-confirm").hidden = true;
   });
+
+function orderedLists() {
+  return rows("lists")
+    .filter((list) => list.id !== SOMEDAY)
+    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+}
+function moveList(delta) {
+  void action(async () => {
+    const ordered = orderedLists();
+    const index = ordered.findIndex((list) => list.id === editingList?.id);
+    const next = index + delta;
+    if (index < 0 || next < 0 || next >= ordered.length) return;
+    [ordered[index], ordered[next]] = [ordered[next], ordered[index]];
+    await api.batch(
+      ordered.map((list, sortOrder) => ({
+        key: list._key,
+        payload: { ...clean(list), sortOrder, updatedAt: Date.now() },
+      })),
+    );
+    $("#list-move-up").disabled = next === 0;
+    $("#list-move-down").disabled = next === ordered.length - 1;
+  });
+}
+$("#list-move-up").onclick = () => moveList(-1);
+$("#list-move-down").onclick = () => moveList(1);

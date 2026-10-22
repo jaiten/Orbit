@@ -11,6 +11,8 @@ const cap = (name) => name[0].toUpperCase() + name.slice(1);
 const files = {
   css: path.join(root, "windows/ui/tokens.css"),
   swift: path.join(root, "ios/Shared/DesignTokens.swift"),
+  iconsJS: path.join(root, "windows/ui/icons.js"),
+  iconsSwift: path.join(root, "ios/Shared/ItemIcons.swift"),
   onboardingJS: path.join(root, "windows/ui/onboarding-data.js"),
   onboardingSwift: path.join(root, "ios/Shared/OnboardingData.swift"),
 };
@@ -145,7 +147,14 @@ function generate(tokens = JSON.parse(fs.readFileSync(path.join(root, "shared/de
     "}",
     "",
   ].join("\n");
-  return { css, swift, ...generateOnboarding() };
+  return { css, swift, ...generateOnboarding(), ...generateIcons() };
+}
+
+function generateIcons() {
+  const entries = JSON.parse(fs.readFileSync(path.join(root, "shared/icons.json"), "utf8"));
+  const iconsJS = `// Generated from shared/icons.json. Run npm run generate.\n// prettier-ignore\n(function(root) {\n  const all = ${JSON.stringify(entries)}.map(([id, name, glyph, words]) => ({id, name, glyph, words}));\n  const normalize = text => " " + text.toLowerCase().split(/[^\\p{L}\\p{N}]+/u).filter(Boolean).join(" ") + " ";\n  const suggested = title => { const text = normalize(title); return all.find(icon => icon.words.some(word => text.includes(" " + word + " ")))?.id || "checklist"; };\n  const resolve = (id, title) => all.find(icon => icon.id === (id === "automatic" ? suggested(title) : id)) || all.find(icon => icon.id === "checklist");\n  const api = { all, suggested, resolve };\n  if (typeof module === "object") module.exports = api; else root.OrbitIcons = api;\n})(typeof globalThis === "object" ? globalThis : this);\n`;
+  const iconsSwift = `// Generated from shared/icons.json. Run npm run generate.\nimport Foundation\n\nenum ItemIcons {\n    struct Icon: Identifiable { let id: String; let name: String; let words: [String] }\n    static let all: [Icon] = [\n${entries.map(([id, name, , words]) => `        Icon(id: ${JSON.stringify(id)}, name: ${JSON.stringify(name)}, words: [${words.map((w) => JSON.stringify(w)).join(", ")}]),`).join("\n")}\n    ]\n    static func suggested(for title: String) -> String {\n        let text = " " + title.lowercased().components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }.joined(separator: " ") + " "\n        return all.first { icon in icon.words.contains { text.contains(" " + $0 + " ") } }?.id ?? "checklist"\n    }\n    static func symbol(_ stored: String, title: String) -> String {\n        let value = stored == "automatic" ? suggested(for: title) : stored\n        return all.contains { $0.id == value } ? value : "checklist"\n    }\n}\n`;
+  return { iconsJS, iconsSwift };
 }
 
 function generateOnboarding(data = JSON.parse(fs.readFileSync(path.join(root, "shared/onboarding.json"), "utf8"))) {

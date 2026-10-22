@@ -26,7 +26,7 @@ SwiftData app currently requires Xcode; WSL/xtool is not yet supported.
 | --- | --- |
 | Both apps | Today (today plus overdue), Calendar, Lists with a built-in Someday list, Habits, Settings and Account; one quick add field with a preview chip; first-launch onboarding with optional examples; JSON and CSV export, JSON import with a preview |
 | iOS | Checklist tiles, swipe actions, week/month calendar, notes, tags, subtasks, reminders, Shortcuts and Siri (Add to Orbit, Complete Item), share sheet extension |
-| Windows | Two-column Today, keyboard shortcuts (Ctrl+N, Ctrl+1–5, Ctrl+F, Ctrl+/), reminders as Windows notifications, tray icon and a global quick add shortcut |
+| Windows | Habits-first Today with optional progress/history, compact rows, list reordering, Windows voice typing, keyboard shortcuts (Ctrl+N, Ctrl+1–5, Ctrl+F, Ctrl+/), reminders as Windows notifications, tray icon and a global quick add shortcut |
 | Sync | Separate Supabase backend, email/password accounts, durable outbox, tombstones, revision checks, conflict review, reconnect catch-up |
 | Widgets | Today in Progress, Checklist and Grid styles on Home and Lock Screen; Habit consistency with week/month options on both; interactive completion, focus Live Activity |
 | Brand | Vector mark/wordmark, Windows/iOS icons, [brand guide](shared/brand/README.md), colours and spacing from [design tokens](shared/design-tokens.json) |
@@ -74,6 +74,8 @@ Edit Today.
 On iPhone, the Lists + button creates a list. Use Add a task to add items to the
 selected list; tasks are grouped by day with collapsible sections. Edit Lists adds,
 renames and deletes lists. Capture offers a day picker and list picker.
+
+Today accepts tasks directly in its text field: Return adds one and keeps entry ready for another. The options button opens date/list capture. Microphone controls dictate into an editable draft (iOS Speech and Windows voice typing); saving stays explicit. Habits offer 35 named icons or Automatic; task icons follow title keywords. Edit Lists lets you reorder lists.
 
 Quick add reads plain phrases such as `gym tomorrow 6pm`, `read every day`,
 `someday`; the chip shows what will be created before you save. On iPhone, Return saves the item and clears the field for another; Save saves and

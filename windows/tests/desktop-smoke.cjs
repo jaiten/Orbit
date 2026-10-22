@@ -22,7 +22,7 @@ const remove = (folder) => {
     app = await electron.launch(options);
     const p = await app.firstWindow();
     const quickAdd = async (text, preview) => {
-      await p.getByRole("button", { name: "Add a task", exact: true }).first().click();
+      await p.getByRole("button", { name: "Task options", exact: true }).first().click();
       await p.getByRole("textbox", { name: "Quick add" }).fill(text);
       if (preview) await p.locator("#quick-add-preview").getByText(preview, { exact: true }).waitFor();
       await p.getByRole("button", { name: "Add", exact: true }).click();
@@ -30,6 +30,15 @@ const remove = (folder) => {
     const errors = [];
     p.on("pageerror", (e) => errors.push(e.message));
     await p.getByRole("heading", { name: "Today", exact: true }).waitFor();
+    // Homepage capture stays inline and keeps the draft field ready for another item.
+    await p.getByRole("textbox", { name: "New task", exact: true }).fill("Inline walk");
+    await p.getByRole("textbox", { name: "New task", exact: true }).press("Enter");
+    await p.getByRole("checkbox", { name: "Complete Inline walk", exact: true }).waitFor();
+    if (await p.locator("dialog[open]").count()) throw Error("Inline capture opened a dialog");
+    if (await p.getByRole("textbox", { name: "New task", exact: true }).inputValue())
+      throw Error("Inline draft did not clear");
+    await p.getByRole("button", { name: "Edit Inline walk", exact: true }).click();
+    await p.getByRole("button", { name: "Delete", exact: true }).click();
     const weekly = "22222222-2222-4222-8222-222222222222";
     await p.evaluate(async (id) => {
       const now = new Date(),
@@ -80,9 +89,21 @@ const remove = (folder) => {
           .map((r) => ({ key: r.key, payload: r.payload, deleted: true })),
       );
     }, weekly);
-    await p.getByRole("button", { name: "+ New list", exact: true }).click();
+    await p.getByRole("button", { name: "+ New list", exact: true }).first().click();
     await p.locator("#list-form input[name=name]").fill("Personal");
     await p.getByRole("button", { name: "Save", exact: true }).click();
+    // The list order controls persist positions, including after saving the editor.
+    await p.getByRole("button", { name: "+ New list", exact: true }).first().click();
+    await p.locator("#list-form input[name=name]").fill("Temporary list");
+    await p.getByRole("button", { name: "Save", exact: true }).click();
+    await p.getByRole("button", { name: "Edit Temporary list list", exact: true }).click();
+    await p.getByRole("button", { name: "Move list up", exact: true }).click();
+    await p.getByRole("button", { name: "Save", exact: true }).click();
+    const listOrder = await p.locator("#sidebar-lists [data-list]").allTextContents();
+    if (listOrder.indexOf("Temporary list") > listOrder.indexOf("Personal")) throw Error("List order did not persist");
+    await p.getByRole("button", { name: "Edit Temporary list list", exact: true }).click();
+    await p.getByRole("button", { name: "Delete list", exact: true }).click();
+    await p.getByRole("button", { name: "Delete List, Keep Tasks", exact: true }).click();
     await quickAdd("Read for twenty minutes", "Task · Today");
     await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).click();
     await p.getByText("More options", { exact: true }).click();
@@ -90,7 +111,7 @@ const remove = (folder) => {
     await p.getByLabel("List", { exact: true }).selectOption({ label: "Personal" });
     await p.getByRole("button", { name: "Save", exact: true }).click();
     await p.getByRole("button", { name: "Personal", exact: true }).click();
-    await p.getByRole("heading", { name: "Personal", exact: true }).waitFor();
+    await p.getByRole("heading", { name: "Lists", exact: true }).waitFor();
     await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).waitFor();
     await p.locator('[data-page="today"]').click();
     // Sync updates never close or clear an open quick add.
@@ -300,7 +321,7 @@ const remove = (folder) => {
     await overdue.getByRole("button", { name: "Someday", exact: true }).click();
     await overdue.waitFor({ state: "detached" });
     await p.locator(`[data-list="00000000-0000-4000-8000-000000000001"]`).click();
-    await p.getByRole("heading", { name: "Someday", exact: true }).waitFor();
+    await p.getByRole("heading", { name: "Lists", exact: true }).waitFor();
     await p.getByRole("button", { name: "Add to Today", exact: true }).click();
     await p.locator('[data-page="today"]').click();
     await p.getByRole("checkbox", { name: "Complete Renew passport", exact: true }).waitFor();
@@ -308,7 +329,7 @@ const remove = (folder) => {
       (await window.orbit.read()).records.find((r) => r.key === "lists/00000000-0000-4000-8000-000000000001"),
     );
     if (someday?.payload.name !== "Someday") throw Error("Someday list was not created");
-    await p.getByRole("button", { name: "Add a task", exact: true }).first().click();
+    await p.getByRole("button", { name: "Task options", exact: true }).first().click();
     await p.getByRole("textbox", { name: "Quick add" }).fill("Plan picnic tomorrow 1pm #weekend");
     await p.locator("#quick-add-preview").getByText("Task · Tomorrow · 1:00 PM · #weekend", { exact: true }).waitFor();
     await p.getByRole("button", { name: "More details…", exact: true }).click();

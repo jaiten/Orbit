@@ -155,6 +155,7 @@
             <option value="honey">Honey</option>
           </select></label
         >
+        <label>Icon<select name="icon" aria-label="Habit icon"></select></label>
         <footer>
           <button type="button" id="move-habit" hidden>Make it a Task</button
           ><button type="button" id="delete-habit" class="danger" hidden>Delete</button
@@ -177,6 +178,10 @@
             <option value="clay">Coral</option>
           </select></label
         >
+        <div id="list-order-controls" class="fields">
+          <button type="button" id="list-move-up">Move list up</button>
+          <button type="button" id="list-move-down">Move list down</button>
+        </div>
         <div id="list-delete-confirm" hidden>
           <p>Delete this list? Its tasks move to Inbox.</p>
           <button type="button" class="danger" id="confirm-delete-list">Delete List, Keep Tasks</button>
@@ -219,22 +224,12 @@
       </div>
       <dl id="shortcuts-list" class="shortcuts"></dl>
     </dialog>
-    <dialog id="review-editor">
-      <form id="review-form">
-        <h2>Evening Review</h2>
-        <p id="review-summary"></p>
-        <h3>Pick up to three for tomorrow</h3>
-        <div id="review-items"></div>
-        <footer>
-          <button type="button" data-close>Close</button><button class="primary" type="submit">Plan tomorrow</button>
-        </footer>
-      </form>
-    </dialog>
     <script src="planning.js"></script>
     <script src="habits.js"></script>
     <script src="planner.js"></script>
     <script src="conversions.js"></script>
     <script src="onboarding-data.js"></script>
+    <script src="icons.js"></script>
     <script src="core.js"></script>
     <script src="motion.js"></script>
     <script src="pages/today.js"></script>

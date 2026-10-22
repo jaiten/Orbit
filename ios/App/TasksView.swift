@@ -27,6 +27,13 @@ struct TasksView: View {
         NavigationStack {
             List {
                 Section {
+                    PageHeader(eyebrow: "Organize", title: "Lists") {
+                        Button("Edit Lists") { manageLists = true }.frame(minHeight: 44)
+                        Button { creatingList = true } label: { Image(systemName: "plus").font(.system(size: 20)).frame(width: 44, height: 44) }.accessibilityLabel("New list")
+                    }
+                }.listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 0, trailing: 0))
+                Section {
+                    TextField("Search tasks", text: $search).textInputAutocapitalization(.never)
                     AccentPicker(title: "List", selection: $listID, choices: [(nil as UUID?, "All Tasks"), (Optional(TodayRules.somedayID), "Someday")] + lists.filter { $0.id != TodayRules.somedayID }.map { (Optional($0.id), $0.name) })
                 }
                 Section {
@@ -50,12 +57,9 @@ struct TasksView: View {
                         }
                     }
                 }
-            }.listStyle(.insetGrouped).scrollContentBackground(.hidden).background(DayTheme.canvas(scheme))
-                .tint(accent.fill).searchable(text: $search, prompt: "Search tasks").navigationTitle("Lists")
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) { Button("Edit Lists") { manageLists = true } }
-                    ToolbarItem(placement: .topBarTrailing) { Button { creatingList = true } label: { Image(systemName: "plus") }.accessibilityLabel("New list") }
-                }
+            }.listStyle(.insetGrouped).contentMargins(.top, 0, for: .scrollContent).listSectionSpacing(CGFloat(DesignTokens.spaceL)).scrollContentBackground(.hidden).background(DayTheme.canvas(scheme))
+                .tint(accent.fill).navigationTitle("Lists")
+                .toolbar(.hidden, for: .navigationBar)
                 .sheet(isPresented: $adding) { QuickCapture(listID: listID, fromList: true) }.sheet(item: $editing) { TaskEditor(task: $0) }
                 .sheet(isPresented: $manageLists) { ListsView() }
                 .alert("New list", isPresented: $creatingList) {
@@ -96,7 +100,17 @@ struct ListsView: View {
                 Section {
                     // Someday is built in: always first, never renamed or deleted.
                     Label("Someday", systemImage: "moon.zzz").foregroundStyle(.secondary)
-                    ForEach(editable) { list in ListNameRow(list: list) }
+                    ForEach(editable) { list in
+                        HStack {
+                            ListNameRow(list: list)
+                            Menu {
+                                Button("Move up") { shift(list, by: -1) }.disabled(editable.first?.id == list.id)
+                                Button("Move down") { shift(list, by: 1) }.disabled(editable.last?.id == list.id)
+                            } label: { Image(systemName: "arrow.up.arrow.down").font(.system(size: 18)).frame(width: 44, height: 44) }
+                                .accessibilityLabel("Reorder " + list.name)
+                        }
+                    }
+                        .onMove(perform: moveLists)
                         .onDelete { indices in pendingDelete = indices.first.map { editable[$0] } }
                 } header: { Text("Lists") }
                 Section {
@@ -124,6 +138,18 @@ struct ListsView: View {
                     }
                 }
         }
+    }
+    private func shift(_ list: TaskList, by delta: Int) {
+        guard let index = editable.firstIndex(where: { $0.id == list.id }) else { return }
+        let next = index + delta
+        guard editable.indices.contains(next) else { return }
+        moveLists(from: IndexSet(integer: index), to: delta > 0 ? next + 1 : next)
+    }
+    private func moveLists(from source: IndexSet, to destination: Int) {
+        var ordered = editable
+        ordered.move(fromOffsets: source, toOffset: destination)
+        for (index, list) in ordered.enumerated() { list.sortOrder = index; list.updatedAt = .now }
+        do { try Mutations.save(context) } catch { context.rollback(); self.error = error.localizedDescription }
     }
 }
 

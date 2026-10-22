@@ -27,7 +27,6 @@ struct TodayView: View {
     private var rowSpacing: CGFloat { compactRows && !typeSize.isAccessibilitySize ? 3 : CGFloat(DesignTokens.spaceS) }
     @State private var editing: PlannerTask?
     @State private var editingHabit: Habit?
-    @State private var addingTask = false
     @State private var addingHabit = false
     @State private var customizing = false
     @State private var showingCompleted = false
@@ -53,7 +52,7 @@ struct TodayView: View {
             page
                 .navigationTitle("Today").navigationBarTitleDisplayMode(.inline)
                 .toolbar(.hidden, for: .navigationBar)
-                .modifier(TodaySheets(addingTask: $addingTask, addingHabit: $addingHabit, customizing: $customizing, editing: $editing, editingHabit: $editingHabit))
+                .modifier(TodaySheets(addingHabit: $addingHabit, customizing: $customizing, editing: $editing, editingHabit: $editingHabit))
                 .modifier(MutationErrorModifier(error: $error))
         }
     }
@@ -75,7 +74,7 @@ struct TodayView: View {
         VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
             VStack(spacing: CGFloat(DesignTokens.spaceM)) {
                 header
-                AddField { addingTask = true }
+                InlineCapture()
             }
             FocusBanner()
             ConflictBanner()
@@ -91,7 +90,7 @@ struct TodayView: View {
     /// Keep capture and daily actions within reach above the customizable sections.
     private var header: some View {
         PageHeader(eyebrow: day.formatted(.dateTime.weekday(.wide).month(.wide).day()), title: "Today") {
-            Button { customizing = true } label: { Image(systemName: "slider.horizontal.3").frame(width: 44, height: 44) }.accessibilityLabel("Edit Today")
+            Button { customizing = true } label: { Image(systemName: "slider.horizontal.3").font(.system(size: 20)).frame(width: 44, height: 44) }.accessibilityLabel("Edit Today")
             SyncIndicator()
         }
     }
@@ -209,18 +208,23 @@ struct TodayView: View {
 }
 
 private struct TodaySheets: ViewModifier {
-    @Binding var addingTask: Bool
     @Binding var addingHabit: Bool
     @Binding var customizing: Bool
     @Binding var editing: PlannerTask?
     @Binding var editingHabit: Habit?
     func body(content: Content) -> some View {
         content
-            .sheet(isPresented: $addingTask) { QuickCapture() }
             .sheet(isPresented: $addingHabit) { HabitEditor() }
             .sheet(isPresented: $customizing) { HomeLayoutEditor() }
             .sheet(item: $editing) { TaskEditor(task: $0) }
             .sheet(item: $editingHabit) { HabitEditor(habit: $0) }
+            .onChange(of: addingHabit) { _, showing in if showing { stopDictation() } }
+            .onChange(of: customizing) { _, showing in if showing { stopDictation() } }
+            .onChange(of: editing?.id) { _, id in if id != nil { stopDictation() } }
+            .onChange(of: editingHabit?.id) { _, id in if id != nil { stopDictation() } }
+    }
+    private func stopDictation() {
+        NotificationCenter.default.post(name: Notification.Name("orbitCaptureSubmitted"), object: nil)
     }
 }
 

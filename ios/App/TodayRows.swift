@@ -23,6 +23,7 @@ struct CheckTile: View {
     var moves: [TileMove] = []
     /// The detail is a habit count that has met its target (shown in the accent text colour).
     var met = false
+    var icon: String? = nil
     @Environment(\.orbitAccent) private var accent
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("compactRows") private var compactRows = false
@@ -64,7 +65,12 @@ struct CheckTile: View {
                 Button(action: tapMain) {
                     OrbitTick(done: done, color: color).frame(width: 46, height: rowHeight).contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityLabel(completionLabel)
-                Button(action: tapEdit) { line.padding(.leading, -2) }
+                Button(action: tapEdit) {
+                    HStack(spacing: 8) {
+                        if let icon { Image(systemName: icon).font(.system(size: 18)).foregroundStyle(color).frame(width: 20).accessibilityHidden(true) }
+                        line
+                    }.padding(.leading, -2)
+                }
                     .buttonStyle(OrbitPress()).accessibilityLabel("Edit " + title)
                     .accessibilityValue(subtitle).accessibilityIdentifier("checklist-title")
             }
@@ -182,7 +188,7 @@ struct TaskRow: View {
     var body: some View {
         CheckTile(title: task.title, subtitle: subtitle, done: task.completedAt != nil, color: accent.fill,
                   completionLabel: (task.completedAt == nil ? "Complete " : "Reopen ") + task.title,
-                  toggle: toggle, edit: edit, remove: { change { context.delete(task); try Mutations.save(context) } }, moves: moves)
+                  toggle: toggle, edit: edit, remove: { change { context.delete(task); try Mutations.save(context) } }, moves: moves, icon: ItemIcons.suggested(for: task.title))
             .modifier(TaskActions(task: task)).modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
     }
     private func toggle() {
@@ -209,7 +215,7 @@ struct HabitRow: View {
     var body: some View {
         CheckTile(title: habit.title, subtitle: PlannerLogic.detail(habit, logs: logs, at: date), done: checked, color: DayTheme.color(habit.color),
                   completionLabel: (checked ? "Undo " : "Log ") + habit.title,
-                  toggle: toggle, edit: edit, remove: { change { try Conversions.remove(habit, in: context) } }, met: checked)
+                  toggle: toggle, edit: edit, remove: { change { try Conversions.remove(habit, in: context) } }, met: checked, icon: ItemIcons.symbol(habit.icon, title: habit.title))
             .modifier(HabitActions(habit: habit))
             .modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
     }

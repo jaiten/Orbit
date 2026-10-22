@@ -15,6 +15,8 @@ struct QuickCapture: View {
     /// Adding from Lists: the item lands in this list, undated unless the text names a day.
     var listID: UUID? = nil
     var fromList = false
+    var initialText = ""
+    var onSaved: () -> Void = {}
     @State private var text = ""
     @State private var scheduled = true
     @State private var selectedDay = Date.now
@@ -47,8 +49,9 @@ struct QuickCapture: View {
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceM)) {
                     Eyebrow(text: "Quick add")
                     HStack(spacing: 10) {
-                        Image(systemName: "plus").font(.body.weight(.medium)).foregroundStyle(.secondary)
+                        Image(systemName: "plus").font(.system(size: 18, weight: .medium)).foregroundStyle(.secondary)
                         CaptureTextField(text: $text, focused: $focused) { save(keepAdding: true) }
+                        DictationButton(text: $text)
                     }
                     .padding(.horizontal, 14).frame(minHeight: 52)
                     .background(DayTheme.canvas(scheme), in: RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusInput), style: .continuous))
@@ -93,7 +96,7 @@ struct QuickCapture: View {
                 .onChange(of: selectedListID) { _, id in if id == TodayRules.somedayID { scheduled = false } }
                 .onChange(of: scheduled) { _, on in if on && selectedListID == TodayRules.somedayID { selectedListID = nil } }
                 .sensoryFeedback(.success, trigger: addedCount)
-                .onAppear { selectedDay = initialDate ?? .now; scheduled = !fromList || initialDate != nil; selectedListID = listID; focused = true }.modifier(MutationErrorModifier(error: $error))
+                .onAppear { NotificationCenter.default.post(name: Notification.Name("orbitCaptureSubmitted"), object: nil); text = initialText; selectedDay = initialDate ?? .now; scheduled = !fromList || initialDate != nil; selectedListID = listID; focused = true }.modifier(MutationErrorModifier(error: $error))
         }
         .presentationDetents([.medium, .large])
     }
@@ -101,6 +104,7 @@ struct QuickCapture: View {
     private func save(allowConflict: Bool = false, keepAdding: Bool = false) {
         let result = self.result
         guard !result.title.isEmpty else { return }
+        NotificationCenter.default.post(name: Notification.Name("orbitCaptureSubmitted"), object: nil)
         do {
             if !allowConflict, result.kind == .task, result.time != nil, let start = result.date.flatMap({ QuickAdd.start(of: $0, time: result.time) }) {
                 conflictTitles = CalendarBridge.shared.conflictTitles(start: start, duration: 30, excluding: nil, tasks: try context.fetch(FetchDescriptor<PlannerTask>()))
@@ -112,6 +116,7 @@ struct QuickCapture: View {
                 if result.time != nil { _ = await NotificationScheduler.shared.requestIfUndecided() }
                 try? await refreshReminders(context)
             }
+            onSaved()
             addedCount += 1
             if keepAdding {
                 lastAdded = result.title
@@ -126,15 +131,17 @@ struct QuickCapture: View {
 
 /// Intercept Return before UIKit ends editing. Keeping the same first responder makes
 /// repeated entry work for both the software keyboard and a hardware Return key.
-private struct CaptureTextField: UIViewRepresentable {
+struct CaptureTextField: UIViewRepresentable {
     @Binding var text: String
     @Binding var focused: Bool
+    var identifier = "task-title-input"
+    var placeholder = "What do you need to do?"
     var onSubmit: () -> Void
 
     func makeUIView(context: Context) -> Input {
         let field = Input()
-        field.placeholder = "What do you need to do?"
-        field.accessibilityIdentifier = "task-title-input"
+        field.placeholder = placeholder
+        field.accessibilityIdentifier = identifier
         field.font = .preferredFont(forTextStyle: .title3)
         field.adjustsFontForContentSizeCategory = true
         field.autocapitalizationType = .none

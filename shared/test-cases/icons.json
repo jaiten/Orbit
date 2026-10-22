@@ -1,0 +1,160 @@
+{
+  "cases": [
+    {
+      "title": "Gym",
+      "expect": "dumbbell"
+    },
+    {
+      "title": "Walk",
+      "expect": "figure.walk"
+    },
+    {
+      "title": "Run",
+      "expect": "figure.run"
+    },
+    {
+      "title": "Bike",
+      "expect": "bicycle"
+    },
+    {
+      "title": "Swim",
+      "expect": "figure.pool.swim"
+    },
+    {
+      "title": "Meditate",
+      "expect": "figure.mind.and.body"
+    },
+    {
+      "title": "Yoga",
+      "expect": "figure.yoga"
+    },
+    {
+      "title": "Water",
+      "expect": "drop"
+    },
+    {
+      "title": "Read",
+      "expect": "book"
+    },
+    {
+      "title": "Write",
+      "expect": "pencil"
+    },
+    {
+      "title": "Sleep",
+      "expect": "moon"
+    },
+    {
+      "title": "Morning",
+      "expect": "sun.max"
+    },
+    {
+      "title": "Eat",
+      "expect": "fork.knife"
+    },
+    {
+      "title": "Cook",
+      "expect": "carrot"
+    },
+    {
+      "title": "Coffee",
+      "expect": "cup.and.saucer"
+    },
+    {
+      "title": "Medicine",
+      "expect": "pills"
+    },
+    {
+      "title": "Doctor",
+      "expect": "cross.case"
+    },
+    {
+      "title": "Self Care",
+      "expect": "heart"
+    },
+    {
+      "title": "Study",
+      "expect": "graduationcap"
+    },
+    {
+      "title": "Work",
+      "expect": "laptopcomputer"
+    },
+    {
+      "title": "Call",
+      "expect": "phone"
+    },
+    {
+      "title": "Shop",
+      "expect": "cart"
+    },
+    {
+      "title": "Clean",
+      "expect": "house"
+    },
+    {
+      "title": "Invoice",
+      "expect": "banknote"
+    },
+    {
+      "title": "Dog",
+      "expect": "pawprint"
+    },
+    {
+      "title": "Garden",
+      "expect": "leaf"
+    },
+    {
+      "title": "Music",
+      "expect": "music.note"
+    },
+    {
+      "title": "Paint",
+      "expect": "paintpalette"
+    },
+    {
+      "title": "Friends",
+      "expect": "person.2"
+    },
+    {
+      "title": "Drive",
+      "expect": "car"
+    },
+    {
+      "title": "Plan",
+      "expect": "calendar"
+    },
+    {
+      "title": "GYM before work",
+      "expect": "dumbbell"
+    },
+    {
+      "title": "Go for a walk",
+      "expect": "figure.walk"
+    },
+    {
+      "title": "work-out",
+      "expect": "dumbbell"
+    },
+    {
+      "title": "calligraphy",
+      "expect": "checklist"
+    },
+    {
+      "title": "Runway ideas",
+      "expect": "checklist"
+    },
+    {
+      "title": "Homework",
+      "expect": "graduationcap"
+    },
+    {
+      "title": "A quiet moment",
+      "expect": "checklist"
+    },
+    {
+      "title": "",
+      "expect": "checklist"
+    }
+  ]
+}

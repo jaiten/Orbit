@@ -63,7 +63,7 @@ struct Subtask: Codable, Identifiable, Equatable {
     var createdAt: Date
     var updatedAt: Date
     init(title: String, frequencyRule: String = "DAILY", target: Int = 1,
-         color: String = "sage", icon: String = "leaf") {
+         color: String = "sage", icon: String = "automatic") {
         id = UUID(); self.title = title; self.frequencyRule = frequencyRule
         self.target = target; self.color = color; self.icon = icon
         createdAt = .now; updatedAt = .now

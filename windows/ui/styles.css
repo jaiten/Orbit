@@ -1317,3 +1317,133 @@ dialog footer .danger {
 .onboarding-dots span.on {
   background: var(--accent);
 }
+
+/* Primary screens share one heading rhythm and a readable content width. */
+.page-head {
+  flex-wrap: wrap;
+  min-height: 72px;
+  margin-bottom: var(--space-l);
+}
+.narrow,
+.narrow.wide {
+  max-width: 760px;
+}
+.page-head h1 {
+  overflow-wrap: anywhere;
+}
+.sidebar-list button[data-edit-list] {
+  opacity: 1;
+  min-width: 36px;
+  min-height: 36px;
+}
+.sidebar-list button[data-list] {
+  min-width: 0;
+  height: auto;
+  min-height: 44px;
+  overflow-wrap: anywhere;
+}
+.inline-capture {
+  margin-bottom: var(--space-l);
+}
+.inline-capture .add-field {
+  height: auto;
+  min-height: 48px;
+  margin-bottom: 0;
+  padding: 0 6px 0 14px;
+}
+.inline-capture input {
+  min-width: 0;
+  flex: 1;
+  background: transparent;
+  box-shadow: none;
+  border: none;
+  font: inherit;
+  padding: 12px 0;
+}
+.inline-capture button {
+  min-width: 44px;
+  min-height: 44px;
+}
+.inline-capture p:empty {
+  display: none;
+}
+.item-icon {
+  width: 22px;
+  flex: none;
+  text-align: center;
+}
+.habit-color {
+  margin-right: 14px;
+}
+.task-date-group {
+  margin-top: var(--space-l);
+}
+.task-date-group summary {
+  cursor: pointer;
+  font-weight: 600;
+  min-height: 44px;
+  padding: 10px 0;
+}
+.task-date-group .check-list {
+  margin-top: 4px;
+}
+.today-layout {
+  display: block;
+  max-width: 760px;
+}
+.today-side {
+  margin-top: var(--space-l);
+}
+.progress-details > summary {
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--muted);
+}
+.progress-details .card {
+  margin-top: var(--space-m);
+}
+:root[data-compact="true"] .row-line {
+  min-height: 44px;
+}
+:root[data-compact="true"] .row-body {
+  min-height: 44px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+:root[data-compact="true"] .check-list {
+  gap: 4px;
+}
+:root[data-compact="true"] .row-tick {
+  min-width: 44px;
+  min-height: 44px;
+}
+@media (max-width: 1000px) {
+  .row-body {
+    flex-wrap: wrap;
+  }
+  .row-title {
+    overflow-wrap: anywhere;
+  }
+  .row-detail {
+    white-space: normal;
+  }
+  .page {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+
+.today-layout > .page-head {
+  margin-bottom: var(--space-l);
+}
+.row-title {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.sidebar {
+  overflow-y: auto;
+}
+.sidebar > * {
+  flex-shrink: 0;
+}

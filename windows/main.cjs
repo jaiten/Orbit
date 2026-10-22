@@ -208,6 +208,20 @@ app.whenReady().then(async () => {
         throw Error("Invalid sender");
       return fn(arg);
     });
+  handle("dictate", async () => {
+    if (process.platform !== "win32")
+      throw Error("Voice typing uses Windows. On Windows, focus the task field and press Win+H.");
+    if (!window.isFocused()) throw Error("Focus Orbit before starting voice typing.");
+    const script = `Add-Type -TypeDefinition 'using System.Runtime.InteropServices; public class OrbitVoiceKeys { [DllImport("user32.dll")] public static extern void keybd_event(byte key, byte scan, uint flags, System.UIntPtr extra); }'; [OrbitVoiceKeys]::keybd_event(0x5B,0,0,[System.UIntPtr]::Zero); [OrbitVoiceKeys]::keybd_event(0x48,0,0,[System.UIntPtr]::Zero); [OrbitVoiceKeys]::keybd_event(0x48,0,2,[System.UIntPtr]::Zero); [OrbitVoiceKeys]::keybd_event(0x5B,0,2,[System.UIntPtr]::Zero)`;
+    await new Promise((resolve, reject) => {
+      require("node:child_process").execFile(
+        "powershell.exe",
+        ["-NoProfile", "-NonInteractive", "-Command", script],
+        { windowsHide: true, timeout: 10000 },
+        (error) => (error ? reject(Error("Could not start voice typing. Press Win+H in the task field.")) : resolve()),
+      );
+    });
+  });
   handle("devices", async () => {
     if (!client) throw Error("Sign in first");
     const { data, error } = await client.rpc("orbit_devices_list", { p_name: "Windows PC" });

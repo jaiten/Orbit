@@ -10,8 +10,6 @@ function consistencyLevels(habits, days = gridDays()) {
   return days.map((key) => (key > today() ? -1 : OrbitHabits.consistency(entries, logs, key)));
 }
 
-const moon =
-  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z"/></svg>';
 const checklist = (items, row = taskRow) => `<div class="check-list">${items.map((i) => row(i)).join("")}</div>`;
 
 function renderToday(tasks, allHabits) {
@@ -35,14 +33,15 @@ function renderToday(tasks, allHabits) {
   return `<div class="today-layout">
     <header class="page-head">
         <div><div class="eyebrow">${eyebrow}</div><h1>${heading}</h1>${isToday ? '<p class="subtitle">Make room for what matters.</p>' : ""}</div>
-        <button class="icon-button" data-evening-review aria-label="Evening review" title="Evening review">${moon}</button>
+
       </header>
     <section class="today-main">
       ${addField()}
       ${conflictBanner()}
+      ${habits.length ? sectionLabel("Habits", `${habitsDone} of ${habits.length}`) + checklist(habits, habitCard) : ""}
       ${overdue.length ? sectionLabel("Overdue") + checklist(overdue) : ""}
-      ${timed.length ? sectionLabel("On the agenda", "Time blocks") + checklist(timed) : ""}
-      ${untimed.length ? sectionLabel("At your own pace", "To-dos") + checklist(untimed) : ""}
+      ${timed.length ? sectionLabel("Scheduled", "Time blocks") + checklist(timed) : ""}
+      ${untimed.length ? sectionLabel("Your day", "Tasks") + checklist(untimed) : ""}
       ${open.length ? "" : '<p class="empty">Nothing planned for today.</p>'}
       ${
         complete.length
@@ -57,19 +56,19 @@ function renderToday(tasks, allHabits) {
       </div>
     </section>
     <aside class="today-side" aria-label="Progress">
+      <details class="progress-details"><summary>Progress and history</summary>
       ${planCard(done, total)}
-      ${habits.length ? sectionLabel("Habits", `${habitsDone} of ${habits.length}`) + checklist(habits, habitCard) : ""}
       ${
         allHabits.length
           ? `<div class="card grid-card"><div class="eyebrow">Habits · last 12 weeks</div>${boxGrid(consistencyLevels(allHabits), "accent", "Habits")}</div>`
           : ""
       }
+      </details>
     </aside>
   </div>`;
 }
 
 function bindToday() {
-  document.querySelectorAll("[data-evening-review]").forEach((b) => (b.onclick = openEveningReview));
   if ($(".completed-items"))
     $(".completed-items").ontoggle = (e) => {
       completedOpen = e.target.open;

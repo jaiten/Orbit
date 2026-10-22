@@ -4,6 +4,10 @@ const globals = require("globals");
 // Renderer files are classic scripts that share top-level names (see ui/index.html for load order).
 const shared = Object.fromEntries(
   [
+    "afterCaptureSave",
+    "OrbitIcons",
+    "inlineDraft",
+    "bindInlineCapture",
     "OrbitPlanning",
     "OrbitConversions",
     "accents",

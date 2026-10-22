@@ -22,7 +22,7 @@
         frequencyRule: SCHEDULE_FOR_RULE[source.recurrenceRule] || "DAILY",
         target: 1,
         color: "sage",
-        icon: "leaf",
+        icon: "automatic",
         reminderMinutes: reminder ? reminder.getHours() * 60 + reminder.getMinutes() : null,
         nudgeMinutes: null,
         createdAt: options.createdAt ?? now,

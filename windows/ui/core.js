@@ -224,9 +224,20 @@ function tick(done, pop = false) {
 function sectionLabel(title, note = "") {
   return `<div class="section-label"><h2>${title}</h2>${note ? `<span>${note}</span>` : ""}</div>`;
 }
-/** The quiet field that opens quick add. */
-function addField(hint = "Add a task · gym tomorrow 6pm") {
-  return `<button class="add-field" data-quick-add aria-label="Add a task" aria-keyshortcuts="Control+N">${plus}<span>${hint}</span><kbd aria-hidden="true">Ctrl+N</kbd></button>`;
+/** Inline task entry: Return saves, then the field is ready for the next item. */
+function addField() {
+  return `<form id="inline-add-form" class="inline-capture">
+    <div class="add-field"><input id="inline-task-input" aria-label="New task" placeholder="Add a task" maxlength="500" autocomplete="off" value="${esc(inlineDraft)}" />
+      <button type="submit" aria-label="Add a task">${plus}</button>
+      <button type="button" id="inline-dictate" aria-label="Dictate task" title="Windows voice typing (Win+H)">🎙</button>
+      <button type="button" data-quick-add aria-label="Task options" title="Choose a date or list">⋯</button>
+    </div><p id="inline-preview" class="secondary" aria-live="polite"></p>
+    <div id="inline-overlap" hidden><p id="inline-overlap-text"></p><button type="button" id="inline-save-overlap">Add anyway</button></div>
+    <p id="inline-receipt" class="secondary" role="status"></p>
+  </form>`;
+}
+function itemIcon(id, title) {
+  return `<span class="item-icon" aria-hidden="true">${OrbitIcons.resolve(id, title).glyph}</span>`;
 }
 /** "Your plan": the day's count and a bar that fills with a spring. */
 function planCard(done, total) {
@@ -276,7 +287,7 @@ function taskRow(t) {
   return `<div class="row task-row check-tile ${t.completedAt ? "complete" : ""} ${overdue ? "overdue" : ""}" data-flip="task-${id}" data-search="${esc(search)}">
     <div class="row-line">
       <button class="row-tick" role="checkbox" aria-label="${t.completedAt ? "Reopen" : "Complete"} ${title}" aria-checked="${!!t.completedAt}" data-toggle="${id}">${tick(!!t.completedAt, poppedID === t.id)}</button
-      ><button class="row-body" aria-label="Edit ${title}" data-edit="${id}"><span class="row-title">${title}</span>${detail ? `<span class="row-detail">${detail}</span>` : ""}</button
+      ><button class="row-body" aria-label="Edit ${title}" data-edit="${id}">${itemIcon("automatic", t.title)}<span class="row-title">${title}</span>${detail ? `<span class="row-detail">${detail}</span>` : ""}</button
       >${addToToday}
     </div>
     ${moves}
@@ -289,10 +300,9 @@ function habitCard(h, { editable = false } = {}) {
     title = esc(h.title);
   return `<div class="row habit-row check-tile ${done ? "complete" : ""}" data-flip="habit-${id}">
     <div class="row-line">
-      <button class="row-body" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-menu="${id}" ${selected > dayKey(new Date()) ? "disabled" : ""}
-        ><span class="dot ${colorName(h.color)} ${poppedID === h.id && done ? "pop" : ""}" aria-hidden="true"></span
-        ><span class="row-title">${title}</span><span class="row-detail ${done ? "met" : ""}">${habitDetail(h)}</span></button
-      >${editable ? `<button class="row-edit" aria-label="Edit ${title}" data-habit-edit="${id}">${pencil}</button>` : ""}
+      <button class="row-tick" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-menu="${id}" ${selected > today() ? "disabled" : ""}>${tick(done, poppedID === h.id)}</button>
+      <button class="row-body" aria-label="Edit ${title}" data-habit-edit="${id}">${itemIcon(h.icon || "automatic", h.title)}<span class="row-title">${title}</span><span class="row-detail ${done ? "met" : ""}">${habitDetail(h)}</span></button>
+      ${editable ? `<span class="habit-color dot ${colorName(h.color)}" aria-hidden="true"></span>` : ""}
     </div>
   </div>`;
 }
@@ -359,6 +369,7 @@ function bindTiles() {
       }),
   );
   document.querySelectorAll("[data-quick-add]").forEach((b) => (b.onclick = () => openQuickAdd()));
+  bindInlineCapture();
   // Choosing Today, Later or Someday springs the row away before the list re-forms.
   const move = (attribute, change) =>
     document.querySelectorAll(`[data-${attribute}]`).forEach(

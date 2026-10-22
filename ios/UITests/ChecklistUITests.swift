@@ -1,12 +1,27 @@
 import XCTest
 
 final class ChecklistUITests: XCTestCase {
+    func testInlineCaptureAddsMultipleItemsWithoutASheet() {
+        continueAfterFailure = false
+        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
+        let input = app.textFields["inline-task-input"]
+        XCTAssertTrue(input.waitForExistence(timeout: 15))
+        input.tap(); input.typeText("Buy coffee\n")
+        XCTAssertTrue(app.buttons["Complete Buy coffee"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.navigationBars.buttons["Save"].exists)
+        input.typeText("Walk every day\n")
+        XCTAssertTrue(app.buttons["Log Walk"].waitForExistence(timeout: 5))
+        input.typeText("\n")
+        XCTAssertEqual(app.buttons.matching(identifier: "Complete Buy coffee").count, 1)
+        XCTAssertTrue(app.buttons["Dictate task"].exists)
+    }
+
     func testMenuConversionAndSwipeDelete() {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchArguments = ["--ui-testing"]
         app.launch()
-        let addButton = app.buttons["Add a task"]
+        let addButton = app.buttons["Task options"]
         XCTAssertTrue(addButton.waitForExistence(timeout: 15))
         addButton.tap()
         let field = app.descendants(matching: .any).matching(identifier: "task-title-input").firstMatch
@@ -40,7 +55,7 @@ final class ChecklistUITests: XCTestCase {
     func testTickCompletesAndRowOpens() {
         continueAfterFailure = false
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
-        let addButton = app.buttons["Add a task"]
+        let addButton = app.buttons["Task options"]
         XCTAssertTrue(addButton.waitForExistence(timeout: 15)); addButton.tap()
         let field = app.descendants(matching: .any).matching(identifier: "task-title-input").firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5)); field.tap(); field.typeText("Clean the car")
@@ -109,8 +124,8 @@ final class ChecklistUITests: XCTestCase {
     func testReturnSavesAndKeepsCaptureOpen() {
         continueAfterFailure = false
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
-        XCTAssertTrue(app.buttons["Add a task"].waitForExistence(timeout: 15))
-        app.buttons["Add a task"].tap()
+        XCTAssertTrue(app.buttons["Task options"].waitForExistence(timeout: 15))
+        app.buttons["Task options"].tap()
         let field = app.textFields["task-title-input"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap(); field.typeText("Buy coffee\n")
@@ -172,6 +187,11 @@ final class ChecklistUITests: XCTestCase {
         app.buttons["Edit Lists"].tap()
         XCTAssertTrue(app.textFields["new-list-name"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Edit"].exists)
+        app.textFields["new-list-name"].tap(); app.textFields["new-list-name"].typeText("Errands")
+        app.buttons["Add List"].tap()
+        app.buttons["Reorder Errands"].tap(); app.buttons["Move up"].tap()
+        let names = app.textFields.allElementsBoundByIndex.compactMap { $0.value as? String }
+        XCTAssertLessThan(try! XCTUnwrap(names.firstIndex(of: "Errands")), try! XCTUnwrap(names.firstIndex(of: "Weekend")))
         app.navigationBars.buttons["Done"].tap()
     }
 
@@ -253,7 +273,7 @@ final class ChecklistUITests: XCTestCase {
     func testQuickAddPreviewCreatesHabit() {
         continueAfterFailure = false
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
-        let addButton = app.buttons["Add a task"]
+        let addButton = app.buttons["Task options"]
         XCTAssertTrue(addButton.waitForExistence(timeout: 15)); addButton.tap()
         let field = app.descendants(matching: .any).matching(identifier: "task-title-input").firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5)); field.tap(); field.typeText("Stretch every day 7am")

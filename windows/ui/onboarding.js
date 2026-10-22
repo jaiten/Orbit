@@ -14,7 +14,7 @@ function newHabit(fields, now = Date.now()) {
   return {
     id: crypto.randomUUID(),
     target: 1,
-    icon: "leaf",
+    icon: "automatic",
     reminderMinutes: null,
     nudgeMinutes: null,
     ...fields,

@@ -10,6 +10,8 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section { PageHeader(eyebrow: "Preferences", title: "Settings") { SyncIndicator() } }
+                    .listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 0, trailing: 0))
                 Section {
                     NavigationLink { AccountView() } label: {
                         LabeledContent("Account", value: sync.email ?? "Not signed in")
@@ -24,9 +26,10 @@ struct SettingsView: View {
                     Text("Works offline. Sync runs while Orbit is open; widget changes sync the next time you open it.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
-            }.scrollContentBackground(.hidden).background(DayTheme.canvas(scheme))
-                .tint(accent.fill).navigationTitle("Settings").navigationBarTitleDisplayMode(.large)
-                .toolbar { ToolbarItem(placement: .topBarTrailing) { SyncIndicator() } }
+            }.contentMargins(.top, 0, for: .scrollContent).listSectionSpacing(CGFloat(DesignTokens.spaceL))
+                .scrollContentBackground(.hidden).background(DayTheme.canvas(scheme))
+                .tint(accent.fill).navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
+                .toolbar(.hidden, for: .navigationBar)
                 .alert("Orbit", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
                     Button("OK") { message = nil }
                 } message: { Text(message ?? "") }
@@ -46,7 +49,7 @@ private struct AppearanceSection: View {
                     Button { accentTheme = name } label: {
                         VStack(spacing: 8) {
                             Circle().fill(DayTheme.accentColor(name)).frame(width: 34, height: 34)
-                                .overlay { if accentTheme == name { Image(systemName: "checkmark").foregroundStyle(.white) } }
+                                .overlay { if accentTheme == name { Image(systemName: "checkmark").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white) } }
                             Text(name.capitalized).font(.caption2).foregroundStyle(.primary)
                         }.frame(maxWidth: .infinity)
                     }.buttonStyle(.plain).accessibilityLabel(name.capitalized + (accentTheme == name ? ", selected" : ""))

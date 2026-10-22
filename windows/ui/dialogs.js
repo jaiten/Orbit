@@ -1,8 +1,10 @@
 // Task, habit, password and review dialogs. Their markup lives in index.html.
+let afterCaptureSave = () => {};
 let taskDraft = null,
   habitDraft = null;
 /** Opens the task editor for an existing task, or a new one prefilled from `draft`. */
 function openTask(id, date, draft = null) {
+  afterCaptureSave = () => {};
   $("#overlap-confirm").hidden = true;
   $("#task-form").dataset.allowOverlap = "";
   editing = rows("tasks").find((t) => t.id === id) || null;
@@ -36,6 +38,7 @@ function updateTargetLabel() {
 $("#habit-form").elements.frequency.onchange = updateTargetLabel;
 
 function openHabit(id, draft = null) {
+  afterCaptureSave = () => {};
   editingHabit = rows("habits").find((h) => h.id === id) || null;
   habitDraft = editingHabit ? null : draft;
   const source = editingHabit || draft;
@@ -45,6 +48,13 @@ function openHabit(id, draft = null) {
   f.elements.target.value = source?.target || 1;
   f.elements.frequency.value = OrbitHabits.schedule(source || {});
   f.elements.color.value = editingHabit?.color || draft?.color || nextHabitColor();
+  f.elements.icon.innerHTML =
+    `<option value="automatic">Automatic</option>` +
+    OrbitIcons.all
+      .map((icon) => `<option value="${esc(icon.id)}">${esc(icon.glyph)} ${esc(icon.name)}</option>`)
+      .join("");
+  f.elements.icon.value = source?.icon || "automatic";
+  if (!f.elements.icon.value) f.elements.icon.value = "automatic";
   updateTargetLabel();
   $("#habit-editor-title").textContent = editingHabit ? "Edit Habit" : "New Habit";
   $("#delete-habit").hidden = !editingHabit;
@@ -102,6 +112,7 @@ $("#task-form").onsubmit = (e) => {
     };
     // Someday items have no date and never remind.
     await saveTasks([saved.listID === SOMEDAY ? OrbitPlanner.moveToSomeday(saved) : saved]);
+    afterCaptureSave();
     $("#editor").close();
   });
 };
@@ -133,8 +144,10 @@ $("#habit-form").onsubmit = (e) => {
       target: Number(f.elements.target.value),
       frequencyRule: f.elements.frequency.value,
       color: f.elements.color.value,
+      icon: f.elements.icon.value,
       updatedAt: Date.now(),
     });
+    afterCaptureSave();
     $("#habit-editor").close();
   });
 };
@@ -160,54 +173,6 @@ $("#password-form").onsubmit = (e) => {
     showNotice(await api.auth("password", "", f.elements.password.value));
     f.reset();
     $("#password-editor").close();
-  });
-};
-
-function openEveningReview() {
-  const today = dayKey(new Date());
-  const done = rows("tasks").filter((t) => t.completedAt && dayKey(new Date(t.completedAt)) === today).length;
-  const habits = rows("habits").filter((h) => checked(h, today)).length;
-  $("#review-summary").textContent =
-    `${done} ${done === 1 ? "task" : "tasks"} completed · ${habits} ${habits === 1 ? "habit" : "habits"} checked`;
-  $("#review-items").innerHTML = rows("tasks")
-    .filter((t) => !t.completedAt && t.listID !== SOMEDAY)
-    .map(
-      (t) =>
-        `<label class="review-item"><input type="checkbox" name="items" value="${esc(t.id)}">${esc(t.title)}</label>`,
-    )
-    .join("");
-  $("#review-editor").showModal();
-}
-$("#review-form").onsubmit = (e) => {
-  e.preventDefault();
-  const ids = [...e.target.querySelectorAll("input:checked")].map((i) => i.value);
-  if (ids.length > 3) {
-    showNotice("Choose up to three priorities");
-    return;
-  }
-  void action(async () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const day = dayKey(tomorrow);
-    await api.batch(
-      rows("tasks")
-        .filter((t) => ids.includes(t.id))
-        .map((t) => {
-          let due = null;
-          if (t.hasTime) {
-            const clock = new Date(t.dueDate);
-            due = new Date(day + "T12:00:00");
-            due.setHours(clock.getHours(), clock.getMinutes(), 0, 0);
-            due = due.getTime();
-          }
-          const reminders = t.reminders.map((r) => (due && t.dueDate ? r + (due - t.dueDate) : r));
-          return {
-            key: t._key,
-            payload: { ...clean(t), localDate: day, dueDate: due, reminders, updatedAt: Date.now() },
-          };
-        }),
-    );
-    $("#review-editor").close();
   });
 };
 

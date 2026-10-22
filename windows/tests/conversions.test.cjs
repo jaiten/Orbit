@@ -16,6 +16,7 @@ test("task conversion round trip preserves notes, subtasks and identifiers", () 
   };
   const habit = convert("tasks", source, [], today, now)[0].payload;
   assert.equal(habit.frequencyRule, "WEEKLY");
+  assert.equal(habit.icon, "automatic");
   const task = convert("habits", habit, [], today, now)[0].payload;
   assert.equal(task.id, "abc");
   assert.equal(task.notes, "Chapter two");

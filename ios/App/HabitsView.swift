@@ -14,9 +14,9 @@ struct HabitsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceXxl)) {
+                VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
                     PageHeader(eyebrow: "Repeats", title: "Habits", subtitle: "Your routines, reminders and progress.") {
-                        Button { adding = true } label: { Image(systemName: "plus").frame(width: 36, height: 36) }.accessibilityLabel("New habit")
+                        Button { adding = true } label: { Image(systemName: "plus").font(.system(size: 20)).frame(width: 44, height: 44) }.accessibilityLabel("New habit")
                     }
                     if !habits.isEmpty {
                         Button("Plan habits in Calendar", systemImage: "calendar.badge.clock") { planning = true }
@@ -89,7 +89,7 @@ struct HabitHistoryDetail: View {
     private var recent: [HabitLog] { logs.filter { $0.habitID == habit.id && $0.count > 0 }.sorted { $0.dayKey > $1.dayKey }.prefix(90).map { $0 } }
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceXxl)) {
+            VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceM)) {
                     Eyebrow(text: "\(PlannerLogic.checkedDays(habit, logs: logs, ending: .now)) of the last 7 days")
                     HabitHistoryCharts(habit: habit, logs: logs)
@@ -148,7 +148,7 @@ struct HabitEditor: View {
     @State private var frequency = "DAILY"
     @State private var target = 1
     @State private var color = "sage"
-    @State private var icon = "leaf"
+    @State private var icon = "automatic"
     @State private var calendarMinutes = 15
     @State private var reminderEnabled = false
     @State private var reminder = Date.now
@@ -165,7 +165,8 @@ struct HabitEditor: View {
                     Stepper("\(target) \(target == 1 ? "time" : "times") a \(frequency == "WEEKLY" ? "week" : "day")", value: $target, in: 1...1000)
                     Picker("Color", selection: $color) { ForEach(DayTheme.colors, id: \.self) { Text($0.capitalized).tag($0) } }
                     Picker("Icon", selection: $icon) {
-                        ForEach(["leaf", "book", "figure.walk", "drop", "heart", "moon", "pencil", "sun.max"], id: \.self) { Label($0, systemImage: $0).tag($0) }
+                        Label("Automatic", systemImage: ItemIcons.suggested(for: title)).tag("automatic")
+                        ForEach(ItemIcons.all) { Label($0.name, systemImage: $0.id).tag($0.id) }
                     }
                 }
                 Section {
@@ -191,7 +192,7 @@ struct HabitEditor: View {
                     // A new habit starts in the next colour, so habits mix; any colour can still be chosen.
                     guard let habit else { color = (try? QuickAddSaver.nextHabitColor(in: context)) ?? "sage"; return }
                     calendarMinutes = HabitCalendarPreferences.duration(for: habit.id)
-                    title = habit.title; frequency = HabitRules.schedule(habit.frequencyRule); target = habit.target; color = habit.color; icon = habit.icon
+                    title = habit.title; frequency = HabitRules.schedule(habit.frequencyRule); target = habit.target; color = habit.color; icon = ItemIcons.all.contains { $0.id == habit.icon } ? habit.icon : "automatic"
                     reminderEnabled = habit.reminderMinutes != nil; nudgeEnabled = habit.nudgeMinutes != nil
                     reminder = time(habit.reminderMinutes ?? 540); nudge = time(habit.nudgeMinutes ?? 1200)
                 }.modifier(MutationErrorModifier(error: $error))
