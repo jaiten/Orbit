@@ -33,7 +33,7 @@ import AVFoundation
         }
         do {
             let audio = AVAudioSession.sharedInstance()
-            try audio.setCategory(.record, mode: .measurement, options: .duckOthers)
+            try audio.setCategory(.record, mode: .measurement)
             try audio.setActive(true, options: .notifyOthersOnDeactivation)
             let input = engine.inputNode
             let format = input.outputFormat(forBus: 0)
