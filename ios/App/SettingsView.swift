@@ -11,7 +11,7 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section { PageHeader(eyebrow: "Preferences", title: "Settings") { SyncIndicator() } }
-                    .listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                    .listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 0, trailing: 0))
                 Section {
                     NavigationLink { AccountView() } label: {
                         LabeledContent("Account", value: sync.email ?? "Not signed in")
@@ -26,7 +26,8 @@ struct SettingsView: View {
                     Text("Works offline. Sync runs while Orbit is open; widget changes sync the next time you open it.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
-            }.scrollContentBackground(.hidden).background(DayTheme.canvas(scheme))
+            }.contentMargins(.top, 0, for: .scrollContent).listSectionSpacing(CGFloat(DesignTokens.spaceL))
+                .scrollContentBackground(.hidden).background(DayTheme.canvas(scheme))
                 .tint(accent.fill).navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
                 .toolbar(.hidden, for: .navigationBar)
                 .alert("Orbit", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {

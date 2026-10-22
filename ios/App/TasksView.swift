@@ -31,7 +31,7 @@ struct TasksView: View {
                         Button("Edit Lists") { manageLists = true }.frame(minHeight: 44)
                         Button { creatingList = true } label: { Image(systemName: "plus").font(.system(size: 20)).frame(width: 44, height: 44) }.accessibilityLabel("New list")
                     }
-                }.listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                }.listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 0, trailing: 0))
                 Section {
                     TextField("Search tasks", text: $search).textInputAutocapitalization(.never)
                     AccentPicker(title: "List", selection: $listID, choices: [(nil as UUID?, "All Tasks"), (Optional(TodayRules.somedayID), "Someday")] + lists.filter { $0.id != TodayRules.somedayID }.map { (Optional($0.id), $0.name) })
@@ -57,7 +57,7 @@ struct TasksView: View {
                         }
                     }
                 }
-            }.listStyle(.insetGrouped).scrollContentBackground(.hidden).background(DayTheme.canvas(scheme))
+            }.listStyle(.insetGrouped).contentMargins(.top, 0, for: .scrollContent).listSectionSpacing(CGFloat(DesignTokens.spaceL)).scrollContentBackground(.hidden).background(DayTheme.canvas(scheme))
                 .tint(accent.fill).navigationTitle("Lists")
                 .toolbar(.hidden, for: .navigationBar)
                 .sheet(isPresented: $adding) { QuickCapture(listID: listID, fromList: true) }.sheet(item: $editing) { TaskEditor(task: $0) }
