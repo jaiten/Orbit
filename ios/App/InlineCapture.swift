@@ -18,11 +18,11 @@ struct InlineCapture: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Button { if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { focused = true } else { save() } } label: {
-                    Image(systemName: "plus").frame(width: 44, height: 44)
+                    Image(systemName: "plus").font(.system(size: 20)).frame(width: 44, height: 44)
                 }.accessibilityLabel("Add a task").disabled(saving)
-                CaptureTextField(text: $text, focused: $focused, identifier: "inline-task-input") { save() }
+                CaptureTextField(text: $text, focused: $focused, identifier: "inline-task-input", placeholder: "Add a task") { save() }
                 DictationButton(text: $text)
-                Button { options = true } label: { Image(systemName: "slider.horizontal.3").frame(width: 44, height: 44) }
+                Button { options = true } label: { Image(systemName: "slider.horizontal.3").font(.system(size: 20)).frame(width: 44, height: 44) }
                     .accessibilityLabel("Task options").accessibilityHint("Choose a date or list before adding")
             }.padding(.trailing, 6).frame(minHeight: 52).orbitSurface()
             if !text.isEmpty { PreviewChip(text: QuickAdd.describe(result)) }

@@ -90,7 +90,7 @@ struct TodayView: View {
     /// Keep capture and daily actions within reach above the customizable sections.
     private var header: some View {
         PageHeader(eyebrow: day.formatted(.dateTime.weekday(.wide).month(.wide).day()), title: "Today") {
-            Button { customizing = true } label: { Image(systemName: "slider.horizontal.3").frame(width: 44, height: 44) }.accessibilityLabel("Edit Today")
+            Button { customizing = true } label: { Image(systemName: "slider.horizontal.3").font(.system(size: 20)).frame(width: 44, height: 44) }.accessibilityLabel("Edit Today")
             SyncIndicator()
         }
     }

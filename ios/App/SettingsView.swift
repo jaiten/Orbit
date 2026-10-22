@@ -48,7 +48,7 @@ private struct AppearanceSection: View {
                     Button { accentTheme = name } label: {
                         VStack(spacing: 8) {
                             Circle().fill(DayTheme.accentColor(name)).frame(width: 34, height: 34)
-                                .overlay { if accentTheme == name { Image(systemName: "checkmark").foregroundStyle(.white) } }
+                                .overlay { if accentTheme == name { Image(systemName: "checkmark").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white) } }
                             Text(name.capitalized).font(.caption2).foregroundStyle(.primary)
                         }.frame(maxWidth: .infinity)
                     }.buttonStyle(.plain).accessibilityLabel(name.capitalized + (accentTheme == name ? ", selected" : ""))

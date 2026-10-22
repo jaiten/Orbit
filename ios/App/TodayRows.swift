@@ -67,7 +67,7 @@ struct CheckTile: View {
                 }.buttonStyle(.plain).accessibilityLabel(completionLabel)
                 Button(action: tapEdit) {
                     HStack(spacing: 8) {
-                        if let icon { Image(systemName: icon).foregroundStyle(color).frame(width: 20).accessibilityHidden(true) }
+                        if let icon { Image(systemName: icon).font(.system(size: 18)).foregroundStyle(color).frame(width: 20).accessibilityHidden(true) }
                         line
                     }.padding(.leading, -2)
                 }

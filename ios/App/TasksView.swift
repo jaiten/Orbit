@@ -29,7 +29,7 @@ struct TasksView: View {
                 Section {
                     PageHeader(eyebrow: "Organize", title: "Lists") {
                         Button("Edit Lists") { manageLists = true }.frame(minHeight: 44)
-                        Button { creatingList = true } label: { Image(systemName: "plus").frame(width: 44, height: 44) }.accessibilityLabel("New list")
+                        Button { creatingList = true } label: { Image(systemName: "plus").font(.system(size: 20)).frame(width: 44, height: 44) }.accessibilityLabel("New list")
                     }
                 }.listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
                 Section {
@@ -106,7 +106,7 @@ struct ListsView: View {
                             Menu {
                                 Button("Move up") { shift(list, by: -1) }.disabled(editable.first?.id == list.id)
                                 Button("Move down") { shift(list, by: 1) }.disabled(editable.last?.id == list.id)
-                            } label: { Image(systemName: "arrow.up.arrow.down").frame(width: 44, height: 44) }
+                            } label: { Image(systemName: "arrow.up.arrow.down").font(.system(size: 18)).frame(width: 44, height: 44) }
                                 .accessibilityLabel("Reorder " + list.name)
                         }
                     }

@@ -16,7 +16,7 @@ struct HabitsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
                     PageHeader(eyebrow: "Repeats", title: "Habits", subtitle: "Your routines, reminders and progress.") {
-                        Button { adding = true } label: { Image(systemName: "plus").frame(width: 44, height: 44) }.accessibilityLabel("New habit")
+                        Button { adding = true } label: { Image(systemName: "plus").font(.system(size: 20)).frame(width: 44, height: 44) }.accessibilityLabel("New habit")
                     }
                     if !habits.isEmpty {
                         Button("Plan habits in Calendar", systemImage: "calendar.badge.clock") { planning = true }

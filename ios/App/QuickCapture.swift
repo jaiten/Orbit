@@ -49,7 +49,7 @@ struct QuickCapture: View {
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceM)) {
                     Eyebrow(text: "Quick add")
                     HStack(spacing: 10) {
-                        Image(systemName: "plus").font(.body.weight(.medium)).foregroundStyle(.secondary)
+                        Image(systemName: "plus").font(.system(size: 18, weight: .medium)).foregroundStyle(.secondary)
                         CaptureTextField(text: $text, focused: $focused) { save(keepAdding: true) }
                         DictationButton(text: $text)
                     }
@@ -135,11 +135,12 @@ struct CaptureTextField: UIViewRepresentable {
     @Binding var text: String
     @Binding var focused: Bool
     var identifier = "task-title-input"
+    var placeholder = "What do you need to do?"
     var onSubmit: () -> Void
 
     func makeUIView(context: Context) -> Input {
         let field = Input()
-        field.placeholder = "What do you need to do?"
+        field.placeholder = placeholder
         field.accessibilityIdentifier = identifier
         field.font = .preferredFont(forTextStyle: .title3)
         field.adjustsFontForContentSizeCategory = true

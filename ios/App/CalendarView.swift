@@ -34,15 +34,15 @@ struct CalendarView: View {
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
                     PageHeader(eyebrow: "Plan ahead", title: "Calendar") {
                         Button("Today") { selected = .now }.frame(minHeight: 44)
-                        Button { adding = true } label: { Image(systemName: "plus").frame(width: 44, height: 44) }.accessibilityLabel("New task")
+                        Button { adding = true } label: { Image(systemName: "plus").font(.system(size: 20)).frame(width: 44, height: 44) }.accessibilityLabel("New task")
                     }
                     Picker("Calendar view", selection: $mode) { Text("Week").tag("Week"); Text("Month").tag("Month") }.pickerStyle(.segmented)
                     HStack {
-                        Button { move(-1) } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }.accessibilityLabel("Previous \(mode.lowercased())")
+                        Button { move(-1) } label: { Image(systemName: "chevron.left").font(.system(size: 18)).frame(width: 44, height: 44) }.accessibilityLabel("Previous \(mode.lowercased())")
                         Spacer()
                         Text(selected.formatted(.dateTime.month(.wide).year())).font(.title2)
                         Spacer()
-                        Button { move(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }.accessibilityLabel("Next \(mode.lowercased())")
+                        Button { move(1) } label: { Image(systemName: "chevron.right").font(.system(size: 18)).frame(width: 44, height: 44) }.accessibilityLabel("Next \(mode.lowercased())")
                     }
                     if typeSize.isAccessibilitySize {
                         DatePicker("Selected day", selection: $selected, displayedComponents: .date)

@@ -10,7 +10,7 @@ struct SyncIndicator: View {
             Group {
                 if sync.syncing { ProgressView().controlSize(.small) }
                 else { Image(systemName: sync.status.contains("Saved locally") || sync.status.contains("review") ? "exclamationmark.icloud" : sync.email == nil ? "icloud" : "checkmark.icloud").font(.system(size: 17)) }
-            }.frame(width: 28, height: 28).foregroundStyle(.secondary)
+            }.frame(width: 44, height: 44).foregroundStyle(.secondary)
         }.accessibilityLabel("Sync status").sheet(isPresented: $details) {
             NavigationStack {
                 Form {

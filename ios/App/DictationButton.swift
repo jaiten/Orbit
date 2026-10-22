@@ -77,7 +77,7 @@ struct DictationButton: View {
                 Task { await capture.start { words in text = prefix.isEmpty ? words : prefix + " " + words } }
             }
         } label: {
-            Image(systemName: capture.listening ? "stop.circle.fill" : "mic")
+            Image(systemName: capture.listening ? "stop.circle.fill" : "mic").font(.system(size: 20))
                 .foregroundStyle(capture.listening ? Color.red : Color.secondary).frame(width: 44, height: 44)
         }.accessibilityLabel(capture.listening ? "Stop dictation" : "Dictate task")
             .accessibilityHint("Speak, then review the text before adding")
