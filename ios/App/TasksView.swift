@@ -76,7 +76,7 @@ struct TasksView: View {
         guard !name.isEmpty else { return }
         let list = TaskList(name: name, sortOrder: lists.count)
         do { context.insert(list); try Mutations.save(context); listID = list.id; newListName = "" }
-        catch { context.rollback(); error = error.localizedDescription }
+        catch { context.rollback(); self.error = error.localizedDescription }
     }
 
 }
