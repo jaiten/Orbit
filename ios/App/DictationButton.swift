@@ -6,7 +6,8 @@ import AVFoundation
 @MainActor final class DictationCapture: ObservableObject {
     @Published private(set) var listening = false
     @Published var error: String?
-    private let engine = AVAudioEngine()
+    private var engine: AVAudioEngine?
+    private var audioActive = false
     private var recognition: SFSpeechRecognitionTask?
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var tapInstalled = false
@@ -35,6 +36,9 @@ import AVFoundation
             let audio = AVAudioSession.sharedInstance()
             try audio.setCategory(.record, mode: .measurement)
             try audio.setActive(true)
+            audioActive = true
+            let engine = AVAudioEngine()
+            self.engine = engine
             let input = engine.inputNode
             let format = input.outputFormat(forBus: 0)
             guard format.sampleRate > 0, format.channelCount > 0 else { throw CocoaError(.featureUnsupported) }
@@ -56,11 +60,15 @@ import AVFoundation
     }
     func stop() {
         session = UUID()
-        engine.stop()
-        if tapInstalled { engine.inputNode.removeTap(onBus: 0); tapInstalled = false }
+        engine?.stop()
+        if tapInstalled { engine?.inputNode.removeTap(onBus: 0); tapInstalled = false }
         request?.endAudio(); recognition?.cancel()
-        recognition = nil; request = nil; listening = false
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        recognition = nil; request = nil; engine = nil
+        if listening { listening = false }
+        if audioActive {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            audioActive = false
+        }
     }
 }
 
