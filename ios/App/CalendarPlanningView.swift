@@ -198,9 +198,8 @@ struct CalendarPlanningView: View {
             if let id = event.eventIdentifier { UserDefaults.standard.set(id, forKey: linkKey(item)) }
             if let habit = item.habit { HabitCalendarPreferences.setDuration(minutes[item.id] ?? item.defaultMinutes, for: habit.id) }
             if let task = item.task {
-                let old = task.dueDate
+                // These tasks had no start time. Preserve the explicit reminder dates the user chose.
                 task.schedule(event.startDate, hasTime: true); task.durationMinutes = minutes[item.id] ?? item.defaultMinutes; task.updatedAt = .now
-                if let old { task.reminders = task.reminders.map { event.startDate.addingTimeInterval($0.timeIntervalSince(old)) } }
             }
         }
         do { try Mutations.save(context); Task { try? await refreshReminders(context) }; bridge.reload(); dismiss() }

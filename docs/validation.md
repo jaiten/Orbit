@@ -122,7 +122,8 @@ timeline scheduling. Resolve observed failures before calling the prototype veri
 - Change an appointment after previewing. Saving must require a fresh plan if a
   conflict appears. Saving twice/reopening must not duplicate linked blocks.
 - Confirm calendar blocks have the reviewed titles, starts and durations; task
-  times update in Orbit and do not appear twice in its calendar. Completing a habit
+  times update in Orbit and do not appear twice in its calendar. Explicit task
+  reminder dates must stay unchanged when a calendar start time is assigned. Completing a habit
   or task keeps the calendar block. Delete a block externally and plan it again.
 - Confirm habit calendar durations survive relaunch on the iPhone. Multi-count
   habits get one block, not their full target number. Calendar permission and
