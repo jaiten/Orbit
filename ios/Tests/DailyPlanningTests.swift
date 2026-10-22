@@ -48,13 +48,13 @@ final class DailyPlanningTests: XCTestCase {
         XCTAssertFalse(reminders.contains { $0.id.hasPrefix("orbit.checkin.") })
     }
 
-    func testTaskGroupsAreExclusiveAndCompletionWins() {
+    func testTaskDateGroupsAreExclusiveAndCompletionWins() {
         let today = "2026-10-22"
-        XCTAssertEqual(TaskGroup.group(day: today, someday: false, completed: false, today: today), .today)
-        XCTAssertEqual(TaskGroup.group(day: "2026-10-21", someday: false, completed: false, today: today), .overdue)
-        XCTAssertEqual(TaskGroup.group(day: "2026-10-23", someday: false, completed: false, today: today), .upcoming)
-        XCTAssertEqual(TaskGroup.group(day: nil, someday: false, completed: false, today: today), .undated)
-        XCTAssertEqual(TaskGroup.group(day: nil, someday: true, completed: false, today: today), .someday)
-        XCTAssertEqual(TaskGroup.group(day: nil, someday: true, completed: true, today: today), .completed)
+        XCTAssertEqual(TaskDateGroup.group(day: today, someday: false, completed: false, today: today), .today)
+        XCTAssertEqual(TaskDateGroup.group(day: "2026-10-21", someday: false, completed: false, today: today), .overdue)
+        XCTAssertEqual(TaskDateGroup.group(day: "2026-10-23", someday: false, completed: false, today: today), .upcoming)
+        XCTAssertEqual(TaskDateGroup.group(day: nil, someday: false, completed: false, today: today), .undated)
+        XCTAssertEqual(TaskDateGroup.group(day: nil, someday: true, completed: false, today: today), .someday)
+        XCTAssertEqual(TaskDateGroup.group(day: nil, someday: true, completed: true, today: today), .completed)
     }
 }

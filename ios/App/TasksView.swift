@@ -10,7 +10,7 @@ struct TasksView: View {
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
     @State private var search = ""
     @State private var listID: UUID?
-    @State private var collapsed: Set<TaskGroup> = [.completed]
+    @State private var collapsed: Set<TaskDateGroup> = [.completed]
     @State private var creatingList = false
     @State private var newListName = ""
     @AppStorage("compactRows") private var compactRows = false
@@ -33,7 +33,7 @@ struct TasksView: View {
                     Button("Add a task", systemImage: "plus.circle.fill") { adding = true }.accessibilityLabel("New task")
                 }
                 if filtered.isEmpty { ContentUnavailableView("No tasks in this list", systemImage: "checklist") }
-                ForEach(TaskGroup.allCases) { group in
+                ForEach(TaskDateGroup.allCases) { group in
                     let items = grouped(group)
                     if !items.isEmpty {
                         Section {
@@ -66,9 +66,9 @@ struct TasksView: View {
                 .modifier(MutationErrorModifier(error: $error))
         }
     }
-    private func grouped(_ group: TaskGroup) -> [PlannerTask] {
+    private func grouped(_ group: TaskDateGroup) -> [PlannerTask] {
         filtered.filter {
-            TaskGroup.group(day: $0.day, someday: $0.listID == TodayRules.somedayID, completed: $0.completedAt != nil, today: PlannerLogic.dayKey(.now)) == group
+            TaskDateGroup.group(day: $0.day, someday: $0.listID == TodayRules.somedayID, completed: $0.completedAt != nil, today: PlannerLogic.dayKey(.now)) == group
         }
     }
     private func createList() {
