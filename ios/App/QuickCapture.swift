@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 /// One rounded field, as on the website. The chip shows what will be created ("Task · Tomorrow · 6:00 PM")
 /// before saving; details can be added afterwards by opening the item.
@@ -21,7 +22,7 @@ struct QuickCapture: View {
     @State private var keepAddingAfterConflict = false
     @State private var addedCount = 0
     @State private var lastAdded: String?
-    @FocusState private var focused: Bool
+    @State private var focused = false
 
     private var defaultDay: DefaultDay {
         if fromList { return .undated }
@@ -44,11 +45,7 @@ struct QuickCapture: View {
                 Eyebrow(text: "Quick add")
                 HStack(spacing: 10) {
                     Image(systemName: "plus").font(.body.weight(.medium)).foregroundStyle(.secondary)
-                    TextField("What do you need to do?", text: $text)
-                        .font(.title3).focused($focused).accessibilityIdentifier("task-title-input")
-                        .textInputAutocapitalization(.never).autocorrectionDisabled()
-                        .submitLabel(.next)
-                        .onSubmit { save(keepAdding: true) }
+                    CaptureTextField(text: $text, focused: $focused) { save(keepAdding: true) }
                 }
                 .padding(.horizontal, 14).frame(minHeight: 52)
                 .background(DayTheme.canvas(scheme), in: RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusInput), style: .continuous))
@@ -105,5 +102,70 @@ struct QuickCapture: View {
                 dismiss()
             }
         } catch { context.rollback(); self.error = error.localizedDescription }
+    }
+}
+
+/// Intercept Return before UIKit ends editing. Keeping the same first responder makes
+/// repeated entry work for both the software keyboard and a hardware Return key.
+private struct CaptureTextField: UIViewRepresentable {
+    @Binding var text: String
+    @Binding var focused: Bool
+    var onSubmit: () -> Void
+
+    func makeUIView(context: Context) -> Input {
+        let field = Input()
+        field.placeholder = "What do you need to do?"
+        field.accessibilityIdentifier = "task-title-input"
+        field.font = .preferredFont(forTextStyle: .title3)
+        field.adjustsFontForContentSizeCategory = true
+        field.autocapitalizationType = .none
+        field.autocorrectionType = .no
+        field.returnKeyType = .next
+        field.delegate = context.coordinator
+        field.addTarget(context.coordinator, action: #selector(Coordinator.changed(_:)), for: .editingChanged)
+        field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        return field
+    }
+
+    func updateUIView(_ field: Input, context: Context) {
+        context.coordinator.parent = self
+        if field.text != text { field.text = text }
+        field.wantsFocus = focused
+        if focused {
+            if field.window != nil && !field.isFirstResponder { field.becomeFirstResponder() }
+        } else if field.isFirstResponder {
+            field.resignFirstResponder()
+        }
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: Input, context: Context) -> CGSize? {
+        CGSize(width: proposal.width ?? 200, height: uiView.intrinsicContentSize.height)
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
+
+    final class Input: UITextField {
+        var wantsFocus = false
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            if window != nil && wantsFocus && !isFirstResponder { becomeFirstResponder() }
+        }
+    }
+
+    final class Coordinator: NSObject, UITextFieldDelegate {
+        var parent: CaptureTextField
+        init(parent: CaptureTextField) { self.parent = parent }
+        @objc func changed(_ field: UITextField) { parent.text = field.text ?? "" }
+        func textFieldDidBeginEditing(_ textField: UITextField) {
+            if !parent.focused { parent.focused = true }
+        }
+        func textFieldDidEndEditing(_ textField: UITextField) {
+            if parent.focused { parent.focused = false }
+        }
+        func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+            parent.onSubmit()
+            // An empty or invalid draft also keeps editing; the save routine validates it.
+            return false
+        }
     }
 }
