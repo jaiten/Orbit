@@ -20,12 +20,19 @@ function choiceButtons(attribute, values, current) {
     .join("");
 }
 
+function applyCompact(value) {
+  document.documentElement.dataset.compact = String(value);
+  localStorage.setItem("compactRows", String(value));
+}
+applyCompact(localStorage.getItem("compactRows") === "true");
+
 function renderSettings() {
   const root = document.documentElement.dataset;
   return `<header class="page-head"><div><div class="eyebrow">Orbit</div><h1>Settings</h1></div></header>
     <button class="card account-row" data-open-page="account"><span>Account</span><span class="secondary">${esc(state.email || "Not signed in")} →</span></button>
     <section class="settings-block">
       <h2>Appearance</h2>
+      <label class="toggle"><input type="checkbox" id="compact-rows" ${root.compact === "true" ? "checked" : ""} /> Compact habits and tasks</label>
       <div class="accent-options">${choiceButtons("appearance", appearances, root.appearance)}</div>
     </section>
     <section class="settings-block">
@@ -59,6 +66,7 @@ function renderSettings() {
 }
 
 function bindSettings() {
+  if ($("#compact-rows")) $("#compact-rows").onchange = (event) => applyCompact(event.target.checked);
   document.querySelectorAll("button[data-accent]").forEach(
     (b) =>
       (b.onclick = () => {

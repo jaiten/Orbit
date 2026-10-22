@@ -29,11 +29,13 @@ function render() {
   };
   // A new page enters with a stagger; the same page re-forms with rows springing to their new places.
   const view = page + "|" + (selectedList || "") + "|" + (page === "habit-history" ? historyHabitID : "");
-  const before = view === shownView ? captureRows() : null;
+  const changedPage = view !== shownView;
+  const before = !changedPage ? captureRows() : null;
   shownView = view;
   $("#content").innerHTML = (pages[page] || renderSettings)();
   renderLists();
   bind();
+  if (changedPage) window.scrollTo(0, 0);
   applyFills();
   if (before) settleRows(before);
   else enterPage();

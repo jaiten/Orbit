@@ -31,6 +31,8 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         ITSAppUsesNonExemptEncryption: false
         NSSupportsLiveActivities: true
+        NSMicrophoneUsageDescription: Dictate a task or habit into Orbit. You review the text before saving.
+        NSSpeechRecognitionUsageDescription: Turn your spoken words into an editable task or habit.
         NSCalendarsFullAccessUsageDescription: Show your calendar events and let you save scheduled tasks to a calendar you choose.
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

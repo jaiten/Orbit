@@ -47,7 +47,7 @@ struct PageHeader<Trailing: View>: View {
             } else {
                 HStack(alignment: .top) { heading; Spacer(minLength: 8); tools }
             }
-        }
+        }.frame(maxWidth: .infinity, alignment: .leading)
     }
     private var heading: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -230,22 +230,5 @@ struct PreviewChip: View {
                 .background(accent.fill.opacity(DesignTokens.tintAccentFill), in: RoundedRectangle(cornerRadius: 12))
                 .accessibilityIdentifier(identifier)
         }
-    }
-}
-
-/// The quiet field that opens quick add.
-struct AddField: View {
-    @Environment(\.orbitAccent) private var accent
-    var action: () -> Void
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: "plus").font(.subheadline.weight(.medium)).foregroundStyle(accent.text)
-                Text("Add a task").font(.subheadline)
-                Spacer(minLength: 0)
-            }
-            .foregroundStyle(.primary).padding(.horizontal, 14).padding(.vertical, 10).frame(minHeight: 48).contentShape(Rectangle()).orbitSurface()
-        }
-        .buttonStyle(OrbitPress()).accessibilityLabel("Add a task")
     }
 }

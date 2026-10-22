@@ -128,3 +128,11 @@ timeline scheduling. Resolve observed failures before calling the prototype veri
 - Confirm habit calendar durations survive relaunch on the iPhone. Multi-count
   habits get one block, not their full target number. Calendar permission and
   calendar writes are physical-device acceptance checks, not established by CI.
+
+### Inline capture, icon catalog, list order and dictation
+
+- Shared icon cases cover common activities, punctuation/case, word boundaries, fallback and manual overrides. Generated Swift/JavaScript catalogs must stay in sync via `npm run generate`.
+- iOS UI checks cover multiple inline entries without a sheet, the existing detailed capture keyboard flow, and list order via Move up. Windows desktop smoke covers inline entry and saving list order; unit tests cover date grouping.
+- Physical iPhone acceptance: first-use speech/microphone prompts; decline each permission and confirm typing still works; dictate with partial results, stop, edit, add, then immediately add another item. Background/return and close capture mid-session; the microphone must stop and no task should save without submission. Check unsupported locale/network failure and existing audio resuming.
+- Physical Windows acceptance: focus inline entry, press its microphone, enable Windows voice typing if prompted, speak, review, and press Enter. Verify Win+H also works and denied/disabled Windows speech leaves the draft intact. OS audio capture cannot be verified by headless CI.
+- Check all tabs at default and accessibility text/Windows zoom; check many long list names and use keyboard/screen-reader list reorder controls. Existing explicit habit icons remain selected; choose Automatic to infer icons for those habits.

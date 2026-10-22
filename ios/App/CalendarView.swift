@@ -31,7 +31,11 @@ struct CalendarView: View {
         NavigationStack {
             ScrollView {
                 let visibleEvents = calendars.events(from: days[0], to: calendar.date(byAdding: .day, value: 1, to: days.last!)!)
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
+                    PageHeader(eyebrow: "Plan ahead", title: "Calendar") {
+                        Button("Today") { selected = .now }.frame(minHeight: 44)
+                        Button { adding = true } label: { Image(systemName: "plus").frame(width: 44, height: 44) }.accessibilityLabel("New task")
+                    }
                     Picker("Calendar view", selection: $mode) { Text("Week").tag("Week"); Text("Month").tag("Month") }.pickerStyle(.segmented)
                     HStack {
                         Button { move(-1) } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }.accessibilityLabel("Previous \(mode.lowercased())")
@@ -84,11 +88,8 @@ struct CalendarView: View {
                     }
                     Text("Choose a day, then tap Add task. You can also drag a task onto another day.").font(.caption).foregroundStyle(.secondary)
                 }.padding(.horizontal, CGFloat(DesignTokens.screenPadding)).padding(.vertical, CGFloat(DesignTokens.spaceS)).frame(maxWidth: 760).frame(maxWidth: .infinity)
-            }.background(DayTheme.canvas(scheme)).tint(accent.fill).navigationTitle("Calendar").navigationBarTitleDisplayMode(.large)
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) { Button("Today") { selected = .now } }
-                    ToolbarItem(placement: .topBarTrailing) { Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("New task") }
-                }
+            }.background(DayTheme.canvas(scheme)).tint(accent.fill).navigationTitle("Calendar").navigationBarTitleDisplayMode(.inline)
+                .toolbar(.hidden, for: .navigationBar)
                 .sheet(item: $editing) { TaskEditor(task: $0) }
                 .sheet(isPresented: $adding) { QuickCapture(initialDate: selected) }
                 .sheet(isPresented: $planning) { CalendarPlanningView(day: selected) }

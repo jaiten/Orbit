@@ -12,6 +12,7 @@ function openQuickAdd(context = quickAddContext()) {
   quickContext = context;
   const f = $("#quick-add-form");
   f.reset();
+  f.elements.text.value = inlineDraft;
   updateQuickPreview();
   $("#quick-add-dialog").showModal();
   f.elements.text.focus();
@@ -92,7 +93,7 @@ function quickRecords(result) {
       frequencyRule: result.schedule,
       target: 1,
       color: nextHabitColor(),
-      icon: "leaf",
+      icon: "automatic",
       reminderMinutes: result.time,
       nudgeMinutes: null,
       createdAt: now,
@@ -127,6 +128,7 @@ $("#quick-add-form").onsubmit = (e) => {
     const records = quickRecords(result);
     if (records.habit) await api.batch(records.changes);
     else await saveTasks([records.task], records.extra);
+    inlineDraft = "";
     $("#quick-add-dialog").close();
   });
 };
@@ -135,8 +137,84 @@ $("#quick-add-details").onclick = () => {
   $("#quick-add-dialog").close();
   if (result.kind === "habit") {
     openHabit(null, { title: result.title, frequencyRule: result.schedule, reminderMinutes: result.time });
+    afterCaptureSave = () => {
+      inlineDraft = "";
+    };
     return;
   }
   const { task } = quickRecords(result.title ? result : { ...result, title: "" });
   openTask(null, task.localDate ?? "", task);
+  afterCaptureSave = () => {
+    inlineDraft = "";
+  };
 };
+
+// Preserve the current inline draft across sync renders and page changes.
+let inlineDraft = "";
+function bindInlineCapture() {
+  const form = $("#inline-add-form");
+  if (!form) return;
+  const input = $("#inline-task-input");
+  let allowOverlap = false;
+  const preview = () => {
+    allowOverlap = false;
+    $("#inline-overlap").hidden = true;
+    inlineDraft = input.value;
+    const parsed = OrbitPlanning.parse(inlineDraft, quickAddContext().defaultDate);
+    $("#inline-preview").textContent = OrbitPlanning.describe(parsed);
+  };
+  input.oninput = preview;
+  preview();
+  $("#inline-dictate").onclick = async () => {
+    input.focus();
+    try {
+      await api.dictate();
+      showNotice("Speak into Windows voice typing, then review your draft and press Enter to add it.");
+    } catch (error) {
+      showNotice(error.message);
+    }
+  };
+  $("#inline-save-overlap").onclick = () => {
+    allowOverlap = true;
+    form.requestSubmit();
+  };
+  form.onsubmit = (event) => {
+    event.preventDefault();
+    const result = OrbitPlanning.parse(input.value, quickAddContext().defaultDate);
+    if (!result.title) return;
+    quickContext = quickAddContext();
+    const records = quickRecords(result);
+    if (!allowOverlap && records.task?.hasTime) {
+      const start = records.task.dueDate,
+        end = start + records.task.durationMinutes * 60000;
+      const overlaps = rows("tasks").filter(
+        (task) =>
+          task.hasTime &&
+          task.dueDate &&
+          !task.completedAt &&
+          start < task.dueDate + task.durationMinutes * 60000 &&
+          task.dueDate < end,
+      );
+      if (overlaps.length) {
+        $("#inline-overlap").hidden = false;
+        $("#inline-overlap-text").textContent = "Overlaps: " + overlaps.map((task) => task.title).join(", ");
+        return;
+      }
+    }
+    form.querySelector('button[type="submit"]').disabled = true;
+    void action(async () => {
+      if (records.habit) await api.batch(records.changes);
+      else await saveTasks([records.task], records.extra);
+      inlineDraft = "";
+    }).then(() => {
+      const current = $("#inline-task-input");
+      if (current) {
+        current.focus();
+        $("#inline-receipt").textContent = inlineDraft
+          ? "Could not add this item. Your draft is still here."
+          : `Added “${result.title}”`;
+      }
+      $('#inline-add-form button[type="submit"]')?.removeAttribute("disabled");
+    });
+  };
+}

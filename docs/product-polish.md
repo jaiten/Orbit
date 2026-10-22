@@ -131,3 +131,14 @@ and calendar event links stay on this iPhone. Calendar events remain after item
 completion, and external calendar edits do not update Orbit records. Real-device
 permissions, provider behavior, event edits and repeat-save behavior still need
 acceptance checks.
+
+### Capture, icons and navigation pass (October 2026)
+
+- Today accepts typed tasks inline. Return adds one and keeps entry ready for the next; options still open date/list capture. Timed drafts keep overlap review.
+- A shared catalog provides 35 friendly icon names and whole-word English suggestions for common activities. New habits use Automatic; a manual choice stays selected. Existing chosen icons are preserved. Task icons follow their titles. Every catalog icon is available in the habit picker; decorative row icons do not repeat the title to screen readers.
+- Edit Lists supports drag reordering and accessible Move up/down actions on iOS. The Windows list editor has Move list up/down controls. Ordering syncs through the existing sortOrder field; built-in Someday remains pinned.
+- All five primary iOS tabs use PageHeader; Windows uses consistent page headings, spacing and wrapped titles. Lists now groups tasks by Today, Overdue, Upcoming, No date, Someday and Completed on both platforms. Windows also has compact rows and a scrollable sidebar for zoomed layouts.
+- Windows catches up with the retired evening review, current habit wording, separate check/edit controls and optional progress/history on Today.
+- Dictation is an editable draft, never an automatic save. iOS uses Speech/AVAudioSession after permission; leaving capture, backgrounding, stopping, or submitting ends its session. Windows opens OS voice typing (Win+H) in the focused field. Windows speech setup/language support is managed by Windows.
+
+Remaining product gaps from this review: Windows has no equivalent to the iPhone's EventKit calendar connection and reviewed habit time-block planner; task icons are inferred rather than individually chosen; English keyword suggestions do not cover other languages; voice currently captures one item at a time rather than interpreting multi-step commands. These are separate follow-up features, not capabilities claimed by this pass.

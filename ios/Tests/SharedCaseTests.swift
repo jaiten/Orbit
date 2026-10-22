@@ -12,6 +12,16 @@ final class SharedCaseTests: XCTestCase {
         return try XCTUnwrap(object?["cases"] as? [[String: Any]])
     }
 
+    func testAutomaticIconCasesAndManualChoices() throws {
+        for row in try Self.cases("icons") {
+            XCTAssertEqual(ItemIcons.suggested(for: row["title"] as! String), row["expect"] as? String)
+        }
+        XCTAssertEqual(ItemIcons.symbol("leaf", title: "Gym"), "leaf")
+        XCTAssertEqual(ItemIcons.symbol("automatic", title: "Gym"), "dumbbell")
+        XCTAssertEqual(ItemIcons.symbol("unknown.symbol", title: "Gym"), "checklist")
+        XCTAssertEqual(Set(ItemIcons.all.map(\.id)).count, ItemIcons.all.count)
+    }
+
     func testHabitColorCases() throws {
         for c in try Self.cases("habit-colors") {
             XCTAssertEqual(HabitRules.nextColor(c["existing"] as! [String]), c["expect"] as? String, c["name"] as? String ?? "")

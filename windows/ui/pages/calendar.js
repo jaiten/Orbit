@@ -27,7 +27,7 @@ function renderCalendar(tasks) {
   const date = chosen.toLocaleDateString([], { month: "long", day: "numeric" });
   return `<div class="calendar-page">
     <header class="page-head">
-      <div><div class="eyebrow">Calendar</div><h1>${month}</h1></div>
+      <div><div class="eyebrow">Plan ahead</div><h1>Calendar</h1><p class="subtitle">${month}</p></div>
       <div class="week-nav">
         <button class="icon-button" data-week="-7" aria-label="Previous week">${chevron("m15 18-6-6 6-6")}</button
         ><button class="pill" data-week="0">Today</button

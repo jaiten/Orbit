@@ -10,6 +10,8 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section { PageHeader(eyebrow: "Preferences", title: "Settings") { SyncIndicator() } }
+                    .listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
                 Section {
                     NavigationLink { AccountView() } label: {
                         LabeledContent("Account", value: sync.email ?? "Not signed in")
@@ -25,8 +27,8 @@ struct SettingsView: View {
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }.scrollContentBackground(.hidden).background(DayTheme.canvas(scheme))
-                .tint(accent.fill).navigationTitle("Settings").navigationBarTitleDisplayMode(.large)
-                .toolbar { ToolbarItem(placement: .topBarTrailing) { SyncIndicator() } }
+                .tint(accent.fill).navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
+                .toolbar(.hidden, for: .navigationBar)
                 .alert("Orbit", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
                     Button("OK") { message = nil }
                 } message: { Text(message ?? "") }
