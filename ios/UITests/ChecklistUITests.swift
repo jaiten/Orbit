@@ -30,8 +30,11 @@ final class ChecklistUITests: XCTestCase {
         row.swipeLeft()
         let delete = app.buttons["Delete"]
         XCTAssertTrue(delete.waitForExistence(timeout: 5)); delete.tap()
-        XCTAssertFalse(row.waitForExistence(timeout: 2))
-        XCTAssertTrue(app.buttons["Undo"].waitForExistence(timeout: 2)); app.buttons["Undo"].tap()
+        // Wait for disappearance directly. Negating waitForExistence times out and
+        // collects diagnostics, which can consume the eight-second Undo window.
+        XCTAssertTrue(row.waitForNonExistence(timeout: 5))
+        let undo = app.buttons["Undo"]
+        XCTAssertTrue(undo.waitForExistence(timeout: 2)); undo.tap()
         XCTAssertTrue(app.buttons["Complete Read a few pages"].waitForExistence(timeout: 5))
     }
     func testTickCompletesAndRowOpens() {
