@@ -44,11 +44,13 @@ struct TaskEditor: View {
                         Toggle("Time block", isOn: $hasTime)
                         if hasTime {
                             DatePicker("Start", selection: $date, displayedComponents: .hourAndMinute)
-                            Stepper("\(duration) minutes", value: $duration, in: 5...1440, step: 5)
                         }
                     }
                 }
                 }
+                }
+                Section("Duration") {
+                    Stepper("\(duration) minutes", value: $duration, in: 5...1440, step: 5)
                 }
                 Section { DisclosureGroup("Priority & tags") {
                     Picker("Priority", selection: $priority) {

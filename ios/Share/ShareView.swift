@@ -28,7 +28,7 @@ struct ShareView: View {
                             .padding(.horizontal, 10).padding(.vertical, 4).background(accent.opacity(0.12), in: Capsule())
                     }
                     if let url = shared.url { Text(url.absoluteString).font(.footnote).foregroundStyle(.secondary).lineLimit(2) }
-                } footer: { Text("Try adding “tomorrow”, “someday” or “#work”. It syncs the next time you open Orbit.") }
+                } footer: { Text("Add a day such as “tomorrow”, or “someday” to save it without a date. Changes sync the next time you open Orbit.") }
                 if let error { Text(error).foregroundStyle(.red).font(.footnote) }
             }
             .tint(accent).navigationTitle("Add to Orbit").navigationBarTitleDisplayMode(.inline)

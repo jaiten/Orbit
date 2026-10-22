@@ -6,17 +6,24 @@ struct HabitsView: View {
     @Environment(\.colorScheme) private var scheme
     @Query(sort: \Habit.createdAt) private var habits: [Habit]
     @Query private var logs: [HabitLog]
+    @AppStorage("compactRows") private var compactRows = false
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var planning = false
     @State private var adding = false
     @State private var editing: Habit?
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceXxl)) {
-                    PageHeader(eyebrow: "Repeats", title: "Habits", subtitle: "Habits reset at midnight. Miss a day? Nothing breaks.") {
+                    PageHeader(eyebrow: "Repeats", title: "Habits", subtitle: "Your routines, reminders and progress.") {
                         Button { adding = true } label: { Image(systemName: "plus").frame(width: 36, height: 36) }.accessibilityLabel("New habit")
                     }
+                    if !habits.isEmpty {
+                        Button("Plan habits in Calendar", systemImage: "calendar.badge.clock") { planning = true }
+                            .frame(minHeight: 44)
+                    }
                     if habits.isEmpty { ContentUnavailableView("No Habits", systemImage: "repeat", description: Text("Tap + to add one.")) }
-                    VStack(spacing: CGFloat(DesignTokens.spaceS)) {
+                    VStack(spacing: compactRows && !typeSize.isAccessibilitySize ? 3 : CGFloat(DesignTokens.spaceS)) {
                         ForEach(habits) { habit in
                             HabitRow(habit: habit, logs: logs, date: .now, edit: { editing = habit })
                         }
@@ -38,6 +45,7 @@ struct HabitsView: View {
             }.background(DayTheme.canvas(scheme)).navigationTitle("Habits").navigationBarTitleDisplayMode(.inline)
                 .toolbar(.hidden, for: .navigationBar)
                 .sheet(isPresented: $adding) { HabitEditor() }.sheet(item: $editing) { HabitEditor(habit: $0) }
+                .sheet(isPresented: $planning) { CalendarPlanningView() }
         }
     }
 }
@@ -141,6 +149,7 @@ struct HabitEditor: View {
     @State private var target = 1
     @State private var color = "sage"
     @State private var icon = "leaf"
+    @State private var calendarMinutes = 15
     @State private var reminderEnabled = false
     @State private var reminder = Date.now
     @State private var nudgeEnabled = false
@@ -160,6 +169,11 @@ struct HabitEditor: View {
                     }
                 }
                 Section {
+                    Stepper("\(calendarMinutes) minutes", value: $calendarMinutes, in: 5...240, step: 5)
+                } header: { Text("Time for a calendar block") } footer: {
+                    Text("Used when you choose Plan habits in Calendar. This setting stays on this iPhone.")
+                }
+                Section {
                     Toggle("Reminder", isOn: $reminderEnabled)
                     if reminderEnabled { DatePicker("At", selection: $reminder, displayedComponents: .hourAndMinute) }
                     Toggle("Second reminder if not done", isOn: $nudgeEnabled)
@@ -176,6 +190,7 @@ struct HabitEditor: View {
                 }.onAppear {
                     // A new habit starts in the next colour, so habits mix; any colour can still be chosen.
                     guard let habit else { color = (try? QuickAddSaver.nextHabitColor(in: context)) ?? "sage"; return }
+                    calendarMinutes = HabitCalendarPreferences.duration(for: habit.id)
                     title = habit.title; frequency = HabitRules.schedule(habit.frequencyRule); target = habit.target; color = habit.color; icon = habit.icon
                     reminderEnabled = habit.reminderMinutes != nil; nudgeEnabled = habit.nudgeMinutes != nil
                     reminder = time(habit.reminderMinutes ?? 540); nudge = time(habit.nudgeMinutes ?? 1200)
@@ -201,7 +216,7 @@ struct HabitEditor: View {
         item.target = target; item.color = color; item.icon = icon
         item.reminderMinutes = reminderEnabled ? minutes(reminder) : nil
         item.nudgeMinutes = nudgeEnabled ? minutes(nudge) : nil; item.updatedAt = .now
-        do { try Mutations.save(context); finish() } catch { self.error = error.localizedDescription }
+        do { try Mutations.save(context); HabitCalendarPreferences.setDuration(calendarMinutes, for: item.id); finish() } catch { self.error = error.localizedDescription }
     }
     private func finish() {
         Task { do { try await refreshReminders(context); dismiss() }

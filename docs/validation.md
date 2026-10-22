@@ -6,7 +6,7 @@ iPhone notifications, widgets or real-device sync.
 
 - [x] Generate with XcodeGen; build the app and extension without compiler errors.
 - [x] Run the XCTest suite, including the shared rule tables, persisted deletion sync and account isolation.
-- [ ] First launch shows onboarding once; examples are only added by Start with Examples and Remove Examples deletes only them.
+- [ ] First launch shows onboarding once; examples are only added by Try example tasks and Remove Examples deletes only them.
 - [ ] Notifications are requested only after adding a timed item or habit, never at launch.
 - [ ] Quick-add `gym tomorrow 6am`; find it on tomorrow in Plan and after relaunch.
 - [ ] Create/edit/delete a list. Deleting it preserves tasks in Inbox.
@@ -98,3 +98,32 @@ timeline scheduling. Resolve observed failures before calling the prototype veri
   new positions. Custom orders, pins and hidden sections must remain as configured.
 - Check no-habit, no-task and all-done states, large text, light/dark appearance,
   and a busy day on the phone before accepting the new hierarchy.
+
+
+## Clearer planning pass
+
+- From a fresh or previous-default layout, Today has no evening review, the
+  progress/history cards are optional, and Habits/Your day each show their counts.
+- Previously enabled Daily check-in notifications stop after an app refresh;
+  explicitly configured task/habit reminders continue to work.
+- Quick capture: select another day without a typed date, select a list, save
+  several items with Return, and verify the context is retained. Selecting Someday
+  removes the default day; an explicit day in the text still takes precedence.
+- Lists: + creates a list. Add a task creates a task. Collapse/reopen each date
+  group. Edit Lists adds, renames and deletes lists without deleting their tasks.
+- Turn Compact habits and tasks on and off. At the largest accessibility text size,
+  check long titles, stacked details, menus, onboarding scrolling and all check
+  targets. Check the native Calendar day picker and Save controls with the keyboard.
+- Calendar: choose a future day and use Add task for that date. Verify it appears
+  under Upcoming in Lists and is absent from Today.
+- Planning on an iPhone: deny/grant calendar access; choose a writable calendar;
+  preview selected habits and tasks with durations around overlapping appointments,
+  free events, explicitly busy all-day events, timed tasks and a too-short window.
+- Change an appointment after previewing. Saving must require a fresh plan if a
+  conflict appears. Saving twice/reopening must not duplicate linked blocks.
+- Confirm calendar blocks have the reviewed titles, starts and durations; task
+  times update in Orbit and do not appear twice in its calendar. Completing a habit
+  or task keeps the calendar block. Delete a block externally and plan it again.
+- Confirm habit calendar durations survive relaunch on the iPhone. Multi-count
+  habits get one block, not their full target number. Calendar permission and
+  calendar writes are physical-device acceptance checks, not established by CI.

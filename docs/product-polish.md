@@ -4,7 +4,7 @@ Orbit has three jobs: capture a commitment, make a manageable daily plan, and ma
 
 Today layout and theme preferences are local to each device. Editing the home layout never deletes planner records. Pinned lists show all unfinished items, including future plans. The consistency strip uses current habits that existed on that day; daily targets are fractional and a weekly habit counts a check-in on that day. Deleting a habit removes its history, so this chart is not an immutable historical report.
 
-“Days showing up” counts distinct local dates the app was opened, starting with this update; it is not a fabricated lifetime count or a consecutive streak. Local time suggestions count only the first visit per day, require three visits at a similar daytime hour, and are applied only when the user chooses them. No personal text leaves the device for coaching. General check-ins are opt-in local notifications.
+“Days showing up” counts distinct local dates the app was opened, starting with this update; it is not a fabricated lifetime count or a consecutive streak. Local time suggestions count only the first visit per day, require three visits at a similar daytime hour, and are applied only when the user chooses them. No personal text leaves the device for coaching. Only reminders chosen on individual tasks and habits are sent on iOS.
 
 ## Account access
 
@@ -19,7 +19,7 @@ Run `supabase/tests/device_access.sql` to verify account isolation, revoked read
 ## Next priorities
 
 1. Reliability and forgiveness: a brief Undo after deletes and conversions, offline indicators only when action is needed, and tested restore/export.
-2. A short evening review: what moved forward, what can wait, and at most three priorities for tomorrow. Avoid scores that punish taking a day off.
+2. Clear daily capture and grouping: explicit dates and lists, compact rows, and readable layouts at larger text sizes.
 3. Calendar planning: conflict warnings and optional duration-based suggestions before considering more automation. Current calendar access uses iOS calendars, including configured Google accounts; it is not a Windows Google OAuth integration or two-way task sync.
 
 Keep generated AI out of the critical path. Useful next local signals would be completion-time patterns and opt-in reminders that suppress themselves after the day's commitments are done. Establish enough real usage before adding more dashboards, social features, or customization controls.
@@ -85,7 +85,7 @@ still needs feedback from use on the phone.
 
 The default Today order now puts habits before daily tasks. The summary separates
 habit and task completion so adding tasks does not obscure habit progress. Recent
-habit history appears lower down by default when habits exist. Empty Habits has a
+habit history is available through Edit Today and the Habits history screen. Empty Habits has a
 direct Add a habit action. Only the previous default layout profile is upgraded;
 custom orders, pinned lists and visibility choices are preserved.
 
@@ -93,3 +93,41 @@ Evaluate future changes against whether they make starting a habit, adding a dai
 task, recording progress or understanding recent activity easier. Keep encouragement
 specific to recorded activity. Deeper progress views should distinguish habit
 check-ins from task completion and partial habit progress from meeting a target.
+
+## Clearer daily planning and accessibility
+
+The iOS default Today now shows Habits and Your day with completion counts in their
+section headings. The separate progress card and history strip are optional in
+Edit Today. Existing custom arrangements are preserved. The evening review entry
+point and general daily check-in notifications have been removed; individual task
+and habit reminders remain. Previously scheduled general check-ins are removed
+when Orbit refreshes its pending notifications.
+
+Quick capture has explicit day and list controls, with no unexplained hashtag
+examples. Lists has a New list plus button, a separate Add a task action, and
+collapsible Today, Overdue, Upcoming, No date, Someday and Completed groups. Edit
+Lists supports creation, renaming and deletion; deleting a list keeps its tasks.
+The Windows quick-add help hint also no longer advertises the hashtag example.
+
+Compact habits and tasks is a local Appearance preference. It reduces normal row
+height and spacing while keeping check controls at least 44 points. Accessibility
+text sizes use full wrapping titles, stacked details, and the regular minimum row
+height regardless of the compact preference. Page tools move below long headers;
+Calendar uses a native date picker in place of the seven-column day grid at those
+sizes. Subtle row tint adds colour while text and completion controls communicate
+state without relying on colour alone.
+
+Plan this day in Calendar and Plan habits in Calendar in Habits open the optional
+scheduler. Choose a day, available hours, writable calendar, selected items and
+durations. Suggest times fills gaps around busy events and timed Orbit tasks,
+leaving items that do not fit explicitly unscheduled. Busy all-day events block
+the window; free events and non-busy all-day entries do not. Saving rechecks
+conflicts and existing event links, then commits the reviewed calendar blocks.
+
+This first scheduler creates one one-off block per selected habit/task, rather
+than expanding multi-count habits or creating recurring events. It does not
+complete items. Task start times and durations are saved in Orbit; habit durations
+and calendar event links stay on this iPhone. Calendar events remain after item
+completion, and external calendar edits do not update Orbit records. Real-device
+permissions, provider behavior, event edits and repeat-save behavior still need
+acceptance checks.

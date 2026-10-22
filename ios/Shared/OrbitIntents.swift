@@ -59,10 +59,10 @@ struct CompleteItemIntent: AppIntent {
     }
 }
 
-/// Adds text with quick add rules: "gym tomorrow 6pm", "read every day", "#work", "someday".
+/// Adds text with quick add rules: "gym tomorrow 6pm", "read every day", "someday".
 struct AddToOrbitIntent: AppIntent {
     static var title: LocalizedStringResource = "Add to Orbit"
-    static var description = IntentDescription("Add a task or habit. Dates, times, repeats, #lists and “someday” are understood, as in quick add.")
+    static var description = IntentDescription("Add a task or habit. Include a day or time, such as “tomorrow at 6pm”, or say “every day” for a habit.")
     static var openAppWhenRun = false
     @Parameter(title: "Text", requestValueDialog: "What would you like to add?") var text: String
     static var parameterSummary: some ParameterSummary { Summary("Add \(\.$text) to Orbit") }

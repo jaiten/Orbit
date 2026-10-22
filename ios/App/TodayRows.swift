@@ -25,6 +25,9 @@ struct CheckTile: View {
     var met = false
     @Environment(\.orbitAccent) private var accent
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage("compactRows") private var compactRows = false
+    @Environment(\.dynamicTypeSize) private var typeSize
+    private var rowHeight: CGFloat { compactRows && !typeSize.isAccessibilitySize ? 44 : 56 }
     @State private var actionEdge = 0
     @State private var dragOffset: CGFloat = 0
     @State private var gestureMoved = false
@@ -35,7 +38,9 @@ struct CheckTile: View {
     var body: some View {
         ZStack(alignment: .trailing) {
             deleteButton
-            row.orbitSurface()
+            row
+                .background(color.opacity(done ? 0.04 : 0.07), in: shape)
+                .orbitSurface()
                 .offset(x: max(-76, min(0, CGFloat(actionEdge == -1 ? -70 : 0) + dragOffset)))
         }
         .background(revealed ? Color.red : Color.clear, in: shape).clipShape(shape)
@@ -49,7 +54,7 @@ struct CheckTile: View {
 
     private var deleteButton: some View {
         Button { remove(); actionEdge = 0 } label: {
-            Image(systemName: "xmark").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white).frame(width: 64, height: 56)
+            Image(systemName: "xmark").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white).frame(width: 64, height: rowHeight)
         }.buttonStyle(.plain).accessibilityLabel("Delete").accessibilityHidden(!revealed).opacity(revealed ? 1 : 0)
     }
 
@@ -57,38 +62,52 @@ struct CheckTile: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 0) {
                 Button(action: tapMain) {
-                    OrbitTick(done: done, color: color).frame(width: 46, height: 56).contentShape(Rectangle())
+                    OrbitTick(done: done, color: color).frame(width: 46, height: rowHeight).contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityLabel(completionLabel)
                 Button(action: tapEdit) { line.padding(.leading, -2) }
                     .buttonStyle(OrbitPress()).accessibilityLabel("Edit " + title)
                     .accessibilityValue(subtitle).accessibilityIdentifier("checklist-title")
             }
             if !moves.isEmpty {
-                HStack(spacing: 8) {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) { moveButtons }
+                    VStack(alignment: .leading, spacing: 4) { moveButtons }
+                }.padding(.leading, 46).padding(.bottom, 6)
+            }
+        }
+    }
+
+    private var moveButtons: some View {
                     ForEach(moves, id: \.title) { move in
                         Button(move.title) { move.action() }
                             .font(.subheadline.weight(.medium)).foregroundStyle(accent.text)
                             .padding(.horizontal, 14).padding(.vertical, 6)
                             .background(accent.fill.opacity(DesignTokens.tintAccentFill), in: Capsule())
+                            .frame(minHeight: 44)
                             .buttonStyle(OrbitPress())
                     }
-                }.padding(.leading, 50).padding(.bottom, 14).padding(.top, -4)
-            }
-        }
     }
 
     private var line: some View {
-        HStack(spacing: 12) {
-            Text(title).font(.body).foregroundStyle(done ? .secondary : .primary)
-                .strikethrough(done, color: .secondary).lineLimit(2).fixedSize(horizontal: false, vertical: true)
-                .animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: done)
-            Spacer(minLength: 8)
-            if !subtitle.isEmpty {
-                Text(subtitle).font(.footnote).monospacedDigit().foregroundStyle(met ? accent.text : .secondary).lineLimit(1)
+        Group {
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 4) { titleText; detailText }
+            } else {
+                HStack(spacing: 12) { titleText; Spacer(minLength: 8); detailText }
             }
+        }.padding(.trailing, 14).padding(.vertical, typeSize.isAccessibilitySize ? 10 : 4)
+            .frame(maxWidth: .infinity, minHeight: rowHeight, alignment: .leading).contentShape(Rectangle())
+    }
+    private var titleText: some View {
+        Text(title).font(.body).foregroundStyle(done ? .secondary : .primary)
+            .strikethrough(done, color: .secondary)
+            .lineLimit(typeSize.isAccessibilitySize ? nil : 2).fixedSize(horizontal: false, vertical: true)
+    }
+    @ViewBuilder private var detailText: some View {
+        if !subtitle.isEmpty {
+            Text(subtitle).font(.footnote).monospacedDigit().foregroundStyle(met ? accent.text : .secondary)
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
         }
-        .padding(.trailing, 14)
-        .frame(minHeight: 56).contentShape(Rectangle())
     }
 
     private func tapMain() { if !gestureMoved { if actionEdge == 0 { toggle() } else { actionEdge = 0 } } }

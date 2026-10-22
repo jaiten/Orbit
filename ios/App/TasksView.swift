@@ -10,13 +10,16 @@ struct TasksView: View {
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
     @State private var search = ""
     @State private var listID: UUID?
-    @State private var showCompleted = false
+    @State private var collapsed: Set<TaskGroup> = [.completed]
+    @State private var creatingList = false
+    @State private var newListName = ""
+    @AppStorage("compactRows") private var compactRows = false
     @State private var adding = false
     @State private var editing: PlannerTask?
     @State private var manageLists = false
     private var filtered: [PlannerTask] {
         tasks.filter { task in
-            (listID == nil || task.listID == listID) && (showCompleted || task.completedAt == nil) &&
+            (listID == nil || task.listID == listID) &&
             (search.isEmpty || task.title.localizedCaseInsensitiveContains(search) || task.tags.contains { $0.localizedCaseInsensitiveContains(search) })
         }
     }
@@ -25,38 +28,57 @@ struct TasksView: View {
             List {
                 Section {
                     AccentPicker(title: "List", selection: $listID, choices: [(nil as UUID?, "All Tasks"), (Optional(TodayRules.somedayID), "Someday")] + lists.filter { $0.id != TodayRules.somedayID }.map { (Optional($0.id), $0.name) })
-                    Toggle("Show completed", isOn: $showCompleted)
                 }
                 Section {
-                    if filtered.isEmpty { ContentUnavailableView(listID == TodayRules.somedayID ? "Nothing for Someday" : "No Tasks", systemImage: "checklist") }
-                    ForEach(filtered) { task in
-                        TaskRow(task: task) { editing = task }.listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 4, trailing: 20))
-                            .swipeActions(edge: .leading) {
-                                if task.completedAt == nil && !TodayRules.onDay(TodayRules.item(task), day: PlannerLogic.dayKey(.now), today: PlannerLogic.dayKey(.now)) {
-                                    Button("Add to Today", systemImage: "sun.max") { change { TodayRules.moveToDay(task, day: .now) } }.tint(accent.fill)
+                    Button("Add a task", systemImage: "plus.circle.fill") { adding = true }.accessibilityLabel("New task")
+                }
+                if filtered.isEmpty { ContentUnavailableView("No tasks in this list", systemImage: "checklist") }
+                ForEach(TaskGroup.allCases) { group in
+                    let items = grouped(group)
+                    if !items.isEmpty {
+                        Section {
+                            DisclosureGroup(isExpanded: Binding(get: { !collapsed.contains(group) }, set: { expanded in
+                                if expanded { collapsed.remove(group) } else { collapsed.insert(group) }
+                            })) {
+                                ForEach(items) { task in
+                                    TaskRow(task: task) { editing = task }
+                                        .padding(.vertical, compactRows ? 2 : 4)
                                 }
-                            }
+                            } label: {
+                                Text("\(group.rawValue) (\(items.count))").font(.headline)
+                            }.accessibilityIdentifier("task-group-" + group.id)
+                        }
                     }
                 }
             }.listStyle(.insetGrouped).scrollContentBackground(.hidden).background(DayTheme.canvas(scheme))
-                .tint(accent.fill).searchable(text: $search, prompt: "Search tasks or tags").navigationTitle("Lists")
+                .tint(accent.fill).searchable(text: $search, prompt: "Search tasks").navigationTitle("Lists")
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) { Button("Edit Lists") { manageLists = true } }
-                    ToolbarItem(placement: .topBarTrailing) { Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("New task") }
+                    ToolbarItem(placement: .topBarTrailing) { Button { creatingList = true } label: { Image(systemName: "plus") }.accessibilityLabel("New list") }
                 }
                 .sheet(isPresented: $adding) { QuickCapture(listID: listID, fromList: true) }.sheet(item: $editing) { TaskEditor(task: $0) }
                 .sheet(isPresented: $manageLists) { ListsView() }
+                .alert("New list", isPresented: $creatingList) {
+                    TextField("List name", text: $newListName)
+                    Button("Cancel", role: .cancel) { newListName = "" }
+                    Button("Create list") { createList() }.disabled(newListName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
                 .modifier(MutationErrorModifier(error: $error))
         }
     }
-}
-
-extension TasksView {
-    private func change(_ action: () throws -> Void) {
-        do { try action(); try Mutations.save(context); Task { try? await refreshReminders(context) } }
-        catch { context.rollback(); self.error = error.localizedDescription }
+    private func grouped(_ group: TaskGroup) -> [PlannerTask] {
+        filtered.filter {
+            TaskGroup.group(day: $0.day, someday: $0.listID == TodayRules.somedayID, completed: $0.completedAt != nil, today: PlannerLogic.dayKey(.now)) == group
+        }
     }
+    private func createList() {
+        let name = newListName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        let list = TaskList(name: name, sortOrder: lists.count)
+        do { context.insert(list); try Mutations.save(context); listID = list.id; newListName = "" }
+        catch { context.rollback(); error = error.localizedDescription }
+    }
+
 }
 
 struct ListsView: View {
@@ -78,13 +100,17 @@ struct ListsView: View {
                         .onDelete { indices in pendingDelete = indices.first.map { editable[$0] } }
                 } header: { Text("Lists") }
                 Section {
-                    TextField("New list name", text: $name)
+                    TextField("New list name", text: $name).accessibilityIdentifier("new-list-name")
                     Button("Add List") {
                         context.insert(TaskList(name: name.trimmingCharacters(in: .whitespacesAndNewlines), sortOrder: lists.count))
-                        do { try Mutations.save(context); name = "" } catch { self.error = error.localizedDescription }
+                        do { try Mutations.save(context); name = "" } catch { context.rollback(); self.error = error.localizedDescription }
                     }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-            }.tint(accent.fill).navigationTitle("Lists").toolbar { Button("Done") { dismiss() } }
+            }.tint(accent.fill).navigationTitle("Edit Lists")
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) { EditButton() }
+                    ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                }
                 .modifier(MutationErrorModifier(error: $error))
                 .confirmationDialog("Delete this list? Its tasks will move to Inbox.", isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }), titleVisibility: .visible) {
                     Button("Delete list", role: .destructive) {
@@ -94,7 +120,7 @@ struct ListsView: View {
                             let tasks = try context.fetch(FetchDescriptor<PlannerTask>(predicate: #Predicate { $0.listID == id }))
                             for task in tasks { task.listID = nil; task.updatedAt = .now }
                             context.delete(list); try Mutations.save(context); pendingDelete = nil
-                        } catch { self.error = error.localizedDescription }
+                        } catch { context.rollback(); self.error = error.localizedDescription }
                     }
                 }
         }

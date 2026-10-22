@@ -107,7 +107,7 @@ enum QuickAdd {
         return QuickAddResult(kind: .task, title: title, date: PlannerLogic.dayKey(date!, calendar: calendar), time: time, list: list)
     }
 
-    /// Text for the preview chip, e.g. "Habit · Weekdays · 7:00 AM" or "Task · Tomorrow · 6:00 PM · #work".
+    /// Text for the preview chip, e.g. "Habit · Weekdays · 7:00 AM" or "Task · Tomorrow · 6:00 PM · List: Personal".
     static func describe(_ result: QuickAddResult, now: Date = .now, calendar: Calendar = .current) -> String {
         guard !result.title.isEmpty else { return "" }
         let clock = result.time.map { minutes in
@@ -115,7 +115,7 @@ enum QuickAdd {
             calendar.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: now)!.formatted(date: .omitted, time: .shortened)
                 .replacingOccurrences(of: "\u{202F}", with: " ")
         }
-        let list = result.list.map { "#" + $0 }
+        let list = result.list.map { "List: " + $0 }
         if result.kind == .habit { return (["Habit", HabitRules.label(result.schedule ?? "DAILY")] + [clock].compactMap { $0 }).joined(separator: " · ") }
         if result.someday { return (["Someday"] + [list].compactMap { $0 }).joined(separator: " · ") }
         guard let day = result.date else { return (["Task", "No date"] + [list].compactMap { $0 }).joined(separator: " · ") }

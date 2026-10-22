@@ -36,19 +36,28 @@ struct PageHeader<Trailing: View>: View {
     let title: String
     var subtitle = ""
     @ViewBuilder var trailing: Trailing
+    @Environment(\.dynamicTypeSize) private var typeSize
     init(eyebrow: String, title: String, subtitle: String = "", @ViewBuilder trailing: () -> Trailing) {
         self.eyebrow = eyebrow; self.title = title; self.subtitle = subtitle; self.trailing = trailing()
     }
     var body: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 2) {
-                Eyebrow(text: eyebrow)
-                Text(title).font(.largeTitle.bold()).tracking(-1).accessibilityAddTraits(.isHeader)
-                if !subtitle.isEmpty { Text(subtitle).font(.body).foregroundStyle(.secondary) }
+        Group {
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 8) { heading; tools }
+            } else {
+                HStack(alignment: .top) { heading; Spacer(minLength: 8); tools }
             }
-            Spacer(minLength: 8)
-            HStack(spacing: 2) { trailing }.font(.body).foregroundStyle(.secondary).buttonStyle(.plain).padding(.top, 2)
         }
+    }
+    private var heading: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(eyebrow).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Text(title).font(.largeTitle.bold()).tracking(-1).accessibilityAddTraits(.isHeader)
+            if !subtitle.isEmpty { Text(subtitle).font(.body).foregroundStyle(.secondary) }
+        }
+    }
+    private var tools: some View {
+        HStack(spacing: 2) { trailing }.font(.body).foregroundStyle(.secondary).buttonStyle(.plain)
     }
 }
 extension PageHeader where Trailing == EmptyView {
@@ -208,45 +217,34 @@ struct WeekSegments: View {
     }
 }
 
-/// "Task · Tomorrow · 6:00 PM": each segment fades and slides in as you type, and the pill's width
-/// springs. VoiceOver and UI tests read the whole phrase.
+/// A readable preview that wraps with larger text and long list names.
 struct PreviewChip: View {
     let text: String
     var identifier = "quick-add-preview"
     @Environment(\.orbitAccent) private var accent
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    private var parts: [String] { text.components(separatedBy: " · ").filter { !$0.isEmpty } }
     var body: some View {
-        if !parts.isEmpty {
-            HStack(spacing: 6) {
-                ForEach(Array(parts.enumerated()), id: \.element) { index, part in
-                    HStack(spacing: 6) {
-                        if index > 0 { Text("·").opacity(0.5) }
-                        Text(part)
-                    }.transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 6)))
-                }
-            }
-            .font(.subheadline.weight(.medium)).foregroundStyle(accent.text)
-            .padding(.horizontal, 14).padding(.vertical, 6)
-            .background(accent.fill.opacity(DesignTokens.tintAccentFill), in: Capsule())
-            .animation(reduceMotion ? nil : .orbit, value: parts)
-            .accessibilityElement(children: .ignore).accessibilityLabel(text)
-            .accessibilityAddTraits(.isStaticText).accessibilityIdentifier(identifier)
+        if !text.isEmpty {
+            Text(text).font(.subheadline.weight(.medium)).foregroundStyle(accent.text)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 14).padding(.vertical, 8)
+                .background(accent.fill.opacity(DesignTokens.tintAccentFill), in: RoundedRectangle(cornerRadius: 12))
+                .accessibilityIdentifier(identifier)
         }
     }
 }
 
 /// The quiet field that opens quick add.
 struct AddField: View {
+    @Environment(\.orbitAccent) private var accent
     var action: () -> Void
     var body: some View {
         Button(action: action) {
             HStack(spacing: 10) {
-                Image(systemName: "plus").font(.subheadline.weight(.medium))
-                Text("Add a task · gym tomorrow 6pm").font(.subheadline).lineLimit(1)
+                Image(systemName: "plus").font(.subheadline.weight(.medium)).foregroundStyle(accent.text)
+                Text("Add a task").font(.subheadline)
                 Spacer(minLength: 0)
             }
-            .foregroundStyle(.secondary).padding(.horizontal, 14).frame(minHeight: 48).contentShape(Rectangle()).orbitSurface()
+            .foregroundStyle(.primary).padding(.horizontal, 14).padding(.vertical, 10).frame(minHeight: 48).contentShape(Rectangle()).orbitSurface()
         }
         .buttonStyle(OrbitPress()).accessibilityLabel("Add a task")
     }

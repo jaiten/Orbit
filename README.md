@@ -47,6 +47,12 @@ and confirm saving. Repeat sends reopen the same event where its identifier is s
 valid. Edits to calendar events do not update the original task. Calendar event
 access currently runs on iPhone; Windows does not connect directly to calendar providers.
 
+**Plan this day** in Calendar suggests time for selected habits and tasks around
+existing commitments, using durations you choose. Review before saving to a writable
+calendar. It creates one one-off block per selected item; completion keeps the event.
+Habit calendar durations stay on the iPhone. **Settings → Appearance → Compact habits
+and tasks** reduces spacing while accessibility text keeps full-size controls.
+
 Touch and hold a to-do for **Start focus timer**. The timer uses the task duration
 (5–240 minutes) and appears in Today and as a Lock Screen Live Activity; compatible
 phones also show Dynamic Island. Stop it from Today. Live Activities must be enabled
@@ -65,8 +71,12 @@ use the separate check control to complete a task or log a habit. Touch and hold
 row for actions, including Make It a Habit / Make It a Task. Arrange sections in
 Edit Today.
 
+On iPhone, the Lists + button creates a list. Use Add a task to add items to the
+selected list; tasks are grouped by day with collapsible sections. Edit Lists adds,
+renames and deletes lists. Capture offers a day picker and list picker.
+
 Quick add reads plain phrases such as `gym tomorrow 6pm`, `read every day`,
-`#work` or `someday`; the chip shows what will be created before you save. On iPhone, Return saves the item and clears the field for another; Save saves and
+`someday`; the chip shows what will be created before you save. On iPhone, Return saves the item and clears the field for another; Save saves and
 closes. Items already added stay saved when you tap Done.
 
 The phrase table is shared by both apps ([test cases](shared/test-cases)).

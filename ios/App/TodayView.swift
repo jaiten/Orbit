@@ -22,12 +22,14 @@ struct TodayView: View {
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
     @AppStorage("homeSections") private var homeSections = HomeLayoutEditor.defaultSections
     @AppStorage("hiddenHomeSections") private var hiddenSections = HomeLayoutEditor.defaultHidden
+    @AppStorage("compactRows") private var compactRows = false
+    @Environment(\.dynamicTypeSize) private var typeSize
+    private var rowSpacing: CGFloat { compactRows && !typeSize.isAccessibilitySize ? 3 : CGFloat(DesignTokens.spaceS) }
     @State private var editing: PlannerTask?
     @State private var editingHabit: Habit?
     @State private var addingTask = false
     @State private var addingHabit = false
     @State private var customizing = false
-    @State private var reviewing = false
     @State private var showingCompleted = false
     @State private var error: String?
     @State private var day = Calendar.current.startOfDay(for: .now)
@@ -51,7 +53,7 @@ struct TodayView: View {
             page
                 .navigationTitle("Today").navigationBarTitleDisplayMode(.inline)
                 .toolbar(.hidden, for: .navigationBar)
-                .modifier(TodaySheets(addingTask: $addingTask, addingHabit: $addingHabit, reviewing: $reviewing, customizing: $customizing, editing: $editing, editingHabit: $editingHabit))
+                .modifier(TodaySheets(addingTask: $addingTask, addingHabit: $addingHabit, customizing: $customizing, editing: $editing, editingHabit: $editingHabit))
                 .modifier(MutationErrorModifier(error: $error))
         }
     }
@@ -70,7 +72,7 @@ struct TodayView: View {
     }
 
     private var content: some View {
-        VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceXxl)) {
+        VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
             VStack(spacing: CGFloat(DesignTokens.spaceM)) {
                 header
                 AddField { addingTask = true }
@@ -90,7 +92,6 @@ struct TodayView: View {
     private var header: some View {
         PageHeader(eyebrow: day.formatted(.dateTime.weekday(.wide).month(.wide).day()), title: "Today") {
             Button { customizing = true } label: { Image(systemName: "slider.horizontal.3").frame(width: 44, height: 44) }.accessibilityLabel("Edit Today")
-            Button { reviewing = true } label: { Image(systemName: "moon").frame(width: 44, height: 44) }.accessibilityLabel("Evening review")
             SyncIndicator()
         }
     }
@@ -108,14 +109,18 @@ struct TodayView: View {
     }
 
     private func progressLine(_ title: String, done: Int, total: Int, empty: String) -> some View {
-        HStack(spacing: 12) {
-            Text(title).font(.subheadline.weight(.medium))
-            Spacer(minLength: 8)
-            Text(total == 0 ? empty : "\(done) of \(total)")
-                .font(.subheadline).monospacedDigit().foregroundStyle(.secondary)
-            if total > 0 {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 12) {
+                Text(title).font(.subheadline.weight(.medium))
+                Spacer(minLength: 8)
+                Text(total == 0 ? empty : "\(done) of \(total)")
+                    .font(.subheadline).monospacedDigit().foregroundStyle(.secondary)
+                if total > 0 && !typeSize.isAccessibilitySize {
+                    ProgressView(value: Double(done), total: Double(total)).tint(accent.fill).frame(width: 60)
+                }
+            }
+            if total > 0 && typeSize.isAccessibilitySize {
                 ProgressView(value: Double(done), total: Double(total)).tint(accent.fill)
-                    .frame(width: 60)
             }
         }.accessibilityElement(children: .ignore)
             .accessibilityLabel(total == 0 ? "\(title): \(empty)" : "\(title): \(done) of \(total) done today")
@@ -135,8 +140,8 @@ struct TodayView: View {
                 if a.hasTime != b.hasTime { return a.hasTime }
                 return a.hasTime ? (a.dueDate ?? .distantFuture) < (b.dueDate ?? .distantFuture) : a.sortOrder < b.sortOrder
             }
-            VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceXxl)) {
-                checklistSection("Your day", items: planned.map { TodayItem(task: $0) }, empty: relevant.isEmpty ? "Nothing planned. Add a task to get started." : "No more tasks scheduled for today.")
+            VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
+                checklistSection("Your day", note: "\(relevant.filter { $0.completedAt != nil }.count)/\(relevant.count) done", items: planned.map { TodayItem(task: $0) }, empty: relevant.isEmpty ? "Nothing planned. Add a task to get started." : "No more tasks scheduled for today.")
                 if !overdue.isEmpty { checklistSection("Overdue", note: "\(overdue.count) to review", items: overdue.map { TodayItem(task: $0) }, empty: "") }
             }
         case "routine":
@@ -150,7 +155,7 @@ struct TodayView: View {
                         .font(.subheadline.weight(.medium)).frame(minHeight: 44)
                 }
             } else {
-                checklistSection("Habits", note: "\(open.count) left", items: open.map { TodayItem(habit: $0) }, empty: "All habits checked for today.")
+                checklistSection("Habits", note: "\(checkedHabits.count)/\(dueHabits.count) done", items: open.map { TodayItem(habit: $0) }, empty: "All habits checked for today.")
             }
         case "completed":
             if !completedItems.isEmpty {
@@ -186,7 +191,7 @@ struct TodayView: View {
 
     /// Keep rows still during completion; only the check control animates.
     private func checklist(_ items: [TodayItem]) -> some View {
-        VStack(spacing: CGFloat(DesignTokens.spaceS)) {
+        VStack(spacing: rowSpacing) {
             ForEach(items) { item in itemView(item) }
         }
     }
@@ -206,7 +211,6 @@ struct TodayView: View {
 private struct TodaySheets: ViewModifier {
     @Binding var addingTask: Bool
     @Binding var addingHabit: Bool
-    @Binding var reviewing: Bool
     @Binding var customizing: Bool
     @Binding var editing: PlannerTask?
     @Binding var editingHabit: Habit?
@@ -214,7 +218,6 @@ private struct TodaySheets: ViewModifier {
         content
             .sheet(isPresented: $addingTask) { QuickCapture() }
             .sheet(isPresented: $addingHabit) { HabitEditor() }
-            .sheet(isPresented: $reviewing) { EveningReview() }
             .sheet(isPresented: $customizing) { HomeLayoutEditor() }
             .sheet(item: $editing) { TaskEditor(task: $0) }
             .sheet(item: $editingHabit) { HabitEditor(habit: $0) }

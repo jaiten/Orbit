@@ -5,6 +5,7 @@ import EventKit
 struct CalendarView: View {
     @Environment(\.orbitAccent) private var accent
     @Environment(\.modelContext) private var context
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.colorScheme) private var scheme
     @Query(sort: \PlannerTask.sortOrder) private var tasks: [PlannerTask]
     @ObservedObject private var calendars = CalendarBridge.shared
@@ -12,6 +13,7 @@ struct CalendarView: View {
     @State private var mode = "Week"
     @State private var editing: PlannerTask?
     @State private var adding = false
+    @State private var planning = false
     @State private var error: String?
     private var calendar: Calendar { .current }
     private var days: [Date] {
@@ -38,30 +40,39 @@ struct CalendarView: View {
                         Spacer()
                         Button { move(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }.accessibilityLabel("Next \(mode.lowercased())")
                     }
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 8) {
-                        ForEach(days, id: \.self) { day in
-                            Button { selected = day } label: {
-                                let isSelected = calendar.isDate(day, inSameDayAs: selected)
-                                let busy = tasks.contains { $0.day == PlannerLogic.dayKey(day) } || visibleEvents.contains { $0.startDate < calendar.date(byAdding: .day, value: 1, to: day)! && $0.endDate > day }
-                                // Day tiles as on the website: surface with a line; the selected day is filled.
-                                VStack(spacing: 6) {
-                                    Text(day.formatted(.dateTime.weekday(.narrow))).font(.caption2).opacity(0.75)
-                                    Text(day.formatted(.dateTime.day())).font(.subheadline.weight(.semibold)).monospacedDigit()
-                                    Circle().fill(busy ? (isSelected ? Color.white : accent.fill) : .clear).frame(width: 4, height: 4)
-                                }.frame(maxWidth: .infinity).padding(.vertical, 10)
-                                    .foregroundStyle(isSelected ? Color.white : .primary)
-                                    .background(isSelected ? accent.text : Color.orbitSurface, in: RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusRow), style: .continuous))
-                                    .overlay(RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusRow), style: .continuous).strokeBorder(isSelected ? .clear : Color.orbitLine))
-                                    .animation(.orbit, value: isSelected)
-                            }.buttonStyle(.plain).accessibilityLabel(day.formatted(date: .complete, time: .omitted))
-                                .dropDestination(for: String.self) { ids, _ in reschedule(ids, to: day) }
+                    if typeSize.isAccessibilitySize {
+                        DatePicker("Selected day", selection: $selected, displayedComponents: .date)
+                    } else {
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 8) {
+                            ForEach(days, id: \.self) { day in
+                                Button { selected = day } label: {
+                                    let isSelected = calendar.isDate(day, inSameDayAs: selected)
+                                    let busy = tasks.contains { $0.day == PlannerLogic.dayKey(day) } || visibleEvents.contains { $0.startDate < calendar.date(byAdding: .day, value: 1, to: day)! && $0.endDate > day }
+                                    // Day tiles as on the website: surface with a line; the selected day is filled.
+                                    VStack(spacing: 6) {
+                                        Text(day.formatted(.dateTime.weekday(.narrow))).font(.caption2).opacity(0.75)
+                                        Text(day.formatted(.dateTime.day())).font(.subheadline.weight(.semibold)).monospacedDigit()
+                                        Circle().fill(busy ? (isSelected ? Color.white : accent.fill) : .clear).frame(width: 4, height: 4)
+                                    }.frame(maxWidth: .infinity).padding(.vertical, 10)
+                                        .foregroundStyle(isSelected ? Color.white : .primary)
+                                        .background(isSelected ? accent.text : Color.orbitSurface, in: RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusRow), style: .continuous))
+                                        .overlay(RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusRow), style: .continuous).strokeBorder(isSelected ? .clear : Color.orbitLine))
+                                        .animation(.orbit, value: isSelected)
+                                }.buttonStyle(.plain).accessibilityLabel(day.formatted(date: .complete, time: .omitted))
+                                    .dropDestination(for: String.self) { ids, _ in reschedule(ids, to: day) }
+                            }
                         }
                     }
                     SectionLabel(title: selected.formatted(.dateTime.weekday(.wide).month().day()), note: calendar.isDateInToday(selected) ? "Today" : "")
+                    Button("Add task for " + selected.formatted(.dateTime.month(.abbreviated).day()), systemImage: "plus.circle.fill") { adding = true }
+                        .frame(minHeight: 44).accessibilityIdentifier("calendar-add-task")
+                    Button("Plan this day", systemImage: "calendar.badge.clock") { planning = true }
+                        .frame(minHeight: 44)
                     if !calendars.connected {
                         Button("Connect Calendars", systemImage: "calendar.badge.plus") { Task { do { try await calendars.connect() } catch { self.error = error.localizedDescription } } }
                     }
-                    let events = calendars.events(on: selected)
+                    let linked = Set(selectedTasks.filter(\.hasTime).compactMap { UserDefaults.standard.string(forKey: "calendarEvent." + $0.id.uuidString) })
+                    let events = calendars.events(on: selected).filter { !linked.contains($0.eventIdentifier ?? "") }
                     if selectedTasks.isEmpty && events.isEmpty { ContentUnavailableView("Nothing Planned", systemImage: "sun.horizon") }
                     VStack(spacing: CGFloat(DesignTokens.spaceS)) {
                         ForEach(events.filter(\.isAllDay), id: \.calendarItemIdentifier) { event in CalendarEventRow(event: event) }
@@ -70,8 +81,8 @@ struct CalendarView: View {
                             if let task = entry.task { TaskRow(task: task) { editing = task }.draggable(task.id.uuidString) }
                             if let event = entry.event { CalendarEventRow(event: event) }
                         }
-                    }.animation(.orbit, value: selectedTasks.map(\.id))
-                    Text("Drag a task onto a day to move it.").font(.caption).foregroundStyle(.secondary)
+                    }
+                    Text("Choose a day, then tap Add task. You can also drag a task onto another day.").font(.caption).foregroundStyle(.secondary)
                 }.padding(.horizontal, CGFloat(DesignTokens.screenPadding)).padding(.vertical, CGFloat(DesignTokens.spaceS)).frame(maxWidth: 760).frame(maxWidth: .infinity)
             }.background(DayTheme.canvas(scheme)).tint(accent.fill).navigationTitle("Calendar").navigationBarTitleDisplayMode(.large)
                 .toolbar {
@@ -80,6 +91,7 @@ struct CalendarView: View {
                 }
                 .sheet(item: $editing) { TaskEditor(task: $0) }
                 .sheet(isPresented: $adding) { QuickCapture(initialDate: selected) }
+                .sheet(isPresented: $planning) { CalendarPlanningView(day: selected) }
                 .modifier(MutationErrorModifier(error: $error))
         }
     }

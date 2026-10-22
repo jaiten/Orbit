@@ -6,10 +6,15 @@ struct AccentPicker<Value: Hashable>: View {
     @Binding var selection: Value
     let choices: [(Value, String)]
     @Environment(\.orbitAccent) private var accent
+    @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
-        HStack {
-            Text(title)
-            Spacer()
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 4) { Text(title); valueMenu }
+        } else {
+            HStack { Text(title); Spacer(); valueMenu }
+        }
+    }
+    private var valueMenu: some View {
             Menu {
                 ForEach(Array(choices.enumerated()), id: \.offset) { _, choice in
                     Button { selection = choice.0 } label: {
@@ -21,8 +26,7 @@ struct AccentPicker<Value: Hashable>: View {
                 HStack(spacing: 5) {
                     Text(choices.first { $0.0 == selection }?.1 ?? "Choose")
                     Image(systemName: "chevron.up.chevron.down").font(.caption2)
-                }.foregroundStyle(accent.fill).frame(minHeight: 36)
+                }.foregroundStyle(accent.text).frame(minHeight: 44)
             }.accessibilityLabel(title).accessibilityValue(choices.first { $0.0 == selection }?.1 ?? "Choose")
-        }
     }
 }

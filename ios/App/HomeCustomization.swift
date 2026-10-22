@@ -5,14 +5,14 @@ import SwiftData
 struct HomeLayoutEditor: View {
     @Environment(\.orbitAccent) private var accent
     /// Habits lead the day; history follows the actionable lists.
-    static let defaultSections = "progress,routine,today,completed,consistency,calendar"
-    static let defaultHidden = ""
+    static let defaultSections = "routine,today,completed,calendar,progress,consistency"
+    static let defaultHidden = "progress,consistency"
 
     /// Upgrade only the previous default profile. Preserve customized orders, pins and visibility.
     static func upgradedLayout(sections: String, hidden: String) -> (sections: String, hidden: String) {
-        guard sections == "progress,today,routine,completed,calendar,consistency", hidden == "consistency" else {
-            return (sections, hidden)
-        }
+        let original = sections == "progress,today,routine,completed,calendar,consistency" && hidden == "consistency"
+        let previous = sections == "progress,routine,today,completed,consistency,calendar" && hidden.isEmpty
+        guard original || previous else { return (sections, hidden) }
         return (defaultSections, defaultHidden)
     }
     @AppStorage("homeSections") private var stored = defaultSections
@@ -23,7 +23,7 @@ struct HomeLayoutEditor: View {
     static func title(_ id: String, lists: [TaskList]) -> String {
         switch id {
         case "consistency": return "Recent progress"
-        case "progress": return "Your plan"
+        case "progress": return "Progress summary"
         case "today": return "Tasks"
         case "routine": return "Habits"
         case "completed": return "Completed"

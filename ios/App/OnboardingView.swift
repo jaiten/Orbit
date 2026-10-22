@@ -1,8 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// First launch: three short, skippable screens (capture, habits, sync). Content comes from
-/// shared/onboarding.json, the same as Windows. Closing at any point finishes onboarding for good.
+/// First launch: add a task, choose habits, optionally connect another device.
 struct OnboardingView: View {
     @Environment(\.orbitAccent) private var accent
     @Environment(\.modelContext) private var context
@@ -14,18 +13,23 @@ struct OnboardingView: View {
     @State private var needsReminders = false
     @State private var error: String?
     @FocusState private var focused: Bool
+    @Environment(\.dynamicTypeSize) private var typeSize
+    private var suggestions: [OnboardingData.HabitSuggestion] { OnboardingData.habitSuggestions.filter { $0.title != "Plan tomorrow" } }
 
     private var result: QuickAddResult { QuickAdd.parse(text) }
 
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 16) {
-                switch step {
-                case 0: capture
-                case 1: habits
-                default: sync
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        switch step {
+                        case 0: capture
+                        case 1: habits
+                        default: sync
+                        }
+                    }.frame(maxWidth: .infinity, alignment: .leading)
                 }
-                Spacer()
                 HStack(spacing: 6) {
                     ForEach(0..<3) { index in Circle().fill(index == step ? accent.fill : Color.secondary.opacity(0.3)).frame(width: 6, height: 6) }
                 }.frame(maxWidth: .infinity).accessibilityHidden(true)
@@ -33,7 +37,7 @@ struct OnboardingView: View {
             .padding(24).tint(accent.fill)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(step == 2 ? "Not Now" : "Skip") { next() }.accessibilityIdentifier("onboarding-skip")
+                    Button(step == 2 ? "Start using Orbit" : "Skip") { next() }.accessibilityIdentifier("onboarding-skip")
                 }
             }
             .modifier(MutationErrorModifier(error: $error))
@@ -43,26 +47,26 @@ struct OnboardingView: View {
     private var capture: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Welcome to Orbit").font(.largeTitle.bold()).tracking(-1)
-            Text("Type anything. Orbit works out when.").foregroundStyle(.secondary)
+            Text("Keep your habits and daily tasks in one place. Add your first task below, or skip to start with an empty planner.").foregroundStyle(.secondary)
             HStack(spacing: 10) {
                 Image(systemName: "plus").font(.body.weight(.medium)).foregroundStyle(.secondary)
-                TextField("gym tomorrow 6pm", text: $text)
+                TextField("Call dentist tomorrow 9am", text: $text)
                     .font(.title3).focused($focused).submitLabel(.done).onSubmit(add).accessibilityIdentifier("onboarding-input")
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
             }
             .padding(.horizontal, 14).frame(minHeight: 52).orbitSurface()
             PreviewChip(text: result.title.isEmpty ? "" : QuickAdd.describe(result), identifier: "onboarding-preview").frame(minHeight: 34, alignment: .leading)
-            Button("Add", action: add).buttonStyle(.borderedProminent).disabled(result.title.isEmpty)
-            Button("Start with Examples") { save { try Examples.add(in: context); needsReminders = true } }
+            Button("Add task and continue", action: add).buttonStyle(.borderedProminent).disabled(result.title.isEmpty)
+            Button("Try example tasks") { save { try Examples.add(in: context); needsReminders = true } }
         }.onAppear { focused = true }
     }
 
     private var habits: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Pick a habit or two").font(.largeTitle.bold()).tracking(-1)
-            Text("Habits repeat on their own and reset at midnight.").foregroundStyle(.secondary)
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                ForEach(Array(OnboardingData.habitSuggestions.enumerated()), id: \.offset) { index, suggestion in
+            Text("Choose your first habits").font(.largeTitle.bold()).tracking(-1)
+            Text("Choose routines you want to repeat. Check them off as you go. You can change their schedules and reminders later.").foregroundStyle(.secondary)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: typeSize.isAccessibilitySize ? 1 : 2), spacing: 10) {
+                ForEach(Array(suggestions.enumerated()), id: \.offset) { index, suggestion in
                     let on = chosen.contains(index)
                     Button { if !chosen.insert(index).inserted { chosen.remove(index) } } label: {
                         VStack(alignment: .leading, spacing: 2) {
@@ -79,7 +83,7 @@ struct OnboardingView: View {
                 save {
                     var picked: [String] = []
                     for index in chosen.sorted() {
-                        let suggestion = OnboardingData.habitSuggestions[index]
+                        let suggestion = suggestions[index]
                         // Each new habit gets the next colour, counting the ones picked just before it.
                         let color = try QuickAddSaver.nextHabitColor(in: context, adding: picked); picked.append(color)
                         let habit = Habit(title: suggestion.title, frequencyRule: suggestion.frequencyRule, target: suggestion.target, color: color)
@@ -94,9 +98,9 @@ struct OnboardingView: View {
 
     private var sync: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Stay in sync").font(.largeTitle.bold()).tracking(-1)
-            Text("Sign in to keep your iPhone and PC in step. Everything stays on this iPhone until you do.").foregroundStyle(.secondary)
-            Button("Set Up Sync") { finish(needsReminders, true) }.buttonStyle(.borderedProminent)
+            Text("Use Orbit on your devices").font(.largeTitle.bold()).tracking(-1)
+            Text("Sign in to share your tasks and habits between iPhone and Windows. This is optional: you can use Orbit on this iPhone without an account.").foregroundStyle(.secondary)
+            Button("Sign in for sync") { finish(needsReminders, true) }.buttonStyle(.borderedProminent)
         }
     }
 

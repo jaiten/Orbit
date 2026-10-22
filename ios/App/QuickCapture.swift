@@ -16,6 +16,9 @@ struct QuickCapture: View {
     var listID: UUID? = nil
     var fromList = false
     @State private var text = ""
+    @State private var scheduled = true
+    @State private var selectedDay = Date.now
+    @State private var selectedListID: UUID?
     @State private var error: String?
     @State private var confirmConflict = false
     @State private var conflictTitles: [String] = []
@@ -25,9 +28,7 @@ struct QuickCapture: View {
     @State private var focused = false
 
     private var defaultDay: DefaultDay {
-        if fromList { return .undated }
-        if let initialDate, !Calendar.current.isDateInToday(initialDate) { return .day(PlannerLogic.dayKey(initialDate)) }
-        return .today
+        scheduled ? .day(PlannerLogic.dayKey(selectedDay)) : .undated
     }
     private var result: QuickAddResult { QuickAdd.parse(text, defaultDay: defaultDay) }
     private var preview: String {
@@ -36,36 +37,52 @@ struct QuickCapture: View {
         return value
     }
     private var contextListName: String? {
-        listID == TodayRules.somedayID ? "Someday" : lists.first { $0.id == listID }?.name
+        if selectedListID == TodayRules.somedayID && result.date != nil { return nil }
+        return selectedListID == TodayRules.somedayID ? "Someday" : lists.first { $0.id == selectedListID }?.name
     }
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceM)) {
-                Eyebrow(text: "Quick add")
-                HStack(spacing: 10) {
-                    Image(systemName: "plus").font(.body.weight(.medium)).foregroundStyle(.secondary)
-                    CaptureTextField(text: $text, focused: $focused) { save(keepAdding: true) }
+            ScrollView {
+                VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceM)) {
+                    Eyebrow(text: "Quick add")
+                    HStack(spacing: 10) {
+                        Image(systemName: "plus").font(.body.weight(.medium)).foregroundStyle(.secondary)
+                        CaptureTextField(text: $text, focused: $focused) { save(keepAdding: true) }
+                    }
+                    .padding(.horizontal, 14).frame(minHeight: 52)
+                    .background(DayTheme.canvas(scheme), in: RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusInput), style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusInput), style: .continuous)
+                        .strokeBorder(focused ? accent.text : Color.orbitLine, lineWidth: focused ? 2 : 1))
+                    PreviewChip(text: preview, identifier: "quick-add-preview").frame(minHeight: 34, alignment: .leading)
+                    if fromList { Toggle("Choose a day", isOn: $scheduled) }
+                    if scheduled {
+                        DatePicker("Day", selection: $selectedDay, displayedComponents: .date)
+                            .accessibilityIdentifier("quick-add-day")
+                    }
+                    Picker("List", selection: $selectedListID) {
+                        Text("Inbox").tag(nil as UUID?)
+                        Text("Someday").tag(Optional(TodayRules.somedayID))
+                        ForEach(lists.filter { $0.id != TodayRules.somedayID }) { list in
+                            Text(list.name).tag(Optional(list.id))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    Text("Return adds this item and starts another. Save adds it and closes.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    Text("You can also type a day: “Call dentist tomorrow at 9am”.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    if let lastAdded {
+                        Label("Added “\(lastAdded)”", systemImage: "checkmark.circle.fill")
+                            .font(.subheadline).foregroundStyle(accent.text).lineLimit(2)
+                            .accessibilityIdentifier("quick-add-receipt")
+                    }
+                    Spacer(minLength: 0)
                 }
-                .padding(.horizontal, 14).frame(minHeight: 52)
-                .background(DayTheme.canvas(scheme), in: RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusInput), style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusInput), style: .continuous)
-                    .strokeBorder(focused ? accent.text : Color.orbitLine, lineWidth: focused ? 2 : 1))
-                PreviewChip(text: preview, identifier: "quick-add-preview").frame(minHeight: 34, alignment: .leading)
-                Text("Return adds this item and starts another. Save adds it and closes.")
-                    .font(.footnote).foregroundStyle(.secondary)
-                Text("Try “gym tomorrow 6pm”, “read every day” or “#work”.")
-                    .font(.footnote).foregroundStyle(.secondary)
-                if let lastAdded {
-                    Label("Added “\(lastAdded)”", systemImage: "checkmark.circle.fill")
-                        .font(.subheadline).foregroundStyle(accent.text).lineLimit(2)
-                        .accessibilityIdentifier("quick-add-receipt")
-                }
-                Spacer(minLength: 0)
+                .padding(CGFloat(DesignTokens.screenPadding))
             }
-            .padding(CGFloat(DesignTokens.screenPadding))
             .background(Color.orbitSurface)
-            .tint(accent.fill).navigationTitle("New Item").navigationBarTitleDisplayMode(.inline)
+            .tint(accent.fill).navigationTitle(result.kind == .habit ? "New habit" : "New task").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button(addedCount == 0 ? "Cancel" : "Done") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.disabled(result.title.isEmpty) }
@@ -73,8 +90,10 @@ struct QuickCapture: View {
                 .confirmationDialog("This time overlaps another plan", isPresented: $confirmConflict, titleVisibility: .visible) {
                     Button("Save Anyway") { save(allowConflict: true, keepAdding: keepAddingAfterConflict) }; Button("Change Time", role: .cancel) {}
                 } message: { Text(conflictTitles.joined(separator: ", ")) }
+                .onChange(of: selectedListID) { _, id in if id == TodayRules.somedayID { scheduled = false } }
+                .onChange(of: scheduled) { _, on in if on && selectedListID == TodayRules.somedayID { selectedListID = nil } }
                 .sensoryFeedback(.success, trigger: addedCount)
-                .onAppear { focused = true }.modifier(MutationErrorModifier(error: $error))
+                .onAppear { selectedDay = initialDate ?? .now; scheduled = !fromList || initialDate != nil; selectedListID = listID; focused = true }.modifier(MutationErrorModifier(error: $error))
         }
         .presentationDetents([.medium, .large])
     }
@@ -87,7 +106,7 @@ struct QuickCapture: View {
                 conflictTitles = CalendarBridge.shared.conflictTitles(start: start, duration: 30, excluding: nil, tasks: try context.fetch(FetchDescriptor<PlannerTask>()))
                 if !conflictTitles.isEmpty { keepAddingAfterConflict = keepAdding; confirmConflict = true; return }
             }
-            try QuickAddSaver.save(result, listID: listID, in: context)
+            try QuickAddSaver.save(result, listID: selectedListID, in: context)
             Task {
                 // The first item with a time is the moment to ask about notifications.
                 if result.time != nil { _ = await NotificationScheduler.shared.requestIfUndecided() }

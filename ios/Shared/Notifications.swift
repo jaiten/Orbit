@@ -21,7 +21,7 @@ actor NotificationScheduler {
         let title: String
         let body: String
         let date: Date
-        /// Habit and check-in reminders follow local time; task reminders are fixed instants.
+        /// Habit reminders follow local time; task reminders are fixed instants.
         var floating = false
     }
 
@@ -59,15 +59,6 @@ actor NotificationScheduler {
                     guard let minutes, let date = Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: day) else { continue }
                     result.append(Reminder(id: "orbit.habit.\(habit.id).\(offset).\(kind)", title: habit.title,
                         body: kind == "nudge" ? "Not checked yet today." : "Habit reminder", date: date, floating: true))
-                }
-            }
-        }
-        if UserDefaults.standard.bool(forKey: "generalCheckIn") {
-            let minutes = UserDefaults.standard.object(forKey: "checkInMinutes") as? Int ?? 1080
-            for offset in 0..<7 {
-                let day = Calendar.current.date(byAdding: .day, value: offset, to: now)!
-                if let date = Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: day) {
-                    result.append(Reminder(id: "orbit.checkin.\(offset)", title: "Daily check-in", body: "Take a minute to plan your day.", date: date, floating: true))
                 }
             }
         }

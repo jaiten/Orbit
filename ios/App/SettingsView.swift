@@ -37,6 +37,7 @@ struct SettingsView: View {
 private struct AppearanceSection: View {
     @AppStorage("appearance") private var appearance = "system"
     @AppStorage("accentTheme") private var accentTheme = "coral"
+    @AppStorage("compactRows") private var compactRows = false
     var body: some View {
         Section("Appearance") {
             AccentPicker(title: "Appearance", selection: $appearance, choices: [("system", "System"), ("light", "Light"), ("dark", "Dark")])
@@ -51,6 +52,9 @@ private struct AppearanceSection: View {
                     }.buttonStyle(.plain).accessibilityLabel(name.capitalized + (accentTheme == name ? ", selected" : ""))
                 }
             }.padding(.vertical, 6)
+            Toggle("Compact habits and tasks", isOn: $compactRows)
+            Text("Fits more items by reducing spacing. Larger accessibility text keeps the room it needs.")
+                .font(.footnote).foregroundStyle(.secondary)
         }
     }
 }
@@ -58,28 +62,12 @@ private struct AppearanceSection: View {
 private struct RemindersSection: View {
     @Environment(\.orbitAccent) private var accent
     @Environment(\.modelContext) private var context
-    @AppStorage("generalCheckIn") private var checkIn = false
-    @AppStorage("checkInMinutes") private var checkInMinutes = 1080
     @Binding var message: String?
-    private var time: Binding<Date> {
-        Binding(get: { Calendar.current.date(bySettingHour: checkInMinutes / 60, minute: checkInMinutes % 60, second: 0, of: .now)! }, set: { date in
-            checkInMinutes = Calendar.current.component(.hour, from: date) * 60 + Calendar.current.component(.minute, from: date)
-            Task { try? await refreshReminders(context) }
-        })
-    }
     var body: some View {
         Section {
             Button(action: allow) { Label { Text("Allow Notifications") } icon: { Image(systemName: "bell").foregroundStyle(accent.fill) } }
-            Toggle("Daily check-in", isOn: $checkIn)
-                .onChange(of: checkIn) { _, enabled in
-                    Task { do { if enabled { _ = try await NotificationScheduler.shared.requestPermission() }; try await refreshReminders(context) } catch { message = error.localizedDescription } }
-                }
-            if checkIn {
-                DatePicker("At", selection: time, displayedComponents: .hourAndMinute)
-                Button("Use My Usual Time") { checkInMinutes = UsageSignals.suggestedMinutes(); Task { try? await refreshReminders(context) } }
-            }
         } header: { Text("Reminders") } footer: {
-            Text("Task and habit reminders, plus one optional daily check-in. The suggested time is based on when you usually open Orbit, counted on this device only.")
+            Text("Set reminders on individual tasks and habits. Orbit only sends the reminders you choose.")
         }
     }
     private func allow() {

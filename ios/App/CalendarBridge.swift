@@ -92,18 +92,22 @@ struct CalendarEventEditor: UIViewControllerRepresentable {
 
 struct CalendarEventRow: View {
     let event: EKEvent
+    @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
         HStack(spacing: 12) {
             RoundedRectangle(cornerRadius: 2).fill(Color(cgColor: event.calendar.cgColor)).frame(width: 3)
             VStack(alignment: .leading, spacing: 4) {
                 Text(event.title ?? "Event").font(.subheadline.weight(.medium))
                 Text(event.calendar.title).font(.caption).foregroundStyle(.secondary)
+                if typeSize.isAccessibilitySize { timeLabel }
             }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 4) {
+            if !typeSize.isAccessibilitySize { Spacer(); timeLabel }
+        }.padding(12).frame(minHeight: 60).background(DayTheme.surface, in: RoundedRectangle(cornerRadius: DayTheme.rowRadius, style: .continuous))
+    }
+    private var timeLabel: some View {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(event.isAllDay ? "All day" : event.startDate.formatted(date: .omitted, time: .shortened))
                 if !event.isAllDay { Text(event.endDate.formatted(date: .omitted, time: .shortened)).foregroundStyle(.secondary) }
             }.font(.caption).monospacedDigit()
-        }.padding(12).frame(minHeight: 60).background(DayTheme.surface, in: RoundedRectangle(cornerRadius: DayTheme.rowRadius, style: .continuous))
     }
 }
