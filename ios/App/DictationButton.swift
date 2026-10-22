@@ -34,7 +34,7 @@ import AVFoundation
         do {
             let audio = AVAudioSession.sharedInstance()
             try audio.setCategory(.record, mode: .measurement)
-            try audio.setActive(true, options: .notifyOthersOnDeactivation)
+            try audio.setActive(true)
             let input = engine.inputNode
             let format = input.outputFormat(forBus: 0)
             guard format.sampleRate > 0, format.channelCount > 0 else { throw CocoaError(.featureUnsupported) }
