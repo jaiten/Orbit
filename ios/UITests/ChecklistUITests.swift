@@ -4,7 +4,7 @@ final class ChecklistUITests: XCTestCase {
     func testInlineCaptureAddsMultipleItemsWithoutASheet() {
         continueAfterFailure = false
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
-        let input = app.textFields["task-title-input"]
+        let input = app.textFields["inline-task-input"]
         XCTAssertTrue(input.waitForExistence(timeout: 15))
         input.tap(); input.typeText("Buy coffee\n")
         XCTAssertTrue(app.buttons["Complete Buy coffee"].waitForExistence(timeout: 5))

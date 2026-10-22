@@ -134,12 +134,13 @@ struct QuickCapture: View {
 struct CaptureTextField: UIViewRepresentable {
     @Binding var text: String
     @Binding var focused: Bool
+    var identifier = "task-title-input"
     var onSubmit: () -> Void
 
     func makeUIView(context: Context) -> Input {
         let field = Input()
         field.placeholder = "What do you need to do?"
-        field.accessibilityIdentifier = "task-title-input"
+        field.accessibilityIdentifier = identifier
         field.font = .preferredFont(forTextStyle: .title3)
         field.adjustsFontForContentSizeCategory = true
         field.autocapitalizationType = .none

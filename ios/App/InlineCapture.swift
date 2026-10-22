@@ -20,7 +20,7 @@ struct InlineCapture: View {
                 Button { if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { focused = true } else { save() } } label: {
                     Image(systemName: "plus").frame(width: 44, height: 44)
                 }.accessibilityLabel("Add a task").disabled(saving)
-                CaptureTextField(text: $text, focused: $focused) { save() }
+                CaptureTextField(text: $text, focused: $focused, identifier: "inline-task-input") { save() }
                 DictationButton(text: $text)
                 Button { options = true } label: { Image(systemName: "slider.horizontal.3").frame(width: 44, height: 44) }
                     .accessibilityLabel("Task options").accessibilityHint("Choose a date or list before adding")
