@@ -96,7 +96,7 @@ struct QuickCapture: View {
                 .onChange(of: selectedListID) { _, id in if id == TodayRules.somedayID { scheduled = false } }
                 .onChange(of: scheduled) { _, on in if on && selectedListID == TodayRules.somedayID { selectedListID = nil } }
                 .sensoryFeedback(.success, trigger: addedCount)
-                .onAppear { text = initialText; selectedDay = initialDate ?? .now; scheduled = !fromList || initialDate != nil; selectedListID = listID; focused = true }.modifier(MutationErrorModifier(error: $error))
+                .onAppear { NotificationCenter.default.post(name: Notification.Name("orbitCaptureSubmitted"), object: nil); text = initialText; selectedDay = initialDate ?? .now; scheduled = !fromList || initialDate != nil; selectedListID = listID; focused = true }.modifier(MutationErrorModifier(error: $error))
         }
         .presentationDetents([.medium, .large])
     }

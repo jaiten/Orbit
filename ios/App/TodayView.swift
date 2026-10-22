@@ -218,6 +218,13 @@ private struct TodaySheets: ViewModifier {
             .sheet(isPresented: $customizing) { HomeLayoutEditor() }
             .sheet(item: $editing) { TaskEditor(task: $0) }
             .sheet(item: $editingHabit) { HabitEditor(habit: $0) }
+            .onChange(of: addingHabit) { _, showing in if showing { stopDictation() } }
+            .onChange(of: customizing) { _, showing in if showing { stopDictation() } }
+            .onChange(of: editing?.id) { _, id in if id != nil { stopDictation() } }
+            .onChange(of: editingHabit?.id) { _, id in if id != nil { stopDictation() } }
+    }
+    private func stopDictation() {
+        NotificationCenter.default.post(name: Notification.Name("orbitCaptureSubmitted"), object: nil)
     }
 }
 
