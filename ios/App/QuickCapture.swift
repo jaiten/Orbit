@@ -55,6 +55,11 @@ struct QuickCapture: View {
                     .overlay(RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusInput), style: .continuous)
                         .strokeBorder(focused ? accent.text : Color.orbitLine, lineWidth: focused ? 2 : 1))
                     PreviewChip(text: preview, identifier: "quick-add-preview").frame(minHeight: 34, alignment: .leading)
+                    if let lastAdded {
+                        Label("Added “\(lastAdded)”", systemImage: "checkmark.circle.fill")
+                            .font(.subheadline).foregroundStyle(accent.text).lineLimit(2)
+                            .accessibilityIdentifier("quick-add-receipt")
+                    }
                     if fromList { Toggle("Choose a day", isOn: $scheduled) }
                     if scheduled {
                         DatePicker("Day", selection: $selectedDay, displayedComponents: .date)
@@ -72,11 +77,6 @@ struct QuickCapture: View {
                         .font(.footnote).foregroundStyle(.secondary)
                     Text("You can also type a day: “Call dentist tomorrow at 9am”.")
                         .font(.footnote).foregroundStyle(.secondary)
-                    if let lastAdded {
-                        Label("Added “\(lastAdded)”", systemImage: "checkmark.circle.fill")
-                            .font(.subheadline).foregroundStyle(accent.text).lineLimit(2)
-                            .accessibilityIdentifier("quick-add-receipt")
-                    }
                     Spacer(minLength: 0)
                 }
                 .padding(CGFloat(DesignTokens.screenPadding))
