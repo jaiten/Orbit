@@ -200,10 +200,11 @@ struct TodayWidgetView: View {
     @Environment(\.widgetFamily) private var family
     let entry: TodayWidgetEntry
     var body: some View {
-        if entry.style == .checklist && !entry.day.unavailable && [WidgetFamily.systemSmall, .systemMedium, .systemLarge].contains(family) {
+        if [WidgetFamily.accessoryInline, .accessoryCircular, .accessoryRectangular].contains(family) {
+            LockScreenTodayView(entry: entry)
+        } else if entry.style == .checklist && !entry.day.unavailable {
             ChecklistWidgetView(entry: entry.day)
-        } else if entry.style == .grid && !entry.day.unavailable && family != .accessoryCircular {
-            // The circular Lock Screen widget is too small for boxes; it keeps the progress ring.
+        } else if entry.style == .grid && !entry.day.unavailable {
             GridWidgetView(entry: entry.day)
         } else {
             DayWidgetView(entry: entry.day)
@@ -247,6 +248,6 @@ struct OrbitWidget: Widget {
         AppIntentConfiguration(kind: kind, intent: TodayWidgetConfiguration.self, provider: TodayWidgetProvider()) { TodayWidgetView(entry: $0) }
             .configurationDisplayName("Today")
             .description("Today’s progress, a checklist, or a grid of your habit history. Hold the widget and choose Edit Widget to switch.")
-            .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryCircular, .accessoryRectangular])
+            .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryInline, .accessoryCircular, .accessoryRectangular])
     }
 }

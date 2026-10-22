@@ -4,10 +4,17 @@ import SwiftData
 /// Home layout is a device preference, never a destructive edit to planner data.
 struct HomeLayoutEditor: View {
     @Environment(\.orbitAccent) private var accent
-    /// Defaults follow the website: your plan, tasks, habits, then finished items below them.
-    /// Consistency is off by default (History has it) but can be switched back on.
-    static let defaultSections = "progress,today,routine,completed,calendar,consistency"
-    static let defaultHidden = "consistency"
+    /// Habits lead the day; history follows the actionable lists.
+    static let defaultSections = "progress,routine,today,completed,consistency,calendar"
+    static let defaultHidden = ""
+
+    /// Upgrade only the previous default profile. Preserve customized orders, pins and visibility.
+    static func upgradedLayout(sections: String, hidden: String) -> (sections: String, hidden: String) {
+        guard sections == "progress,today,routine,completed,calendar,consistency", hidden == "consistency" else {
+            return (sections, hidden)
+        }
+        return (defaultSections, defaultHidden)
+    }
     @AppStorage("homeSections") private var stored = defaultSections
     @AppStorage("hiddenHomeSections") private var hidden = defaultHidden
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
@@ -15,7 +22,7 @@ struct HomeLayoutEditor: View {
     private var sections: [String] { stored.split(separator: ",").map(String.init) }
     static func title(_ id: String, lists: [TaskList]) -> String {
         switch id {
-        case "consistency": return "Consistency"
+        case "consistency": return "Recent progress"
         case "progress": return "Your plan"
         case "today": return "Tasks"
         case "routine": return "Habits"
@@ -59,7 +66,7 @@ struct ConsistencyStrip: View {
         let fractions = PlannerLogic.consistencySeries(habits: habits, logs: logs, ending: .now, days: range)
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Consistency").font(.subheadline.weight(.semibold))
+                Text("Recent progress").font(.subheadline.weight(.semibold))
                 Spacer()
                 Menu { Button("Past week") { range = 7 }; Button("Past month") { range = 30 } } label: {
                     Text(range == 7 ? "Week" : "Month").font(.caption)

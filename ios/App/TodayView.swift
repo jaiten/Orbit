@@ -15,7 +15,6 @@ struct TodayView: View {
     @Environment(\.orbitAccent) private var accent
     @Environment(\.modelContext) private var context
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var phase
     @Query(sort: \PlannerTask.sortOrder) private var tasks: [PlannerTask]
     @Query(sort: \Habit.createdAt) private var habits: [Habit]
@@ -26,12 +25,12 @@ struct TodayView: View {
     @State private var editing: PlannerTask?
     @State private var editingHabit: Habit?
     @State private var addingTask = false
+    @State private var addingHabit = false
     @State private var customizing = false
     @State private var reviewing = false
-    @State private var entered = false
+    @State private var showingCompleted = false
     @State private var error: String?
     @State private var day = Calendar.current.startOfDay(for: .now)
-    @ObservedObject private var homeDrag = HomeDrag.shared
     @ObservedObject private var calendars = CalendarBridge.shared
 
     /// Dated today or earlier and still open, or finished today. Undated and Someday items stay in Lists.
@@ -42,8 +41,6 @@ struct TodayView: View {
     /// Habits scheduled for the day; a weekly habit drops off once its week is done.
     private var dueHabits: [Habit] { habits.filter { PlannerLogic.isDue($0, logs: logs, at: day) } }
     private var checkedHabits: [Habit] { dueHabits.filter { PlannerLogic.checkedToday($0, logs: logs, at: day) } }
-    private var done: Int { relevant.filter { $0.completedAt != nil }.count + checkedHabits.count }
-    private var total: Int { relevant.count + dueHabits.count }
     private var sections: [String] {
         let hidden = Set(hiddenSections.split(separator: ",").map(String.init))
         return homeSections.split(separator: ",").map(String.init).filter { !hidden.contains($0) }
@@ -54,20 +51,19 @@ struct TodayView: View {
             page
                 .navigationTitle("Today").navigationBarTitleDisplayMode(.inline)
                 .toolbar(.hidden, for: .navigationBar)
-                .modifier(TodaySheets(addingTask: $addingTask, reviewing: $reviewing, customizing: $customizing, editing: $editing, editingHabit: $editingHabit))
+                .modifier(TodaySheets(addingTask: $addingTask, addingHabit: $addingHabit, reviewing: $reviewing, customizing: $customizing, editing: $editing, editingHabit: $editingHabit))
                 .modifier(MutationErrorModifier(error: $error))
         }
     }
 
     private var page: some View {
         ScrollView { content }
-            .scrollDisabled(homeDrag.item != nil)
-            .onPreferenceChange(HomeDropFrames.self) { homeDrag.frames = $0 }
-            .onPreferenceChange(HomeTileFrames.self) { homeDrag.tiles = $0 }
-            .onAppear { homeDrag.accept = { id, routine in _ = move([id], routine: routine) } }
-            .onDisappear { homeDrag.reset(); homeDrag.accept = nil }
             .background(DayTheme.canvas(scheme)).tint(accent.fill)
-            .onAppear { if !entered { entered = true } }
+            .onAppear {
+                let layout = HomeLayoutEditor.upgradedLayout(sections: homeSections, hidden: hiddenSections)
+                homeSections = layout.sections
+                hiddenSections = layout.hidden
+            }
             .task { refresh(); while !Task.isCancelled { try? await Task.sleep(for: .seconds(60)); if !Task.isCancelled { refresh() } } }
             .onChange(of: phase) { _, value in if value == .active { refresh() } }
             .onReceive(TimeChanges.publisher) { _ in refresh() }
@@ -75,44 +71,62 @@ struct TodayView: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceXxl)) {
-            header
+            VStack(spacing: CGFloat(DesignTokens.spaceM)) {
+                header
+                AddField { addingTask = true }
+            }
             FocusBanner()
             ConflictBanner()
-            if !sections.contains("progress") { AddField { addingTask = true } }
             ForEach(sections, id: \.self) { section in
-                homeSection(section).zIndex(homeDrag.source == section ? 100 : 0)
+                homeSection(section)
             }
         }
         .padding(.top, CGFloat(DesignTokens.spaceS))
         .padding(.horizontal, CGFloat(DesignTokens.screenPadding)).padding(.bottom, CGFloat(DesignTokens.spaceSection))
         .frame(maxWidth: 760).frame(maxWidth: .infinity)
-        // Hold a tile to move it between Tasks and Habits; one recognizer for the whole page.
-        .background(TileHoldInstaller())
-        .overlay(alignment: .bottom) {
-            if HomeDrag.tracing { Text(homeDrag.trace).font(.system(size: 1)).opacity(0.01).accessibilityIdentifier("drag-trace") }
-        }
     }
 
-    /// Eyebrow date, large title and subtitle, as on the website; the small tools sit top right.
+    /// Keep capture and daily actions within reach above the customizable sections.
     private var header: some View {
-        PageHeader(eyebrow: day.formatted(.dateTime.weekday(.wide).month(.wide).day()), title: "Today", subtitle: "Make room for what matters.") {
-            Button { customizing = true } label: { Image(systemName: "slider.horizontal.3").frame(width: 36, height: 36) }.accessibilityLabel("Edit Today")
-            Button { reviewing = true } label: { Image(systemName: "moon").frame(width: 36, height: 36) }.accessibilityLabel("Evening review")
+        PageHeader(eyebrow: day.formatted(.dateTime.weekday(.wide).month(.wide).day()), title: "Today") {
+            Button { customizing = true } label: { Image(systemName: "slider.horizontal.3").frame(width: 44, height: 44) }.accessibilityLabel("Edit Today")
+            Button { reviewing = true } label: { Image(systemName: "moon").frame(width: 44, height: 44) }.accessibilityLabel("Evening review")
             SyncIndicator()
         }
     }
 
-    /// Finished items settle below the open ones in the same list, so the tick plays in place first.
-    private var showDone: Bool { sections.contains("completed") }
+    private var completedItems: [TodayItem] {
+        (sections.contains("today") ? relevant.filter { $0.completedAt != nil }.map { TodayItem(task: $0) } : []) +
+        (sections.contains("routine") ? checkedHabits.map { TodayItem(habit: $0) } : [])
+    }
+
+    private var progressSummary: some View {
+        VStack(spacing: 12) {
+            progressLine("Habits", done: checkedHabits.count, total: dueHabits.count, empty: "None due today")
+            progressLine("Tasks", done: relevant.filter { $0.completedAt != nil }.count, total: relevant.count, empty: "Nothing planned")
+        }.padding(16).orbitSurface(radius: CGFloat(DesignTokens.radiusCard))
+    }
+
+    private func progressLine(_ title: String, done: Int, total: Int, empty: String) -> some View {
+        HStack(spacing: 12) {
+            Text(title).font(.subheadline.weight(.medium))
+            Spacer(minLength: 8)
+            Text(total == 0 ? empty : "\(done) of \(total)")
+                .font(.subheadline).monospacedDigit().foregroundStyle(.secondary)
+            if total > 0 {
+                ProgressView(value: Double(done), total: Double(total)).tint(accent.fill)
+                    .frame(width: 60)
+            }
+        }.accessibilityElement(children: .ignore)
+            .accessibilityLabel(total == 0 ? "\(title): \(empty)" : "\(title): \(done) of \(total) done today")
+    }
 
     @ViewBuilder private func homeSection(_ id: String) -> some View {
         switch id {
-        case "consistency": ConsistencyStrip(habits: habits, logs: logs).orbitCard()
+        case "consistency":
+            if !habits.isEmpty { ConsistencyStrip(habits: habits, logs: logs).orbitCard() }
         case "progress":
-            VStack(spacing: 12) {
-                PlanCard(done: done, total: total, accent: accent.fill)
-                AddField { addingTask = true }
-            }
+            progressSummary
         case "today":
             let today = PlannerLogic.dayKey(.now)
             let open = relevant.filter { $0.completedAt == nil }
@@ -121,16 +135,31 @@ struct TodayView: View {
                 if a.hasTime != b.hasTime { return a.hasTime }
                 return a.hasTime ? (a.dueDate ?? .distantFuture) < (b.dueDate ?? .distantFuture) : a.sortOrder < b.sortOrder
             }
-            let finished = showDone ? relevant.filter { $0.completedAt != nil } : []
             VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceXxl)) {
-                if !overdue.isEmpty { checklistSection("Overdue", items: overdue.map { TodayItem(task: $0) }, empty: "") }
-                checklistSection("Your day", note: "Today", items: (planned + finished).map { TodayItem(task: $0) }, empty: "Nothing planned for today.")
-            }.modifier(HomeDropArea(id: "today"))
+                checklistSection("Your day", items: planned.map { TodayItem(task: $0) }, empty: relevant.isEmpty ? "Nothing planned. Add a task to get started." : "No more tasks scheduled for today.")
+                if !overdue.isEmpty { checklistSection("Overdue", note: "\(overdue.count) to review", items: overdue.map { TodayItem(task: $0) }, empty: "") }
+            }
         case "routine":
             let open = dueHabits.filter { !PlannerLogic.checkedToday($0, logs: logs, at: day) }
-            checklistSection("Habits", note: "Repeats", items: (open + (showDone ? checkedHabits : [])).map { TodayItem(habit: $0) }, empty: "Hold and drag a task here to make it a habit.")
-                .modifier(HomeDropArea(id: "routine"))
-        case "completed": EmptyView()
+            if dueHabits.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    SectionLabel(title: "Habits")
+                    Text("Start with something small you want to do regularly.")
+                        .font(.subheadline).foregroundStyle(.secondary)
+                    Button("Add a habit", systemImage: "plus") { addingHabit = true }
+                        .font(.subheadline.weight(.medium)).frame(minHeight: 44)
+                }
+            } else {
+                checklistSection("Habits", note: "\(open.count) left", items: open.map { TodayItem(habit: $0) }, empty: "All habits checked for today.")
+            }
+        case "completed":
+            if !completedItems.isEmpty {
+                DisclosureGroup(isExpanded: $showingCompleted) {
+                    checklist(completedItems).padding(.top, 8)
+                } label: {
+                    Text("Completed (\(completedItems.count))").font(.subheadline.weight(.medium)).foregroundStyle(.secondary)
+                }.accessibilityIdentifier("today-completed")
+            }
         case "calendar": if calendars.connected { calendarSection }
         default:
             if let list = lists.first(where: { "list:" + $0.id.uuidString == id }) {
@@ -155,39 +184,20 @@ struct TodayView: View {
         }
     }
 
-    /// One row per item. Rows spring to new places when items finish or move, and slide in
-    /// one after another the first time Today appears.
+    /// Keep rows still during completion; only the check control animates.
     private func checklist(_ items: [TodayItem]) -> some View {
         VStack(spacing: CGFloat(DesignTokens.spaceS)) {
-            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                itemView(item)
-                    .transition(reduceMotion ? .opacity : .asymmetric(insertion: .opacity.combined(with: .offset(x: -CGFloat(DesignTokens.rowSlide))), removal: .opacity.combined(with: .offset(x: 24))))
-                    .opacity(entered ? 1 : 0).offset(x: entered || reduceMotion ? 0 : -CGFloat(DesignTokens.rowSlide))
-                    .animation(reduceMotion ? .easeOut(duration: 0.2) : .orbit.delay(Double(min(index, 10)) * DesignTokens.staggerSeconds), value: entered)
-            }
+            ForEach(items) { item in itemView(item) }
         }
-        .animation(reduceMotion ? nil : .orbit, value: items.map(\.state))
     }
 
     @ViewBuilder private func itemView(_ item: TodayItem) -> some View {
         if let task = item.task {
-            TaskRow(task: task, dragEnabled: true, showMoves: true) { editing = task }.modifier(HomeDragSource(id: "task:" + task.id.uuidString))
+            TaskRow(task: task, showMoves: true) { editing = task }
         }
         if let habit = item.habit {
-            HabitRow(habit: habit, logs: logs, date: day, edit: { editingHabit = habit }).modifier(HomeDragSource(id: "habit:" + habit.id.uuidString))
+            HabitRow(habit: habit, logs: logs, date: day, edit: { editingHabit = habit })
         }
-    }
-
-    private func move(_ values: [String], routine: Bool) -> Bool {
-        guard let value = values.first else { return false }
-        do {
-            if routine, let task = tasks.first(where: { "task:" + $0.id.uuidString == value }) {
-                try Conversions.toHabit(task, in: context)
-            } else if !routine, let habit = habits.first(where: { "habit:" + $0.id.uuidString == value }) {
-                try Conversions.toTask(habit, in: context)
-            } else { return false }
-            Task { try? await refreshReminders(context) }; return true
-        } catch { self.error = error.localizedDescription; return false }
     }
 
     private func refresh() { day = Calendar.current.startOfDay(for: .now); calendars.reload(); FocusSession.shared.restore() }
@@ -195,6 +205,7 @@ struct TodayView: View {
 
 private struct TodaySheets: ViewModifier {
     @Binding var addingTask: Bool
+    @Binding var addingHabit: Bool
     @Binding var reviewing: Bool
     @Binding var customizing: Bool
     @Binding var editing: PlannerTask?
@@ -202,6 +213,7 @@ private struct TodaySheets: ViewModifier {
     func body(content: Content) -> some View {
         content
             .sheet(isPresented: $addingTask) { QuickCapture() }
+            .sheet(isPresented: $addingHabit) { HabitEditor() }
             .sheet(isPresented: $reviewing) { EveningReview() }
             .sheet(isPresented: $customizing) { HomeLayoutEditor() }
             .sheet(item: $editing) { TaskEditor(task: $0) }

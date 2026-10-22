@@ -28,7 +28,7 @@ SwiftData app currently requires Xcode; WSL/xtool is not yet supported.
 | iOS | Checklist tiles, swipe actions, week/month calendar, notes, tags, subtasks, reminders, Shortcuts and Siri (Add to Orbit, Complete Item), share sheet extension |
 | Windows | Two-column Today, keyboard shortcuts (Ctrl+N, Ctrl+1–5, Ctrl+F, Ctrl+/), reminders as Windows notifications, tray icon and a global quick add shortcut |
 | Sync | Separate Supabase backend, email/password accounts, durable outbox, tombstones, revision checks, conflict review, reconnect catch-up |
-| Widgets | Today widget in Progress and Checklist styles, Lock Screen widgets, interactive completion, focus Live Activity |
+| Widgets | Today in Progress, Checklist and Grid styles on Home and Lock Screen; Habit consistency with week/month options on both; interactive completion, focus Live Activity |
 | Brand | Vector mark/wordmark, Windows/iOS icons, [brand guide](shared/brand/README.md), colours and spacing from [design tokens](shared/design-tokens.json) |
 
 Only habits repeat. Older repeating tasks were converted to habits (daily, weekdays,
@@ -60,11 +60,16 @@ TestFlight uploads follow successful iOS checks on main: [release guide](docs/te
 **Today** shows tasks dated today, anything overdue, and habits due today. Overdue
 tasks offer **Today**, **Later** (removes the date) and **Someday**. Undated tasks
 stay in their list until you add them to Today. Completed items move below the
-open ones. The tile's main area completes it; the pencil edits it.
+open ones in a collapsed Completed section. Task and habit titles open their details;
+use the separate check control to complete a task or log a habit. Touch and hold a
+row for actions, including Make It a Habit / Make It a Task. Arrange sections in
+Edit Today.
 
 Quick add reads plain phrases such as `gym tomorrow 6pm`, `read every day`,
-`#work` or `someday`; the chip shows what will be created before you save. The
-phrase table is shared by both apps ([test cases](shared/test-cases)).
+`#work` or `someday`; the chip shows what will be created before you save. On iPhone, Return saves the item and clears the field for another; Save saves and
+closes. Items already added stay saved when you tap Done.
+
+The phrase table is shared by both apps ([test cases](shared/test-cases)).
 
 All-day tasks keep their calendar day when you travel; timed tasks keep their
 moment. Habit reminders follow local time.

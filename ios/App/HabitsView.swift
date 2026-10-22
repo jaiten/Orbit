@@ -18,7 +18,7 @@ struct HabitsView: View {
                     if habits.isEmpty { ContentUnavailableView("No Habits", systemImage: "repeat", description: Text("Tap + to add one.")) }
                     VStack(spacing: CGFloat(DesignTokens.spaceS)) {
                         ForEach(habits) { habit in
-                            HabitRow(habit: habit, logs: logs, date: .now, edit: { editing = habit }, editable: true)
+                            HabitRow(habit: habit, logs: logs, date: .now, edit: { editing = habit })
                         }
                     }
                     if !habits.isEmpty {

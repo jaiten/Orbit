@@ -5,14 +5,11 @@ struct TodayItem: Identifiable {
     var task: PlannerTask? = nil
     var habit: Habit? = nil
     var id: String { task.map { "task-" + $0.id.uuidString } ?? "habit-" + habit!.id.uuidString }
-    /// Identity plus done state, so lists animate when an item finishes or moves.
-    var state: String { id + (task?.completedAt == nil ? "" : "-done") }
 }
 
 struct TileMove { let title: String; let action: () -> Void }
 
-/// A checklist row, as on the website: surface with a 1px line, 56pt tall. Tasks: the tick completes,
-/// the rest of the row opens it. Habits: a colour dot and the count; tapping the row logs one check-in.
+/// Tasks and habits share the same controls: the check logs progress; the title opens details.
 /// Overdue tasks show Today / Later / Someday. A left swipe reveals Delete.
 struct CheckTile: View {
     let title: String
@@ -24,15 +21,10 @@ struct CheckTile: View {
     var edit: () -> Void
     var remove: () -> Void
     var moves: [TileMove] = []
-    /// Habit rows: a dot instead of a tick, and the whole row logs.
-    var habit = false
     /// The detail is a habit count that has met its target (shown in the accent text colour).
     var met = false
-    /// A trailing pencil, for habits on the Habits tab where tapping the row logs.
-    var showEdit = false
     @Environment(\.orbitAccent) private var accent
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @ObservedObject private var homeDrag = HomeDrag.shared
     @State private var actionEdge = 0
     @State private var dragOffset: CGFloat = 0
     @State private var gestureMoved = false
@@ -52,7 +44,6 @@ struct CheckTile: View {
         .onChange(of: gestureActive) { _, active in
             if !active { dragOffset = 0; Task { try? await Task.sleep(for: .milliseconds(150)); gestureMoved = false } }
         }
-        .onChange(of: homeDrag.item) { _, value in if value != nil { actionEdge = 0; dragOffset = 0; gestureMoved = true } }
         .animation(reduceMotion ? nil : .orbit, value: actionEdge)
     }
 
@@ -64,23 +55,13 @@ struct CheckTile: View {
 
     private var row: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if habit {
-                HStack(spacing: 0) {
-                    Button(action: tapMain) { line(leading: AnyView(dot)) }
-                        .buttonStyle(OrbitPress()).accessibilityLabel(completionLabel).accessibilityValue(subtitle).accessibilityIdentifier("checklist-title")
-                    if showEdit {
-                        Button(action: tapEdit) {
-                            Image(systemName: "pencil").font(.system(size: 13, weight: .medium)).foregroundStyle(.secondary).frame(width: 44, height: 56).contentShape(Rectangle())
-                        }.buttonStyle(.plain).accessibilityLabel("Edit " + title)
-                    }
-                }
-            } else {
-                HStack(spacing: 0) {
-                    Button(action: tapMain) { OrbitTick(done: done, color: color).frame(width: 46, height: 56).contentShape(Rectangle()) }
-                        .buttonStyle(.plain).accessibilityLabel(completionLabel)
-                    Button(action: tapEdit) { line(leading: nil).padding(.leading, -2) }
-                        .buttonStyle(OrbitPress()).accessibilityLabel("Edit " + title).accessibilityValue(subtitle).accessibilityIdentifier("checklist-title")
-                }
+            HStack(spacing: 0) {
+                Button(action: tapMain) {
+                    OrbitTick(done: done, color: color).frame(width: 46, height: 56).contentShape(Rectangle())
+                }.buttonStyle(.plain).accessibilityLabel(completionLabel)
+                Button(action: tapEdit) { line.padding(.leading, -2) }
+                    .buttonStyle(OrbitPress()).accessibilityLabel("Edit " + title)
+                    .accessibilityValue(subtitle).accessibilityIdentifier("checklist-title")
             }
             if !moves.isEmpty {
                 HStack(spacing: 8) {
@@ -96,37 +77,32 @@ struct CheckTile: View {
         }
     }
 
-    private func line(leading: AnyView?) -> some View {
+    private var line: some View {
         HStack(spacing: 12) {
-            if let leading { leading }
-            Text(title).font(.body).foregroundStyle(done && !habit ? .secondary : .primary)
-                .strikethrough(done && !habit, color: .secondary).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+            Text(title).font(.body).foregroundStyle(done ? .secondary : .primary)
+                .strikethrough(done, color: .secondary).lineLimit(2).fixedSize(horizontal: false, vertical: true)
                 .animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: done)
             Spacer(minLength: 8)
             if !subtitle.isEmpty {
                 Text(subtitle).font(.footnote).monospacedDigit().foregroundStyle(met ? accent.text : .secondary).lineLimit(1)
             }
         }
-        .padding(.leading, habit ? 14 : 0).padding(.trailing, habit && showEdit ? 0 : 14)
+        .padding(.trailing, 14)
         .frame(minHeight: 56).contentShape(Rectangle())
     }
 
-    private var dot: some View { HabitDot(done: done, color: color) }
-
-    private func tapMain() { if !gestureMoved && homeDrag.item == nil { if actionEdge == 0 { toggle() } else { actionEdge = 0 } } }
-    private func tapEdit() { if !gestureMoved && homeDrag.item == nil { if actionEdge == 0 { edit() } else { actionEdge = 0 } } }
+    private func tapMain() { if !gestureMoved { if actionEdge == 0 { toggle() } else { actionEdge = 0 } } }
+    private func tapEdit() { if !gestureMoved { if actionEdge == 0 { edit() } else { actionEdge = 0 } } }
 
     private func swipeChanged(_ x: CGFloat) {
         gestureMoved = true
-        if homeDrag.item == nil { dragOffset = x }
+        dragOffset = x
     }
     private func swipeEnded(_ x: CGFloat) {
-        if homeDrag.item == nil {
-            withAnimation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85)) {
-                actionEdge = CGFloat(actionEdge == -1 ? -70 : 0) + x < -32 ? -1 : 0
-                dragOffset = 0
-            }
-        } else { dragOffset = 0 }
+        withAnimation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85)) {
+            actionEdge = CGFloat(actionEdge == -1 ? -70 : 0) + x < -32 ? -1 : 0
+            dragOffset = 0
+        }
         Task { try? await Task.sleep(for: .milliseconds(150)); gestureMoved = false }
     }
 
@@ -138,31 +114,15 @@ struct CheckTile: View {
             .updating($gestureActive) { _, active, _ in active = true }
             .onChanged { value in
                 gestureMoved = true
-                if homeDrag.item == nil && abs(value.translation.width) > abs(value.translation.height) * 1.4 { dragOffset = value.translation.width }
+                if abs(value.translation.width) > abs(value.translation.height) * 1.4 { dragOffset = value.translation.width }
             }
             .onEnded { value in
-                guard homeDrag.item == nil && abs(value.translation.width) > abs(value.translation.height) * 1.4 else { return }
+                guard abs(value.translation.width) > abs(value.translation.height) * 1.4 else { return }
                 withAnimation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85)) {
                     actionEdge = CGFloat(actionEdge == -1 ? -70 : 0) + value.translation.width < -32 ? -1 : 0
                     dragOffset = 0
                 }
             }
-    }
-}
-
-/// A habit's 10pt colour dot; it pops when the habit is checked.
-private struct HabitDot: View {
-    let done: Bool
-    let color: Color
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var pop: CGFloat = 1
-    var body: some View {
-        Circle().fill(color).frame(width: DesignTokens.rowDot, height: DesignTokens.rowDot).scaleEffect(pop)
-            .onChange(of: done) { _, now in
-                guard now, !reduceMotion else { return }
-                withAnimation(.easeOut(duration: 0.16)) { pop = 1.5 } completion: { withAnimation(.orbit) { pop = 1 } }
-            }
-            .accessibilityHidden(true)
     }
 }
 
@@ -181,7 +141,6 @@ struct TaskRow: View {
     @Environment(\.orbitAccent) private var accent
     @Environment(\.modelContext) private var context
     let task: PlannerTask
-    var dragEnabled = false
     /// Overdue tasks on Today offer Today / Later / Someday.
     var showMoves = false
     var edit: () -> Void
@@ -205,7 +164,7 @@ struct TaskRow: View {
         CheckTile(title: task.title, subtitle: subtitle, done: task.completedAt != nil, color: accent.fill,
                   completionLabel: (task.completedAt == nil ? "Complete " : "Reopen ") + task.title,
                   toggle: toggle, edit: edit, remove: { change { context.delete(task); try Mutations.save(context) } }, moves: moves)
-            .modifier(TaskActions(task: task, enabled: !dragEnabled)).modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
+            .modifier(TaskActions(task: task)).modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
     }
     private func toggle() {
         change {
@@ -224,16 +183,15 @@ struct HabitRow: View {
     let habit: Habit
     let logs: [HabitLog]
     let date: Date
-    var edit: (() -> Void)? = nil
-    /// Show a pencil (the Habits tab); on Today, habits are edited from there.
-    var editable = false
+    var edit: () -> Void
     @State private var error: String?
     @State private var feedback = 0
     private var checked: Bool { PlannerLogic.checkedToday(habit, logs: logs, at: date) }
     var body: some View {
         CheckTile(title: habit.title, subtitle: PlannerLogic.detail(habit, logs: logs, at: date), done: checked, color: DayTheme.color(habit.color),
                   completionLabel: (checked ? "Undo " : "Log ") + habit.title,
-                  toggle: toggle, edit: { edit?() }, remove: { change { try Conversions.remove(habit, in: context) } }, habit: true, met: checked, showEdit: editable)
+                  toggle: toggle, edit: edit, remove: { change { try Conversions.remove(habit, in: context) } }, met: checked)
+            .modifier(HabitActions(habit: habit))
             .modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
     }
     private func toggle() {

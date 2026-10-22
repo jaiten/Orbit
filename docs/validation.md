@@ -51,3 +51,50 @@ timeline scheduling. Resolve observed failures before calling the prototype veri
 - [ ] Enable Reduce Motion; date selection, rings and task symbols must not animate.
 - [ ] Check timed agenda rows stack their time labels at accessibility text sizes.
 - [ ] Verify all theme colors and selected dates retain readable contrast in dark mode.
+
+
+## iOS capture and Lock Screen polish
+
+- From Today, add two tasks with Return without reopening capture. Each Return saves,
+  clears the field, keeps the keyboard ready, and shows the last added title. Empty
+  Return does nothing. Done closes; Save adds the current draft and closes.
+- Repeat from a selected list and a future Calendar day; both items keep that context.
+  Check a repeating phrase still creates a habit. Confirm and cancel a time conflict;
+  confirming after Return must leave capture ready for another item. On a save error,
+  the draft must remain available to retry.
+- In the Lock Screen gallery, add Today in circular, rectangular and inline sizes.
+  Select Progress, Checklist and Grid in each. Progress counts tasks and habits;
+  Checklist shows actionable items (inline opens Orbit); Grid shows a compact week.
+- Add Habit consistency in all three Lock Screen sizes and switch Follow Today,
+  Past week and Past month. Check empty history, all completed, unavailable storage,
+  long titles, tinted rendering, and completion while locked (including any system
+  authentication prompt). Confirm existing Home Screen widgets still render normally.
+
+
+## iOS daily flow polish
+
+- Tap a task title and a habit title on Today, Lists, Calendar and Habits where
+  available: each must open details without recording progress. Check controls
+  must be at least 44 points and keep task completion and habit logging separate.
+- Complete a task and a habit. Expand Completed, reopen the task, and undo the
+  habit check. For multi-count habits, verify each check advances the count until
+  the target is met. Verify hiding Completed and customizing section order still work.
+- Long press tasks and habits on Today. Convert in both directions through their
+  menus, then undo. Scrolling or dragging a row must never convert it.
+- Verify today's scheduled tasks appear before overdue items; Today / Later /
+  Someday still move overdue tasks correctly. Check empty days and all-done days.
+- With long titles, accessibility text sizes and Reduce Motion, check row controls,
+  scrolling, the compact summary and Completed disclosure. Verify the Add field
+  remains near the top when progress is hidden or moved in Edit Today.
+
+
+## Habit-first homepage
+
+- With the default layout, verify Habits precedes Your day and the summary shows
+  separate habit/task counts. Add a habit directly from the empty homepage.
+- Complete a habit, add a task, and complete that task; each action must update only
+  its corresponding summary count. Recent progress represents habit history.
+- Upgrade the old default layout and verify habits/history become visible in their
+  new positions. Custom orders, pins and hidden sections must remain as configured.
+- Check no-habit, no-task and all-done states, large text, light/dark appearance,
+  and a busy day on the phone before accepting the new hierarchy.

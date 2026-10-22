@@ -17,15 +17,19 @@ struct FocusLiveActivity: Widget {
             }.padding().activityBackgroundTint(Color(.secondarySystemBackground))
                 .widgetURL(URL(string: "orbit://focus"))
         } dynamicIsland: { context in
-            DynamicIsland {
+            DynamicIsland(expanded: {
                 DynamicIslandExpandedRegion(.leading) { Image(systemName: "timer").foregroundStyle(.orange) }
                 DynamicIslandExpandedRegion(.trailing) {
                     Text(timerInterval: context.state.startedAt...context.state.endsAt, countsDown: true).monospacedDigit().frame(width: 70)
                 }
                 DynamicIslandExpandedRegion(.bottom) { Text(context.attributes.title).font(.headline).lineLimit(2) }
-            } compactLeading: { Image(systemName: "timer").foregroundStyle(.orange) }
-              compactTrailing: { Text(timerInterval: context.state.startedAt...context.state.endsAt, countsDown: true).monospacedDigit().frame(width: 45) }
-              minimal: { Image(systemName: "timer").foregroundStyle(.orange) }
+            }, compactLeading: {
+                Image(systemName: "timer").foregroundStyle(.orange)
+            }, compactTrailing: {
+                Text(timerInterval: context.state.startedAt...context.state.endsAt, countsDown: true).monospacedDigit().frame(width: 45)
+            }, minimal: {
+                Image(systemName: "timer").foregroundStyle(.orange)
+            })
                 .widgetURL(URL(string: "orbit://focus"))
         }
     }

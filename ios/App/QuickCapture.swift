@@ -18,6 +18,9 @@ struct QuickCapture: View {
     @State private var error: String?
     @State private var confirmConflict = false
     @State private var conflictTitles: [String] = []
+    @State private var keepAddingAfterConflict = false
+    @State private var addedCount = 0
+    @State private var lastAdded: String?
     @FocusState private var focused: Bool
 
     private var defaultDay: DefaultDay {
@@ -41,41 +44,51 @@ struct QuickCapture: View {
                 Eyebrow(text: "Quick add")
                 HStack(spacing: 10) {
                     Image(systemName: "plus").font(.body.weight(.medium)).foregroundStyle(.secondary)
-                    TextField("gym tomorrow 6pm", text: $text, axis: .vertical)
+                    TextField("What do you need to do?", text: $text)
                         .font(.title3).focused($focused).accessibilityIdentifier("task-title-input")
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
-                        .onSubmit { save() }
+                        .submitLabel(.next)
+                        .onSubmit { save(keepAdding: true) }
                 }
                 .padding(.horizontal, 14).frame(minHeight: 52)
                 .background(DayTheme.canvas(scheme), in: RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusInput), style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusInput), style: .continuous)
                     .strokeBorder(focused ? accent.text : Color.orbitLine, lineWidth: focused ? 2 : 1))
                 PreviewChip(text: preview, identifier: "quick-add-preview").frame(minHeight: 34, alignment: .leading)
-                Text("Try “read every day”, “#work” or “someday”.").font(.footnote).foregroundStyle(.secondary)
+                Text("Return adds this item and starts another. Save adds it and closes.")
+                    .font(.footnote).foregroundStyle(.secondary)
+                Text("Try “gym tomorrow 6pm”, “read every day” or “#work”.")
+                    .font(.footnote).foregroundStyle(.secondary)
+                if let lastAdded {
+                    Label("Added “\(lastAdded)”", systemImage: "checkmark.circle.fill")
+                        .font(.subheadline).foregroundStyle(accent.text).lineLimit(2)
+                        .accessibilityIdentifier("quick-add-receipt")
+                }
                 Spacer(minLength: 0)
             }
             .padding(CGFloat(DesignTokens.screenPadding))
             .background(Color.orbitSurface)
             .tint(accent.fill).navigationTitle("New Item").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                    ToolbarItem(placement: .cancellationAction) { Button(addedCount == 0 ? "Cancel" : "Done") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.disabled(result.title.isEmpty) }
                 }
                 .confirmationDialog("This time overlaps another plan", isPresented: $confirmConflict, titleVisibility: .visible) {
-                    Button("Save Anyway") { save(allowConflict: true) }; Button("Change Time", role: .cancel) {}
+                    Button("Save Anyway") { save(allowConflict: true, keepAdding: keepAddingAfterConflict) }; Button("Change Time", role: .cancel) {}
                 } message: { Text(conflictTitles.joined(separator: ", ")) }
+                .sensoryFeedback(.success, trigger: addedCount)
                 .onAppear { focused = true }.modifier(MutationErrorModifier(error: $error))
         }
         .presentationDetents([.medium, .large])
     }
 
-    private func save(allowConflict: Bool = false) {
+    private func save(allowConflict: Bool = false, keepAdding: Bool = false) {
         let result = self.result
         guard !result.title.isEmpty else { return }
         do {
             if !allowConflict, result.kind == .task, result.time != nil, let start = result.date.flatMap({ QuickAdd.start(of: $0, time: result.time) }) {
                 conflictTitles = CalendarBridge.shared.conflictTitles(start: start, duration: 30, excluding: nil, tasks: try context.fetch(FetchDescriptor<PlannerTask>()))
-                if !conflictTitles.isEmpty { confirmConflict = true; return }
+                if !conflictTitles.isEmpty { keepAddingAfterConflict = keepAdding; confirmConflict = true; return }
             }
             try QuickAddSaver.save(result, listID: listID, in: context)
             Task {
@@ -83,7 +96,14 @@ struct QuickCapture: View {
                 if result.time != nil { _ = await NotificationScheduler.shared.requestIfUndecided() }
                 try? await refreshReminders(context)
             }
-            dismiss()
+            addedCount += 1
+            if keepAdding {
+                lastAdded = result.title
+                text = ""
+                focused = true
+            } else {
+                dismiss()
+            }
         } catch { context.rollback(); self.error = error.localizedDescription }
     }
 }

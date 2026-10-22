@@ -4,12 +4,10 @@ import SwiftData
 struct TaskActions: ViewModifier {
     @Environment(\.modelContext) private var context
     let task: PlannerTask
-    var enabled = true
     @State private var error: String?
     @State private var calendarDraft: CalendarDraft?
     func body(content: Content) -> some View {
-        Group {
-            if enabled { content.contextMenu {
+        content.contextMenu {
                 Button("Start focus timer", systemImage: "timer") { Task { do { try await FocusSession.shared.start(task) } catch { self.error = error.localizedDescription } } }
                 Button("Send to calendar", systemImage: "calendar.badge.plus") { Task { do { calendarDraft = try await CalendarBridge.shared.draft(for: task) } catch { self.error = error.localizedDescription } } }
                 Button("Add to Today", systemImage: "sun.max") { change { TodayRules.moveToDay(task, day: .now); try Mutations.save(context) } }
@@ -18,8 +16,6 @@ struct TaskActions: ViewModifier {
                 }
                 Button("Make It a Habit", systemImage: "repeat") { change { try Conversions.toHabit(task, in: context) } }
                 Button("Delete", systemImage: "xmark", role: .destructive) { change { context.delete(task); try Mutations.save(context) } }
-            }
-            } else { content }
         }
             .sheet(item: $calendarDraft) { CalendarEventEditor(draft: $0) }
             .modifier(MutationErrorModifier(error: $error))
@@ -32,17 +28,16 @@ struct TaskActions: ViewModifier {
 }
 
 struct HabitActions: ViewModifier {
-    @Environment(\.orbitAccent) private var accent
     @Environment(\.modelContext) private var context
     let habit: Habit
     @State private var error: String?
     func body(content: Content) -> some View {
-        content.swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive) { change { try Conversions.remove(habit, in: context) } } label: { Label("Delete", systemImage: "xmark") }
-        }.swipeActions(edge: .leading, allowsFullSwipe: false) {
-            Button { change { try Conversions.toTask(habit, in: context) } } label: { Label("Make It a Task", systemImage: "checklist") }.tint(accent.fill)
+        content.contextMenu {
+            Button("Make It a Task", systemImage: "checklist") { change { try Conversions.toTask(habit, in: context) } }
+            Button("Delete habit", systemImage: "trash", role: .destructive) { change { try Conversions.remove(habit, in: context) } }
         }.modifier(MutationErrorModifier(error: $error))
     }
+
     private func change(_ action: () throws -> Void) {
         do { try action(); Task { do { try await refreshReminders(context) } catch { self.error = error.localizedDescription } } }
         catch { context.rollback(); self.error = error.localizedDescription }

@@ -19,7 +19,7 @@ struct ConsistencyEntry: TimelineEntry {
 struct ConsistencyProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> ConsistencyEntry { ConsistencyEntry(date: .now, day: .placeholder, range: .week) }
     func snapshot(for configuration: ConsistencyConfiguration, in context: Context) async -> ConsistencyEntry {
-        let day = await MainActor.run { DayProvider.read() }
+        let day = context.isPreview ? DayEntry.placeholder : await MainActor.run { DayProvider.read() }
         return ConsistencyEntry(date: day.date, day: day, range: configuration.range)
     }
     func timeline(for configuration: ConsistencyConfiguration, in context: Context) async -> Timeline<ConsistencyEntry> {
@@ -46,18 +46,33 @@ struct ConsistencyWidgetGrid: View {
 struct HabitConsistencyWidget: Widget {
     let kind = "OrbitConsistency"
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: kind, intent: ConsistencyConfiguration.self, provider: ConsistencyProvider()) { entry in
-            let count = entry.range == .month || (entry.range == .followApp && DayTheme.sharedDefaults?.integer(forKey: "consistencyRange") == 30) ? 30 : 7
-            VStack(alignment: .leading, spacing: 8) {
-                HStack { Text("Orbit").font(.headline); Spacer(); Image(systemName: "leaf").foregroundStyle(DayTheme.accent) }
-                if entry.day.unavailable { Text("Open Orbit to set up your planner.").font(.caption) }
-                else {
+        AppIntentConfiguration(kind: kind, intent: ConsistencyConfiguration.self, provider: ConsistencyProvider()) {
+            HabitConsistencyWidgetView(entry: $0)
+        }.configurationDisplayName("Habit consistency").description("Habit check-ins over the past week or month.")
+            .supportedFamilies([.systemSmall, .systemMedium, .accessoryInline, .accessoryCircular, .accessoryRectangular])
+    }
+}
+
+struct HabitConsistencyWidgetView: View {
+    @Environment(\.widgetFamily) private var family
+    let entry: ConsistencyEntry
+    private var count: Int {
+        entry.range == .month || (entry.range == .followApp && DayTheme.sharedDefaults?.integer(forKey: "consistencyRange") == 30) ? 30 : 7
+    }
+    var body: some View {
+        Group {
+            if entry.day.unavailable {
+                Text("Open Orbit to set up your planner.").font(.caption)
+            } else if [WidgetFamily.accessoryInline, .accessoryCircular, .accessoryRectangular].contains(family) {
+                LockScreenHistoryView(day: entry.day, days: count)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack { Text("Orbit").font(.headline); Spacer(); Image(systemName: "leaf").foregroundStyle(DayTheme.accent) }
                     Text(count == 7 ? "Past week" : "Past month").font(.caption).foregroundStyle(.secondary)
                     ConsistencyWidgetGrid(values: entry.day.consistency.isEmpty ? Array(repeating: 0, count: count) : Array(entry.day.consistency.suffix(count)))
                     Text("\(entry.day.completedHabits)/\(entry.day.totalHabits) checked today").lineLimit(1).minimumScaleFactor(0.8).font(.caption2).foregroundStyle(.secondary)
                 }
-            }.containerBackground(for: .widget) { Color(uiColor: .systemBackground) }.widgetURL(URL(string: "orbit://today"))
-        }.configurationDisplayName("Habit consistency").description("Habit check-ins over the past week or month.")
-            .supportedFamilies([.systemSmall, .systemMedium])
+            }
+        }.containerBackground(for: .widget) { Color(uiColor: .systemBackground) }.widgetURL(URL(string: "orbit://today"))
     }
 }

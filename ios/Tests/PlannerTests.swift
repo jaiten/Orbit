@@ -12,6 +12,26 @@ import SwiftData
     private func date(_ y: Int, _ m: Int, _ d: Int, _ h: Int = 12) -> Date {
         calendar.date(from: DateComponents(year: y, month: m, day: d, hour: h))!
     }
+    func testHomeLayoutUpgradePreservesCustomPreferences() {
+        let oldDefault = "progress,today,routine,completed,calendar,consistency"
+        let upgraded = HomeLayoutEditor.upgradedLayout(sections: oldDefault, hidden: "consistency")
+        XCTAssertEqual(upgraded.sections, HomeLayoutEditor.defaultSections)
+        XCTAssertEqual(upgraded.hidden, HomeLayoutEditor.defaultHidden)
+        let again = HomeLayoutEditor.upgradedLayout(sections: upgraded.sections, hidden: upgraded.hidden)
+        XCTAssertEqual(again.sections, upgraded.sections)
+        XCTAssertEqual(again.hidden, upgraded.hidden)
+        for (order, hidden) in [
+            ("routine,today,progress,completed,calendar,consistency", "consistency"),
+            (oldDefault + ",list:custom", "consistency"),
+            (oldDefault, "progress,consistency"),
+            (oldDefault, "")
+        ] {
+            let result = HomeLayoutEditor.upgradedLayout(sections: order, hidden: hidden)
+            XCTAssertEqual(result.sections, order)
+            XCTAssertEqual(result.hidden, hidden)
+        }
+    }
+
     func testLocalTimeSuggestionRequiresDistinctDays() {
         let name = "OrbitUsageTests." + UUID().uuidString
         let defaults = UserDefaults(suiteName: name)!
