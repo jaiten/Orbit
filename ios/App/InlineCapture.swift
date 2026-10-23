@@ -1,6 +1,12 @@
 import SwiftUI
 import SwiftData
 
+/// Lets global transient controls clear the dock, including Dynamic Type and parser previews.
+struct CaptureDockHeight: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
+
 /// Capture stays on Today; advanced options use the same parser and save path.
 struct InlineCapture: View {
     @Environment(\.modelContext) private var context

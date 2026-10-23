@@ -57,6 +57,14 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertEqual(app.buttons.matching(identifier: "Complete Call mum").count, 1)
         XCTAssertTrue(keyboard.waitForExistence(timeout: 5))
         app.buttons["Dismiss keyboard"].tap()
+        XCTAssertTrue(keyboard.waitForNonExistence(timeout: 5))
+        app.buttons["Edit Call mum"].press(forDuration: 1.2)
+        app.buttons["Delete"].tap()
+        let undo = app.buttons["Undo"]
+        XCTAssertTrue(undo.waitForExistence(timeout: 3))
+        XCTAssertLessThanOrEqual(undo.frame.maxY, input.frame.minY)
+        undo.tap()
+        XCTAssertTrue(app.buttons["Complete Call mum"].waitForExistence(timeout: 5))
     }
 
     func testInlineCaptureAddsMultipleItemsWithoutASheet() {

@@ -65,6 +65,9 @@ struct TodayView: View {
                     .padding(.horizontal, CGFloat(DesignTokens.screenPadding))
                     .padding(.vertical, 8)
                     .frame(maxWidth: 760).frame(maxWidth: .infinity)
+                    .background {
+                        GeometryReader { geometry in Color.clear.preference(key: CaptureDockHeight.self, value: geometry.size.height) }
+                    }
                     .background(.regularMaterial)
                     .overlay(alignment: .top) { Divider() }
                     .accessibilityIdentifier("today-capture-dock")
