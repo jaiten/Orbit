@@ -10,6 +10,7 @@ struct TaskEditor: View {
     var initialDate: Date?
     @State private var title = ""
     @State private var notes = ""
+    @State private var progressTracking = false
     @State private var listID: UUID?
     @State private var scheduled = false
     @State private var date = Date.now
@@ -49,6 +50,9 @@ struct TaskEditor: View {
                 }
                 }
                 }
+                Section {
+                    Toggle("Track start & finish", isOn: $progressTracking)
+                } footer: { Text("Start shows this task as in progress. Finish marks it complete.") }
                 Section("Duration") {
                     Stepper("\(duration) minutes", value: $duration, in: 5...1440, step: 5)
                 }
@@ -107,6 +111,7 @@ struct TaskEditor: View {
     }
     private func populate() {
         guard let task else { if let initialDate { scheduled = true; date = initialDate }; return }
+        progressTracking = task.progressTracking == true
         title = task.title; notes = task.notes; listID = task.listID; scheduled = task.dueDate != nil
         date = task.dueDate ?? .now; hasTime = task.hasTime; duration = task.durationMinutes
         priority = task.priority; tags = task.tags.joined(separator: ", ")
@@ -126,6 +131,9 @@ struct TaskEditor: View {
         item.priority = priority; item.recurrenceRule = ""
         item.tags = Array(Set(tags.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })).sorted()
         item.subtasks = subtasks.filter { !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        // Keep an unanswered suggestion available when the option was left off.
+        if progressTracking { item.progressTracking = true }
+        else if item.progressTracking == true { item.progressTracking = false; item.startedAt = nil }
         item.reminders = reminders; item.updatedAt = .now
         if listID == TodayRules.somedayID {
             // Someday items have no date and never remind.

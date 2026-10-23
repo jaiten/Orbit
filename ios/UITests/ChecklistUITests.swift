@@ -1,6 +1,21 @@
 import XCTest
 
 final class ChecklistUITests: XCTestCase {
+    func testSuggestedStartAndFinishForLaundry() {
+        continueAfterFailure = false
+        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
+        let input = app.textFields["inline-task-input"]
+        XCTAssertTrue(input.waitForExistence(timeout: 15))
+        input.tap(); input.typeText("Laundry\n")
+        let suggestion = app.buttons["Track start & finish"]
+        XCTAssertTrue(suggestion.waitForExistence(timeout: 5)); suggestion.tap()
+        let start = app.buttons["Start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 5)); start.tap()
+        XCTAssertEqual(app.buttons["Edit Laundry"].value as? String, "In progress")
+        app.buttons["Finish"].tap()
+        XCTAssertTrue(app.buttons["Completed (1)"].waitForExistence(timeout: 5))
+    }
+
     func testInlineCaptureAddsMultipleItemsWithoutASheet() {
         continueAfterFailure = false
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()

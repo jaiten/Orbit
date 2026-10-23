@@ -62,7 +62,46 @@
     if (item.day === today) return "Today";
     return item.day < today ? "Overdue" : "Upcoming";
   }
+  function suggestsProgress(title) {
+    const text =
+      " " +
+      title
+        .toLowerCase()
+        .split(/[^\p{L}\p{N}]+/u)
+        .filter(Boolean)
+        .join(" ") +
+      " ";
+    if (
+      ["buy", "shop", "fold", "put away", "unload", "empty", "clean", "repair"].some((verb) =>
+        text.startsWith(" " + verb + " "),
+      )
+    )
+      return false;
+    return [
+      "laundry",
+      "dishwasher",
+      "washing machine",
+      "wash clothes",
+      "dry clothes",
+      "bake",
+      "baking",
+      "roast",
+      "roasting",
+      "slow cook",
+      "meal prep",
+      "defrost",
+      "marinate",
+      "marinating",
+      "charge car",
+      "charge battery",
+    ].some((phrase) => text.includes(" " + phrase + " "));
+  }
+  function setProgress(task, enabled, start = false, now = Date.now()) {
+    return { ...task, progressTracking: enabled, startedAt: enabled && start ? now : null, updatedAt: now };
+  }
   const api = {
+    suggestsProgress,
+    setProgress,
     dateGroup,
     SOMEDAY_LIST_ID,
     onDay,

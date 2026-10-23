@@ -173,13 +173,29 @@ struct TaskRow: View {
     @State private var feedback = 0
     private var overdue: Bool { showMoves && TodayRules.isOverdue(TodayRules.item(task), today: PlannerLogic.dayKey(.now)) }
     private var moves: [TileMove] {
-        guard overdue else { return [] }
-        return [TileMove(title: "Today") { change { TodayRules.moveToDay(task, day: .now); try Mutations.save(context) } },
+        var result: [TileMove] = []
+        if task.completedAt == nil {
+            if task.progressTracking == true {
+                result.append(TileMove(title: task.startedAt == nil ? "Start" : "Finish") {
+                    if task.startedAt == nil { change { try Mutations.setProgress(task, enabled: true, start: true, in: context) } }
+                    else { toggle() }
+                })
+                if task.startedAt != nil {
+                    result.append(TileMove(title: "Reset") { change { try Mutations.setProgress(task, enabled: true, in: context) } })
+                }
+            } else if task.progressTracking == nil && TaskProgress.suggests(task.title) {
+                result.append(TileMove(title: "Track start & finish") { change { try Mutations.setProgress(task, enabled: true, in: context) } })
+                result.append(TileMove(title: "No thanks") { change { try Mutations.setProgress(task, enabled: false, in: context) } })
+            }
+        }
+        guard overdue else { return result }
+        return result + [TileMove(title: "Today") { change { TodayRules.moveToDay(task, day: .now); try Mutations.save(context) } },
                 TileMove(title: "Later") { change { TodayRules.moveLater(task); try Mutations.save(context) } },
                 TileMove(title: "Someday") { change { try TodayRules.moveToSomeday(task, in: context); try Mutations.save(context) } }]
     }
     private var subtitle: String {
         var parts: [String] = []
+        if task.completedAt == nil && task.progressTracking == true { parts.append(task.startedAt == nil ? "Ready to start" : "In progress") }
         if overdue, let day = task.day { parts.append(TodayRules.overdueLabel(day, today: PlannerLogic.dayKey(.now))) }
         if task.hasTime, let date = task.dueDate { parts.append(date.formatted(date: .omitted, time: .shortened)) }
         if !task.subtasks.isEmpty { parts.append("\(task.subtasks.filter(\.completed).count)/\(task.subtasks.count) steps") }

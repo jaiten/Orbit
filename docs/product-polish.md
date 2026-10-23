@@ -142,3 +142,9 @@ acceptance checks.
 - Dictation is an editable draft, never an automatic save. iOS uses Speech/AVAudioSession after permission; leaving capture, backgrounding, stopping, or submitting ends its session. Windows opens OS voice typing (Win+H) in the focused field. Windows speech setup/language support is managed by Windows.
 
 Remaining product gaps from this review: Windows has no equivalent to the iPhone's EventKit calendar connection and reviewed habit time-block planner; task icons are inferred rather than individually chosen; English keyword suggestions do not cover other languages; voice currently captures one item at a time rather than interpreting multi-step commands. These are separate follow-up features, not capabilities claimed by this pass.
+
+### Optional task progress
+
+Laundry, dishwasher cycles, baking, meal prep and similar tasks offer “Track start & finish” or “No thanks.” Suggestions use whole phrases and skip shopping, folding, unloading and other quick follow-ups. They never enable tracking automatically. Task options can enable or disable tracking for any task.
+
+Tracked tasks offer Start, then show In progress with Finish and Reset actions. Starting does not affect completed-task totals. Reopening a completed task resets its start state. The choice and start timestamp are saved in task records and included in sync, backup and undo snapshots. Older records default to the existing checkbox behavior with an optional suggestion where relevant. No automatic completion or new notifications are introduced.

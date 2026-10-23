@@ -15,6 +15,8 @@ import SwiftData
 
 @Model final class PlannerTask {
     var conversionData: String? = nil
+    var progressTracking: Bool? = nil
+    var startedAt: Date? = nil
     @Attribute(.unique) var id: UUID
     var title: String
     var notes: String

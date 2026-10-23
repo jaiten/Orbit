@@ -23,6 +23,7 @@ function openTask(id, date, draft = null) {
   f.elements.notes.value = source?.notes || "";
   f.elements.date.value = editing ? taskDate(editing) || "" : (date ?? (page === "today" ? selected : ""));
   f.elements.time.value = source?.hasTime && source.dueDate ? new Date(source.dueDate).toTimeString().slice(0, 5) : "";
+  f.elements.progressTracking.checked = source?.progressTracking === true;
   f.elements.duration.value = editing?.durationMinutes || 30;
   f.elements.priority.value = editing?.priority || 0;
   $("#editor-title").textContent = editing ? "Edit Task" : "New Task";
@@ -106,6 +107,12 @@ $("#task-form").onsubmit = (e) => {
       localDate: f.elements.date.value || null,
       hasTime: due !== null,
       dueDate: due,
+      progressTracking: f.elements.progressTracking.checked
+        ? true
+        : t.progressTracking === true
+          ? false
+          : t.progressTracking,
+      startedAt: f.elements.progressTracking.checked ? t.startedAt : null,
       durationMinutes: Number(f.elements.duration.value) || 30,
       priority: Number(f.elements.priority.value),
       updatedAt: Date.now(),
