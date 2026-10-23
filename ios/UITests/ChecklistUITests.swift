@@ -13,7 +13,7 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(start.waitForExistence(timeout: 5)); start.tap()
         XCTAssertEqual(app.buttons["Edit Laundry"].value as? String, "In progress")
         app.buttons["Finish"].tap()
-        XCTAssertTrue(app.buttons["Reopen Laundry"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Completed (1)"].waitForExistence(timeout: 5))
     }
 
     func testInlineCaptureAddsMultipleItemsWithoutASheet() {
