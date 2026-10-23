@@ -70,7 +70,6 @@ struct TodayView: View {
                     }
                     .background(.regularMaterial)
                     .overlay(alignment: .top) { Divider() }
-                    .accessibilityIdentifier("today-capture-dock")
             }
             .background(DayTheme.canvas(scheme)).tint(accent.fill)
             .onAppear {
