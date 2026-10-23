@@ -22,6 +22,12 @@ final class SharedCaseTests: XCTestCase {
         XCTAssertEqual(Set(ItemIcons.all.map(\.id)).count, ItemIcons.all.count)
     }
 
+    func testTaskProgressSuggestions() throws {
+        for row in try Self.cases("task-progress") {
+            XCTAssertEqual(TaskProgress.suggests(row["title"] as! String), row["expect"] as! Bool, row["title"] as! String)
+        }
+    }
+
     func testHabitColorCases() throws {
         for c in try Self.cases("habit-colors") {
             XCTAssertEqual(HabitRules.nextColor(c["existing"] as! [String]), c["expect"] as? String, c["name"] as? String ?? "")

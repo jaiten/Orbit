@@ -17,7 +17,15 @@ import WidgetKit
 
     /// Tasks are one-off; only habits repeat.
     static func toggle(_ task: PlannerTask, in context: ModelContext) throws {
+        if task.completedAt != nil { task.startedAt = nil }
         task.completedAt = task.completedAt == nil ? .now : nil
+        task.updatedAt = .now
+        try save(context)
+    }
+
+    static func setProgress(_ task: PlannerTask, enabled: Bool, start: Bool = false, in context: ModelContext) throws {
+        task.progressTracking = enabled
+        task.startedAt = enabled && start ? .now : nil
         task.updatedAt = .now
         try save(context)
     }

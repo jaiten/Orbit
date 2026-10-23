@@ -1,0 +1,76 @@
+{
+  "cases": [
+    {
+      "title": "Laundry",
+      "expect": true
+    },
+    {
+      "title": "Run the dishwasher",
+      "expect": true
+    },
+    {
+      "title": "Start washing machine",
+      "expect": true
+    },
+    {
+      "title": "Bake bread",
+      "expect": true
+    },
+    {
+      "title": "Meal prep",
+      "expect": true
+    },
+    {
+      "title": "Marinate chicken",
+      "expect": true
+    },
+    {
+      "title": "Defrost dinner",
+      "expect": true
+    },
+    {
+      "title": "Charge car",
+      "expect": true
+    },
+    {
+      "title": "Walk",
+      "expect": false
+    },
+    {
+      "title": "Gym",
+      "expect": false
+    },
+    {
+      "title": "Call mum",
+      "expect": false
+    },
+    {
+      "title": "Buy laundry detergent",
+      "expect": false
+    },
+    {
+      "title": "Fold laundry",
+      "expect": false
+    },
+    {
+      "title": "Unload dishwasher",
+      "expect": false
+    },
+    {
+      "title": "Empty dishwasher",
+      "expect": false
+    },
+    {
+      "title": "Clean washing machine",
+      "expect": false
+    },
+    {
+      "title": "Bakery",
+      "expect": false
+    },
+    {
+      "title": "Read a book",
+      "expect": false
+    }
+  ]
+}

@@ -268,7 +268,8 @@ function taskRow(t) {
     t.hasTime && t.dueDate ? new Date(t.dueDate).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
   const overdue = page === "today" && OrbitPlanner.isOverdue(planItem(t), today());
   const length = time && t.durationMinutes ? `${t.durationMinutes} min` : "";
-  const detail = [overdue ? OrbitPlanner.overdueLabel(taskDate(t), today()) : "", time, length]
+  const status = !t.completedAt && t.progressTracking ? (t.startedAt ? "In progress" : "Ready to start") : "";
+  const detail = [status, overdue ? OrbitPlanner.overdueLabel(taskDate(t), today()) : "", time, length]
     .filter(Boolean)
     .join(" · ");
   const onToday = OrbitPlanner.onDay(planItem(t), today());
@@ -283,6 +284,16 @@ function taskRow(t) {
         <button class="pill" data-today="${id}">Today</button><button class="pill" data-later="${id}">Later</button><button class="pill" data-someday="${id}">Someday</button>
       </div>`
     : "";
+  let progress = "";
+  if (!t.completedAt) {
+    if (t.progressTracking) {
+      progress =
+        `<button class="pill" data-progress="${id}" data-progress-action="${t.startedAt ? "finish" : "start"}">${t.startedAt ? "Finish" : "Start"}</button>` +
+        (t.startedAt ? `<button class="pill" data-progress="${id}" data-progress-action="reset">Reset</button>` : "");
+    } else if (t.progressTracking == null && OrbitPlanner.suggestsProgress(t.title)) {
+      progress = `<button class="pill" data-progress="${id}" data-progress-action="enable">Track start &amp; finish</button><button class="pill" data-progress="${id}" data-progress-action="dismiss">No thanks</button>`;
+    }
+  }
   const search = [t.title, t.notes, ...(t.tags || [])].join(" ").toLowerCase();
   return `<div class="row task-row check-tile ${t.completedAt ? "complete" : ""} ${overdue ? "overdue" : ""}" data-flip="task-${id}" data-search="${esc(search)}">
     <div class="row-line">
@@ -290,6 +301,7 @@ function taskRow(t) {
       ><button class="row-body" aria-label="Edit ${title}" data-edit="${id}">${itemIcon("automatic", t.title)}<span class="row-title">${title}</span>${detail ? `<span class="row-detail">${detail}</span>` : ""}</button
       >${addToToday}
     </div>
+    ${progress ? `<div class="row-pills" role="group" aria-label="Progress for ${title}">${progress}</div>` : ""}
     ${moves}
   </div>`;
 }
@@ -332,7 +344,12 @@ async function toggle(id) {
   const t = rows("tasks").find((t) => t.id === id);
   if (!t) return;
   poppedID = t.completedAt ? null : t.id;
-  await put("tasks", { ...t, completedAt: t.completedAt ? null : Date.now(), updatedAt: Date.now() });
+  await put("tasks", {
+    ...t,
+    startedAt: t.completedAt ? null : t.startedAt,
+    completedAt: t.completedAt ? null : Date.now(),
+    updatedAt: Date.now(),
+  });
 }
 async function log(id, undo) {
   const h = rows("habits").find((h) => h.id === id);
@@ -349,6 +366,17 @@ async function log(id, undo) {
 
 // Shared tile handlers, used by every page that shows tasks or habits.
 function bindTiles() {
+  document.querySelectorAll("[data-progress]").forEach(
+    (b) =>
+      (b.onclick = () =>
+        action(async () => {
+          const t = rows("tasks").find((item) => item.id === b.dataset.progress);
+          if (!t || t.completedAt) return;
+          const kind = b.dataset.progressAction;
+          if (kind === "finish") await toggle(t.id);
+          else await put("tasks", OrbitPlanner.setProgress(t, kind !== "dismiss", kind === "start"));
+        })),
+  );
   document.querySelectorAll("[data-edit]").forEach((b) => (b.onclick = () => openTask(b.dataset.edit)));
   document.querySelectorAll("[data-toggle]").forEach((b) => (b.onclick = () => action(() => toggle(b.dataset.toggle))));
   document
