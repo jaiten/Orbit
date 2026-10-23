@@ -300,6 +300,10 @@ final class ChecklistUITests: XCTestCase {
         screenshot.name = "Today at largest text size"; screenshot.lifetime = .keepAlways; add(screenshot)
         check.tap()
         XCTAssertTrue(app.buttons["Completed (1)"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["Habits"].tap()
+        let history = app.buttons["History"]; reveal(history, in: app); history.tap()
+        let historyImage = XCTAttachment(screenshot: app.screenshot())
+        historyImage.name = "Habit history at largest text size"; historyImage.lifetime = .keepAlways; add(historyImage)
         // Leave the user's default row density for following tests.
         app.tabBars.buttons["Settings"].tap(); reveal(compact, in: app)
         if compact.value as? String == "1" { compact.tap() }
@@ -325,6 +329,8 @@ final class ChecklistUITests: XCTestCase {
         // Every habit's history is on one screen; Check-ins opens the full list for one.
         XCTAssertTrue(app.staticTexts["A small routine"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["0 of the last 7 days"].exists)
+        let historyImage = XCTAttachment(screenshot: app.screenshot())
+        historyImage.name = "Rounded habit history"; historyImage.lifetime = .keepAlways; add(historyImage)
         app.buttons["Check-ins"].firstMatch.tap()
         XCTAssertTrue(app.navigationBars["A small routine"].waitForExistence(timeout: 5))
         app.tabBars.buttons["Settings"].tap(); reveal(app.buttons["Coral"], in: app); app.buttons["Coral"].tap()

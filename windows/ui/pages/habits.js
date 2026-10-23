@@ -15,10 +15,21 @@ function weekSegments(h, end = dayKey(new Date())) {
     const done = checked(h, key);
     const scheduled = OrbitHabits.scheduledOn(h, key);
     const name = localDay(key).toLocaleDateString([], { weekday: "narrow" });
-    const status = done ? "checked" : scheduled ? "not checked" : "not scheduled";
-    return `<span class="segment ${done ? "done" : ""} ${scheduled ? "" : "off"}" title="${key}: ${status}"><i></i>${name}</span>`;
+    const available = !h.createdAt || dayKey(new Date(h.createdAt)) <= key;
+    const status = done
+      ? "checked"
+      : !available
+        ? "before this habit was added"
+        : scheduled
+          ? "not checked"
+          : "not scheduled";
+    const label =
+      localDay(key).toLocaleDateString([], { weekday: "long", year: "numeric", month: "long", day: "numeric" }) +
+      ": " +
+      status;
+    return `<span class="segment ${done ? "done" : ""} ${scheduled && available ? "" : "off"}" role="img" aria-label="${esc(label)}" title="${esc(label)}"><i aria-hidden="true"></i><span aria-hidden="true">${name}</span></span>`;
   }).join("");
-  return `<div class="week-segments fill-${colorName(h.color)}" aria-label="Last 7 days">${cells}</div>`;
+  return `<div class="week-segments fill-${colorName(h.color)}" role="group" aria-label="Last 7 days">${cells}</div>`;
 }
 /** The last 7 days and the last 12 weeks for one habit, in its colour. */
 function habitHistoryCharts(h) {

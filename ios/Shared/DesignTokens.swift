@@ -20,9 +20,9 @@ enum DesignTokens {
     static let spaceXl: Double = 20
     static let spaceXxl: Double = 24
     static let spaceSection: Double = 32
-    static let radiusCard: Double = 18
-    static let radiusRow: Double = 12
-    static let radiusInput: Double = 12
+    static let radiusCard: Double = 28
+    static let radiusRow: Double = 24
+    static let radiusInput: Double = 26
     static let radiusChip: Double = 999
     static let motionSeconds: Double = 0.2
     static let typeTitle: Double = 36

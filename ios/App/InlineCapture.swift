@@ -36,7 +36,8 @@ struct InlineCapture: View {
                 DictationButton(text: $text)
                 Button { options = true } label: { Image(systemName: "slider.horizontal.3").font(.system(size: 20)).frame(width: 44, height: 44) }
                     .accessibilityLabel("Task options").accessibilityHint("Choose a date or list before adding")
-            }.padding(.trailing, 6).frame(minHeight: 52).orbitSurface()
+            }.padding(.trailing, 6).frame(minHeight: 52).orbitSurface(radius: CGFloat(DesignTokens.radiusInput))
+                .shadow(color: .black.opacity(0.04), radius: 12, y: 3)
         }.tint(accent.text)
             .task(id: receipt) {
                 guard receipt != nil else { return }

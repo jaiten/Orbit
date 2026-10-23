@@ -77,11 +77,11 @@ struct ConsistencyStrip: View {
                 ForEach(Array(days.enumerated()), id: \.offset) { index, day in
                     let ratio = fractions[index]
                     VStack(spacing: 4) {
-                        RoundedRectangle(cornerRadius: 5).fill(accent.fill.opacity(0.10))
-                            .overlay(alignment: .bottom) { GeometryReader { proxy in
-                                VStack { Spacer(minLength: 0); accent.fill.frame(height: proxy.size.height * ratio) }
-                            }.clipShape(RoundedRectangle(cornerRadius: 5)) }
-                            .frame(height: range == 7 ? 30 : 20)
+                        Circle().fill(accent.fill.opacity(0.08))
+                            .overlay {
+                                Circle().trim(from: 0, to: ratio).stroke(accent.fill, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                                    .rotationEffect(.degrees(-90))
+                            }.frame(width: range == 7 ? 30 : 20, height: range == 7 ? 30 : 20)
                         if range == 7 { Text(day.formatted(.dateTime.weekday(.narrow))).font(.caption2).foregroundStyle(.secondary) }
                     }.accessibilityElement(children: .ignore)
                         .accessibilityLabel("\(day.formatted(date: .abbreviated, time: .omitted)), \(Int(ratio * 100)) percent of habits")

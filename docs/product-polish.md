@@ -153,3 +153,12 @@ Tracked tasks use the existing row circle to Start, then show In progress with a
 ### Bottom capture on iPhone
 
 Today keeps task entry docked above the tab bar and above the keyboard during typing. The scroll view reserves space for it so the last item remains reachable. Return saves and keeps entry ready for another task. A down-chevron in the existing add-button position dismisses the keyboard and stops dictation without clearing the draft; scrolling can also dismiss the keyboard interactively. Switching tabs closes the keyboard and preserves the current draft. Save receipts appear briefly above the input, so the input stays in place. Date/list options and voice remain available in the bar. The global Undo banner clears the measured dock height so it cannot cover entry, including previews and larger text.
+
+
+### Rounded visual language
+
+Shared shape tokens now use continuous 24-point rows, 26-point inputs and 28-point cards. Surfaces use quieter outlines, with stronger outlines under Increase Contrast, and restrained elevation on larger cards. Page tools use native interactive Liquid Glass on iOS 26 with rounded solid surfaces on earlier versions. The bottom capture bar floats over a soft backdrop without a hard separator.
+
+Habit history keeps the existing week and long-term views, with circular daily check-ins and explicit spoken dates/statuses. Off-schedule days and days before creation stay neutral; existing recorded check-ins remain visible. Larger text stacks the history heading and reflows the week across two rows. Windows shares the shape tokens and adapts history charts to their card width, including zoom. No new board is added to Today or the Habits action list.
+
+The whiteboard's useful product lesson is visibility: a configurable Home Screen widget can serve as the everyday board, while saved check-ins and scheduled tasks maintain the history automatically. Keep Today focused on actions, make future-day scheduling easy to reach, and reserve detailed progress for History.

@@ -68,8 +68,10 @@ struct TodayView: View {
                     .background {
                         GeometryReader { geometry in Color.clear.preference(key: CaptureDockHeight.self, value: geometry.size.height) }
                     }
-                    .background(.regularMaterial)
-                    .overlay(alignment: .top) { Divider() }
+                    .background {
+                        LinearGradient(colors: [DayTheme.canvas(scheme).opacity(0), DayTheme.canvas(scheme), DayTheme.canvas(scheme)],
+                                       startPoint: .top, endPoint: .bottom).ignoresSafeArea(edges: .bottom)
+                    }
             }
             .background(DayTheme.canvas(scheme)).tint(accent.fill)
             .onAppear {
