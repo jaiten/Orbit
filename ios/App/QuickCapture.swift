@@ -136,6 +136,7 @@ struct CaptureTextField: UIViewRepresentable {
     @Binding var focused: Bool
     var identifier = "task-title-input"
     var placeholder = "What do you need to do?"
+    var minimumHeight: CGFloat = 0
     var onSubmit: () -> Void
 
     func makeUIView(context: Context) -> Input {
@@ -165,7 +166,7 @@ struct CaptureTextField: UIViewRepresentable {
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: Input, context: Context) -> CGSize? {
-        CGSize(width: proposal.width ?? 200, height: uiView.intrinsicContentSize.height)
+        CGSize(width: proposal.width ?? 200, height: max(minimumHeight, uiView.intrinsicContentSize.height))
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
