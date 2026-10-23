@@ -29,7 +29,7 @@ struct TodayView: View {
     @State private var editingHabit: Habit?
     @State private var addingHabit = false
     @State private var customizing = false
-    @State private var showingCompleted = false
+    @AppStorage("todayCompletedExpanded") private var showingCompleted = false
     @State private var error: String?
     @State private var day = Calendar.current.startOfDay(for: .now)
     @ObservedObject private var calendars = CalendarBridge.shared
@@ -151,7 +151,7 @@ struct TodayView: View {
                 return a.hasTime ? (a.dueDate ?? .distantFuture) < (b.dueDate ?? .distantFuture) : a.sortOrder < b.sortOrder
             }
             VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
-                checklistSection("Your day", note: "\(relevant.filter { $0.completedAt != nil }.count)/\(relevant.count) done", items: planned.map { TodayItem(task: $0) }, empty: relevant.isEmpty ? "Nothing planned. Add a task to get started." : "No more tasks scheduled for today.")
+                checklistSection("Today", note: "\(relevant.filter { $0.completedAt != nil }.count)/\(relevant.count) done", items: planned.map { TodayItem(task: $0) }, empty: relevant.isEmpty ? "Nothing planned. Add a task to get started." : "No more tasks scheduled for today.")
                 if !overdue.isEmpty { checklistSection("Overdue", note: "\(overdue.count) to review", items: overdue.map { TodayItem(task: $0) }, empty: "") }
             }
         case "routine":
@@ -174,6 +174,7 @@ struct TodayView: View {
                 } label: {
                     Text("Completed (\(completedItems.count))").font(.subheadline.weight(.medium)).foregroundStyle(.secondary)
                 }.accessibilityIdentifier("today-completed")
+                    .accessibilityValue(showingCompleted ? "Expanded" : "Collapsed")
             }
         case "calendar": if calendars.connected { calendarSection }
         default:

@@ -41,7 +41,7 @@ function renderToday(tasks, allHabits) {
       ${habits.length ? sectionLabel("Habits", `${habitsDone} of ${habits.length}`) + checklist(habits, habitCard) : ""}
       ${overdue.length ? sectionLabel("Overdue") + checklist(overdue) : ""}
       ${timed.length ? sectionLabel("Scheduled", "Time blocks") + checklist(timed) : ""}
-      ${untimed.length ? sectionLabel("Your day", "Tasks") + checklist(untimed) : ""}
+      ${untimed.length ? sectionLabel(isToday ? "Today" : heading, "Tasks") + checklist(untimed) : ""}
       ${open.length ? "" : '<p class="empty">Nothing planned for today.</p>'}
       ${
         complete.length
@@ -72,6 +72,7 @@ function bindToday() {
   if ($(".completed-items"))
     $(".completed-items").ontoggle = (e) => {
       completedOpen = e.target.open;
+      localStorage.setItem("todayCompletedExpanded", String(completedOpen));
     };
   if ($("#selected-day"))
     $("#selected-day").onchange = (e) => {

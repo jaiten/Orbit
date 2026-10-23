@@ -33,7 +33,7 @@ struct CalendarView: View {
                 let visibleEvents = calendars.events(from: days[0], to: calendar.date(byAdding: .day, value: 1, to: days.last!)!)
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
                     PageHeader(eyebrow: "Plan ahead", title: "Calendar") {
-                        Button("Today") { selected = .now }.frame(minHeight: 44)
+                        Button { selected = .now } label: { Text("Today").padding(.horizontal, 14).frame(minHeight: 44) }
                         Button { adding = true } label: { Image(systemName: "plus").font(.system(size: 20)).frame(width: 44, height: 44) }.accessibilityLabel("New task")
                     }
                     Picker("Calendar view", selection: $mode) { Text("Week").tag("Week"); Text("Month").tag("Month") }.pickerStyle(.segmented)

@@ -143,7 +143,7 @@ final class ChecklistUITests: XCTestCase {
         toggle.tap()
         let completed = app.buttons["Completed (1)"]
         XCTAssertTrue(completed.waitForExistence(timeout: 5))
-        reveal(completed, in: app); completed.tap()
+        reveal(completed, in: app); if completed.value as? String != "Expanded" { completed.tap() }
         let reopen = app.buttons["Reopen Clean the car"]
         XCTAssertTrue(reopen.waitForExistence(timeout: 5))
         reveal(reopen, in: app); reopen.tap()
@@ -175,7 +175,7 @@ final class ChecklistUITests: XCTestCase {
         log.tap()
         let completed = app.buttons["Completed (1)"]
         XCTAssertTrue(completed.waitForExistence(timeout: 5))
-        reveal(completed, in: app); completed.tap()
+        reveal(completed, in: app); if completed.value as? String != "Expanded" { completed.tap() }
         let undo = app.buttons["Undo Stretch"]
         XCTAssertTrue(undo.waitForExistence(timeout: 5)); reveal(undo, in: app); undo.tap()
         XCTAssertTrue(log.waitForExistence(timeout: 5))
@@ -235,6 +235,12 @@ final class ChecklistUITests: XCTestCase {
         continueAfterFailure = false
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
         XCTAssertTrue(app.tabBars.buttons["Lists"].waitForExistence(timeout: 15)); app.tabBars.buttons["Lists"].tap()
+        XCTAssertGreaterThan(app.staticTexts["Organize"].frame.minX, 0)
+        let editLists = app.buttons["Edit Lists"]
+        XCTAssertGreaterThanOrEqual(editLists.frame.height, 44)
+        XCTAssertGreaterThan(editLists.frame.width, 80)
+        let listsImage = XCTAttachment(screenshot: app.screenshot())
+        listsImage.name = "Lists page layout"; listsImage.lifetime = .keepAlways; add(listsImage)
         app.buttons["New list"].tap()
         let alert = app.alerts["New list"]
         XCTAssertTrue(alert.waitForExistence(timeout: 5))
@@ -247,7 +253,11 @@ final class ChecklistUITests: XCTestCase {
         let task = app.buttons["Complete Choose a trail"]
         XCTAssertTrue(task.waitForExistence(timeout: 5))
         let group = app.buttons["No date (1)"]
-        XCTAssertTrue(group.waitForExistence(timeout: 5)); group.tap()
+        XCTAssertTrue(group.waitForExistence(timeout: 5))
+        XCTAssertLessThanOrEqual(group.frame.maxY, task.frame.minY + 2)
+        let groupsImage = XCTAttachment(screenshot: app.screenshot())
+        groupsImage.name = "Compact list category header"; groupsImage.lifetime = .keepAlways; add(groupsImage)
+        group.tap()
         XCTAssertFalse(task.isHittable)
         group.tap(); XCTAssertTrue(task.waitForExistence(timeout: 5))
         app.buttons["Edit Lists"].tap()
@@ -284,6 +294,14 @@ final class ChecklistUITests: XCTestCase {
         app.launchArguments = ["--ui-testing", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
         app.launch()
         XCTAssertTrue(app.tabBars.buttons["Settings"].waitForExistence(timeout: 15)); app.tabBars.buttons["Settings"].tap()
+        XCTAssertGreaterThan(app.staticTexts["Preferences"].frame.minX, 0)
+        let settingsImage = XCTAttachment(screenshot: app.screenshot())
+        settingsImage.name = "Settings at largest text size"; settingsImage.lifetime = .keepAlways; add(settingsImage)
+        app.tabBars.buttons["Lists"].tap()
+        XCTAssertTrue(app.buttons["Edit Lists"].isHittable)
+        let listsImage = XCTAttachment(screenshot: app.screenshot())
+        listsImage.name = "Lists at largest text size"; listsImage.lifetime = .keepAlways; add(listsImage)
+        app.tabBars.buttons["Settings"].tap()
         let compact = app.switches["Compact habits and tasks"]
         reveal(compact, in: app); XCTAssertTrue(compact.exists)
         if compact.value as? String == "0" { compact.tap() }
@@ -307,6 +325,31 @@ final class ChecklistUITests: XCTestCase {
         // Leave the user's default row density for following tests.
         app.tabBars.buttons["Settings"].tap(); reveal(compact, in: app)
         if compact.value as? String == "1" { compact.tap() }
+    }
+
+    func testTodayRemembersCompletedAcrossRelaunches() {
+        continueAfterFailure = false
+        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]
+        func addCompletedTask() {
+            let input = app.textFields["inline-task-input"]
+            XCTAssertTrue(input.waitForExistence(timeout: 15))
+            input.tap(); input.typeText("Remember this task\n")
+            app.buttons["Dismiss keyboard"].tap()
+            let complete = app.buttons["Complete Remember this task"]
+            XCTAssertTrue(complete.waitForExistence(timeout: 5)); complete.tap()
+        }
+        app.launch(); addCompletedTask()
+        let disclosure = app.buttons["Completed (1)"]
+        XCTAssertTrue(disclosure.waitForExistence(timeout: 5)); reveal(disclosure, in: app)
+        if disclosure.value as? String != "Expanded" { disclosure.tap() }
+        XCTAssertTrue(app.buttons["Reopen Remember this task"].waitForExistence(timeout: 5))
+        app.terminate(); app.launch(); addCompletedTask()
+        XCTAssertTrue(app.buttons["Reopen Remember this task"].waitForExistence(timeout: 5))
+        reveal(disclosure, in: app); disclosure.tap()
+        app.terminate(); app.launch(); addCompletedTask()
+        XCTAssertTrue(disclosure.waitForExistence(timeout: 5))
+        XCTAssertEqual(disclosure.value as? String, "Collapsed")
+        XCTAssertFalse(app.buttons["Reopen Remember this task"].exists)
     }
 
     private func reveal(_ element: XCUIElement, in app: XCUIApplication) {

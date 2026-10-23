@@ -5,29 +5,39 @@ import SwiftData
 struct SettingsView: View {
     @Environment(\.orbitAccent) private var accent
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.dynamicTypeSize) private var typeSize
     @ObservedObject private var sync = SyncService.shared
     @State private var message: String?
     var body: some View {
         NavigationStack {
-            Form {
-                Section { PageHeader(eyebrow: "Preferences", title: "Settings") { SyncIndicator() } }
-                    .listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 0, trailing: 0))
-                Section {
-                    NavigationLink { AccountView() } label: {
-                        LabeledContent("Account", value: sync.email ?? "Not signed in")
+            VStack(spacing: CGFloat(DesignTokens.spaceL)) {
+                PageHeader(eyebrow: "Preferences", title: "Settings") { SyncIndicator() }
+                    .padding(.horizontal, 20).padding(.top, 8)
+                Form {
+                    Section {
+                        NavigationLink { AccountView() } label: {
+                            if typeSize.isAccessibilitySize {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Account")
+                                    Text(sync.email ?? "Not signed in").foregroundStyle(.secondary)
+                                }.fixedSize(horizontal: false, vertical: true)
+                            } else {
+                                LabeledContent("Account", value: sync.email ?? "Not signed in")
+                            }
+                        }
                     }
-                }
-                AppearanceSection()
-                RemindersSection(message: $message)
-                CalendarsSection(message: $message)
-                WidgetsSection()
-                DataSection(message: $message)
-                Section("About") {
-                    Text("Works offline. Sync runs while Orbit is open; widget changes sync the next time you open it.")
-                        .font(.footnote).foregroundStyle(.secondary)
-                }
-            }.contentMargins(.top, 0, for: .scrollContent).listSectionSpacing(CGFloat(DesignTokens.spaceL))
+                    AppearanceSection()
+                    RemindersSection(message: $message)
+                    CalendarsSection(message: $message)
+                    WidgetsSection()
+                    DataSection(message: $message)
+                    Section("About") {
+                        Text("Works offline. Sync runs while Orbit is open; widget changes sync the next time you open it.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                }.contentMargins(.top, 0, for: .scrollContent).listSectionSpacing(CGFloat(DesignTokens.spaceL))
                 .scrollContentBackground(.hidden).background(DayTheme.canvas(scheme))
+            }.frame(maxWidth: 760).frame(maxWidth: .infinity).background(DayTheme.canvas(scheme))
                 .tint(accent.fill).navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
                 .toolbar(.hidden, for: .navigationBar)
                 .alert("Orbit", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
@@ -38,13 +48,14 @@ struct SettingsView: View {
 }
 
 private struct AppearanceSection: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     @AppStorage("appearance") private var appearance = "system"
     @AppStorage("accentTheme") private var accentTheme = "coral"
     @AppStorage("compactRows") private var compactRows = false
     var body: some View {
         Section("Appearance") {
             AccentPicker(title: "Appearance", selection: $appearance, choices: [("system", "System"), ("light", "Light"), ("dark", "Dark")])
-            HStack {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: typeSize.isAccessibilitySize ? 2 : 4), spacing: 12) {
                 ForEach(DayTheme.accents, id: \.self) { name in
                     Button { accentTheme = name } label: {
                         VStack(spacing: 8) {
