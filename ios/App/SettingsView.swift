@@ -5,6 +5,7 @@ import SwiftData
 struct SettingsView: View {
     @Environment(\.orbitAccent) private var accent
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.dynamicTypeSize) private var typeSize
     @ObservedObject private var sync = SyncService.shared
     @State private var message: String?
     var body: some View {
@@ -15,7 +16,14 @@ struct SettingsView: View {
                 Form {
                     Section {
                         NavigationLink { AccountView() } label: {
-                            LabeledContent("Account", value: sync.email ?? "Not signed in")
+                            if typeSize.isAccessibilitySize {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Account")
+                                    Text(sync.email ?? "Not signed in").foregroundStyle(.secondary)
+                                }.fixedSize(horizontal: false, vertical: true)
+                            } else {
+                                LabeledContent("Account", value: sync.email ?? "Not signed in")
+                            }
                         }
                     }
                     AppearanceSection()
