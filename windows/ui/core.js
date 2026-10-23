@@ -284,24 +284,27 @@ function taskRow(t) {
         <button class="pill" data-today="${id}">Today</button><button class="pill" data-later="${id}">Later</button><button class="pill" data-someday="${id}">Someday</button>
       </div>`
     : "";
-  let progress = "";
-  if (!t.completedAt) {
-    if (t.progressTracking) {
-      progress =
-        `<button class="pill" data-progress="${id}" data-progress-action="${t.startedAt ? "finish" : "start"}">${t.startedAt ? "Finish" : "Start"}</button>` +
-        (t.startedAt ? `<button class="pill" data-progress="${id}" data-progress-action="reset">Reset</button>` : "");
-    } else if (t.progressTracking == null && OrbitPlanner.suggestsProgress(t.title)) {
-      progress = `<button class="pill" data-progress="${id}" data-progress-action="enable">Track start &amp; finish</button><button class="pill" data-progress="${id}" data-progress-action="dismiss">No thanks</button>`;
-    }
-  }
+  const tracking = !t.completedAt && t.progressTracking === true;
+  const started = tracking && !!t.startedAt;
+  const controlLabel = t.completedAt ? "Reopen" : tracking ? (started ? "Finish" : "Start") : "Complete";
+  const control = tracking
+    ? `<span class="progress-tick ${started ? "started" : ""} ${started && poppedID === t.id ? "pop" : ""}" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle class="progress-arc" cx="12" cy="12" r="10"/>${started ? '<path d="M7 12l3 3 7-7"/>' : '<path class="play" d="M10 7l7 5-7 5z"/>'}</svg></span>`
+    : tick(!!t.completedAt, poppedID === t.id);
+  const options =
+    !t.completedAt && (tracking || (t.progressTracking == null && OrbitPlanner.suggestsProgress(t.title)))
+      ? `<details class="progress-options"><summary aria-label="Progress options for ${title}" title="Progress options">${tracking ? "⋯" : "✦"}</summary><div>${
+          tracking
+            ? `${started ? `<button data-progress="${id}" data-progress-action="reset">Reset progress</button>` : ""}<button data-progress="${id}" data-progress-action="dismiss">Turn off start &amp; finish</button>`
+            : `<button data-progress="${id}" data-progress-action="enable">Track start &amp; finish</button><button data-progress="${id}" data-progress-action="dismiss">No thanks</button>`
+        }</div></details>`
+      : "";
   const search = [t.title, t.notes, ...(t.tags || [])].join(" ").toLowerCase();
-  return `<div class="row task-row check-tile ${t.completedAt ? "complete" : ""} ${overdue ? "overdue" : ""}" data-flip="task-${id}" data-search="${esc(search)}">
+  return `<div class="row task-row check-tile ${t.completedAt ? "complete" : ""} ${overdue ? "overdue" : ""} ${started ? "in-progress" : ""}" data-flip="task-${id}" data-search="${esc(search)}">
     <div class="row-line">
-      <button class="row-tick" role="checkbox" aria-label="${t.completedAt ? "Reopen" : "Complete"} ${title}" aria-checked="${!!t.completedAt}" data-toggle="${id}">${tick(!!t.completedAt, poppedID === t.id)}</button
+      <button class="row-tick" role="checkbox" aria-label="${controlLabel} ${title}" aria-checked="${!!t.completedAt}" data-toggle="${id}">${control}</button
       ><button class="row-body" aria-label="Edit ${title}" data-edit="${id}">${itemIcon("automatic", t.title)}<span class="row-title">${title}</span>${detail ? `<span class="row-detail">${detail}</span>` : ""}</button
-      >${addToToday}
+      >${addToToday}${options}
     </div>
-    ${progress ? `<div class="row-pills" role="group" aria-label="Progress for ${title}">${progress}</div>` : ""}
     ${moves}
   </div>`;
 }
@@ -343,6 +346,11 @@ function newTask(title, date) {
 async function toggle(id) {
   const t = rows("tasks").find((t) => t.id === id);
   if (!t) return;
+  if (!t.completedAt && t.progressTracking === true && !t.startedAt) {
+    poppedID = t.id;
+    await put("tasks", OrbitPlanner.setProgress(t, true, true));
+    return;
+  }
   poppedID = t.completedAt ? null : t.id;
   await put("tasks", {
     ...t,
@@ -366,6 +374,18 @@ async function log(id, undo) {
 
 // Shared tile handlers, used by every page that shows tasks or habits.
 function bindTiles() {
+  document.querySelectorAll(".progress-options").forEach((menu) => {
+    menu.onkeydown = (event) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        menu.open = false;
+        menu.querySelector("summary").focus();
+      }
+    };
+    menu.onfocusout = (event) => {
+      if (!menu.contains(event.relatedTarget)) menu.open = false;
+    };
+  });
   document.querySelectorAll("[data-progress]").forEach(
     (b) =>
       (b.onclick = () =>
