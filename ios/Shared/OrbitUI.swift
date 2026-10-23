@@ -42,13 +42,10 @@ struct PageHeader<Trailing: View>: View {
     }
     var body: some View {
         Group {
-            if typeSize.isAccessibilitySize {
+            if typeSize >= .xxLarge {
                 VStack(alignment: .leading, spacing: 8) { heading; tools }
             } else {
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .top) { heading; Spacer(minLength: 8); tools }
-                    VStack(alignment: .leading, spacing: 8) { heading; tools }
-                }
+                HStack(alignment: .top) { heading; Spacer(minLength: 8); tools }
             }
         }.frame(maxWidth: .infinity, alignment: .leading)
     }

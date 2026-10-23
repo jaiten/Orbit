@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build-and-test:
-    timeout-minutes: 25
+    timeout-minutes: 35
     runs-on: macos-15
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer

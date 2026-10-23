@@ -158,11 +158,7 @@ struct CaptureTextField: UIViewRepresentable {
         context.coordinator.parent = self
         if field.text != text { field.text = text }
         field.wantsFocus = focused
-        if focused {
-            if field.window != nil && !field.isFirstResponder { field.becomeFirstResponder() }
-        } else if field.isFirstResponder {
-            field.resignFirstResponder()
-        }
+        field.scheduleFocusUpdate()
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: Input, context: Context) -> CGSize? {
@@ -173,9 +169,25 @@ struct CaptureTextField: UIViewRepresentable {
 
     final class Input: UITextField {
         var wantsFocus = false
+        private var focusUpdateScheduled = false
+
+        // UIKit can synchronously trigger keyboard layout and delegate callbacks here.
+        // Wait until SwiftUI has finished updating, and use the latest requested focus.
+        func scheduleFocusUpdate() {
+            guard !focusUpdateScheduled else { return }
+            focusUpdateScheduled = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.focusUpdateScheduled = false
+                guard self.window != nil else { return }
+                if self.wantsFocus && !self.isFirstResponder { self.becomeFirstResponder() }
+                else if !self.wantsFocus && self.isFirstResponder { self.resignFirstResponder() }
+            }
+        }
+
         override func didMoveToWindow() {
             super.didMoveToWindow()
-            if window != nil && wantsFocus && !isFirstResponder { becomeFirstResponder() }
+            scheduleFocusUpdate()
         }
     }
 
