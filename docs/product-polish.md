@@ -148,3 +148,8 @@ Remaining product gaps from this review: Windows has no equivalent to the iPhone
 Laundry, dishwasher cycles, baking, meal prep and similar tasks offer “Track start & finish” or “No thanks.” Suggestions use whole phrases and skip shopping, folding, unloading and other quick follow-ups. They never enable tracking automatically. Task options can enable or disable tracking for any task.
 
 Tracked tasks use the existing row circle to Start, then show In progress with a partial ring, accent tint and an action to Finish in the same space. Starting gives a haptic response on iPhone. Suggestions, Reset progress and turning tracking off live in the row’s compact progress menu. Starting does not affect completed-task totals. Reopening a completed task resets its start state. The choice and start timestamp are saved in task records and included in sync, backup and undo snapshots. Older records default to the existing checkbox behavior with an optional suggestion where relevant. No automatic completion or new notifications are introduced.
+
+
+### Bottom capture on iPhone
+
+Today keeps task entry docked above the tab bar and above the keyboard during typing. The scroll view reserves space for it so the last item remains reachable. Return saves and keeps entry ready for another task. A down-chevron in the existing add-button position dismisses the keyboard and stops dictation without clearing the draft; scrolling can also dismiss the keyboard interactively. Switching tabs closes the keyboard and preserves the current draft. Save receipts appear briefly above the input, so the input stays in place. Date/list options and voice remain available in the bar.

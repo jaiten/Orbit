@@ -27,6 +27,38 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Completed (1)"].waitForExistence(timeout: 5))
     }
 
+    func testBottomCaptureStaysReachableAndKeepsDraftWhenKeyboardCloses() {
+        continueAfterFailure = false
+        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
+        let input = app.textFields["inline-task-input"]
+        XCTAssertTrue(input.waitForExistence(timeout: 15))
+        XCTAssertGreaterThanOrEqual(input.frame.height, 44)
+        XCTAssertGreaterThan(input.frame.minY, app.frame.height * 0.6)
+        XCTAssertLessThanOrEqual(input.frame.maxY, app.tabBars.firstMatch.frame.minY)
+        XCTAssertLessThan(app.tabBars.firstMatch.frame.minY - input.frame.maxY, 80)
+        let idle = XCTAttachment(screenshot: app.screenshot())
+        idle.name = "Today bottom capture"; idle.lifetime = .keepAlways; add(idle)
+        input.tap(); input.typeText("Pay bill\n")
+        XCTAssertTrue(app.buttons["Complete Pay bill"].waitForExistence(timeout: 5))
+        let keyboard = app.keyboards.firstMatch
+        XCTAssertTrue(keyboard.waitForExistence(timeout: 5))
+        XCTAssertLessThanOrEqual(input.frame.maxY, keyboard.frame.minY + 2)
+        XCTAssertLessThan(keyboard.frame.minY - input.frame.maxY, 120)
+        input.typeText("Call mum")
+        let typing = XCTAttachment(screenshot: app.screenshot())
+        typing.name = "Today capture above keyboard"; typing.lifetime = .keepAlways; add(typing)
+        app.buttons["Dismiss keyboard"].tap()
+        XCTAssertTrue(keyboard.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(input.value as? String, "Call mum")
+        app.tabBars.buttons["Lists"].tap(); app.tabBars.buttons["Today"].tap()
+        XCTAssertEqual(input.value as? String, "Call mum")
+        app.buttons["Add a task"].tap()
+        XCTAssertTrue(app.buttons["Complete Call mum"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.buttons.matching(identifier: "Complete Call mum").count, 1)
+        XCTAssertTrue(keyboard.waitForExistence(timeout: 5))
+        app.buttons["Dismiss keyboard"].tap()
+    }
+
     func testInlineCaptureAddsMultipleItemsWithoutASheet() {
         continueAfterFailure = false
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()

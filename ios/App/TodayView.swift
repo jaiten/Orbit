@@ -59,6 +59,16 @@ struct TodayView: View {
 
     private var page: some View {
         ScrollView { content }
+            .scrollDismissesKeyboard(.interactively)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                InlineCapture()
+                    .padding(.horizontal, CGFloat(DesignTokens.screenPadding))
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: 760).frame(maxWidth: .infinity)
+                    .background(.regularMaterial)
+                    .overlay(alignment: .top) { Divider() }
+                    .accessibilityIdentifier("today-capture-dock")
+            }
             .background(DayTheme.canvas(scheme)).tint(accent.fill)
             .onAppear {
                 let layout = HomeLayoutEditor.upgradedLayout(sections: homeSections, hidden: hiddenSections)
@@ -72,10 +82,7 @@ struct TodayView: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
-            VStack(spacing: CGFloat(DesignTokens.spaceM)) {
-                header
-                InlineCapture()
-            }
+            header
             FocusBanner()
             ConflictBanner()
             ForEach(sections, id: \.self) { section in
@@ -87,7 +94,7 @@ struct TodayView: View {
         .frame(maxWidth: 760).frame(maxWidth: .infinity)
     }
 
-    /// Keep capture and daily actions within reach above the customizable sections.
+    /// The daily heading stays above the customizable sections; capture is docked below.
     private var header: some View {
         PageHeader(eyebrow: day.formatted(.dateTime.weekday(.wide).month(.wide).day()), title: "Today") {
             Button { customizing = true } label: { Image(systemName: "slider.horizontal.3").font(.system(size: 20)).frame(width: 44, height: 44) }.accessibilityLabel("Edit Today")
