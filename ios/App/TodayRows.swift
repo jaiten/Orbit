@@ -24,6 +24,8 @@ struct CheckTile: View {
     /// The detail is a habit count that has met its target (shown in the accent text colour).
     var met = false
     var icon: String? = nil
+    var progress = 0 // 0: ordinary, 1: ready, 2: in progress
+    var progressOptions: [TileMove] = []
     @Environment(\.orbitAccent) private var accent
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("compactRows") private var compactRows = false
@@ -40,8 +42,9 @@ struct CheckTile: View {
         ZStack(alignment: .trailing) {
             deleteButton
             row
-                .background(color.opacity(done ? 0.04 : 0.07), in: shape)
+                .background(color.opacity(progress == 2 ? 0.16 : done ? 0.04 : 0.07), in: shape)
                 .orbitSurface()
+                .overlay(shape.strokeBorder(color.opacity(progress == 2 ? 0.4 : 0), lineWidth: 1))
                 .offset(x: max(-76, min(0, CGFloat(actionEdge == -1 ? -70 : 0) + dragOffset)))
         }
         .background(revealed ? Color.red : Color.clear, in: shape).clipShape(shape)
@@ -51,6 +54,7 @@ struct CheckTile: View {
             if !active { dragOffset = 0; Task { try? await Task.sleep(for: .milliseconds(150)); gestureMoved = false } }
         }
         .animation(reduceMotion ? nil : .orbit, value: actionEdge)
+        .animation(reduceMotion ? nil : .orbit, value: progress)
     }
 
     private var deleteButton: some View {
@@ -63,8 +67,20 @@ struct CheckTile: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 0) {
                 Button(action: tapMain) {
-                    OrbitTick(done: done, color: color).frame(width: 46, height: rowHeight).contentShape(Rectangle())
+                    ZStack {
+                        if progress == 0 { OrbitTick(done: done, color: color) }
+                        else {
+                            Circle().fill(color.opacity(progress == 2 ? 0.16 : 0.06))
+                            Circle().strokeBorder(color.opacity(0.22), lineWidth: 2)
+                            Circle().trim(from: 0, to: progress == 2 ? 0.65 : 0)
+                                .stroke(color, style: StrokeStyle(lineWidth: 2.5, lineCap: .round)).rotationEffect(.degrees(-90))
+                            Image(systemName: progress == 2 ? "checkmark" : "play.fill")
+                                .font(.system(size: 10, weight: .bold)).foregroundStyle(color)
+                        }
+                    }.frame(width: CGFloat(DesignTokens.rowTickLarge), height: CGFloat(DesignTokens.rowTickLarge))
+                        .frame(width: 46, height: rowHeight).contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityLabel(completionLabel)
+                    .accessibilityValue(progress == 2 ? "In progress" : "")
                 Button(action: tapEdit) {
                     HStack(spacing: 8) {
                         if let icon { Image(systemName: icon).font(.system(size: 18)).foregroundStyle(color).frame(width: 20).accessibilityHidden(true) }
@@ -73,6 +89,14 @@ struct CheckTile: View {
                 }
                     .buttonStyle(OrbitPress()).accessibilityLabel("Edit " + title)
                     .accessibilityValue(subtitle).accessibilityIdentifier("checklist-title")
+                if !progressOptions.isEmpty {
+                    Menu {
+                        ForEach(progressOptions, id: \.title) { option in Button(option.title, action: option.action) }
+                    } label: {
+                        Image(systemName: progress == 0 ? "sparkles" : "ellipsis")
+                            .font(.system(size: 16, weight: .medium)).frame(width: 44, height: rowHeight)
+                    }.foregroundStyle(accent.text).accessibilityLabel("Progress options for " + title)
+                }
             }
             if !moves.isEmpty {
                 ViewThatFits(in: .horizontal) {
@@ -171,28 +195,28 @@ struct TaskRow: View {
     var edit: () -> Void
     @State private var error: String?
     @State private var feedback = 0
+    @State private var startedFeedback = 0
     private var overdue: Bool { showMoves && TodayRules.isOverdue(TodayRules.item(task), today: PlannerLogic.dayKey(.now)) }
     private var moves: [TileMove] {
-        var result: [TileMove] = []
-        if task.completedAt == nil {
-            if task.progressTracking == true {
-                result.append(TileMove(title: task.startedAt == nil ? "Start" : "Finish") {
-                    if task.startedAt == nil { change { try Mutations.setProgress(task, enabled: true, start: true, in: context) } }
-                    else { toggle() }
-                })
-                if task.startedAt != nil {
-                    result.append(TileMove(title: "Reset") { change { try Mutations.setProgress(task, enabled: true, in: context) } })
-                }
-            } else if task.progressTracking == nil && TaskProgress.suggests(task.title) {
-                result.append(TileMove(title: "Track start & finish") { change { try Mutations.setProgress(task, enabled: true, in: context) } })
-                result.append(TileMove(title: "No thanks") { change { try Mutations.setProgress(task, enabled: false, in: context) } })
-            }
-        }
-        guard overdue else { return result }
-        return result + [TileMove(title: "Today") { change { TodayRules.moveToDay(task, day: .now); try Mutations.save(context) } },
+        guard overdue else { return [] }
+        return [TileMove(title: "Today") { change { TodayRules.moveToDay(task, day: .now); try Mutations.save(context) } },
                 TileMove(title: "Later") { change { TodayRules.moveLater(task); try Mutations.save(context) } },
                 TileMove(title: "Someday") { change { try TodayRules.moveToSomeday(task, in: context); try Mutations.save(context) } }]
     }
+    private var progress: Int { task.completedAt == nil && task.progressTracking == true ? (task.startedAt == nil ? 1 : 2) : 0 }
+    private var progressOptions: [TileMove] {
+        guard task.completedAt == nil else { return [] }
+        if task.progressTracking == true {
+            var options: [TileMove] = []
+            if task.startedAt != nil { options.append(TileMove(title: "Reset progress") { change { try Mutations.setProgress(task, enabled: true, in: context) } }) }
+            options.append(TileMove(title: "Turn off start & finish") { change { try Mutations.setProgress(task, enabled: false, in: context) } })
+            return options
+        }
+        guard task.progressTracking == nil && TaskProgress.suggests(task.title) else { return [] }
+        return [TileMove(title: "Track start & finish") { change { try Mutations.setProgress(task, enabled: true, in: context) } },
+                TileMove(title: "No thanks") { change { try Mutations.setProgress(task, enabled: false, in: context) } }]
+    }
+    private var completionLabel: String { (task.completedAt != nil ? "Reopen " : progress == 1 ? "Start " : progress == 2 ? "Finish " : "Complete ") + task.title }
     private var subtitle: String {
         var parts: [String] = []
         if task.completedAt == nil && task.progressTracking == true { parts.append(task.startedAt == nil ? "Ready to start" : "In progress") }
@@ -203,11 +227,16 @@ struct TaskRow: View {
     }
     var body: some View {
         CheckTile(title: task.title, subtitle: subtitle, done: task.completedAt != nil, color: accent.fill,
-                  completionLabel: (task.completedAt == nil ? "Complete " : "Reopen ") + task.title,
-                  toggle: toggle, edit: edit, remove: { change { context.delete(task); try Mutations.save(context) } }, moves: moves, icon: ItemIcons.suggested(for: task.title))
+                  completionLabel: completionLabel,
+                  toggle: toggle, edit: edit, remove: { change { context.delete(task); try Mutations.save(context) } }, moves: moves, icon: ItemIcons.suggested(for: task.title), progress: progress, progressOptions: progressOptions)
             .modifier(TaskActions(task: task)).modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
+            .sensoryFeedback(.impact(weight: .medium), trigger: startedFeedback)
     }
     private func toggle() {
+        if progress == 1 {
+            change { try Mutations.setProgress(task, enabled: true, start: true, in: context); startedFeedback += 1 }
+            return
+        }
         change {
             try Mutations.toggle(task, in: context); feedback += 1
             if task.completedAt != nil { Task { await FocusSession.shared.stopIfMatching(task.id) } }

@@ -1447,3 +1447,101 @@ dialog footer .danger {
 .sidebar > * {
   flex-shrink: 0;
 }
+
+/* Starting uses the existing checkbox space, with a filled ring and a quiet row tint. */
+.in-progress {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, var(--line));
+}
+.in-progress .row-detail {
+  color: var(--accent-text);
+}
+.progress-tick {
+  display: grid;
+  place-items: center;
+  width: var(--row-tick);
+  height: var(--row-tick);
+  color: var(--accent-text);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.progress-tick svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.progress-tick circle {
+  opacity: 0.22;
+}
+.progress-tick .progress-arc {
+  opacity: 0;
+  stroke-dasharray: 41 63;
+  transform: rotate(-90deg);
+  transform-origin: center;
+}
+.progress-tick .play {
+  fill: currentColor;
+  stroke-width: 0;
+}
+.progress-tick.started {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.progress-tick.started .progress-arc {
+  opacity: 1;
+}
+.progress-tick.pop {
+  animation: tick-pop 400ms ease-out;
+}
+.progress-tick.pop .progress-arc {
+  animation: progress-draw 400ms ease-out;
+}
+@keyframes progress-draw {
+  from {
+    stroke-dasharray: 0 63;
+  }
+  to {
+    stroke-dasharray: 41 63;
+  }
+}
+.progress-options {
+  position: relative;
+  flex: none;
+  align-self: stretch;
+}
+.progress-options summary {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 100%;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+  color: var(--accent-text);
+}
+.progress-options summary::-webkit-details-marker {
+  display: none;
+}
+.progress-options > div {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 20;
+  min-width: 210px;
+  max-width: min(280px, 75vw);
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 8px 28px #0002;
+}
+.progress-options > div button {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
+  white-space: normal;
+}

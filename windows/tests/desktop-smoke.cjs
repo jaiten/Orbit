@@ -464,6 +464,36 @@ const remove = (folder) => {
         (r) => !r.deleted && r.key !== "lists/00000000-0000-4000-8000-000000000001",
       );
       if (left.length) throw Error("Examples left behind: " + left.map((r) => r.key).join(", "));
+      // Progress stays in the existing row, survives restart, and only Finish completes it.
+      await w.getByRole("textbox", { name: "New task", exact: true }).fill("Laundry");
+      await w.getByRole("textbox", { name: "New task", exact: true }).press("Enter");
+      const laundryRow = w
+        .locator(".task-row")
+        .filter({ has: w.getByRole("button", { name: "Edit Laundry", exact: true }) });
+      await laundryRow.waitFor();
+      const ordinaryHeight = (await laundryRow.boundingBox()).height;
+      await w.getByLabel("Progress options for Laundry", { exact: true }).click();
+      await w.getByRole("button", { name: "Track start & finish", exact: true }).click();
+      await w.getByRole("checkbox", { name: "Start Laundry", exact: true }).click();
+      await w.getByRole("checkbox", { name: "Finish Laundry", exact: true }).waitFor();
+      if (Math.abs((await laundryRow.boundingBox()).height - ordinaryHeight) > 1)
+        throw Error("Starting expanded the task row");
+      const startedTask = (await w.evaluate(() => window.orbit.read())).records.find(
+        (r) => r.payload.title === "Laundry",
+      ).payload;
+      if (!startedTask.startedAt || startedTask.completedAt) throw Error("Start did not preserve an incomplete task");
+      await app.close();
+      app = await electron.launch({ ...firstRun, env: { ...firstRun.env, ORBIT_TEST_DATA: another } });
+      w = await app.firstWindow();
+      await w.getByRole("checkbox", { name: "Finish Laundry", exact: true }).waitFor();
+      await w.getByLabel("Progress options for Laundry", { exact: true }).click();
+      await w.getByRole("button", { name: "Reset progress", exact: true }).click();
+      await w.getByRole("checkbox", { name: "Start Laundry", exact: true }).click();
+      await w.getByRole("checkbox", { name: "Finish Laundry", exact: true }).click();
+      const finishedTask = (await w.evaluate(() => window.orbit.read())).records.find(
+        (r) => r.payload.title === "Laundry",
+      ).payload;
+      if (!finishedTask.completedAt) throw Error("Finish did not complete the task");
     } finally {
       if (app) await app.close();
       app = null;

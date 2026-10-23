@@ -7,12 +7,23 @@ final class ChecklistUITests: XCTestCase {
         let input = app.textFields["inline-task-input"]
         XCTAssertTrue(input.waitForExistence(timeout: 15))
         input.tap(); input.typeText("Laundry\n")
+        let options = app.buttons["Progress options for Laundry"]
+        XCTAssertTrue(options.waitForExistence(timeout: 5)); options.tap()
         let suggestion = app.buttons["Track start & finish"]
         XCTAssertTrue(suggestion.waitForExistence(timeout: 5)); suggestion.tap()
-        let start = app.buttons["Start"]
-        XCTAssertTrue(start.waitForExistence(timeout: 5)); start.tap()
+        let start = app.buttons["Start Laundry"]
+        XCTAssertTrue(start.waitForExistence(timeout: 5))
+        XCTAssertEqual(start.frame.midY, app.buttons["Edit Laundry"].frame.midY, accuracy: 2)
+        let height = app.buttons["Edit Laundry"].frame.height
+        start.tap()
         XCTAssertEqual(app.buttons["Edit Laundry"].value as? String, "In progress")
-        app.buttons["Finish"].tap()
+        let finish = app.buttons["Finish Laundry"]
+        XCTAssertTrue(finish.waitForExistence(timeout: 5))
+        XCTAssertEqual(finish.frame.midY, app.buttons["Edit Laundry"].frame.midY, accuracy: 2)
+        XCTAssertEqual(app.buttons["Edit Laundry"].frame.height, height, accuracy: 2)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Orbit inline task progress"; screenshot.lifetime = .keepAlways; add(screenshot)
+        finish.tap()
         XCTAssertTrue(app.buttons["Completed (1)"].waitForExistence(timeout: 5))
     }
 
