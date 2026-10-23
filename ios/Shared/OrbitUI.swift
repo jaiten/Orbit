@@ -45,19 +45,22 @@ struct PageHeader<Trailing: View>: View {
             if typeSize.isAccessibilitySize {
                 VStack(alignment: .leading, spacing: 8) { heading; tools }
             } else {
-                HStack(alignment: .top) { heading; Spacer(minLength: 8); tools }
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top) { heading; Spacer(minLength: 8); tools }
+                    VStack(alignment: .leading, spacing: 8) { heading; tools }
+                }
             }
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
     private var heading: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(eyebrow).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            Text(title).font(.largeTitle.bold()).tracking(-1).accessibilityAddTraits(.isHeader)
+            Text(title).font(.largeTitle.bold()).tracking(-1).fixedSize(horizontal: true, vertical: true).accessibilityAddTraits(.isHeader)
             if !subtitle.isEmpty { Text(subtitle).font(.body).foregroundStyle(.secondary) }
         }
     }
     private var tools: some View {
-        HStack(spacing: 6) { trailing }.font(.body).foregroundStyle(.secondary).buttonStyle(OrbitToolbarButton())
+        HStack(spacing: 8) { trailing }.fixedSize(horizontal: true, vertical: false).font(.body).foregroundStyle(.secondary).buttonStyle(OrbitToolbarButton())
     }
 }
 extension PageHeader where Trailing == EmptyView {

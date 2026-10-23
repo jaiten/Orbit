@@ -25,39 +25,54 @@ struct TasksView: View {
     }
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    PageHeader(eyebrow: "Organize", title: "Lists") {
-                        Button("Edit Lists") { manageLists = true }.frame(minHeight: 44)
-                        Button { creatingList = true } label: { Image(systemName: "plus").font(.system(size: 20)).frame(width: 44, height: 44) }.accessibilityLabel("New list")
+            VStack(spacing: CGFloat(DesignTokens.spaceL)) {
+                PageHeader(eyebrow: "Organize", title: "Lists") {
+                    Button { manageLists = true } label: {
+                        Text("Edit Lists").padding(.horizontal, 14).frame(minHeight: 44)
                     }
-                }.listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 0, trailing: 0))
-                Section {
-                    TextField("Search tasks", text: $search).textInputAutocapitalization(.never)
-                    AccentPicker(title: "List", selection: $listID, choices: [(nil as UUID?, "All Tasks"), (Optional(TodayRules.somedayID), "Someday")] + lists.filter { $0.id != TodayRules.somedayID }.map { (Optional($0.id), $0.name) })
-                }
-                Section {
-                    Button("Add a task", systemImage: "plus.circle.fill") { adding = true }.accessibilityLabel("New task")
-                }
-                if filtered.isEmpty { ContentUnavailableView("No tasks in this list", systemImage: "checklist") }
-                ForEach(TaskDateGroup.allCases) { group in
-                    let items = grouped(group)
-                    if !items.isEmpty {
-                        Section {
-                            DisclosureGroup(isExpanded: Binding(get: { !collapsed.contains(group) }, set: { expanded in
-                                if expanded { collapsed.remove(group) } else { collapsed.insert(group) }
-                            })) {
-                                ForEach(items) { task in
-                                    TaskRow(task: task) { editing = task }
-                                        .padding(.vertical, compactRows ? 2 : 4)
+                    Button { creatingList = true } label: { Image(systemName: "plus").font(.system(size: 20)).frame(width: 44, height: 44) }.accessibilityLabel("New list")
+                }.padding(.horizontal, 20).padding(.top, 8)
+                List {
+                    Section {
+                        TextField("Search tasks", text: $search).textInputAutocapitalization(.never)
+                        AccentPicker(title: "List", selection: $listID, choices: [(nil as UUID?, "All Tasks"), (Optional(TodayRules.somedayID), "Someday")] + lists.filter { $0.id != TodayRules.somedayID }.map { (Optional($0.id), $0.name) })
+                    }
+                    Section {
+                        Button("Add a task", systemImage: "plus.circle.fill") { adding = true }.accessibilityLabel("New task")
+                    }
+                    if filtered.isEmpty { ContentUnavailableView("No tasks in this list", systemImage: "checklist") }
+                    ForEach(TaskDateGroup.allCases) { group in
+                        let items = grouped(group)
+                        if !items.isEmpty {
+                            Section {
+                                if !collapsed.contains(group) {
+                                    ForEach(items) { task in
+                                        TaskRow(task: task) { editing = task }
+                                            .listRowBackground(Color.clear)
+                                            .listRowSeparator(.hidden)
+                                            .listRowInsets(EdgeInsets(top: compactRows ? 2 : 4, leading: 0, bottom: compactRows ? 2 : 4, trailing: 0))
+                                    }
                                 }
-                            } label: {
-                                Text("\(group.rawValue) (\(items.count))").font(.headline)
-                            }.accessibilityIdentifier("task-group-" + group.id)
+                            } header: {
+                                Button {
+                                    if collapsed.contains(group) { collapsed.remove(group) } else { collapsed.insert(group) }
+                                } label: {
+                                    HStack(spacing: 8) {
+                                        Text("\(group.rawValue) (\(items.count))").font(.subheadline.weight(.semibold))
+                                        Image(systemName: collapsed.contains(group) ? "chevron.right" : "chevron.down").font(.caption.weight(.semibold))
+                                        Spacer(minLength: 0)
+                                    }.frame(minHeight: 44).contentShape(Rectangle())
+                                }.buttonStyle(.plain).textCase(nil)
+                                    .accessibilityLabel("\(group.rawValue) (\(items.count))")
+                                    .accessibilityValue(collapsed.contains(group) ? "Collapsed" : "Expanded")
+                                    .accessibilityHint("Double-tap to " + (collapsed.contains(group) ? "show tasks" : "hide tasks"))
+                                    .accessibilityIdentifier("task-group-" + group.id)
+                            }
+
                         }
                     }
-                }
-            }.listStyle(.insetGrouped).contentMargins(.top, 0, for: .scrollContent).listSectionSpacing(CGFloat(DesignTokens.spaceL)).scrollContentBackground(.hidden).background(DayTheme.canvas(scheme))
+                }.listStyle(.insetGrouped).contentMargins(.top, 0, for: .scrollContent).listSectionSpacing(CGFloat(DesignTokens.spaceL)).scrollContentBackground(.hidden).background(DayTheme.canvas(scheme))
+            }.frame(maxWidth: 760).frame(maxWidth: .infinity).background(DayTheme.canvas(scheme))
                 .tint(accent.fill).navigationTitle("Lists")
                 .toolbar(.hidden, for: .navigationBar)
                 .sheet(isPresented: $adding) { QuickCapture(listID: listID, fromList: true) }.sheet(item: $editing) { TaskEditor(task: $0) }

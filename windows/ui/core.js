@@ -25,7 +25,7 @@ let state = { records: [] },
   selectedList = null,
   accountEmail = "",
   resendAfter = 0,
-  completedOpen = true,
+  completedOpen = localStorage.getItem("todayCompletedExpanded") !== "false",
   historyHabitID = null;
 
 function dayKey(d) {
@@ -230,7 +230,7 @@ function addField() {
     <div class="add-field"><input id="inline-task-input" aria-label="New task" placeholder="Add a task" maxlength="500" autocomplete="off" value="${esc(inlineDraft)}" />
       <button type="submit" aria-label="Add a task">${plus}</button>
       <button type="button" id="inline-dictate" aria-label="Dictate task" title="Windows voice typing (Win+H)">🎙</button>
-      <button type="button" data-quick-add aria-label="Task options" title="Choose a date or list">⋯</button>
+      <button type="button" data-quick-add aria-label="Task options" title="Choose a date or list"><svg class="capture-calendar" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="4"/><path d="M7 3v4m10-4v4M3 11h18m-13 4h2m4 0h2"/></svg></button>
     </div><p id="inline-preview" class="secondary" aria-live="polite"></p>
     <div id="inline-overlap" hidden><p id="inline-overlap-text"></p><button type="button" id="inline-save-overlap">Add anyway</button></div>
     <p id="inline-receipt" class="secondary" role="status"></p>

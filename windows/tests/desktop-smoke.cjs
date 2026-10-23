@@ -29,7 +29,7 @@ const remove = (folder) => {
     };
     const errors = [];
     p.on("pageerror", (e) => errors.push(e.message));
-    await p.getByRole("heading", { name: "Today", exact: true }).waitFor();
+    await p.getByRole("heading", { name: "Today", exact: true, level: 1 }).waitFor();
     // Homepage capture stays inline and keeps the draft field ready for another item.
     await p.getByRole("textbox", { name: "New task", exact: true }).fill("Inline walk");
     await p.getByRole("textbox", { name: "New task", exact: true }).press("Enter");
@@ -390,10 +390,23 @@ const remove = (folder) => {
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1320, 900));
     await p.screenshot({ path: path.resolve(__dirname, "../assets/desktop-preview.png"), fullPage: true });
     if (errors.length) throw Error(errors.join("\n"));
+    // Completed is a lasting user preference, including across an actual app restart.
+    await p.locator(".completed-items").evaluate((details) => {
+      details.open = false;
+    });
+    await p.waitForFunction(() => localStorage.getItem("todayCompletedExpanded") === "false");
     await app.close();
     app = await electron.launch(options);
     const q = await app.firstWindow();
     await q.getByText("1 completed", { exact: true }).waitFor();
+    if (await q.locator(".completed-items").evaluate((details) => details.open))
+      throw Error("Completed did not remember collapsed state after restart");
+    await q.locator(".completed-items > summary").click();
+    await q.waitForFunction(() => localStorage.getItem("todayCompletedExpanded") === "true");
+    await q.reload();
+    await q.locator(".completed-items").waitFor();
+    if (!(await q.locator(".completed-items").evaluate((details) => details.open)))
+      throw Error("Completed did not remember expanded state after reload");
     await q.getByText("0 of 1 today", { exact: true }).waitFor();
     const late = new Date();
     late.setHours(23, 59, 0, 0);
@@ -459,7 +472,7 @@ const remove = (folder) => {
       await w.locator('[data-page="settings"]').click();
       await w.getByRole("button", { name: "Remove Examples", exact: true }).click();
       await w.locator('[data-page="today"]').click();
-      await w.getByRole("heading", { name: "Today", exact: true }).waitFor();
+      await w.getByRole("heading", { name: "Today", exact: true, level: 1 }).waitFor();
       const left = (await w.evaluate(() => window.orbit.read())).records.filter(
         (r) => !r.deleted && r.key !== "lists/00000000-0000-4000-8000-000000000001",
       );

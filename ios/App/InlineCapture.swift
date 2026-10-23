@@ -34,7 +34,7 @@ struct InlineCapture: View {
                 }.accessibilityLabel(focused ? "Dismiss keyboard" : "Add a task").disabled(saving)
                 CaptureTextField(text: $text, focused: $focused, identifier: "inline-task-input", placeholder: "Add a task", minimumHeight: 44) { save() }
                 DictationButton(text: $text)
-                Button { options = true } label: { Image(systemName: "slider.horizontal.3").font(.system(size: 20)).frame(width: 44, height: 44) }
+                Button { options = true } label: { Image(systemName: "calendar.badge.clock").font(.system(size: 20)).frame(width: 44, height: 44) }
                     .accessibilityLabel("Task options").accessibilityHint("Choose a date or list before adding")
             }.padding(.trailing, 6).frame(minHeight: 52).orbitSurface(radius: CGFloat(DesignTokens.radiusInput))
                 .shadow(color: .black.opacity(0.04), radius: 12, y: 3)

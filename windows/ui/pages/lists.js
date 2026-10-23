@@ -31,7 +31,7 @@ function renderInbox(tasks) {
   const note = selectedList === SOMEDAY ? "Ideas for another time" : "Tasks grouped by day";
   return `<div class="narrow">
     <header class="page-head">
-      <div><div class="eyebrow">Lists</div><h1>Lists</h1><p class="subtitle">${esc(name)} · ${note}</p></div>
+      <div><div class="eyebrow">Organize</div><h1>Lists</h1><p class="subtitle">${esc(name)} · ${note}</p></div>
       <input id="search" type="search" placeholder="Search" aria-label="Search tasks" value="${esc(searchQuery)}" />
     </header>
     <button data-new-list>+ New list</button>
