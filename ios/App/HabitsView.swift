@@ -54,6 +54,7 @@ struct HabitsView: View {
 /// the last 7 days as segments and the last 12 weeks as boxes, in the habit's colour.
 struct HabitHistoryIndex: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Query(sort: \Habit.createdAt) private var habits: [Habit]
     @Query private var logs: [HabitLog]
     var body: some View {
@@ -62,12 +63,7 @@ struct HabitHistoryIndex: View {
                 Text("The last 7 days and 12 weeks, for every habit.").font(.subheadline).foregroundStyle(.secondary).padding(.horizontal, 4)
                 ForEach(habits) { habit in
                     VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceM)) {
-                        HStack(spacing: 10) {
-                            Circle().fill(DayTheme.color(habit.color)).frame(width: DesignTokens.rowDot, height: DesignTokens.rowDot)
-                            Text(habit.title).font(.body.weight(.semibold))
-                            Spacer()
-                            Text("\(PlannerLogic.checkedDays(habit, logs: logs, ending: .now)) of the last 7 days").font(.footnote).foregroundStyle(.secondary)
-                        }
+                        historyHeading(habit)
                         Text(PlannerLogic.detail(habit, logs: logs, at: .now)).font(.footnote).foregroundStyle(.secondary).padding(.leading, 20).padding(.top, -8)
                         HabitHistoryCharts(habit: habit, logs: logs)
                         NavigationLink { HabitHistoryDetail(habit: habit) } label: {
@@ -80,6 +76,25 @@ struct HabitHistoryIndex: View {
                 .frame(maxWidth: 760).frame(maxWidth: .infinity)
         }.background(DayTheme.canvas(scheme)).navigationTitle("History").navigationBarTitleDisplayMode(.inline)
     }
+    @ViewBuilder private func historyHeading(_ habit: Habit) -> some View {
+        let count = "\(PlannerLogic.checkedDays(habit, logs: logs, ending: .now)) of the last 7 days"
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 6) {
+                Label { Text(habit.title).font(.body.weight(.semibold)) } icon: {
+                    Circle().fill(DayTheme.color(habit.color)).frame(width: DesignTokens.rowDot, height: DesignTokens.rowDot)
+                }
+                Text(count).font(.footnote).foregroundStyle(.secondary)
+            }
+        } else {
+            HStack(spacing: 10) {
+                Circle().fill(DayTheme.color(habit.color)).frame(width: DesignTokens.rowDot, height: DesignTokens.rowDot)
+                Text(habit.title).font(.body.weight(.semibold))
+                Spacer()
+                Text(count).font(.footnote).foregroundStyle(.secondary)
+            }
+        }
+    }
+
 }
 
 struct HabitHistoryDetail: View {
@@ -129,7 +144,9 @@ struct HabitHistoryCharts: View {
         let target = Double(PlannerLogic.dailyTarget(habit))
         let today = PlannerLogic.dayKey(.now)
         VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
-            WeekSegments(done: week.map { PlannerLogic.checkedToday(habit, logs: logs, at: $0) }, days: week, color: color)
+            WeekSegments(done: week.map { PlannerLogic.checkedToday(habit, logs: logs, at: $0) }, days: week, color: color,
+                         scheduled: week.map { HabitRules.scheduledOn(rule: habit.frequencyRule, day: PlannerLogic.dayKey($0)) },
+                         available: week.map { PlannerLogic.dayKey($0) >= PlannerLogic.dayKey(habit.createdAt) })
             BoxGrid(levels: BoxGrid.days().map { day -> Double? in
                 let key = PlannerLogic.dayKey(day)
                 return key > today ? nil : Double(counts[key] ?? 0) / target

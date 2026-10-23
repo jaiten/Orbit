@@ -57,7 +57,7 @@ struct PageHeader<Trailing: View>: View {
         }
     }
     private var tools: some View {
-        HStack(spacing: 2) { trailing }.font(.body).foregroundStyle(.secondary).buttonStyle(.plain)
+        HStack(spacing: 6) { trailing }.font(.body).foregroundStyle(.secondary).buttonStyle(OrbitToolbarButton())
     }
 }
 extension PageHeader where Trailing == EmptyView {
@@ -77,12 +77,28 @@ struct SectionLabel: View {
     }
 }
 
-/// Surface with a 1px line instead of a shadow, at row (12) or card (18) radius.
+/// Quiet surfaces: continuous rounded corners and a stronger outline with Increase Contrast.
+struct OrbitToolbarButton: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Group {
+            if #available(iOS 26.0, *) {
+                configuration.label.glassEffect(.regular.interactive(), in: Capsule())
+            } else {
+                configuration.label.background(Color.orbitSurface.opacity(0.85), in: Capsule())
+            }
+        }.scaleEffect(configuration.isPressed ? 0.97 : 1)
+    }
+}
+
+/// Shared row and card treatment across the app.
 struct OrbitSurface: ViewModifier {
     var radius = CGFloat(DesignTokens.radiusRow)
+    @Environment(\.colorSchemeContrast) private var contrast
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        content.background(Color.orbitSurface, in: shape).overlay(shape.strokeBorder(Color.orbitLine, lineWidth: 1))
+        content.background(Color.orbitSurface, in: shape)
+            .overlay(shape.strokeBorder(Color.orbitLine.opacity(contrast == .increased ? 1 : 0.45), lineWidth: 1))
+            .shadow(color: .black.opacity(radius >= CGFloat(DesignTokens.radiusCard) ? 0.035 : 0), radius: 10, y: 3)
     }
 }
 extension View {
@@ -198,22 +214,33 @@ struct BoxGrid: View {
     }
 }
 
-/// "5 of the last 7 days" as seven rounded segments, with weekday letters below.
+/// Seven circular check-ins with neutral off days and a spoken status for each date.
 struct WeekSegments: View {
     let done: [Bool]
     let days: [Date]
     let color: Color
+    var scheduled: [Bool] = []
+    var available: [Bool] = []
+    @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
-        HStack(spacing: 6) {
-            ForEach(Array(zip(done, days).enumerated()), id: \.offset) { _, pair in
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: typeSize.isAccessibilitySize ? 4 : 7), spacing: 12) {
+            ForEach(Array(days.enumerated()), id: \.offset) { index, day in
+                let checked = done.indices.contains(index) && done[index]
+                let due = !scheduled.indices.contains(index) || scheduled[index]
+                let existed = !available.indices.contains(index) || available[index]
+                let status = checked ? "Checked" : !existed ? "Before this habit was added" : due ? "Not checked" : "Not scheduled"
                 VStack(spacing: 6) {
-                    Capsule().fill(pair.0 ? color : Color.orbitTrack(DesignTokens.tintProgressTrack)).frame(height: 10)
-                    Text(pair.1.formatted(.dateTime.weekday(.narrow))).font(.caption2).foregroundStyle(.secondary)
+                    ZStack {
+                        Circle().fill(checked ? color : Color.orbitTrack(DesignTokens.tintProgressTrack))
+                        if checked { Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundStyle(.black.opacity(0.85)) }
+                        else if !due || !existed { Image(systemName: "minus").font(.system(size: 10, weight: .medium)).foregroundStyle(.secondary) }
+                    }.frame(width: 26, height: 26)
+                    Text(day.formatted(.dateTime.weekday(.narrow))).font(.caption2).foregroundStyle(.secondary)
                 }.frame(maxWidth: .infinity)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), \(status)")
             }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(done.filter { $0 }.count) of the last 7 days")
+        }.accessibilityElement(children: .contain).accessibilityLabel("Last 7 days")
     }
 }
 
@@ -227,7 +254,7 @@ struct PreviewChip: View {
             Text(text).font(.subheadline.weight(.medium)).foregroundStyle(accent.text)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 14).padding(.vertical, 8)
-                .background(accent.fill.opacity(DesignTokens.tintAccentFill), in: RoundedRectangle(cornerRadius: 12))
+                .background(accent.fill.opacity(DesignTokens.tintAccentFill), in: RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusInput), style: .continuous))
                 .accessibilityIdentifier(identifier)
         }
     }

@@ -77,9 +77,9 @@
     "section": 32
   },
   "radii": {
-    "card": 18,
-    "row": 12,
-    "input": 12,
+    "card": 28,
+    "row": 24,
+    "input": 26,
     "chip": 999
   },
   "type": {

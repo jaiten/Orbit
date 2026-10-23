@@ -1,6 +1,6 @@
 /* Orbit for Windows. Colours, type, spacing, radii and springs come from tokens.css
    (shared/design-tokens.json). The look follows the app screens on the Orbit website:
-   separation from 1px lines rather than shadows, tiny uppercase eyebrows, coral only for
+   soft continuous surfaces, quiet borders, compact labels, and accent colour for
    ticks, progress, selection and the one primary action. */
 
 * {
@@ -50,7 +50,7 @@ button {
   border: 0;
   background: transparent;
   padding: 7px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-chip);
   transition:
     background-color var(--motion),
     color var(--motion),
@@ -130,7 +130,7 @@ kbd {
   background: var(--surface);
   border-radius: var(--radius-card);
   padding: 18px;
-  box-shadow: 0 0 0 1px var(--line);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 45%, transparent);
 }
 
 /* Sidebar: tinted a little darker than the canvas */
@@ -154,9 +154,9 @@ kbd {
   height: 40px;
   margin-bottom: var(--space-m);
   padding: 0 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-row);
   background: var(--surface);
-  box-shadow: 0 0 0 1px var(--line);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 45%, transparent);
   color: var(--muted);
   font-size: 13px;
   text-align: left;
@@ -186,9 +186,9 @@ nav {
 .nav-pill {
   position: absolute;
   inset: 0 0 auto;
-  border-radius: 8px;
+  border-radius: var(--radius-row);
   background: var(--surface);
-  box-shadow: 0 0 0 1px var(--line);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 45%, transparent);
   pointer-events: none;
 }
 nav button {
@@ -238,7 +238,7 @@ nav button span {
 }
 .sidebar-list button.selected {
   background: var(--surface);
-  box-shadow: 0 0 0 1px var(--line);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 45%, transparent);
   color: var(--ink);
 }
 .sidebar-list button[data-edit-list] {
@@ -386,7 +386,7 @@ main {
   padding: 0 var(--space-l);
   border-radius: var(--radius-row);
   background: var(--surface);
-  box-shadow: 0 0 0 1px var(--line);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 45%, transparent);
   color: var(--muted);
   font-size: 14px;
   text-align: left;
@@ -445,7 +445,7 @@ main {
 .row {
   background: var(--surface);
   border-radius: var(--radius-row);
-  box-shadow: 0 0 0 1px var(--line);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 45%, transparent);
   min-width: 0;
 }
 .row[hidden] {
@@ -729,7 +729,7 @@ main {
   padding: 12px 12px 14px;
   border-radius: var(--radius-row);
   background: var(--surface);
-  box-shadow: 0 0 0 1px var(--line);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 45%, transparent);
   text-align: left;
   transition:
     background-color var(--motion),
@@ -884,14 +884,25 @@ main {
   color: var(--muted);
 }
 .segment i {
-  height: 10px;
+  display: grid;
+  place-items: center;
+  justify-self: center;
+  width: 26px;
+  height: 26px;
   border-radius: var(--radius-chip);
   background: color-mix(in srgb, var(--ink) var(--tint-progress-track), transparent);
 }
 .segment.done i {
   background: var(--fill);
 }
-.segment.off i {
+.segment.done i::after {
+  content: "✓";
+  color: #151515;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 700;
+}
+.segment.off:not(.done) i {
   background: transparent;
   outline: 1px dashed var(--line);
   outline-offset: -1px;
@@ -966,14 +977,14 @@ label.toggle {
   padding: 2px 8px;
   border-radius: 6px;
   color: var(--ink);
-  box-shadow: 0 0 0 1px var(--line);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 45%, transparent);
   background: var(--canvas);
 }
 .settings-block {
   max-width: 640px;
   background: var(--surface);
   border-radius: var(--radius-card);
-  box-shadow: 0 0 0 1px var(--line);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 45%, transparent);
   padding: 18px;
   margin: var(--space-l) 0;
 }
@@ -1003,7 +1014,7 @@ input[type="checkbox"] {
 }
 .settings-block > button {
   margin: var(--space-xs) var(--space-xs) 0 0;
-  box-shadow: 0 0 0 1px var(--line);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 45%, transparent);
 }
 .accent-options {
   display: flex;
@@ -1012,7 +1023,7 @@ input[type="checkbox"] {
 .accent-options button {
   border-radius: var(--radius-chip);
   padding: 6px 16px;
-  box-shadow: 0 0 0 1px var(--line);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 45%, transparent);
 }
 .accent-options button[aria-pressed="true"] {
   color: var(--accent-text);
@@ -1147,7 +1158,7 @@ dialog footer .danger {
   padding: 0 var(--space-l);
   border-radius: var(--radius-row);
   background: var(--canvas);
-  box-shadow: 0 0 0 1px var(--line);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 45%, transparent);
   color: var(--muted);
 }
 .quick-field:focus-within {
@@ -1544,4 +1555,62 @@ dialog footer .danger {
   min-height: 44px;
   text-align: left;
   white-space: normal;
+}
+
+.segment.off:not(.done) i::after {
+  content: "–";
+  font-style: normal;
+  color: var(--muted);
+}
+@media (prefers-contrast: more) {
+  .row,
+  .card,
+  .settings-block,
+  .search-field,
+  .add-field {
+    box-shadow: 0 0 0 1px var(--line);
+  }
+}
+@media (forced-colors: active) {
+  .row,
+  .card,
+  .settings-block,
+  .search-field,
+  .add-field {
+    border: 1px solid CanvasText;
+    box-shadow: none;
+  }
+  .segment.done i {
+    background: Highlight;
+  }
+  .segment.done i::after {
+    color: HighlightText;
+  }
+}
+
+/* Card width, rather than window width, also covers user zoom and larger text. */
+.habit-history {
+  container-type: inline-size;
+  min-width: 0;
+}
+@container (max-width: 480px) {
+  .history-charts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .history-head {
+    flex-wrap: wrap;
+  }
+  .history-head strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .history-head > span:last-child {
+    flex-basis: 100%;
+    margin-left: calc(var(--row-dot) + var(--space-m));
+  }
+}
+@container (max-width: 280px) {
+  .week-segments {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
