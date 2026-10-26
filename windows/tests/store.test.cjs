@@ -64,6 +64,16 @@ test("account binding prevents data leaking into another account", () => {
   assert.equal(s.setting("owner"), "alice");
   s.close();
 });
+test("account deletion clears planner records and owner binding", () => {
+  const s = new Store(":memory:");
+  s.bind("alice");
+  s.put("tasks/a", { title: "Private" });
+  s.clearPlanner();
+  assert.deepEqual(s.rows(), []);
+  assert.equal(s.setting("owner"), undefined);
+  assert.doesNotThrow(() => s.bind("new-account"));
+  s.close();
+});
 test("sync retries pending records after network failure", async () => {
   const s = new Store(":memory:");
   s.put("tasks/a", { title: "Offline" });

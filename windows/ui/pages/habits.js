@@ -27,7 +27,10 @@ function weekSegments(h, end = dayKey(new Date())) {
       localDay(key).toLocaleDateString([], { weekday: "long", year: "numeric", month: "long", day: "numeric" }) +
       ": " +
       status;
-    return `<span class="segment ${done ? "done" : ""} ${scheduled && available ? "" : "off"}" role="img" aria-label="${esc(label)}" title="${esc(label)}"><i aria-hidden="true"></i><span aria-hidden="true">${name}</span></span>`;
+    const classes = `segment ${done ? "done" : ""} ${scheduled && available ? "" : "off"}`;
+    if (!available || key > today() || key < OrbitHabits.addDays(today(), -1))
+      return `<span class="${classes}" role="img" aria-label="${esc(label)}" title="${esc(label)}"><i aria-hidden="true"></i><span aria-hidden="true">${name}</span></span>`;
+    return `<button class="${classes}" data-history-toggle="${esc(h.id)}" data-day="${key}" data-done="${done}" aria-label="${esc(label)}. ${done ? "Remove one check-in" : "Add a check-in"}" title="${esc(label)}"><i aria-hidden="true"></i><span aria-hidden="true">${name}</span></button>`;
   }).join("");
   return `<div class="week-segments fill-${colorName(h.color)}" role="group" aria-label="Last 7 days">${cells}</div>`;
 }
@@ -42,7 +45,7 @@ function habitHistoryCharts(h) {
 function renderHistoryIndex(habits) {
   const t = today();
   return `<div class="narrow wide">
-    <header class="page-head"><div><div class="eyebrow">Habits</div><h1>History</h1><p class="subtitle">The last 7 days and 12 weeks, for every habit.</p></div></header>
+    <header class="page-head"><div><div class="eyebrow">Habits</div><h1>History</h1><p class="subtitle">The last 7 days and 12 weeks, for every habit. Yesterday is the only past day you can correct.</p></div></header>
     <div class="history-list">${habits
       .map(
         (h) => `<section class="card habit-history" data-flip="history-${esc(h.id)}">
@@ -67,7 +70,7 @@ function renderHabitHistory(habits) {
     .map((l) => `<li>${esc(l.dayKey)} <span>${l.count} check-in${l.count === 1 ? "" : "s"}</span></li>`)
     .join("");
   return `<div class="narrow wide">
-    <header class="page-head"><div><div class="eyebrow">History</div><h1>${esc(h.title)}</h1><p class="subtitle">${OrbitHabits.label(h)} · ${habitDetail(h, t)}</p></div></header>
+    <header class="page-head"><div><div class="eyebrow">History</div><h1>${esc(h.title)}</h1><p class="subtitle">${OrbitHabits.label(h)} · ${habitDetail(h, t)}. Select yesterday to add or remove a check-in.</p></div></header>
     <section class="card habit-history">
       <div class="history-head static"><span class="dot ${colorName(h.color)}" aria-hidden="true"></span><strong>${lastSeven} of the last 7 days</strong></div>
       ${habitHistoryCharts(h)}
@@ -91,4 +94,11 @@ function bindHabits() {
         render();
       }),
   );
+  document
+    .querySelectorAll("[data-history-toggle]")
+    .forEach(
+      (button) =>
+        (button.onclick = () =>
+          action(() => log(button.dataset.historyToggle, button.dataset.done === "true", button.dataset.day))),
+    );
 }

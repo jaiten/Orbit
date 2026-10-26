@@ -96,6 +96,10 @@ both readable versions before either is discarded. Sign-out preserves local data
 [Sync details](docs/sync-plan.md). Windows sessions use OS encryption; iOS uses
 Keychain. Public client config includes only a publishable key. The database denies
 anonymous access and enforces owner-scoped reads and revision-checked writes.
+Signed-in users can permanently delete their account and synchronized data from
+**Settings → Account**; the deleting device's local planner is cleared as part of
+the same user flow. See the [privacy notice](docs/privacy.md) and
+[small-beta launch checklist](docs/beta-launch-checklist.md).
 
 ## Validation
 

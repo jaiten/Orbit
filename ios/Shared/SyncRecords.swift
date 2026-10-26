@@ -65,6 +65,16 @@ import SwiftData
             guard owner.payload == user else { throw NSError(domain: "Orbit", code: 1, userInfo: [NSLocalizedDescriptionKey: "This planner belongs to another account. Sign in with the original account."]) }
         } else { let owner = SyncEntry(key: "owner", payload: user); owner.dirty = false; context.insert(owner); try context.save() }
     }
+    /// Used only after the server confirms permanent account deletion.
+    static func erasePlanner(_ context: ModelContext) throws {
+        for value in try context.fetch(FetchDescriptor<PlannerTask>()) { context.delete(value) }
+        for value in try context.fetch(FetchDescriptor<Habit>()) { context.delete(value) }
+        for value in try context.fetch(FetchDescriptor<HabitLog>()) { context.delete(value) }
+        for value in try context.fetch(FetchDescriptor<TaskList>()) { context.delete(value) }
+        for value in try context.fetch(FetchDescriptor<IdeaPrompt>()) { context.delete(value) }
+        for value in try context.fetch(FetchDescriptor<SyncEntry>()) { context.delete(value) }
+        try context.save()
+    }
     static func apply(_ record: [String: Any], context: ModelContext) throws {
         guard let key = record["key"] as? String, let p = record["payload"] as? [String: Any], let rawID = p["id"] as? String, let uuid = UUID(uuidString: rawID) else { throw CocoaError(.coderReadCorrupt) }
         let deleted = record["deleted"] as? Bool ?? false

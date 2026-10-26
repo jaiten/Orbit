@@ -1,0 +1,29 @@
+name: Supabase database
+on:
+  push:
+    branches: [main]
+    paths: ['supabase/**', '.github/workflows/supabase.yml']
+  pull_request:
+    paths: ['supabase/**', '.github/workflows/supabase.yml']
+  workflow_dispatch:
+concurrency:
+  group: supabase-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Start local Supabase
+        run: npx --yes supabase@2.122.0 start -x gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+      - name: Run database tests
+        run: npx --yes supabase@2.122.0 test db
+      - name: Lint database
+        run: npx --yes supabase@2.122.0 db lint --local --level warning
+      - name: Stop local Supabase
+        if: always()
+        run: npx --yes supabase@2.122.0 stop --no-backup

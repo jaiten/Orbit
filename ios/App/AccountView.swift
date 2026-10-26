@@ -7,6 +7,8 @@ struct AccountView: View {
     @Environment(\.modelContext) private var context
     @ObservedObject private var sync = SyncService.shared
     @State private var message: String?
+    @State private var confirmDelete = false
+    @State private var deleting = false
     var body: some View {
         Form {
             Section {
@@ -21,6 +23,11 @@ struct AccountView: View {
                     Button("Sync Now") { Task { await sync.run(context) } }.disabled(sync.syncing)
                     Button("Sign Out", role: .destructive) { Task { do { try await sync.signOut() } catch { message = error.localizedDescription } } }
                 }
+                Section {
+                    Button("Delete Account", role: .destructive) { confirmDelete = true }.disabled(deleting || sync.syncing)
+                } header: { Text("Delete Account") } footer: {
+                    Text("Permanently deletes your Orbit account and synced planner data, then clears this device. Export a backup first if you want to keep a copy.")
+                }
             } else {
                 SignInSection(message: $message)
             }
@@ -28,6 +35,19 @@ struct AccountView: View {
             .alert("Orbit", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
                 Button("OK") { message = nil }
             } message: { Text(message ?? "") }
+            .confirmationDialog("Permanently delete your account?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Delete Account and Data", role: .destructive) {
+                    deleting = true
+                    Task {
+                        defer { deleting = false }
+                        do { try await sync.deleteAccount(context: context); message = "Your account and synced data were deleted." }
+                        catch { message = error.localizedDescription }
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This cannot be undone. Any other signed-in devices will lose sync access.")
+            }
     }
 }
 

@@ -9,8 +9,7 @@ struct HabitGrid: Identifiable {
     let values: [Double]
 }
 
-/// GitHub-style boxes: a column per week, a row per weekday, today in the last column.
-/// It fits as many weeks as the width allows, so one view serves every widget size.
+/// Compact calendar boxes: seven days across, then the next week below.
 struct ActivityGrid: View {
     /// Daily progress from 0 to 1, oldest first; the last value is today.
     let values: [Double]
@@ -20,12 +19,12 @@ struct ActivityGrid: View {
     var label = "Habit history"
     var body: some View {
         GeometryReader { proxy in
-            let weeks = max(1, Int((proxy.size.width + spacing) / (cell + spacing)))
-            let shown = (weeks - 1) * 7 + Self.weekdayIndex(.now) + 1
+            let rows = max(1, Int((proxy.size.height + spacing) / (cell + spacing)))
+            let shown = (rows - 1) * 7 + Self.weekdayIndex(.now) + 1
             let days = Array(repeating: 0.0, count: max(0, shown - values.count)) + values.suffix(shown)
-            HStack(alignment: .top, spacing: spacing) {
-                ForEach(0..<weeks, id: \.self) { week in
-                    VStack(spacing: spacing) {
+            VStack(alignment: .leading, spacing: spacing) {
+                ForEach(0..<rows, id: \.self) { week in
+                    HStack(spacing: spacing) {
                         ForEach(0..<7, id: \.self) { weekday in
                             let index = week * 7 + weekday
                             RoundedRectangle(cornerRadius: cell * 0.25, style: .continuous)
@@ -34,9 +33,8 @@ struct ActivityGrid: View {
                         }
                     }
                 }
-            }.frame(maxWidth: .infinity, alignment: .trailing)
+            }.frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(height: cell * 7 + spacing * 6)
         .accessibilityElement(children: .ignore).accessibilityLabel(label)
     }
     /// The same five levels as Today's grid: empty, then lighter to full colour.
@@ -58,8 +56,9 @@ struct GridWidgetView: View {
             .widgetURL(URL(string: "orbit://today"))
     }
     private var summary: String { "\(entry.completedHabits) of \(entry.totalHabits) habits checked today" }
-    /// Weeks per size, as on the website; boxes are square and sized by the height available.
-    private var weeks: Int { family == .systemSmall ? 8 : family == .systemMedium ? 18 : 16 }
+    /// Calendar rows per size. Wide widgets need fewer rows; large widgets show one compact
+    /// calendar for each habit.
+    private var weeks: Int { family == .systemSmall ? 7 : family == .systemMedium ? 3 : 2 }
     /// Daily values (oldest first, ending today) laid out in whole weeks; days still to come are nil.
     private func levels(_ values: [Double]) -> [Double?] {
         let today = Calendar.current.startOfDay(for: .now)
@@ -79,7 +78,7 @@ struct GridWidgetView: View {
                 ForEach(entry.grids.prefix(3)) { grid in
                     VStack(alignment: .leading, spacing: 6) {
                         Text(grid.title).font(.footnote).lineLimit(1)
-                        BoxGrid(levels: levels(grid.values), color: DayTheme.color(grid.color), weeks: weeks, gap: 2)
+                        BoxGrid(levels: levels(grid.values), color: DayTheme.color(grid.color), weeks: weeks, gap: 2, maximumCell: nil)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                             .accessibilityLabel(grid.title + " history")
                     }
@@ -88,7 +87,7 @@ struct GridWidgetView: View {
         default:
             VStack(alignment: .leading, spacing: 10) {
                 header
-                BoxGrid(levels: levels(entry.consistency), color: DayTheme.accent, weeks: weeks, gap: 2)
+                BoxGrid(levels: levels(entry.consistency), color: DayTheme.accent, weeks: weeks, gap: 2, maximumCell: nil)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                     .accessibilityLabel(summary)
             }

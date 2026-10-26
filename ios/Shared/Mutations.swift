@@ -45,4 +45,16 @@ import WidgetKit
         if let log = logs.first { log.count = max(0, log.count - 1); log.updatedAt = .now }
         try save(context)
     }
+
+    /// Marks yesterday complete in one action. Callers intentionally expose no older backfill.
+    static func backfillYesterday(_ habit: Habit, now: Date = .now, in context: ModelContext) throws {
+        let calendar = Calendar.current
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: now) else { return }
+        let id = habit.id, key = PlannerLogic.dayKey(yesterday)
+        let target = PlannerLogic.dailyTarget(habit)
+        let logs = try context.fetch(FetchDescriptor<HabitLog>(predicate: #Predicate { $0.habitID == id }))
+        if let log = logs.first(where: { $0.dayKey == key }) { log.count = max(log.count, target); log.updatedAt = .now }
+        else { context.insert(HabitLog(habitID: id, dayKey: key, count: target)) }
+        try save(context)
+    }
 }

@@ -23,8 +23,8 @@ guaranteed. Widget edits queue locally and upload when the app is opened.
 
 Auth uses email/password, Keychain on iOS and OS encryption on Windows. A local
 owner binding prevents account mixing. Sign-out never silently deletes your data.
-Real email confirmation needs an acceptance check; production SMTP and account
-recovery UX are not configured by this implementation.
+Real email confirmation needs an acceptance check; production SMTP and Auth abuse
+controls are deployment settings tracked in `docs/beta-launch-checklist.md`.
 
 ## Database protections
 

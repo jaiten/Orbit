@@ -4,6 +4,7 @@ import SwiftUI
 import Security
 import WidgetKit
 import UIKit
+import OSLog
 
 @MainActor final class SyncService: ObservableObject {
     static let shared = SyncService()
@@ -19,6 +20,7 @@ import UIKit
     @Published var syncing = false
     private let realtime = RealtimeWakeup()
     private var realtimeAllowed = true
+    private let logger = Logger(subsystem: "com.jaiten.orbit", category: "sync")
     private init() {
         let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "OrbitSession", kSecReturnData as String: true, kSecMatchLimit as String: kSecMatchLimitOne]
         var item: CFTypeRef?
@@ -102,10 +104,25 @@ import UIKit
         _ = try await request("/auth/v1/logout?scope=local", body: [:])
         realtime.stop(); try saveSession(nil); lastDeviceCheck = .distantPast; status = "Saved on this device"
     }
+    func deleteAccount(context: ModelContext) async throws {
+        guard !busy, session != nil else { throw NSError(domain: "Orbit", code: 1, userInfo: [NSLocalizedDescriptionKey: "Sync is finishing. Please try again."]) }
+        busy = true; syncing = true; again = false
+        realtime.stop()
+        defer { busy = false; syncing = false }
+        _ = try await request("/rest/v1/rpc/orbit_delete_account", body: [:])
+        try saveSession(nil)
+        try SyncRecords.erasePlanner(context)
+        lastDeviceCheck = .distantPast
+        status = "Account and synced data deleted"
+        WidgetCenter.shared.reloadAllTimelines()
+        try? await refreshReminders(context)
+    }
     func run(_ context: ModelContext) async {
         if busy { again = true; return }
         guard session != nil else { return }
         busy = true; syncing = true; again = false
+        let started = Date.now
+        var uploaded = 0, pulled = 0
         defer {
             busy = false; syncing = false
             if again { Task { await self.run(context) } }
@@ -130,11 +147,13 @@ import UIKit
                 guard let response = try await request("/rest/v1/rpc/orbit_put", body: body) as? [String: Any], let record = response["record"] as? [String: Any] else { throw CocoaError(.coderReadCorrupt) }
                 if response["accepted"] as? Bool == true { entry.basePayload = try SyncRecords.json(record["payload"] ?? [:]); entry.revision = record["revision"] as? Int ?? entry.revision; if entry.mutation == mutation { entry.dirty = false; entry.conflict = nil }; try context.save() }
                 else { try receive(record, context: context) }
+                uploaded += 1
             }
             var offset = 0
             while true {
                 guard let records = try await request("/rest/v1/orbit_records?select=*&order=key&limit=500&offset=\(offset)") as? [[String: Any]] else { throw CocoaError(.coderReadCorrupt) }
                 for record in records { try receive(record, context: context) }
+                pulled += records.count
                 if records.count < 500 { break }; offset += 500
             }
             // Records from older devices may still contain repeating tasks.
@@ -144,7 +163,12 @@ import UIKit
             WidgetCenter.shared.reloadAllTimelines()
             try await refreshReminders(context)
             if entries.contains(where: { $0.dirty && $0.conflict == nil && $0.key != "owner" }) { again = true }
-        } catch { again = false; status = "Saved locally · " + error.localizedDescription }
+            logger.info("completed duration_ms=\(Int(Date.now.timeIntervalSince(started) * 1000), privacy: .public) uploaded=\(uploaded, privacy: .public) pulled=\(pulled, privacy: .public)")
+        } catch {
+            again = false; status = "Saved locally · " + error.localizedDescription
+            let value = error as NSError
+            logger.error("failed duration_ms=\(Int(Date.now.timeIntervalSince(started) * 1000), privacy: .public) domain=\(value.domain, privacy: .public) code=\(value.code, privacy: .public)")
+        }
     }
     private func receive(_ record: [String: Any], context: ModelContext) throws {
         guard let key = record["key"] as? String, let revision = record["revision"] as? Int, let payload = record["payload"] as? [String: Any] else { throw CocoaError(.coderReadCorrupt) }

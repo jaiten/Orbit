@@ -821,6 +821,28 @@ main {
   background: var(--surface);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 45%, var(--line));
 }
+.missed-prompt {
+  display: grid;
+  gap: var(--space-s);
+  margin-bottom: var(--space-l);
+}
+.missed-prompt > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.missed-prompt p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--type-detail);
+}
+.missed-prompt button {
+  justify-self: start;
+}
+.missed-prompt #dismiss-missed {
+  justify-self: auto;
+  font-size: 20px;
+}
 .history-list {
   display: grid;
   gap: var(--space-m);
@@ -858,6 +880,14 @@ main {
   align-items: center;
   gap: var(--space-xxl);
 }
+/* History reads like a calendar: seven consecutive days across, then the next week below. */
+.history-charts .box-grid {
+  grid-template-columns: repeat(7, 14px);
+  grid-template-rows: none;
+  grid-auto-flow: row;
+  grid-auto-rows: 14px;
+  justify-content: end;
+}
 .week-segments {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -882,6 +912,18 @@ main {
   text-align: center;
   font-size: var(--type-eyebrow);
   color: var(--muted);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+}
+button.segment {
+  cursor: pointer;
+}
+button.segment:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 3px;
+  border-radius: 8px;
 }
 .segment i {
   display: grid;
@@ -1046,6 +1088,11 @@ input[type="checkbox"] {
   padding: var(--space-s) 0;
   border-top: 1px solid var(--line);
 }
+.delete-account {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-l);
+  border-top: 1px solid var(--line);
+}
 .device-row small {
   display: block;
 }
@@ -1199,7 +1246,8 @@ dialog footer .danger {
   white-space: nowrap;
   overflow: hidden;
   color: var(--accent-text);
-  background: color-mix(in srgb, var(--accent) var(--tint-accent-fill), transparent);
+  background: color-mix(in srgb, var(--accent) 24%, var(--surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 .chip[hidden] {
   display: none;
@@ -1596,6 +1644,9 @@ dialog footer .danger {
 @container (max-width: 480px) {
   .history-charts {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .history-charts .box-grid {
+    justify-content: start;
   }
   .history-head {
     flex-wrap: wrap;

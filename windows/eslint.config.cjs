@@ -45,6 +45,7 @@ const shared = Object.fromEntries(
     "newTask",
     "toggle",
     "log",
+    "backfillYesterday",
     "bindTiles",
     "renderToday",
     "bindToday",

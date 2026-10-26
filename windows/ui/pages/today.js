@@ -12,6 +12,31 @@ function consistencyLevels(habits, days = gridDays()) {
 
 const checklist = (items, row = taskRow) => `<div class="check-list">${items.map((i) => row(i)).join("")}</div>`;
 
+function missedYesterdayPrompt(allHabits) {
+  if (new Date().getHours() >= 12 || selected !== today()) return "";
+  const current = today(),
+    yesterday = OrbitHabits.addDays(current, -1);
+  const dismissed = localStorage.getItem("dismissedMissedHabitPromptDay");
+  if (dismissed === current) return "";
+  const last = localStorage.getItem("lastMissedHabitPromptDay");
+  if (last && last !== current && current < OrbitHabits.addDays(last, 7)) return "";
+  const candidates = allHabits.filter((habit) => {
+    if (OrbitHabits.schedule(habit) === "WEEKLY") return false;
+    const created = habit.createdAt ? dayKey(new Date(habit.createdAt)) : null;
+    if ((created && created > yesterday) || !OrbitHabits.scheduledOn(habit, yesterday) || checked(habit, yesterday))
+      return false;
+    const prior = Array.from({ length: 13 }, (_, index) => OrbitHabits.addDays(current, -index - 2))
+      .filter((key) => (!created || key >= created) && OrbitHabits.scheduledOn(habit, key))
+      .slice(0, 5);
+    return prior.length === 5 && prior.filter((key) => checked(habit, key)).length >= 3;
+  });
+  if (!candidates.length) return "";
+  localStorage.setItem("lastMissedHabitPromptDay", current);
+  return `<section class="card missed-prompt"><div><strong>Missed yesterday?</strong><button id="dismiss-missed" aria-label="Dismiss missed habit reminder">×</button></div><p>Only yesterday can be corrected.</p>${candidates
+    .map((habit) => `<button data-backfill-yesterday="${esc(habit.id)}">✓ Mark ${esc(habit.title)} done</button>`)
+    .join("")}</section>`;
+}
+
 function renderToday(tasks, allHabits) {
   // Today: dated today or earlier and still open, or finished today. Undated and Someday items stay in Lists.
   const relevant = tasks.filter((t) => OrbitPlanner.onDay(planItem(t), selected, today()));
@@ -38,6 +63,7 @@ function renderToday(tasks, allHabits) {
     <section class="today-main">
       ${addField()}
       ${conflictBanner()}
+      ${missedYesterdayPrompt(allHabits)}
       ${habits.length ? sectionLabel("Habits", `${habitsDone} of ${habits.length}`) + checklist(habits, habitCard) : ""}
       ${overdue.length ? sectionLabel("Overdue") + checklist(overdue) : ""}
       ${timed.length ? sectionLabel("Scheduled", "Time blocks") + checklist(timed) : ""}
@@ -69,6 +95,14 @@ function renderToday(tasks, allHabits) {
 }
 
 function bindToday() {
+  if ($("#dismiss-missed"))
+    $("#dismiss-missed").onclick = () => {
+      localStorage.setItem("dismissedMissedHabitPromptDay", today());
+      render();
+    };
+  document
+    .querySelectorAll("[data-backfill-yesterday]")
+    .forEach((button) => (button.onclick = () => action(() => backfillYesterday(button.dataset.backfillYesterday))));
   if ($(".completed-items"))
     $(".completed-items").ontoggle = (e) => {
       completedOpen = e.target.open;

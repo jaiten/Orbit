@@ -121,6 +121,16 @@ class Store {
         .run(row.conflict.revision, JSON.stringify(row.conflict.payload), randomUUID(), key);
     } else throw Error("Invalid resolution");
   }
+  clearPlanner() {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.db.exec("DELETE FROM records; DELETE FROM settings WHERE key='owner';");
+      this.db.exec("COMMIT");
+    } catch (e) {
+      this.db.exec("ROLLBACK");
+      throw e;
+    }
+  }
   close() {
     this.db.close();
   }

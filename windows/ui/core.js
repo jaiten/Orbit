@@ -248,7 +248,8 @@ function planCard(done, total) {
   </div>`;
 }
 /**
- * GitHub-style boxes: a column per week, a row per day, oldest first.
+ * Habit boxes, oldest first. History pages arrange these in calendar order; compact Today grids
+ * keep the wider layout so they do not become excessively tall.
  * Opacity is set from data-o after render (the page's CSP blocks inline styles).
  */
 function boxGrid(levels, color, label, weeks = 12) {
@@ -359,16 +360,28 @@ async function toggle(id) {
     updatedAt: Date.now(),
   });
 }
-async function log(id, undo) {
+async function log(id, undo, date = selected) {
   const h = rows("habits").find((h) => h.id === id);
-  if (selected > dayKey(new Date()) || !h) return;
-  const old = rows("habit_logs").find((l) => l.habitID === id && l.dayKey === selected);
-  if (!undo && checked(h)) return;
-  const data = old || { id: crypto.randomUUID(), habitID: id, dayKey: selected, count: 0 };
+  const current = dayKey(new Date());
+  if (date > current || date < OrbitHabits.addDays(current, -1) || !h) return;
+  const old = rows("habit_logs").find((l) => l.habitID === id && l.dayKey === date);
+  if (!undo && checked(h, date)) return;
+  const data = old || { id: crypto.randomUUID(), habitID: id, dayKey: date, count: 0 };
   data.count = Math.max(0, data.count + (undo ? -1 : 1));
   poppedID = undo ? null : id;
   data.updatedAt = Date.now();
-  data._key = `habit_logs/${id}-${selected}`;
+  data._key = `habit_logs/${id}-${date}`;
+  await put("habit_logs", data);
+}
+async function backfillYesterday(id) {
+  const h = rows("habits").find((habit) => habit.id === id);
+  if (!h) return;
+  const date = OrbitHabits.addDays(today(), -1);
+  const old = rows("habit_logs").find((item) => item.habitID === id && item.dayKey === date);
+  const data = old || { id: crypto.randomUUID(), habitID: id, dayKey: date, count: 0 };
+  data.count = Math.max(data.count, OrbitHabits.dailyTarget(h));
+  data.updatedAt = Date.now();
+  data._key = `habit_logs/${id}-${date}`;
   await put("habit_logs", data);
 }
 

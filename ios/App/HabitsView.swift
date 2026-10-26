@@ -60,7 +60,7 @@ struct HabitHistoryIndex: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceM)) {
-                Text("The last 7 days and 12 weeks, for every habit.").font(.subheadline).foregroundStyle(.secondary).padding(.horizontal, 4)
+                Text("The last 7 days and 12 weeks, for every habit. Yesterday is the only past day you can correct.").font(.subheadline).foregroundStyle(.secondary).padding(.horizontal, 4)
                 ForEach(habits) { habit in
                     VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceM)) {
                         historyHeading(habit)
@@ -107,6 +107,7 @@ struct HabitHistoryDetail: View {
             VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceM)) {
                     Eyebrow(text: "\(PlannerLogic.checkedDays(habit, logs: logs, ending: .now)) of the last 7 days")
+                    Text("Tap yesterday to add or remove a check-in.").font(.footnote).foregroundStyle(.secondary)
                     HabitHistoryCharts(habit: habit, logs: logs)
                 }.orbitCard()
                 VStack(alignment: .leading, spacing: 0) {
@@ -135,8 +136,11 @@ struct HabitHistoryDetail: View {
 /// One habit's last 7 days (segments with weekday letters) and last 12 weeks (boxes).
 /// Days it isn't scheduled read as empty, never as missed.
 struct HabitHistoryCharts: View {
+    @Environment(\.modelContext) private var context
     let habit: Habit
     let logs: [HabitLog]
+    @State private var error: String?
+    @State private var feedback = 0
     var body: some View {
         let color = DayTheme.color(habit.color)
         let week = (-6...0).map { Calendar.current.date(byAdding: .day, value: $0, to: .now)! }
@@ -146,13 +150,25 @@ struct HabitHistoryCharts: View {
         VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
             WeekSegments(done: week.map { PlannerLogic.checkedToday(habit, logs: logs, at: $0) }, days: week, color: color,
                          scheduled: week.map { HabitRules.scheduledOn(rule: habit.frequencyRule, day: PlannerLogic.dayKey($0)) },
-                         available: week.map { PlannerLogic.dayKey($0) >= PlannerLogic.dayKey(habit.createdAt) })
+                         available: week.map { PlannerLogic.dayKey($0) >= PlannerLogic.dayKey(habit.createdAt) },
+                         toggle: toggle)
             BoxGrid(levels: BoxGrid.days().map { day -> Double? in
                 let key = PlannerLogic.dayKey(day)
                 return key > today ? nil : Double(counts[key] ?? 0) / target
             }, color: color)
             .accessibilityLabel("\(habit.title), last 12 weeks")
         }
+        .modifier(MutationErrorModifier(error: $error))
+        .sensoryFeedback(.success, trigger: feedback)
+    }
+    private func toggle(_ day: Date) {
+        do {
+            if PlannerLogic.checkedToday(habit, logs: logs, at: day) { try Mutations.undoLog(habit, at: day, in: context) }
+            else if PlannerLogic.dayKey(day) == HabitRules.addDays(PlannerLogic.dayKey(.now), -1) { try Mutations.backfillYesterday(habit, in: context) }
+            else { try Mutations.log(habit, at: day, in: context) }
+            feedback += 1
+            Task { do { try await refreshReminders(context) } catch { self.error = error.localizedDescription } }
+        } catch { self.error = error.localizedDescription }
     }
 }
 

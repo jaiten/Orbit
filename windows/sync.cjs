@@ -10,6 +10,10 @@ class Sync {
     if (!this.client) return;
     this.busy = true;
     this.again = false;
+    const started = Date.now();
+    let uploaded = 0,
+      pulled = 0,
+      outcome = "ok";
     const before = JSON.stringify(this.store.rows());
     try {
       const {
@@ -36,6 +40,7 @@ class Sync {
         if (error) throw error;
         if (data.accepted) this.store.accept(data.record, row);
         else this.store.accept(data.record);
+        uploaded++;
       }
       for (let offset = 0; ; offset += 500) {
         const { data, error } = await this.client
@@ -45,6 +50,7 @@ class Sync {
           .range(offset, offset + 499);
         if (error) throw error;
         for (const row of data) this.store.accept(row);
+        pulled += data.length;
         if (data.length < 500) break;
       }
       this.status = this.store.rows().some((r) => r.conflict)
@@ -54,12 +60,14 @@ class Sync {
           : "All changes synced";
       if (this.store.rows().some((r) => r.dirty && !r.conflict)) this.again = true;
     } catch (e) {
+      outcome = e?.name || "error";
       this.status = `Saved locally · ${e.message}`;
       this.again = false;
     } finally {
       this.busy = false;
       this.notify("status");
       if (before !== JSON.stringify(this.store.rows())) this.notify("data");
+      console.info("orbit.sync", { durationMs: Date.now() - started, uploaded, pulled, outcome });
       if (this.again) queueMicrotask(() => void this.run());
     }
   }

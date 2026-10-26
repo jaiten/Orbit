@@ -1,7 +1,7 @@
 // Account: sign-in, email confirmation, devices and sign-out. Sync status lives here too.
 function accountSection() {
   if (state.email)
-    return `<p>${esc(state.email)}</p><button id="sync-now">Sync now</button><button id="show-devices">Devices & active sign-ins</button><button id="change-password">Change password</button><div id="devices-panel"></div><button id="signout">Sign out</button>`;
+    return `<p>${esc(state.email)}</p><button id="sync-now">Sync now</button><button id="show-devices">Devices & active sign-ins</button><button id="change-password">Change password</button><div id="devices-panel"></div><button id="signout">Sign out</button><div class="delete-account"><p class="secondary">Permanently deletes your Orbit account and synced planner data, then clears this PC. Export a backup first if you want to keep a copy.</p><button id="delete-account" class="danger">Delete account</button></div>`;
   const disabled = !state.configured ? "disabled" : "";
   return `<form id="account"><label>Email<input name="email" type="email" autocomplete="email" value="${esc(accountEmail)}" required></label><label>Password<input name="password" type="password" autocomplete="current-password" minlength="8" required></label><div><button class="primary" type="submit" ${disabled}>Sign in</button><button type="button" id="forgot-password">Forgot password?</button><button type="button" id="signup" ${disabled}>Create account</button></div></form><details class="confirmation"><summary>Email confirmation</summary><form id="confirm-account"><label>Confirmation code (if provided)<input name="code" autocomplete="one-time-code" inputmode="numeric" required></label><button class="primary">Confirm account</button><button type="button" id="resend-code">Resend confirmation email</button></form><p class="secondary">Open the newest confirmation email and tap its link, then sign in above. If your email provides a code, enter it here.</p></details>${!state.configured ? '<p class="secondary">Backend setup is still in progress. Everything you add is saved locally.</p>' : ""}`;
 }
@@ -35,6 +35,16 @@ function bindAccount() {
   }
   if ($("#sync-now")) $("#sync-now").onclick = () => action(() => api.sync());
   if ($("#signout")) $("#signout").onclick = () => action(() => api.auth("out"));
+  if ($("#delete-account"))
+    $("#delete-account").onclick = (event) => {
+      const button = event.currentTarget;
+      if (button.dataset.confirm !== "yes") {
+        button.dataset.confirm = "yes";
+        button.textContent = "Confirm permanent deletion";
+        return;
+      }
+      action(async () => showNotice(await api.auth("delete")));
+    };
   if ($("#account")) {
     const auth = (mode) => {
       const f = $("#account");

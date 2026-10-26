@@ -3,6 +3,27 @@ import SwiftData
 import WidgetKit
 import AppIntents
 
+struct WidgetHabit: AppEntity {
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Habit"
+    static var defaultQuery = WidgetHabitQuery()
+    let id: String
+    let title: String
+    var displayRepresentation: DisplayRepresentation { DisplayRepresentation(title: "\(title)") }
+}
+
+struct WidgetHabitQuery: EntityQuery {
+    @MainActor func entities(for identifiers: [String]) async throws -> [WidgetHabit] {
+        let context = ModelContext(try Persistence.makeContainer())
+        let habits = try context.fetch(FetchDescriptor<Habit>())
+        return identifiers.compactMap { id in habits.first { $0.id.uuidString == id }.map { WidgetHabit(id: id, title: $0.title) } }
+    }
+    @MainActor func suggestedEntities() async throws -> [WidgetHabit] {
+        let context = ModelContext(try Persistence.makeContainer())
+        return try context.fetch(FetchDescriptor<Habit>(sortBy: [SortDescriptor(\.createdAt)]))
+            .map { WidgetHabit(id: $0.id.uuidString, title: $0.title) }
+    }
+}
+
 struct WidgetItem: Identifiable {
     let id: String
     let title: String
@@ -45,7 +66,7 @@ struct DayProvider: TimelineProvider {
             completion(Timeline(entries: [entry], policy: .after(refresh)))
         }
     }
-    @MainActor static func read() -> DayEntry {
+    @MainActor static func read(gridHabitIDs: [UUID]? = nil) -> DayEntry {
         do {
             let container = try Persistence.makeContainer()
             let context = ModelContext(container)
@@ -60,7 +81,12 @@ struct DayProvider: TimelineProvider {
             let planned = try context.fetch(FetchDescriptor<PlannerTask>()).filter { TodayRules.onDay(TodayRules.item($0), day: today, today: today) }
             let allHabits = try context.fetch(FetchDescriptor<Habit>(sortBy: [SortDescriptor(\Habit.createdAt)]))
             let logs = try context.fetch(FetchDescriptor<HabitLog>())
-            let habits = allHabits.filter { PlannerLogic.isDue($0, logs: logs, at: .now) }
+            let gridHabits = gridHabitIDs.flatMap { ids in
+                let selected = ids.compactMap { id in allHabits.first { $0.id == id } }
+                return selected.isEmpty ? nil : selected
+            } ?? allHabits
+            let summaryHabits = gridHabitIDs == nil ? allHabits : gridHabits
+            let habits = summaryHabits.filter { PlannerLogic.isDue($0, logs: logs, at: .now) }
             let taskItems = tasks.map { task in
                 WidgetItem(id: task.id.uuidString, title: task.title,
                     subtitle: task.hasTime ? task.dueDate!.formatted(date: .omitted, time: .shortened) : "",
@@ -72,8 +98,8 @@ struct DayProvider: TimelineProvider {
             }
             return DayEntry(date: .now, items: taskItems + habitItems, completedHabits: habits.count - habitItems.count,
                 totalHabits: habits.count, doneToday: planned.filter { $0.completedAt != nil }.count + habits.count - habitItems.count,
-                totalToday: planned.count + habits.count, consistency: PlannerLogic.consistencySeries(habits: allHabits, logs: logs, ending: .now, days: DayEntry.gridDays),
-                grids: allHabits.prefix(3).map { habit in
+                totalToday: planned.count + habits.count, consistency: PlannerLogic.consistencySeries(habits: gridHabits, logs: logs, ending: .now, days: DayEntry.gridDays),
+                grids: gridHabits.prefix(3).map { habit in
                     HabitGrid(id: habit.id.uuidString, title: habit.title, color: habit.color,
                               values: PlannerLogic.consistencySeries(habits: [habit], logs: logs, ending: .now, days: DayEntry.gridDays))
                 })
@@ -177,6 +203,7 @@ struct TodayWidgetConfiguration: WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "Today"
     static var description = IntentDescription("Show today’s progress, a checklist you can tick off, or a grid of your habit history.")
     @Parameter(title: "Style", default: .progress) var style: TodayWidgetStyle
+    @Parameter(title: "Grid habits") var habits: [WidgetHabit]?
 }
 struct TodayWidgetEntry: TimelineEntry {
     let date: Date
@@ -186,7 +213,8 @@ struct TodayWidgetEntry: TimelineEntry {
 struct TodayWidgetProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> TodayWidgetEntry { TodayWidgetEntry(date: .now, day: .placeholder, style: .progress) }
     func snapshot(for configuration: TodayWidgetConfiguration, in context: Context) async -> TodayWidgetEntry {
-        let day = context.isPreview ? DayEntry.placeholder : await MainActor.run { DayProvider.read() }
+        let selected = configuration.style == .grid ? configuration.habits?.compactMap { UUID(uuidString: $0.id) } : nil
+        let day = context.isPreview ? DayEntry.placeholder : await MainActor.run { DayProvider.read(gridHabitIDs: selected) }
         return TodayWidgetEntry(date: day.date, day: day, style: configuration.style)
     }
     func timeline(for configuration: TodayWidgetConfiguration, in context: Context) async -> Timeline<TodayWidgetEntry> {

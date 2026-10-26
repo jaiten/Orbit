@@ -4,6 +4,11 @@
   "private": true,
   "description": "A simple planner for today, synced with iPhone.",
   "author": "Orbit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jaiten/Orbit.git",
+    "directory": "windows"
+  },
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
@@ -19,12 +24,15 @@
   },
   "devDependencies": {
     "@eslint/js": "9.39.1",
-    "electron": "44.9.0",
+    "electron": "44.9.3",
     "electron-builder": "26.15.3",
     "eslint": "9.39.1",
     "globals": "16.5.0",
     "playwright": "1.64.1",
     "prettier": "3.3.3"
+  },
+  "overrides": {
+    "fast-uri": "3.1.9"
   },
   "build": {
     "appId": "com.orbit.planner",
@@ -40,8 +48,7 @@
     ],
     "win": {
       "target": "portable",
-      "icon": "assets/orbit.ico",
-      "signExecutable": false
+      "icon": "assets/orbit.ico"
     },
     "portable": {
       "artifactName": "Orbit-${version}.exe"

@@ -16,6 +16,11 @@ jobs:
     defaults:
       run:
         working-directory: windows
+    env:
+      # Pull-request builds remain unsigned because repository secrets are not exposed.
+      # Main/release builds are signed when these two secrets are configured.
+      CSC_LINK: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+      CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7

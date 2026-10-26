@@ -4,7 +4,7 @@ Orbit can keep the native clients and Supabase. There is no reason to rewrite ei
 
 ## Current constraints
 
-- `ios/App/SyncService.swift` and `windows/sync.cjs` download every owner record on each catch-up, with 500-record pages. They poll every 20 seconds even while using Realtime. As an illustration, 1,000 simultaneously open clients would initiate about 50 full catch-ups per second before edits and reconnects. This describes request demand, not server capacity.
+- `ios/App/SyncService.swift` and `windows/sync.cjs` download every owner record on each catch-up, with 500-record pages. Windows uses Realtime with a two-minute fallback poll; iOS catches up on foreground and Realtime wakeups. This is acceptable for a capped beta, but each catch-up still grows with the owner's full history.
 - Local snapshot capture, record lookup and conflict detection scan collections repeatedly. History growth makes these scans increasingly expensive. Undo retains only the changed records, but calculating that difference also uses snapshots.
 - The backend's `(user_id, key)` primary-key index supports current owner/key access. The database enforces ownership and session revocation. Preserve those checks when introducing new endpoints.
 - Widgets use the shared local store and refresh at iOS's discretion. They are not a separate background sync engine. A user must reopen Orbit for widget edits to upload with the existing architecture.

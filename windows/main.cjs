@@ -24,6 +24,7 @@ let window,
   plannerTools,
   pendingBackup,
   pendingRecoveryURL,
+  realtimeChannel,
   recoveryReady = false,
   desktop;
 let recoveryHandler;
@@ -369,6 +370,27 @@ app.whenReady().then(async () => {
       notify();
       return;
     }
+    if (mode === "delete") {
+      if (sync.busy) throw Error("Sync is finishing. Please try again.");
+      sync.busy = true;
+      try {
+        const { error } = await client.rpc("orbit_delete_account");
+        if (error) throw error;
+        try {
+          await client.auth.signOut({ scope: "local" });
+        } catch {
+          /* The account is already gone; local cleanup still continues. */
+        }
+        storage.removeItem(authKey);
+        store.clearPlanner();
+        sync.status = "Account and synced data deleted";
+        notify();
+        return "Your account and synced data were deleted.";
+      } finally {
+        sync.busy = false;
+        sync.again = false;
+      }
+    }
     if (
       !["in", "up", "resend", "verify"].includes(mode) ||
       typeof email !== "string" ||
@@ -433,14 +455,29 @@ app.whenReady().then(async () => {
       window?.webContents.send("wake");
       desktop?.scheduler.reschedule();
     });
-  setInterval(() => void sync.run(), 20000).unref();
+  // Realtime is the normal wake-up path. This slower poll repairs missed socket
+  // events and reconnect gaps without downloading every record every 20 seconds.
+  setInterval(() => void sync.run(), 120000).unref();
   if (client) {
-    client
-      .channel("planner")
-      .on("postgres_changes", { event: "*", schema: "public", table: "orbit_records" }, () => void sync.run())
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") void sync.run();
-      });
+    const subscribeRealtime = async () => {
+      const { data } = await client.auth.getSession();
+      if (realtimeChannel) await client.removeChannel(realtimeChannel);
+      realtimeChannel = null;
+      const uid = data.session?.user?.id;
+      if (!uid) return;
+      realtimeChannel = client
+        .channel("planner:" + uid)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "orbit_records", filter: "user_id=eq." + uid },
+          () => void sync.run(),
+        )
+        .subscribe((status) => {
+          if (status === "SUBSCRIBED") void sync.run();
+        });
+    };
+    client.auth.onAuthStateChange(() => setTimeout(() => void subscribeRealtime(), 0));
+    void subscribeRealtime();
     void sync.run();
   }
 });

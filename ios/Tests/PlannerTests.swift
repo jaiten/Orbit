@@ -72,6 +72,16 @@ import SwiftData
         XCTAssertTrue(PlannerLogic.checkedToday(habit, logs: logs, at: today))
         XCTAssertFalse(PlannerLogic.checkedToday(habit, logs: logs, at: date(2026, 9, 20)))
     }
+    func testYesterdayBackfillCompletesTheDailyTargetInOneAction() throws {
+        let context = ModelContext(try Persistence.makeContainer(inMemory: true))
+        let habit = Habit(title: "Water", target: 3); context.insert(habit)
+        let now = date(2026, 10, 26)
+        try Mutations.backfillYesterday(habit, now: now, in: context)
+        let logs = try context.fetch(FetchDescriptor<HabitLog>())
+        XCTAssertEqual(logs.count, 1)
+        XCTAssertEqual(logs.first?.dayKey, "2026-10-25")
+        XCTAssertEqual(logs.first?.count, 3)
+    }
     func testOnlyDeletionsAndMovesOfferUndo() throws {
         let context = ModelContext(try Persistence.makeContainer(inMemory: true))
         UndoJournal.shared.dismiss()

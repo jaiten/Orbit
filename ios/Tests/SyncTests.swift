@@ -60,4 +60,15 @@ import SwiftData
         try SyncRecords.bind("alice", context: container.mainContext)
         XCTAssertThrowsError(try SyncRecords.bind("bob", context: container.mainContext))
     }
+    func testErasingDeletedAccountRemovesPlannerAndOwnerBinding() throws {
+        let container = try Persistence.makeContainer(inMemory: true)
+        let context = container.mainContext
+        context.insert(PlannerTask(title: "Private")); context.insert(Habit(title: "Private habit"))
+        try SyncRecords.bind("alice", context: context); try Mutations.save(context)
+        try SyncRecords.erasePlanner(context)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<PlannerTask>()), 0)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Habit>()), 0)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<SyncEntry>()), 0)
+        XCTAssertNoThrow(try SyncRecords.bind("new-account", context: context))
+    }
 }

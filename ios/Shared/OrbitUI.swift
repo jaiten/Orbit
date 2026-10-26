@@ -173,19 +173,30 @@ struct PlanCard: View {
     }
 }
 
-/// GitHub-style boxes: a column per week, a row per day, oldest first. Boxes stay square and are
-/// sized to whichever runs out first, the width or the height. A nil level is a day still to come.
+/// Calendar-style boxes: seven days across, then the next week below, oldest first. Boxes stay
+/// square and are sized to whichever runs out first, the width or the height. A nil level is a
+/// day still to come.
 struct BoxGrid: View {
     let levels: [Double?]
     let color: Color
     var weeks = DesignTokens.gridWeeks
     var gap = CGFloat(DesignTokens.gridGap)
-    var body: some View {
+    /// History stays compact; widgets pass nil to expand into their available space.
+    var maximumCell: CGFloat? = 14
+    @ViewBuilder var body: some View {
+        if let maximumCell {
+            grid.frame(width: maximumCell * 7 + gap * 6,
+                       height: maximumCell * CGFloat(weeks) + gap * CGFloat(weeks - 1))
+        } else {
+            grid.aspectRatio(7 / CGFloat(weeks), contentMode: .fit)
+        }
+    }
+    private var grid: some View {
         GeometryReader { proxy in
-            let side = max(2, min((proxy.size.width - gap * CGFloat(weeks - 1)) / CGFloat(weeks), (proxy.size.height - gap * 6) / 7))
-            HStack(alignment: .top, spacing: gap) {
+            let side = max(2, min((proxy.size.width - gap * 6) / 7, (proxy.size.height - gap * CGFloat(weeks - 1)) / CGFloat(weeks)))
+            VStack(alignment: .leading, spacing: gap) {
                 ForEach(0..<weeks, id: \.self) { week in
-                    VStack(spacing: gap) {
+                    HStack(spacing: gap) {
                         ForEach(0..<7, id: \.self) { day in
                             let index = week * 7 + day
                             let level = index < levels.count ? levels[index] : nil
@@ -203,7 +214,6 @@ struct BoxGrid: View {
                 }
             }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .aspectRatio(CGFloat(weeks) / 7, contentMode: .fit)
         .accessibilityElement(children: .ignore)
     }
     /// Days for the grid: whole weeks in the locale's order, ending with this week.
@@ -221,6 +231,8 @@ struct WeekSegments: View {
     let color: Color
     var scheduled: [Bool] = []
     var available: [Bool] = []
+    /// When supplied, past and present cells become buttons for correcting missed check-ins.
+    var toggle: ((Date) -> Void)? = nil
     @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: typeSize.isAccessibilitySize ? 4 : 7), spacing: 12) {
@@ -229,7 +241,7 @@ struct WeekSegments: View {
                 let due = !scheduled.indices.contains(index) || scheduled[index]
                 let existed = !available.indices.contains(index) || available[index]
                 let status = checked ? "Checked" : !existed ? "Before this habit was added" : due ? "Not checked" : "Not scheduled"
-                VStack(spacing: 6) {
+                let cell = VStack(spacing: 6) {
                     ZStack {
                         Circle().fill(checked ? color : Color.orbitTrack(DesignTokens.tintProgressTrack))
                         if checked { Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundStyle(.black.opacity(0.85)) }
@@ -239,6 +251,14 @@ struct WeekSegments: View {
                 }.frame(maxWidth: .infinity)
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), \(status)")
+                let calendar = Calendar.current
+                let today = calendar.startOfDay(for: .now)
+                let earliest = calendar.date(byAdding: .day, value: -1, to: today) ?? today
+                if let toggle, existed, calendar.startOfDay(for: day) >= earliest, calendar.startOfDay(for: day) <= today {
+                    Button { toggle(day) } label: { cell }
+                        .buttonStyle(.plain)
+                        .accessibilityHint(checked ? "Removes one check-in" : "Adds a check-in for this day")
+                } else { cell }
             }
         }.accessibilityElement(children: .contain).accessibilityLabel("Last 7 days")
     }
@@ -254,7 +274,9 @@ struct PreviewChip: View {
             Text(text).font(.subheadline.weight(.medium)).foregroundStyle(accent.text)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 14).padding(.vertical, 8)
-                .background(accent.fill.opacity(DesignTokens.tintAccentFill), in: RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusInput), style: .continuous))
+                .background(accent.fill.opacity(0.24), in: RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusInput), style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusInput), style: .continuous)
+                    .strokeBorder(accent.fill.opacity(0.22), lineWidth: 1))
                 .accessibilityIdentifier(identifier)
         }
     }

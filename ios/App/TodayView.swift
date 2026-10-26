@@ -30,7 +30,9 @@ struct TodayView: View {
     @State private var addingHabit = false
     @State private var customizing = false
     @AppStorage("todayCompletedExpanded") private var showingCompleted = false
+    @AppStorage("lastMissedHabitPromptDay") private var lastMissedPromptDay = ""
     @State private var error: String?
+    @State private var missedYesterdayHabits: [Habit] = []
     @State private var day = Calendar.current.startOfDay(for: .now)
     @ObservedObject private var calendars = CalendarBridge.shared
 
@@ -89,6 +91,7 @@ struct TodayView: View {
             header
             FocusBanner()
             ConflictBanner()
+            missedYesterdayBanner
             ForEach(sections, id: \.self) { section in
                 homeSection(section)
             }
@@ -109,6 +112,24 @@ struct TodayView: View {
     private var completedItems: [TodayItem] {
         (sections.contains("today") ? relevant.filter { $0.completedAt != nil }.map { TodayItem(task: $0) } : []) +
         (sections.contains("routine") ? checkedHabits.map { TodayItem(habit: $0) } : [])
+    }
+
+    @ViewBuilder private var missedYesterdayBanner: some View {
+        if !missedYesterdayHabits.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Label("Missed yesterday?", systemImage: "clock.arrow.circlepath").font(.subheadline.weight(.semibold))
+                    Spacer()
+                    Button { missedYesterdayHabits = [] } label: { Image(systemName: "xmark").frame(width: 32, height: 32) }
+                        .accessibilityLabel("Dismiss missed habit reminder")
+                }
+                Text("Only yesterday can be corrected.").font(.footnote).foregroundStyle(.secondary)
+                ForEach(missedYesterdayHabits) { habit in
+                    Button("Mark \(habit.title) done", systemImage: "checkmark.circle") { backfill(habit) }
+                        .font(.subheadline.weight(.medium))
+                }
+            }.padding(16).orbitSurface(radius: CGFloat(DesignTokens.radiusCard))
+        }
     }
 
     private var progressSummary: some View {
@@ -216,7 +237,38 @@ struct TodayView: View {
         }
     }
 
-    private func refresh() { day = Calendar.current.startOfDay(for: .now); calendars.reload(); FocusSession.shared.restore() }
+    private func refresh() {
+        day = Calendar.current.startOfDay(for: .now); calendars.reload(); FocusSession.shared.restore()
+        refreshMissedYesterday()
+    }
+    private func refreshMissedYesterday() {
+        guard missedYesterdayHabits.isEmpty, Calendar.current.component(.hour, from: .now) < 12 else { return }
+        let today = PlannerLogic.dayKey(.now)
+        guard lastMissedPromptDay.isEmpty || today >= HabitRules.addDays(lastMissedPromptDay, 7) else { return }
+        let yesterday = HabitRules.addDays(today, -1)
+        let candidates = habits.filter { habit in
+            guard HabitRules.schedule(habit.frequencyRule) != "WEEKLY",
+                  PlannerLogic.dayKey(habit.createdAt) <= yesterday,
+                  HabitRules.scheduledOn(rule: habit.frequencyRule, day: yesterday),
+                  !HabitRules.checked(rule: habit.frequencyRule, target: habit.target, counts: PlannerLogic.counts(habit, logs: logs), day: yesterday) else { return false }
+            let prior = (2...14).map { HabitRules.addDays(today, -$0) }
+                .filter { $0 >= PlannerLogic.dayKey(habit.createdAt) && HabitRules.scheduledOn(rule: habit.frequencyRule, day: $0) }
+                .prefix(5)
+            guard prior.count == 5 else { return false }
+            let counts = PlannerLogic.counts(habit, logs: logs)
+            return prior.filter { HabitRules.checked(rule: habit.frequencyRule, target: habit.target, counts: counts, day: $0) }.count >= 3
+        }
+        guard !candidates.isEmpty else { return }
+        missedYesterdayHabits = candidates
+        lastMissedPromptDay = today
+    }
+    private func backfill(_ habit: Habit) {
+        do {
+            try Mutations.backfillYesterday(habit, in: context)
+            missedYesterdayHabits.removeAll { $0.id == habit.id }
+            Task { try? await refreshReminders(context) }
+        } catch { self.error = error.localizedDescription }
+    }
 }
 
 private struct TodaySheets: ViewModifier {
