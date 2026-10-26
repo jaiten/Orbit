@@ -1,5 +1,6 @@
 -- Run as postgres against a disposable/local project. All fixtures roll back.
 begin;
+select plan(1);
 do $$
 declare a uuid:=gen_random_uuid(); b uuid:=gen_random_uuid(); sa uuid:=gen_random_uuid(); sb uuid:=gen_random_uuid();
 begin
@@ -30,4 +31,6 @@ do $$ begin
  exception when insufficient_privilege then null;
  end;
 end $$;
+select pass('device isolation and revocation checks passed');
+select * from finish();
 rollback;
