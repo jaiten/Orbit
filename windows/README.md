@@ -22,10 +22,37 @@ If npm disables install scripts, first run `node node_modules/electron/install.j
 Packaging creates `dist/Orbit-Setup-<version>.exe` (the installer) and
 `dist/Orbit-<version>.exe` (portable). Windows CI uploads both in `Orbit-Windows`.
 The installer installs for the current Windows user, adds Start menu and desktop
-shortcuts, and provides an uninstaller. Run a newer installer to upgrade Orbit.
+shortcuts, and provides an uninstaller. Install 0.3.4 or later once to enable
+automatic updates from [GitHub Releases](https://github.com/jaiten/Orbit/releases/latest).
 The app ID and user-data location are shared with the portable build, so upgrades
 keep the local planner, preferences and sign-in data. Uninstalling keeps app data.
-Automatic update checks and background downloads are not configured yet.
+Installed Windows copies check after opening (15 seconds) and every four hours
+while running, including in the tray. Updates download in the background. Choose
+**Update ready — restart** in the sidebar or **Settings → Updates → Restart to
+update** to install and reopen Orbit. Closing the app does not install an update
+without that action. **Check for updates** also checks manually. Offline checks
+stay in Settings and retry on the next check. Notes save before restart; unfinished
+capture drafts block a restart until finished or cleared. Portable and development
+copies do not auto-update.
+
+## Publish an update
+
+Bump `windows/package.json` and its lockfile (`npm version patch --no-git-tag-version`
+inside `windows`), then push to `main`. After lint, unit, renderer, desktop,
+feed-checksum and installer tests pass, Windows CI publishes `v<version>` as the
+latest GitHub release. The release contains the NSIS installer, its blockmap,
+`latest.yml` (version and SHA-512 checksum), and the optional portable executable.
+The installer has the public GitHub feed bundled; no GitHub token is shipped.
+
+Uploads finish in a draft before the release becomes discoverable. Existing public
+versions are never overwritten; publishing another update requires another version
+bump. PRs build artifacts but cannot publish. Manual Windows workflow runs publish
+only when run on `main`. Use stable `v<version>` releases with Windows update assets
+for this repository's latest release; iOS distribution continues through TestFlight.
+
+The installer test uses the real NSIS updater with a local feed: a bad checksum
+must fail, then the genuine installer downloads successfully without forcing a
+restart. Reinstallation also verifies tasks/preferences and retained planner data.
 
 Builds are unsigned unless the signing credentials below are configured. A direct
 installer needs a trusted code-signing certificate or cloud signing service.
@@ -62,5 +89,4 @@ read credentials or access Node. Only a publishable Supabase key is bundled.
 
 Task notes, dates, times, durations, completion and list assignment are editable.
 Existing iOS tags, subtasks and reminder offsets survive edits, but Windows has no
-editors for them yet. Drag rescheduling, background service sync and automatic
-updates remain follow-up work.
+editors for them yet. Drag rescheduling and background service sync remain follow-up work.

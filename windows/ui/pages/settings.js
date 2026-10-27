@@ -63,6 +63,11 @@ function renderSettings() {
     </section>`
         : ""
     }
+    <section class="settings-block">
+      <h2>Updates</h2>
+      <p id="update-status" class="secondary" role="status"></p>
+      <button id="check-updates">Check for updates</button><button id="install-update" hidden>Restart to update</button>
+    </section>
     <p class="secondary app-version">Orbit ${esc(state.version || "")} for Windows</p>
   `;
 }

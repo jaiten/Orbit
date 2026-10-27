@@ -9,10 +9,14 @@ on:
 concurrency:
   group: windows-${{ github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
 jobs:
   build-and-test:
     timeout-minutes: 25
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     defaults:
       run:
         working-directory: windows
@@ -29,14 +33,42 @@ jobs:
           cache: npm
           cache-dependency-path: windows/package-lock.json
       - run: npm ci
+      - id: version
+        shell: bash
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
       - run: npm run lint
       - run: npm test
       - run: npx playwright install chromium --only-shell
       - run: npm run test:refinements
       - run: npm run test:desktop
       - run: npm run pack
+      - run: node scripts/check-update-feed.cjs
       - run: npm run test:installer
       - uses: actions/upload-artifact@v7
         with:
           name: Orbit-Windows
-          path: windows/dist/Orbit-*.exe
+          path: |
+            windows/dist/Orbit-*.exe
+            windows/dist/Orbit-Setup-*.exe.blockmap
+            windows/dist/latest.yml
+  publish-release:
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@v8
+        with:
+          name: Orbit-Windows
+          path: windows/dist
+      - name: Publish tested Windows update
+        working-directory: windows
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ORBIT_RELEASE_VERSION: ${{ needs.build-and-test.outputs.version }}
+        run: node scripts/publish-release.cjs

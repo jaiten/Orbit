@@ -289,7 +289,7 @@ function renderNoteEditor() {
 
 let noteSaveTimer = null;
 /** Saves without a forced re-render, so typing keeps its place; the first words create the page. */
-function saveNote() {
+function saveNote(rethrow = false) {
   clearTimeout(noteSaveTimer);
   if (page !== "note" || !$("#note-title") || !$("#note-body")) return noteSaveQueue;
   const title = $("#note-title").value.trim(),
@@ -328,6 +328,7 @@ function saveNote() {
     })
     .catch((error) => {
       showNotice(error.message);
+      if (rethrow) throw error;
     });
   return noteSaveQueue;
 }

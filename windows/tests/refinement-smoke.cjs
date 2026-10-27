@@ -13,9 +13,12 @@ const fs = require("node:fs");
   await p.addInitScript(() => {
     const data = { records: [], onboarded: true, configured: true, email: null, status: "Saved locally" };
     window.authCalls = [];
+    let updateState = { status: "idle", currentVersion: "0.3.4", version: null, percent: 0 };
+    window.updateInstalls = 0;
     let changed = () => {};
     let settings = { notifications: true, shortcut: "", shortcuts: ["", "Control+Space"] };
     const batch = async (changes) => {
+      if (window.failWrite) throw Error("Test disk unavailable");
       for (const record of changes) {
         const i = data.records.findIndex((r) => r.key === record.key);
         if (i < 0) data.records.push(record);
@@ -39,6 +42,20 @@ const fs = require("node:fs");
       onSyncStatus() {},
       onWake() {},
       onQuickAdd() {},
+      onUpdateStatus(cb) {
+        window.emitUpdate = (value) => {
+          updateState = { ...updateState, ...value };
+          cb(structuredClone(updateState));
+        };
+      },
+      updates: async (command) => {
+        if (command === "check") window.emitUpdate({ status: "current" });
+        if (command === "install") {
+          window.updateInstalls++;
+          window.emitUpdate({ status: "installing" });
+        }
+        return structuredClone(updateState);
+      },
       reschedule() {},
       desktopSettings: async (changes) => (settings = { ...settings, ...changes }),
       auth: async (mode, email) => {
@@ -235,6 +252,37 @@ const fs = require("node:fs");
   const nextArrow = await p.getByRole("button", { name: "Next month" }).boundingBox();
   assert.equal(nextArrow.x, arrow.x);
   assert.equal(nextArrow.y, arrow.y);
+  await p.locator('[data-page="today"]').click();
+  await p.locator("#inline-task-input").fill("Unfinished draft");
+  await p.evaluate(() => window.emitUpdate({ status: "downloaded", version: "0.3.5", percent: 100 }));
+  await p.locator("#restart-update").click();
+  assert.equal(await p.evaluate(() => window.updateInstalls), 0, "Restart discarded an unfinished task draft");
+  await p.locator("#inline-task-input").fill("");
+  await p.locator('[data-page="lists"]').click();
+  await p.locator("#note-body").fill("Last edit before restart");
+  await p.evaluate(() => window.emitUpdate({ status: "downloading", version: "0.3.5", percent: 80 }));
+  assert.equal(await p.evaluate(() => document.activeElement.id), "note-body", "Update events stole typing focus");
+  await p.evaluate(() => {
+    window.failWrite = true;
+    window.emitUpdate({ status: "downloaded", version: "0.3.5", percent: 100 });
+  });
+  await p.locator("#restart-update").click();
+  await p.locator("#notice").getByText("Test disk unavailable").waitFor();
+  assert.equal(await p.evaluate(() => window.updateInstalls), 0, "Restart proceeded after note saving failed");
+  await p.evaluate(() => (window.failWrite = false));
+  await p.locator("#restart-update").click();
+  await p.waitForFunction(() => window.updateInstalls === 1);
+  assert.equal(
+    await p.evaluate(async () =>
+      (await window.orbit.read()).records.some((r) => r.payload.notes === "Last edit before restart"),
+    ),
+    true,
+    "Restart ran before the latest note edit was saved",
+  );
+  await p.keyboard.press("Control+6");
+  await p.evaluate(() => window.emitUpdate({ status: "error" }));
+  await p.getByRole("button", { name: "Try again", exact: true }).click();
+  assert.equal(await p.locator("#update-status").innerText(), "You’re up to date.");
   if (process.env.ORBIT_SCREENSHOT) await p.screenshot({ path: process.env.ORBIT_SCREENSHOT });
   assert.deepEqual(errors, []);
   console.log(

@@ -5,8 +5,9 @@ capture tasks, choose a manageable day, and keep small daily habits.
 
 ## Try it
 
-- Windows: run `windows/dist/Orbit-0.3.0.exe`, or download the `Orbit-Windows`
-  artifact from the GitHub Windows workflow. See [Windows setup](windows/README.md).
+- Windows: install the latest `Orbit-Setup-<version>.exe` from
+  [GitHub Releases](https://github.com/jaiten/Orbit/releases/latest). Installed copies
+  from 0.3.4 offer automatic updates. See [Windows setup](windows/README.md).
 - iOS: on a Mac, install XcodeGen, run `cd ios && xcodegen generate`, then open
   `Orbit.xcodeproj`. Choose the Orbit scheme and your simulator or signing team.
   The targets, bundle identifiers and shared store now use Orbit. Importing data
@@ -35,7 +36,7 @@ Only habits repeat. Older repeating tasks were converted to habits (daily, weekd
 weekends or weekly) with their history kept; monthly and custom repeats became one-off
 tasks. Habits reset at midnight and show “X of the last 7 days”, not streaks.
 Windows does not yet edit tags, subtasks or reminder offsets, but keeps them when
-saving. Automatic updates and background sync services are follow-up work. iOS
+saving. Background sync services remain follow-up work. iOS
 reminders schedule the nearest 60 requests and refill on app interaction.
 
 ## Calendars and focus

@@ -72,6 +72,7 @@ function bind() {
   bindCalendar();
   bindHabits();
   bindSettings();
+  bindUpdates();
   bindAccount();
   bindReview();
   bindLists();

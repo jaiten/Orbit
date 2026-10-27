@@ -22,6 +22,7 @@ const { Store } = require("./store.cjs");
 const { Sync } = require("./sync.cjs");
 const { runMigrations } = require("./migrations.cjs");
 const { setupDesktop } = require("./desktop.cjs");
+const { UpdateManager, supportsUpdates } = require("./updates.cjs");
 const { createClient } = require("@supabase/supabase-js");
 const config = require("./config.json");
 protocol.registerSchemesAsPrivileged([
@@ -221,6 +222,43 @@ app.whenReady().then(async () => {
         throw Error("Invalid sender");
       return fn(arg);
     });
+  const updateOptions = {
+    version: app.getVersion(),
+    onChange: (value) => {
+      if (!window.isDestroyed()) window.webContents.send("update-status", value);
+    },
+  };
+  let updates = new UpdateManager({
+    ...updateOptions,
+    updater: require("electron-updater").autoUpdater,
+    enabled: supportsUpdates({
+      packaged: app.isPackaged,
+      platform: process.platform,
+      portable: process.env.PORTABLE_EXECUTABLE_FILE,
+      testData: process.env.ORBIT_TEST_DATA,
+    }),
+  });
+  handle("updates", (command) => {
+    if (command === "status") return updates.snapshot();
+    if (command === "check") return updates.check();
+    if (command === "install") return updates.install();
+    throw Error("Invalid update command");
+  });
+  app.on("before-quit", () => updates.stop());
+  // Test processes never check the public feed; the installer test supplies a local fixture.
+  if (process.env.ORBIT_TEST_DATA) {
+    global.orbitTestEnableUpdates = (url) => {
+      if (new URL(url).hostname !== "127.0.0.1") throw Error("Test updates must use a local fixture");
+      updates.stop();
+      const updater = require("electron-updater").autoUpdater;
+      updater.setFeedURL({ provider: "generic", url });
+      // Exercise a genuine download of this build as though an older copy were installed.
+      updater.currentVersion = new updater.currentVersion.constructor("0.0.0");
+      updater.disableDifferentialDownload = true;
+      updates = new UpdateManager({ ...updateOptions, updater, enabled: true });
+      updateOptions.onChange(updates.snapshot());
+    };
+  }
   handle("dictate", async () => {
     if (process.platform !== "win32")
       throw Error("Voice typing uses Windows. On Windows, focus the task field and press Win+H.");
@@ -471,6 +509,7 @@ app.whenReady().then(async () => {
   desktop = setupDesktop({ window, store, iconPath: path.join(__dirname, "assets", "orbit.png") });
   if (process.env.ORBIT_TEST_DATA) global.orbitTestDesktop = desktop;
   await window.loadURL("orbit://app");
+  updates.start();
   if (pendingRecoveryURL) void recoveryHandler();
   window.on("focus", () => void sync.run());
   // A sleeping PC can miss midnight; tell the page to re-check the day.

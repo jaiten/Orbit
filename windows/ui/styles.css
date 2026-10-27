@@ -305,6 +305,18 @@ nav button span {
   color: var(--muted);
   text-align: left;
 }
+.restart-update {
+  margin: 0 8px 4px;
+  padding: 8px;
+  text-align: left;
+  border-radius: 7px;
+  font-size: 12px;
+  color: var(--accent-text);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.restart-update[hidden] {
+  display: none;
+}
 #sync-dot {
   width: 6px;
   height: 6px;
