@@ -94,7 +94,7 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(input.waitForExistence(timeout: 15))
         let short = input.frame.height
         input.tap()
-        input.typeText("Garden ideas. Plant tomatoes along the south fence and move the herbs closer to the kitchen door so they get used more often")
+        input.typeText("Garden ideas. Plant tomatoes along the south fence, move the herbs closer to the kitchen door so they get used more often, and build a frame for the beans before the weekend")
         let chip = app.staticTexts["quick-add-preview"]
         XCTAssertTrue(chip.waitForExistence(timeout: 5))
         XCTAssertTrue(chip.label.hasPrefix("Note"), chip.label)
@@ -102,10 +102,12 @@ final class ChecklistUITests: XCTestCase {
         let typing = XCTAttachment(screenshot: app.screenshot())
         typing.name = "Long capture grows into a note"; typing.lifetime = .keepAlways; add(typing)
         input.typeText("\n")
+        XCTAssertEqual(input.value as? String, "")
         XCTAssertFalse(app.buttons["Complete Garden ideas"].waitForExistence(timeout: 2))
+        app.buttons["Dismiss keyboard"].tap()
         app.tabBars.buttons["Notes"].tap()
-        let note = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Garden ideas")).firstMatch
-        XCTAssertTrue(note.waitForExistence(timeout: 5))
+        let note = app.buttons["Garden ideas"]
+        XCTAssertTrue(note.waitForExistence(timeout: 5), app.debugDescription)
         note.tap()
         XCTAssertTrue(app.textViews["note-body"].waitForExistence(timeout: 5) || app.textFields["note-body"].waitForExistence(timeout: 2))
         let page = XCTAttachment(screenshot: app.screenshot())
@@ -267,13 +269,14 @@ final class ChecklistUITests: XCTestCase {
         body.tap(); body.typeText("Ridge loop or the lake path")
         let page = XCTAttachment(screenshot: app.screenshot())
         page.name = "New note page"; page.lifetime = .keepAlways; add(page)
-        app.navigationBars.buttons.firstMatch.tap()
-        let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Trail options")).firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        let back = app.navigationBars.buttons["Notes"]
+        if back.exists { back.tap() } else { app.navigationBars.buttons.element(boundBy: 0).tap() }
+        let row = app.buttons["Trail options"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5), app.debugDescription)
         let list = XCTAttachment(screenshot: app.screenshot())
         list.name = "Notes with sections"; list.lifetime = .keepAlways; add(list)
-        row.press(forDuration: 1.2)
-        XCTAssertTrue(app.buttons["Copy text"].waitForExistence(timeout: 5))
+        row.press(forDuration: 1.5)
+        XCTAssertTrue(app.buttons["Copy text"].waitForExistence(timeout: 8), app.debugDescription)
         app.buttons["Copy text"].tap()
         // Notes never appear as to-dos.
         app.tabBars.buttons["Today"].tap()

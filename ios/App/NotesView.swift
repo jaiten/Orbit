@@ -111,6 +111,9 @@ struct NotesView: View {
                             if index > 0 { Divider().padding(.leading, 48) }
                             NavigationLink(value: NoteRoute.open(note.id)) { NoteRow(note: note) }
                                 .buttonStyle(.plain)
+                                .accessibilityLabel(note.title.isEmpty ? "Untitled" : note.title)
+                                .accessibilityValue(NoteRules.snippet(note.notes))
+                                .accessibilityIdentifier("note-row")
                                 .modifier(NoteActions(note: note))
                         }
                     }.orbitSurface(radius: CGFloat(DesignTokens.radiusCard))
@@ -144,7 +147,7 @@ struct NoteRow: View {
         }
         .padding(.horizontal, 12).padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
-        .accessibilityElement(children: .combine).accessibilityHint("Opens the note")
+        .accessibilityElement(children: .ignore).accessibilityHint("Opens the note")
     }
 }
 
