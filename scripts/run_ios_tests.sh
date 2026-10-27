@@ -31,11 +31,18 @@ case "${1:-all}" in
   *) echo "Use build, test, or all" >&2; exit 2 ;;
 esac
 cd "$ORBIT_REPO_ROOT/ios"
-xcodebuild "$ORBIT_XCODE_ACTION" \
-  -parallel-testing-enabled NO \
-  -project Orbit.xcodeproj -scheme Orbit \
-  -destination "platform=iOS Simulator,id=${DEVICE_ID:?Choose a simulator first}" \
-  -derivedDataPath "${RUNNER_TEMP:?}/OrbitDerivedData" \
-  -resultBundlePath "$ORBIT_REPO_ROOT/$ORBIT_RESULTS" \
-  CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO \
-  "${ORBIT_TEST_FILTERS[@]}"
+# macOS ships Bash 3.2, which treats an empty array as unset with `set -u`.
+# Keep the command array nonempty and append filters only for filtered scopes.
+ORBIT_XCODE_ARGS=(
+  "$ORBIT_XCODE_ACTION"
+  -parallel-testing-enabled NO
+  -project Orbit.xcodeproj -scheme Orbit
+  -destination "platform=iOS Simulator,id=${DEVICE_ID:?Choose a simulator first}"
+  -derivedDataPath "${RUNNER_TEMP:?}/OrbitDerivedData"
+  -resultBundlePath "$ORBIT_REPO_ROOT/$ORBIT_RESULTS"
+  CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO
+)
+if [[ "$ORBIT_TEST_SCOPE" != full ]]; then
+  ORBIT_XCODE_ARGS+=("${ORBIT_TEST_FILTERS[@]}")
+fi
+xcodebuild "${ORBIT_XCODE_ARGS[@]}"
