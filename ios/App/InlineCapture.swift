@@ -55,7 +55,7 @@ struct InlineCapture: View {
         VStack(alignment: .leading, spacing: 8) {
             // The chip belongs to the keyboard: it leaves when the keyboard is swiped away.
             if focused && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Button { options = true } label: { PreviewChip(text: preview) }.buttonStyle(.plain).accessibilityLabel("Change date and time")
+                Button { options = true } label: { PreviewChip(text: preview, identifier: "inline-preview-text") }.buttonStyle(.plain).accessibilityLabel(preview).accessibilityHint("Change date and time").accessibilityIdentifier("quick-add-preview")
                     .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
             }
             HStack(alignment: .top, spacing: 8) {

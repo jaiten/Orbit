@@ -111,7 +111,9 @@ const remove = (folder) => {
     await p.getByLabel("Section", { exact: true }).selectOption({ label: "Personal" });
     await p.getByRole("button", { name: "Save", exact: true }).click();
     await p.getByRole("button", { name: "Personal", exact: true }).click();
-    await p.getByRole("heading", { name: "Personal", exact: true }).waitFor();
+    await p.getByRole("heading", { name: "Tasks", exact: true }).waitFor();
+    if ((await p.locator("#task-category option:checked").textContent()) !== "Personal")
+      throw Error("Category selection did not follow the sidebar");
     await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).waitFor();
     await p.locator('[data-page="today"]').click();
     // Sync updates never close or clear an open quick add.

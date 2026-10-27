@@ -63,12 +63,12 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertLessThanOrEqual(input.frame.maxY, keyboard.frame.minY + 2)
         input.typeText("Call mum")
         // The preview chip is opaque and belongs to the keyboard.
-        XCTAssertTrue(app.staticTexts["quick-add-preview"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "quick-add-preview").firstMatch.waitForExistence(timeout: 5))
         let typing = XCTAttachment(screenshot: app.screenshot())
         typing.name = "Today capture above keyboard"; typing.lifetime = .keepAlways; add(typing)
         app.buttons["Dismiss keyboard"].tap()
         XCTAssertTrue(keyboard.waitForNonExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["quick-add-preview"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "quick-add-preview").firstMatch.waitForNonExistence(timeout: 5))
         XCTAssertEqual(input.value as? String, "Call mum")
         selectTab("Notes", in: app); selectTab("Today", in: app)
         XCTAssertEqual(input.value as? String, "Call mum")
@@ -111,7 +111,7 @@ final class ChecklistUITests: XCTestCase {
         let short = input.frame.height
         input.tap()
         input.typeText("Garden ideas. Plant tomatoes along the south fence, move the herbs closer to the kitchen door so they get used more often, and build a frame for the beans before the weekend")
-        let chip = app.staticTexts["quick-add-preview"]
+        let chip = app.descendants(matching: .any).matching(identifier: "quick-add-preview").firstMatch
         XCTAssertTrue(chip.waitForExistence(timeout: 5))
         XCTAssertTrue(chip.label.hasPrefix("Note"), chip.label)
         XCTAssertGreaterThan(input.frame.height, short + 10)
@@ -436,7 +436,7 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(addButton.waitForExistence(timeout: 15)); addButton.tap()
         let field = app.descendants(matching: .any).matching(identifier: "task-title-input").firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5)); field.tap(); field.typeText("Stretch every day 7am")
-        let chip = app.staticTexts["quick-add-preview"]
+        let chip = app.descendants(matching: .any).matching(identifier: "quick-add-preview").firstMatch
         XCTAssertTrue(chip.waitForExistence(timeout: 5), app.debugDescription)
         XCTAssertTrue(chip.label.hasPrefix("Habit · Daily · 7:00"), chip.label)
         app.navigationBars.buttons["Save"].tap()
