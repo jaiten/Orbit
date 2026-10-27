@@ -7,7 +7,7 @@ function accountSection() {
 }
 
 function renderAccount() {
-  return `<h1>Account</h1>
+  return `<button id="account-back" class="account-back"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6M8 12h13"/></svg>Back to settings</button><h1>Account</h1>
     <section class="settings-block">
       <h2>Sync</h2>
       <p id="sync-details">${esc(state.status)}</p>
@@ -17,6 +17,7 @@ function renderAccount() {
 }
 
 function bindAccount() {
+  if ($("#account-back")) $("#account-back").onclick = () => void goTo("settings");
   if ($("#change-password")) $("#change-password").onclick = () => openDialog($("#password-editor"));
   if ($("#forgot-password"))
     $("#forgot-password").onclick = () =>
@@ -60,6 +61,12 @@ function bindAccount() {
     $("#account").onsubmit = (e) => {
       e.preventDefault();
       auth("in");
+    };
+    $("#account").onkeydown = (e) => {
+      if (e.key !== "Enter" || e.isComposing || e.target.tagName !== "INPUT") return;
+      e.preventDefault();
+      const submit = $("#account button[type=submit]");
+      if (!submit.disabled) $("#account").requestSubmit(submit);
     };
     $("#signup").onclick = () => auth("up");
   }

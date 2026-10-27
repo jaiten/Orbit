@@ -274,11 +274,6 @@ function addField(placeholder = "Add a task · gym tomorrow 6pm") {
     <p id="inline-receipt" class="secondary" role="status"></p>
   </form>`;
 }
-/** A habit's chosen icon. Automatic (title-guessed) emoji are not shown on Windows. */
-function itemIcon(id, title) {
-  if (!id || id === "automatic") return "";
-  return `<span class="item-icon" aria-hidden="true">${OrbitIcons.resolve(id, title).glyph}</span>`;
-}
 /** "Your plan": the day's count and a bar that fills with a spring. */
 function planCard(done, total) {
   return `<div class="card plan-card">
@@ -354,7 +349,7 @@ function taskRow(t) {
   const minutes = Math.min(240, Math.max(5, t.durationMinutes || 30));
   const timer =
     started && !timing
-      ? `<button class="timer-action ${poppedID === t.id ? "suggested" : ""}" data-start-timer="${id}" aria-label="Start a ${minutes}-minute timer for ${title}" title="Start a ${minutes}-minute timer">⏱ ${minutes} min</button>`
+      ? `<button class="timer-action ${poppedID === t.id ? "suggested" : ""}" data-start-timer="${id}" aria-label="Start a ${minutes}-minute timer for ${title}" title="Start a ${minutes}-minute timer"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="14" r="8"/><path d="M9 2h6M12 6V2M12 10v4l2 2"/></svg> ${minutes} min</button>`
       : "";
   const search = [t.title, t.notes, ...(t.tags || [])].join(" ").toLowerCase();
   return `<div class="row task-row check-tile ${t.completedAt ? "complete" : ""} ${overdue ? "overdue" : ""} ${started ? "in-progress" : ""}" data-flip="task-${id}" data-search="${esc(search)}" data-row-menu="task:${id}">
@@ -374,8 +369,8 @@ function habitCard(h, { editable = false } = {}) {
   return `<div class="row habit-row check-tile ${done ? "complete" : ""}" data-flip="habit-${id}" data-row-menu="habit:${id}">
     <div class="row-line">
       <button class="row-tick" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-menu="${id}" ${selected > today() ? "disabled" : ""}>${tick(done, poppedID === h.id)}</button>
-      <button class="row-body" aria-label="Edit ${title}" data-habit-edit="${id}">${itemIcon(h.icon || "automatic", h.title)}<span class="row-title">${title}</span><span class="row-detail ${done ? "met" : ""}">${habitDetail(h)}</span></button>
-      ${editable ? `<span class="habit-color dot ${colorName(h.color)}" aria-hidden="true"></span>` : ""}${rowActions(id, title, true)}
+      <button class="row-body" aria-label="Edit ${title}" data-habit-edit="${id}"><span class="row-title">${title}</span>${editable ? `<span class="dot ${colorName(h.color)}" aria-hidden="true"></span>` : ""}<span class="row-detail ${done ? "met" : ""}">${habitDetail(h)}</span></button>
+      ${rowActions(id, title, true)}
     </div>
   </div>`;
 }
@@ -532,7 +527,7 @@ function focusBanner() {
   if (!focusTimer) return "";
   const left = focusTimer.endsAt - Date.now();
   return `<div class="focus-banner" role="timer" aria-label="Focus timer for ${esc(focusTimer.title)}">
-    <span class="focus-glyph" aria-hidden="true">⏱</span><span class="focus-title">${esc(focusTimer.title)}</span>
+    <svg class="ui-icon focus-glyph" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="14" r="8"/><path d="M9 2h6M12 6V2M12 10v4l2 2"/></svg><span class="focus-title">${esc(focusTimer.title)}</span>
     <span id="focus-left" class="focus-left">${left > 0 ? timeLeft(left) : "Finished"}</span>
     <button class="pill" data-stop-timer>${left > 0 ? "Stop" : "Done"}</button>
   </div>`;

@@ -49,13 +49,8 @@ function openHabit(id, draft = null) {
   f.elements.target.value = source?.target || 1;
   f.elements.frequency.value = OrbitHabits.schedule(source || {});
   f.elements.color.value = editingHabit?.color || draft?.color || nextHabitColor();
-  f.elements.icon.innerHTML =
-    `<option value="automatic">Automatic</option>` +
-    OrbitIcons.all
-      .map((icon) => `<option value="${esc(icon.id)}">${esc(icon.glyph)} ${esc(icon.name)}</option>`)
-      .join("");
+  // Keep the iPhone's icon choice when editing; Windows uses text-only rows.
   f.elements.icon.value = source?.icon || "automatic";
-  if (!f.elements.icon.value) f.elements.icon.value = "automatic";
   updateTargetLabel();
   $("#habit-editor-title").textContent = editingHabit ? "Edit Habit" : "New Habit";
   $("#delete-habit").hidden = !editingHabit;

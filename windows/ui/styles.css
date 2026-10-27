@@ -5,6 +5,11 @@
 
 * {
   box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent;
+}
+html {
+  overflow-y: auto;
 }
 /* Settings → Appearance overrides the system setting. */
 :root[data-appearance="light"] {
@@ -1564,14 +1569,6 @@ dialog footer .danger {
 .inline-capture p:empty {
   display: none;
 }
-.item-icon {
-  width: 22px;
-  flex: none;
-  text-align: center;
-}
-.habit-color {
-  margin-right: 14px;
-}
 .task-date-group {
   margin-top: var(--space-l);
 }
@@ -2264,6 +2261,7 @@ body[data-view="lists"] .page {
 /* The open page */
 .note-pane {
   padding-top: 0;
+  padding-bottom: 0;
 }
 .note-toolbar {
   position: sticky;
@@ -2304,7 +2302,7 @@ body[data-view="lists"] .page {
 .note-page {
   max-width: 760px;
   margin: 0 auto;
-  padding: 48px 0 30vh;
+  padding: 48px 0 40px;
 }
 .note-glyph .doc-icon {
   width: 48px;
@@ -2767,7 +2765,6 @@ dialog[open] {
 .habits-page {
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 100px);
 }
 
 /* Consistent editing surfaces and compact controls. */
@@ -2794,9 +2791,9 @@ dialog[open] {
   z-index: 4;
 }
 body[data-view="lists"] .page {
-  padding-bottom: 100px;
+  padding-bottom: 0;
 }
-.notes-pane {
+.notes-pane:not(.note-pane) {
   padding-bottom: 110px;
 }
 .today-side .plan-card,
@@ -2911,18 +2908,35 @@ body[data-view="lists"] .page {
   display: flex;
   gap: 2px;
   flex: none;
+  width: 0;
+  overflow: hidden;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 140ms ease;
+  transform: translateX(6px);
+  transition:
+    width 180ms ease,
+    padding-right 180ms ease,
+    opacity 140ms ease,
+    transform 180ms ease;
 }
 .check-tile:hover .row-actions,
 .check-tile:focus-within .row-actions {
+  width: 70px;
+  padding-right: 8px;
   opacity: 1;
   pointer-events: auto;
+  transform: translateX(0);
 }
 .row-actions .icon-button {
+  flex: none;
   min-width: 30px;
   min-height: 30px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .row-actions {
+    transition: none;
+    transform: none;
+  }
 }
 dialog {
   border-radius: 14px;
@@ -2937,9 +2951,10 @@ dialog {
 .note-title-input,
 .note-body {
   field-sizing: fixed;
-  width: 100%;
-  padding: 0;
-  margin-left: 0;
+  /* Inset the text from the clipping edge so the full native caret is visible. */
+  width: calc(100% + 8px);
+  padding: 4px;
+  margin-left: -4px;
   overflow: hidden;
   text-align: left;
   text-indent: 0;
@@ -2954,7 +2969,19 @@ dialog {
   min-height: 260px;
 }
 .note-title-input {
-  line-height: 48px;
+  line-height: 56px;
+}
+.account-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  margin: 0 0 16px -8px;
+  padding: 6px 8px;
+  border-radius: 7px;
+}
+.timer-action .ui-icon {
+  vertical-align: middle;
 }
 .account-sign-in {
   color: #0a84ff;

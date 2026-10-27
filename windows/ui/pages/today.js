@@ -144,7 +144,7 @@ function habitSummary(h, days) {
 function habitSummaryRow(h, days) {
   const { done, due } = habitSummary(h, days);
   return `<button class="row habit-summary" data-habit-edit="${esc(h.id)}" aria-label="${esc(h.title)}, ${done} of ${due} scheduled days checked">
-    ${itemIcon(h.icon || "automatic", h.title)}<span class="row-title">${esc(h.title)}</span>
+    <span class="row-title">${esc(h.title)}</span>
     <span class="row-detail">${due ? `${done} of ${due} days` : "Not due yet"}</span>
     <span class="mini-bar fill-${colorName(h.color)}" aria-hidden="true"><i data-fill="${due ? done / due : 0}"></i></span>
   </button>`;

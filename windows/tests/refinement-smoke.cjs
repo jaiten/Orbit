@@ -11,7 +11,8 @@ const fs = require("node:fs");
   const errors = [];
   p.on("pageerror", (e) => errors.push(e.message));
   await p.addInitScript(() => {
-    const data = { records: [], onboarded: true, email: null, status: "Saved locally" };
+    const data = { records: [], onboarded: true, configured: true, email: null, status: "Saved locally" };
+    window.authCalls = [];
     let changed = () => {};
     let settings = { notifications: true, shortcut: "", shortcuts: ["", "Control+Space"] };
     const batch = async (changes) => {
@@ -40,6 +41,10 @@ const fs = require("node:fs");
       onQuickAdd() {},
       reschedule() {},
       desktopSettings: async (changes) => (settings = { ...settings, ...changes }),
+      auth: async (mode, email) => {
+        window.authCalls.push({ mode, email });
+        return "Signed in";
+      },
       batch,
       put: (key, payload, deleted = false) => batch([{ key, payload, deleted }]),
     };
@@ -59,6 +64,21 @@ const fs = require("node:fs");
   await p.locator("#notifications-toggle").uncheck();
   await p.locator('[data-appearance="dark"]').click();
   assert.equal(await p.locator("html").getAttribute("data-appearance"), "dark");
+  await p.getByRole("button", { name: "Account Sign in" }).click();
+  await p.locator('#account input[name="email"]').fill("tester@example.com");
+  await p.locator('#account input[name="password"]').press("Enter");
+  assert.equal(await p.evaluate(() => window.authCalls.length), 0, "Enter still validates the form");
+  for (const field of ["password", "email"]) {
+    await p.locator('#account input[name="email"]').fill("tester@example.com");
+    await p.locator('#account input[name="password"]').fill("test-password");
+    const calls = await p.evaluate(() => window.authCalls.length);
+    await p.locator(`#account input[name="${field}"]`).press("Enter");
+    await p.waitForFunction((count) => window.authCalls.length === count + 1, calls);
+    await p.waitForTimeout(100);
+    assert.deepEqual(await p.evaluate(() => window.authCalls.at(-1)), { mode: "in", email: "tester@example.com" });
+  }
+  await p.getByRole("button", { name: "Back to settings" }).click();
+  assert.equal(await p.locator("h1").innerText(), "Settings");
   await p.locator('[data-page="today"]').click();
   await p.keyboard.press("ArrowLeft");
   assert.notEqual(await p.locator("h1").innerText(), "Today");
@@ -81,16 +101,74 @@ const fs = require("node:fs");
   await taskRow.getByRole("button", { name: "Delete Visit Japan", exact: true }).click();
   await taskRow.waitFor({ state: "detached" });
   await p.locator('[data-page="lists"]').click();
+  assert.equal(
+    await p.evaluate(() => document.scrollingElement.scrollHeight <= document.scrollingElement.clientHeight),
+    true,
+    "A short note needs no page scrollbar",
+  );
+  await p
+    .locator("#note-title")
+    .fill("A wrapped note title with enough words to fill several lines without clipping the caret");
+  assert.equal(
+    await p
+      .locator("#note-title")
+      .evaluate((field) => field.scrollHeight <= field.clientHeight && field.scrollTop === 0),
+    true,
+    "All title lines fit without scrolling the caret into a clipped edge",
+  );
+  await p.locator("#note-title").fill("");
   await p.keyboard.type("My new note");
   assert.equal(await p.locator("#note-title").inputValue(), "My new note");
   await p.waitForTimeout(800);
   await p.keyboard.type(" continues");
   assert.equal(await p.locator("#note-title").inputValue(), "My new note continues");
+  if (process.env.ORBIT_SCREENSHOT)
+    await p.screenshot({ path: process.env.ORBIT_SCREENSHOT.replace(".png", "-title.png") });
+  await p.locator("#note-body").fill("A long note line\n".repeat(80));
+  assert.equal(
+    await p.evaluate(() => document.scrollingElement.scrollHeight > document.scrollingElement.clientHeight),
+    true,
+    "Long notes still scroll normally",
+  );
+  await p.locator("#note-body").fill("");
   await p.getByRole("button", { name: "Back to notes", exact: false }).click();
   await p.locator('[data-page="habits"]').click();
   await p.locator("#inline-task-input").fill("Drink water");
   await p.locator("#inline-task-input").press("Enter");
   await p.getByRole("checkbox", { name: "Log Drink water", exact: true }).waitFor();
+  assert.equal(
+    await p.evaluate(() => document.scrollingElement.scrollHeight <= document.scrollingElement.clientHeight),
+    true,
+    "A short habit list needs no page scrollbar",
+  );
+  // An icon chosen on iPhone is retained through a Windows edit, but never rendered as emoji.
+  await p.evaluate(async () => {
+    // eslint-disable-next-line no-undef
+    const habit = rows("habits")[0];
+    await window.orbit.put(habit._key, { ...habit, icon: "drop" });
+  });
+  await p.waitForTimeout(250);
+  await p.mouse.move(0, 0);
+  const habitRow = p.locator(".habit-row").filter({ hasText: "Drink water" });
+  assert.equal((await habitRow.innerText()).includes("💧"), false);
+  await p.waitForFunction(() => getComputedStyle(document.querySelector(".habit-row .row-actions")).width === "0px");
+  const countBounds = await habitRow.locator(".row-detail").boundingBox();
+  const rowBounds = await habitRow.boundingBox();
+  assert.ok(rowBounds.x + rowBounds.width - countBounds.x - countBounds.width <= 16, "Count hugs the right edge");
+  await habitRow.hover();
+  await p.waitForFunction(() => getComputedStyle(document.querySelector(".habit-row .row-actions")).width === "70px");
+  if (process.env.ORBIT_SCREENSHOT)
+    await p.screenshot({ path: process.env.ORBIT_SCREENSHOT.replace(".png", "-hover.png") });
+  await habitRow.getByRole("button", { name: "Edit habit: Drink water", exact: true }).click();
+  assert.equal(await p.locator('#habit-form input[name="icon"]').inputValue(), "drop");
+  assert.equal(await p.getByRole("combobox", { name: "Habit icon" }).count(), 0);
+  await p.locator("#habit-form").getByRole("button", { name: "Save", exact: true }).click();
+  await p.waitForFunction(() => {
+    // eslint-disable-next-line no-undef
+    return rows("habits")[0].icon === "drop" && !document.querySelector("#habit-editor").open;
+  });
+  if (process.env.ORBIT_SCREENSHOT)
+    await p.screenshot({ path: process.env.ORBIT_SCREENSHOT.replace(".png", "-habits.png") });
   // A refresh queued by blur must not replace a field focused while the read is in flight.
   await p.locator('[data-page="lists"]').click();
   await p.locator("#note-body").fill("Initial body");
@@ -159,7 +237,9 @@ const fs = require("node:fs");
   assert.equal(nextArrow.y, arrow.y);
   if (process.env.ORBIT_SCREENSHOT) await p.screenshot({ path: process.env.ORBIT_SCREENSHOT });
   assert.deepEqual(errors, []);
-  console.log("PASS: settings, keyboard dates, Someday retrieval, note typing and habit capture");
+  console.log(
+    "PASS: account keyboard/back, note sizing/scrolling, row actions/icons, settings races and planner flows",
+  );
   await browser.close();
 })().catch((e) => {
   console.error(e);

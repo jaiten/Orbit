@@ -148,7 +148,6 @@ const shared = Object.fromEntries(
     "scopeTabs",
     "renderAgenda",
     "focusBanner",
-    "itemIcon",
     "plus",
   ].map((name) => [name, "writable"]),
 );
