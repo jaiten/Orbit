@@ -265,7 +265,8 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(app.tabBars.buttons["Notes"].waitForExistence(timeout: 15)); selectTab("Notes", in: app)
         let sections = app.buttons["edit-sections"]
         XCTAssertTrue(sections.waitForExistence(timeout: 5))
-        XCTAssertGreaterThanOrEqual(sections.frame.height, 44)
+        // Accessibility frames use floating-point coordinates (44 can read as 43.999999999999986).
+        XCTAssertGreaterThanOrEqual(sections.frame.height + 0.001, 44)
         sections.tap()
         XCTAssertTrue(app.textFields["new-list-name"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Edit"].exists)
