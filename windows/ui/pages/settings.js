@@ -62,7 +62,9 @@ function renderSettings() {
       <p class="secondary">Removes the example tasks, list and habits. Anything you added stays.</p>
     </section>`
         : ""
-    }`;
+    }
+    <p class="secondary app-version">Orbit ${esc(state.version || "")} for Windows</p>
+  `;
 }
 
 function bindSettings() {

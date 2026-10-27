@@ -5,7 +5,7 @@ capture tasks, choose a manageable day, and keep small daily habits.
 
 ## Try it
 
-- Windows: run `windows/dist/Orbit-0.2.0.exe`, or download the `Orbit-Windows`
+- Windows: run `windows/dist/Orbit-0.3.0.exe`, or download the `Orbit-Windows`
   artifact from the GitHub Windows workflow. See [Windows setup](windows/README.md).
 - iOS: on a Mac, install XcodeGen, run `cd ios && xcodegen generate`, then open
   `Orbit.xcodeproj`. Choose the Orbit scheme and your simulator or signing team.

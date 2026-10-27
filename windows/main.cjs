@@ -272,6 +272,7 @@ app.whenReady().then(async () => {
       syncing: sync.busy,
       configured: !!client,
       onboarded: onboarded(),
+      version: app.getVersion(),
       email: (await client?.auth.getSession())?.data?.session?.user?.email ?? null,
     };
   });

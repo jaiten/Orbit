@@ -19,7 +19,7 @@ npm run pack
 ```
 
 If npm disables install scripts, first run `node node_modules/electron/install.js`.
-The portable executable is `dist/Orbit-0.2.0.exe`. Windows CI uploads it as the
+The portable executable is `dist/Orbit-0.3.0.exe`. Windows CI uploads it as the
 `Orbit-Windows` artifact. This build is unsigned; Windows may show a publisher
 warning. Code signing and automatic updates are not configured.
 
