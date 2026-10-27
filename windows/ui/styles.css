@@ -702,75 +702,10 @@ main {
   color: var(--muted);
 }
 
-/* Calendar: a row of day tiles; the chosen day is filled */
-.calendar-page {
-  max-width: 760px;
-}
 .week-nav {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
-  margin-top: var(--space-l);
-}
-.week-nav .pill {
-  padding: 5px 14px;
-}
-.day-tiles {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: var(--space-s);
-  margin-bottom: var(--space-s);
-}
-.day-tile {
-  position: relative;
-  display: grid;
-  justify-items: start;
   gap: 2px;
-  padding: 12px 12px 14px;
-  border-radius: var(--radius-row);
-  background: var(--surface);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 45%, transparent);
-  text-align: left;
-  transition:
-    background-color var(--motion),
-    color var(--motion),
-    transform var(--spring-lift-duration) var(--spring-lift);
-}
-.day-tile:hover {
-  background: var(--surface);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 45%, var(--line));
-}
-.day-tile span {
-  font-size: 12px;
-  opacity: 0.7;
-}
-.day-tile strong {
-  font-size: 22px;
-  font-weight: 600;
-  line-height: 1.1;
-}
-.day-tile.today:not(.selected) strong {
-  color: var(--accent-text);
-}
-.day-tile i {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-.day-tile i.busy {
-  background: var(--accent);
-}
-.day-tile.selected,
-.day-tile.selected:hover {
-  background: var(--accent-button);
-  color: var(--on-accent);
-  box-shadow: none;
-}
-.day-tile.selected i.busy {
-  background: var(--on-accent);
 }
 .day-date {
   margin-left: 6px;
@@ -1324,56 +1259,212 @@ dialog footer .danger {
   }
 }
 
-/* First launch */
+/* First launch: one fixed frame, so the footer buttons never move between steps. */
 .onboarding {
-  width: min(520px, calc(100vw - 48px));
+  width: min(560px, calc(100vw - 48px));
+  height: min(520px, calc(100vh - 48px));
+  padding: 0;
+  overflow: hidden;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(30px) saturate(1.6);
+  box-shadow:
+    0 0 0 0.5px color-mix(in srgb, var(--ink) 18%, transparent),
+    0 24px 70px rgb(0 0 0 / 0.28);
+}
+.onboarding[open] {
+  display: block;
+}
+#onboarding-step {
+  position: relative;
+  height: 100%;
+}
+.onboarding-frame {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.onboarding-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 40px 40px 0;
+}
+.onboarding-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--muted);
+}
+.onboarding-art {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: var(--space-l);
+  border-radius: 14px;
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--accent) 22%, var(--surface)),
+    color-mix(in srgb, var(--accent) 8%, var(--surface))
+  );
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.onboarding-art svg {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: var(--accent-text);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .onboarding h2 {
-  margin: 0 0 var(--space-xs);
-  font-size: 24px;
+  margin: 0 0 6px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.onboarding .secondary {
+  margin: 0;
+  font-size: 15px;
+  color: var(--muted);
+}
+.onboarding-content {
+  margin-top: var(--space-xl);
 }
 .onboarding input[name="text"] {
   width: 100%;
-  margin-top: var(--space-l);
-  font-size: 17px;
-  padding: 12px 14px;
+  font-size: 16px;
+  padding: 13px 14px;
+  border-radius: 10px;
+}
+.onboarding .chip-row {
+  min-height: 40px;
+}
+.onboarding-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px 20px 40px;
+  border-top: 0.5px solid color-mix(in srgb, var(--line) 80%, transparent);
+}
+.onboarding-actions {
+  display: flex;
+  gap: 10px;
+}
+.onboarding-actions button {
+  min-width: 150px;
+  min-height: 38px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+.onboarding-secondary {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.onboarding-secondary:hover {
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
 }
 .habit-suggestions {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-s);
-  margin-top: var(--space-l);
+  gap: 10px;
 }
 .habit-suggestions button {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 58px;
   padding: 10px 14px;
+  border-radius: 12px;
   text-align: left;
-  background: var(--canvas);
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--line) 90%, transparent);
+  transition:
+    background 0.15s,
+    box-shadow 0.15s;
+}
+.habit-suggestions button:hover {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+}
+.habit-suggestions button span {
+  display: grid;
+  gap: 2px;
+  font-weight: 500;
 }
 .habit-suggestions button small {
   color: var(--muted);
   font-weight: 400;
 }
+.habit-suggestions .pick {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--muted) 60%, transparent);
+}
 .habit-suggestions button[aria-pressed="true"] {
-  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
   box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+.habit-suggestions .pick {
+  position: relative;
+}
+.habit-suggestions button[aria-pressed="true"] .pick {
+  background: var(--accent);
+  box-shadow: none;
+}
+.habit-suggestions button[aria-pressed="true"] .pick::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 4px;
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.onboarding-points {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.onboarding-points li {
+  position: relative;
+  padding-left: 26px;
+  color: var(--ink);
+}
+.onboarding-points li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 70%, transparent);
 }
 .onboarding-dots {
   display: flex;
-  justify-content: center;
   gap: 6px;
-  margin-top: var(--space-l);
+  margin: 0;
 }
 .onboarding-dots span {
   width: 6px;
   height: 6px;
-  border-radius: 50%;
-  background: var(--line);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ink) 18%, transparent);
+  transition: width 0.25s;
 }
 .onboarding-dots span.on {
+  width: 18px;
   background: var(--accent);
 }
 
@@ -1438,9 +1529,35 @@ dialog footer .danger {
 .inline-chip .chip[hidden] {
   display: none;
 }
-.inline-capture button {
-  min-width: 44px;
-  min-height: 44px;
+.capture-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  align-self: flex-start;
+  margin-top: 7px;
+}
+.capture-submit {
+  color: var(--on-accent);
+  background: var(--accent-button);
+  opacity: 0.35;
+  transition: opacity 0.15s;
+}
+.capture-submit:hover {
+  background: var(--accent-button);
+  color: var(--on-accent);
+}
+.inline-capture:focus-within .capture-submit,
+.inline-capture.has-text .capture-submit {
+  opacity: 1;
+}
+.inline-capture .add-field {
+  border-radius: 12px;
+  transition: box-shadow 0.15s;
+}
+.inline-capture .add-field:focus-within {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 55%, var(--line)),
+    0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 .inline-capture p:empty {
   display: none;
@@ -1847,134 +1964,350 @@ dialog footer .danger {
   outline: none;
 }
 
-/* Notes: Notion-like sections and pages, in Orbit's colours */
-.notes-actions {
+/* Notes: Notion's layout with macOS materials. A notes sidebar beside one page that fills the window. */
+body[data-view="lists"] .page {
+  max-width: none;
+  padding: 0;
+}
+.notes-app {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  min-height: 100vh;
+}
+.notes-nav {
+  position: sticky;
+  top: 0;
   display: flex;
-  gap: var(--space-s);
-  margin-bottom: var(--space-l);
+  flex-direction: column;
+  gap: 2px;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 18px 10px 16px;
+  background: color-mix(in srgb, var(--sidebar) 55%, var(--canvas));
+  border-right: 0.5px solid color-mix(in srgb, var(--line) 90%, transparent);
 }
-.pill.quiet {
-  color: var(--muted);
-  background: color-mix(in srgb, var(--ink) 6%, transparent);
-}
-.note-section {
-  margin-top: var(--space-l);
-}
-.note-section-head {
+.notes-nav-head {
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: space-between;
+  padding: 0 4px 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
 }
-.note-toggle {
+#note-filter {
+  margin: 0 2px 8px;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  box-shadow: none;
+  border: none;
+}
+.notes-nav-all,
+.notes-nav-name,
+.notes-nav-page,
+.notes-nav-add {
   display: flex;
-  flex: 1;
   align-items: center;
   gap: 8px;
-  min-height: 40px;
-  padding: 0 4px;
-  border-radius: 6px;
+  min-height: 30px;
+  padding: 0 8px;
+  border-radius: 7px;
   text-align: left;
+  font-size: 14px;
+  color: var(--ink);
 }
-.note-toggle:hover {
-  background: color-mix(in srgb, var(--ink) 5%, transparent);
+.notes-nav-all {
+  font-weight: 500;
+  margin-bottom: 6px;
 }
-.note-toggle h2 {
-  margin: 0;
-  font-size: var(--type-section);
-  font-weight: 600;
+.notes-nav-all:hover,
+.notes-nav-name:hover,
+.notes-nav-page:hover,
+.notes-nav-add:hover,
+.notes-nav-toggle:hover {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
 }
-.note-toggle .chevron {
-  display: inline-block;
-  width: 12px;
-  color: var(--muted);
-  transition: transform 0.15s;
+.notes-nav-all.selected,
+.notes-nav-row.selected .notes-nav-name,
+.notes-nav-page.selected {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--ink);
 }
-.note-toggle .chevron.open {
-  transform: rotate(90deg);
-}
-.note-count {
-  color: var(--muted);
-  font-size: 12px;
-}
-.note-list {
-  display: grid;
-  margin-top: 4px;
-  border-radius: var(--radius-card);
-  background: var(--surface);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 45%, transparent);
-  overflow: hidden;
-}
-.note-row {
+.notes-nav-row {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  width: 100%;
-  padding: 12px 16px;
-  text-align: left;
-  border-radius: 0;
-}
-.note-row + .note-row {
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--line) 45%, transparent);
-}
-.note-row:hover {
-  background: color-mix(in srgb, var(--ink) 4%, transparent);
-}
-.note-row[hidden] {
-  display: none;
-}
-.doc-icon {
-  width: 18px;
-  height: 18px;
-  flex: none;
-  margin-top: 2px;
-  fill: none;
-  stroke: var(--muted);
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.note-text {
-  display: grid;
-  flex: 1;
-  min-width: 0;
+  align-items: center;
   gap: 2px;
 }
-.note-title {
-  font-weight: 500;
-  overflow-wrap: anywhere;
-}
-.note-snippet {
-  color: var(--muted);
+.notes-nav-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
   font-size: 13px;
+}
+.notes-nav-toggle {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 5px;
+  color: var(--muted);
+}
+.notes-nav-toggle .chevron {
+  display: grid;
+  transition: transform 0.18s ease;
+}
+.notes-nav-toggle .chevron.open {
+  transform: rotate(90deg);
+}
+.notes-nav-row .icon-button.small {
+  opacity: 0;
+}
+.notes-nav-row:hover .icon-button.small,
+.notes-nav-row .icon-button.small:focus-visible {
+  opacity: 1;
+}
+.note-count {
+  margin-left: auto;
+  padding-left: 6px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.notes-nav-pages {
+  display: grid;
+  gap: 1px;
+  margin: 1px 0 6px 22px;
+}
+.notes-nav-page span {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.note-edited {
-  flex: none;
+.notes-nav-page[hidden] {
+  display: none;
+}
+.notes-nav-empty {
+  margin: 2px 8px 6px;
+  font-size: 13px;
   color: var(--muted);
+}
+.notes-nav-add {
+  margin-top: 6px;
+  color: var(--muted);
+}
+.notes-nav-sections {
+  display: grid;
+  gap: 2px;
+}
+.notes-pane {
+  min-width: 0;
+  padding: var(--space-section) clamp(24px, 5vw, 72px) 64px;
+}
+.notes-overview {
+  max-width: 1040px;
+}
+.head-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.primary-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--on-accent);
+  background: var(--accent-button);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+}
+.primary-pill:hover {
+  filter: brightness(1.06);
+}
+.primary-pill .ui-icon {
+  width: 16px;
+  height: 16px;
+}
+.note-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+.note-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 132px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  text-align: left;
+  background: var(--surface);
+  box-shadow:
+    0 0 0 0.5px color-mix(in srgb, var(--ink) 14%, transparent),
+    0 1px 2px rgb(0 0 0 / 0.06);
+  transition:
+    box-shadow 0.18s,
+    transform 0.18s;
+}
+.note-card:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 0 0 0.5px color-mix(in srgb, var(--ink) 18%, transparent),
+    0 8px 22px rgb(0 0 0 / 0.1);
+}
+.note-card[hidden] {
+  display: none;
+}
+.note-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.note-card-text {
+  flex: 1;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.note-card-meta {
   font-size: 12px;
+  color: var(--muted);
 }
-.note-page {
-  max-width: 720px;
-  margin: 0 auto;
-  padding-bottom: var(--space-section);
+.empty-state {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 22px;
+  border-radius: 14px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 70%, transparent);
 }
-.back-link {
-  min-height: 32px;
+.empty-state p {
+  margin: 0;
+  line-height: 1.5;
+}
+.empty-state strong {
+  color: var(--ink);
+}
+.empty-state .doc-icon {
+  width: 28px;
+  height: 28px;
+}
+.muted {
+  color: var(--muted);
+}
+.doc-icon,
+.ui-icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.doc-icon {
+  stroke: var(--muted);
+}
+/* Icon buttons: a 34px target with a soft hover, everywhere. */
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0;
+  border-radius: 8px;
+  color: var(--muted);
+  background: transparent;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.icon-button:hover {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  color: var(--ink);
+}
+.icon-button .ui-icon {
+  width: 18px;
+  height: 18px;
+}
+.icon-button.small {
+  min-width: 26px;
+  min-height: 26px;
+  border-radius: 6px;
+}
+.icon-button.small .ui-icon {
+  width: 15px;
+  height: 15px;
+}
+.icon-button.danger:hover {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+}
+/* The open page */
+.note-pane {
+  padding-top: 0;
+}
+.note-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 calc(-1 * clamp(24px, 5vw, 72px)) 0;
+  padding: 10px clamp(16px, 3vw, 28px);
+  background: color-mix(in srgb, var(--canvas) 80%, transparent);
+  backdrop-filter: blur(20px) saturate(1.5);
+}
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+.crumbs button {
+  min-height: 28px;
   padding: 0 8px;
-  margin-left: -8px;
   border-radius: 6px;
   color: var(--muted);
-  font-size: 14px;
 }
-.back-link:hover {
-  background: color-mix(in srgb, var(--ink) 5%, transparent);
+.crumbs button:hover {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  color: var(--ink);
+}
+.note-status {
+  margin-right: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.note-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 48px 0 30vh;
 }
 .note-glyph .doc-icon {
-  width: 44px;
-  height: 44px;
-  margin: var(--space-xl) 0 var(--space-s);
+  width: 48px;
+  height: 48px;
+  margin-bottom: 14px;
   stroke: var(--accent);
   stroke-width: 1.2;
 }
@@ -1993,20 +2326,27 @@ dialog footer .danger {
   field-sizing: content;
   box-shadow: none;
 }
+.note-title-input:focus,
+.note-body:focus {
+  box-shadow: none;
+  outline: none;
+}
 .note-title-input {
-  font-size: 36px;
+  font-size: 40px;
   font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
 }
 .note-title-input::placeholder,
 .note-body::placeholder {
-  color: color-mix(in srgb, var(--muted) 70%, transparent);
+  color: color-mix(in srgb, var(--muted) 60%, transparent);
 }
 .note-props {
   display: grid;
-  gap: 2px;
-  margin: var(--space-l) 0 0;
+  gap: 0;
+  margin: 18px 0 22px;
+  padding-bottom: 18px;
+  border-bottom: 0.5px solid color-mix(in srgb, var(--line) 90%, transparent);
   font-size: 14px;
 }
 .note-props > div {
@@ -2015,37 +2355,305 @@ dialog footer .danger {
   min-height: 34px;
 }
 .note-props dt {
-  width: 120px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 140px;
   color: var(--muted);
 }
 .note-props dd {
   margin: 0;
 }
 .note-props select {
-  min-height: 30px;
+  min-height: 28px;
   padding: 0 8px;
   border: none;
   border-radius: 6px;
   background: transparent;
   color: var(--ink);
   font: inherit;
+  box-shadow: none;
 }
 .note-props select:hover {
-  background: color-mix(in srgb, var(--ink) 5%, transparent);
-}
-.note-page hr {
-  border: none;
-  height: 1px;
-  margin: var(--space-l) 0;
-  background: color-mix(in srgb, var(--line) 60%, transparent);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
 }
 .note-body {
-  min-height: 40vh;
-  font-size: 16px;
-  line-height: 1.7;
+  min-height: 50vh;
+  font-size: 16.5px;
+  line-height: 1.75;
 }
-.note-tools {
+@media (max-width: 900px) {
+  .notes-app {
+    grid-template-columns: 1fr;
+  }
+  .notes-nav {
+    position: static;
+    height: auto;
+    border-right: none;
+    border-bottom: 0.5px solid var(--line);
+  }
+}
+.notes-nav {
+  overflow-x: hidden;
+}
+.crumbs > * {
+  flex: none;
+  width: auto;
+}
+.note-props select {
+  width: auto;
+  margin-left: -8px;
+}
+.note-title-input {
+  overflow: hidden;
+}
+.note-title-input,
+.note-body {
+  padding: 0 4px;
+  margin-left: -4px;
+  width: calc(100% + 8px);
+}
+.day-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.today-button {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.today-button:disabled {
+  opacity: 0.45;
+}
+
+/* Calendar: a macOS-style month with the chosen day beside it */
+.calendar-page {
+  max-width: 1120px;
+}
+.cal-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: var(--space-xl);
+  align-items: start;
+}
+.cal-month {
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 0 0 0.5px color-mix(in srgb, var(--ink) 14%, transparent);
+}
+.cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  padding: 10px 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: right;
+  color: var(--muted);
+  border-bottom: 0.5px solid color-mix(in srgb, var(--line) 90%, transparent);
+}
+.cal-weekdays span {
+  padding-right: 12px;
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+}
+.cal-cell {
   display: flex;
-  gap: var(--space-s);
-  margin-top: var(--space-xl);
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  min-width: 0;
+  min-height: 96px;
+  padding: 6px 6px 8px;
+  border-radius: 0;
+  text-align: left;
+  background: transparent;
+  box-shadow:
+    inset -0.5px 0 0 color-mix(in srgb, var(--line) 90%, transparent),
+    inset 0 -0.5px 0 color-mix(in srgb, var(--line) 90%, transparent);
+}
+.cal-cell:hover {
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
+}
+.cal-cell:active {
+  transform: none;
+}
+.cal-cell.outside .cal-date,
+.cal-cell.outside .cal-item {
+  opacity: 0.4;
+}
+.cal-cell.selected {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.cal-date {
+  flex: none;
+  align-self: flex-end;
+  display: grid;
+  place-items: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 13px;
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.cal-cell.today .cal-date {
+  color: var(--on-accent);
+  background: var(--accent-button);
+  font-weight: 600;
+}
+.cal-cell.selected:not(.today) .cal-date {
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+.cal-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--ink);
+}
+.cal-item i {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.cal-item b {
+  flex: none;
+  font-weight: 500;
+  color: var(--muted);
+}
+.cal-item em {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-style: normal;
+}
+.cal-item.done {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.cal-item.done i {
+  background: color-mix(in srgb, var(--muted) 60%, transparent);
+}
+.cal-more {
+  font-size: 11px;
+  color: var(--muted);
+  padding-left: 11px;
+}
+.cal-day {
+  position: sticky;
+  top: 24px;
+  display: grid;
+  gap: var(--space-m);
+}
+.cal-day-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.cal-day-head h2 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: -0.01em;
+}
+.cal-day-head span {
+  color: var(--muted);
+  font-size: 14px;
+}
+.cal-day .inline-capture {
+  margin: 0;
+}
+@media (max-width: 1100px) {
+  .cal-layout {
+    grid-template-columns: 1fr;
+  }
+  .cal-day {
+    position: static;
+  }
+}
+
+/* macOS-style controls: segmented pickers and switches */
+.segmented {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+}
+.segmented button {
+  min-height: 28px;
+  padding: 0 16px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  background: transparent;
+  box-shadow: none;
+}
+.segmented button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow:
+    0 0 0 0.5px color-mix(in srgb, var(--ink) 14%, transparent),
+    0 1px 2px rgb(0 0 0 / 0.12);
+}
+.settings-block label.toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-direction: row-reverse;
+}
+.settings-block label.toggle input[type="checkbox"] {
+  appearance: none;
+  position: relative;
+  width: 38px;
+  height: 22px;
+  flex: none;
+  margin: 0;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--ink) 18%, transparent);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.settings-block label.toggle input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.settings-block label.toggle input[type="checkbox"]:checked {
+  background: var(--accent-button);
+}
+.settings-block label.toggle input[type="checkbox"]:checked::after {
+  transform: translateX(16px);
+}
+.page-head .primary-pill {
+  align-self: center;
 }

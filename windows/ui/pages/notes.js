@@ -1,31 +1,59 @@
-// Notes: titled pages grouped into sections (stored as lists), plus the tasks filed in a section.
-// A note is a task record with isNote: true, so it syncs, backs up and undoes like everything else.
+// Notes, laid out like Notion: a notes sidebar (sections and their pages) beside one page that is the
+// whole writing surface. A note is a task record with isNote: true, so it syncs, backs up and undoes
+// like everything else. With no page open, the right side is the section's overview: its pages and
+// the tasks filed in it.
 const collapsedTaskGroups = new Set(["Completed"]);
 const collapsedNoteSections = new Set(JSON.parse(localStorage.getItem("collapsedNoteSections") || "[]"));
 let searchQuery = "",
+  noteFilter = "",
   noteID = null,
   noteSection = null;
 const docIcon =
   '<svg class="doc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>';
+const icon = (d) => `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+const ICONS = {
+  compose: "M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z",
+  plus: "M12 5v14M5 12h14",
+  copy: "M8 8h11v13H8zM5 16H4V3h11v1",
+  task: "M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9",
+  trash: "M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14",
+  chevron: "m9 6 6 6-6 6",
+};
 const notes = () => rows("tasks").filter((t) => t.isNote);
 
 /** Hides rows that don't match the search; the text includes notes and tags. Searching opens every group. */
 function applySearch() {
   const words = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
-  document.querySelectorAll("#content [data-search]").forEach((row) => {
+  document.querySelectorAll("#content .notes-pane [data-search]").forEach((row) => {
     row.hidden = !words.every((w) => row.dataset.search.includes(w));
   });
   if (words.length) document.querySelectorAll("#content details.task-date-group").forEach((d) => (d.open = true));
+}
+function applyNoteFilter() {
+  const words = noteFilter.toLowerCase().split(/\s+/).filter(Boolean);
+  document.querySelectorAll("#content .notes-nav [data-search]").forEach((row) => {
+    row.hidden = !words.every((w) => row.dataset.search.includes(w));
+  });
 }
 function bindLists() {
   document.querySelectorAll("[data-new-note]").forEach(
     (b) =>
       (b.onclick = () => {
-        openNote(null, b.dataset.newNote || selectedList || null);
+        openNote(null, b.dataset.newNote || null);
         $("#note-title")?.focus();
       }),
   );
   document.querySelectorAll("[data-open-note]").forEach((b) => (b.onclick = () => openNote(b.dataset.openNote)));
+  document.querySelectorAll("[data-notes-home]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        page = "lists";
+        // "all" is every note; "" is notes without a section.
+        selectedList = b.dataset.notesHome === "all" ? null : b.dataset.notesHome;
+        noteID = null;
+        render();
+      }),
+  );
   document.querySelectorAll("[data-note-section]").forEach(
     (b) =>
       (b.onclick = () => {
@@ -37,6 +65,13 @@ function bindLists() {
       }),
   );
   document.querySelectorAll("[data-new-list]").forEach((button) => (button.onclick = () => openList()));
+  if ($("#note-filter")) {
+    $("#note-filter").oninput = (e) => {
+      noteFilter = e.target.value;
+      applyNoteFilter();
+    };
+    applyNoteFilter();
+  }
   bindNoteEditor();
   if (!$("#search")) return;
   $("#search").oninput = (e) => {
@@ -61,101 +96,167 @@ function noteSections() {
   const own = orderedLists().map((l) => ({ id: l.id, name: l.name, color: colorName(l.color), own: true }));
   return [...own, { id: "", name: "Unsorted", color: "clay" }, { id: SOMEDAY, name: "Someday", color: "lavender" }];
 }
-function noteRow(n) {
-  const edited = new Date(n.updatedAt || Date.now()).toLocaleDateString([], { month: "short", day: "numeric" });
-  const snippet = OrbitNotes.snippet(n.notes);
-  const search = [n.title, n.notes].join(" ").toLowerCase();
-  return `<button class="note-row" data-open-note="${esc(n.id)}" data-search="${esc(search)}" data-note-menu="${esc(n.id)}">${docIcon}<span class="note-text"><span class="note-title">${esc(n.title || "Untitled")}</span>${snippet ? `<span class="note-snippet">${esc(snippet)}</span>` : ""}</span><span class="note-edited">${esc(edited)}</span></button>`;
-}
-
-function renderNotes(tasks) {
+function notesIn(id) {
   const known = new Set(rows("lists").map((l) => l.id));
-  const all = notes().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-  const inSection = (n, id) => (id ? n.listID === id : !n.listID || (n.listID !== SOMEDAY && !known.has(n.listID)));
-  const sections = noteSections().filter((s) => !selectedList || s.id === selectedList);
-  const body = sections
+  return notes()
+    .filter((n) => (id ? n.listID === id : !n.listID || (n.listID !== SOMEDAY && !known.has(n.listID))))
+    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+}
+const edited = (n) => {
+  const d = new Date(n.updatedAt || Date.now());
+  return d.toDateString() === new Date().toDateString()
+    ? d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+    : d.toLocaleDateString([], { month: "short", day: "numeric" });
+};
+
+/** The notes sidebar: everything, then each section with its pages, then New section. */
+function notesNav() {
+  const openID = page === "note" ? noteID : null;
+  const sections = noteSections()
     .map((s) => {
-      const items = all.filter((n) => inSection(n, s.id));
-      if (!items.length && !s.own && !selectedList) return "";
+      const items = notesIn(s.id);
+      if (!items.length && !s.own) return "";
       const key = s.id || "none";
-      const open = selectedList || !collapsedNoteSections.has(key);
-      const list = open
-        ? items.length
-          ? `<div class="note-list">${items.map(noteRow).join("")}</div>`
-          : `<p class="empty">No notes in ${esc(s.name)} yet.</p>`
-        : "";
-      // A chosen section is the page heading already; its notes follow directly.
-      if (selectedList) return `<section class="note-section">${list}</section>`;
-      return `<section class="note-section">
-        <div class="note-section-head">
-          <button class="note-toggle" data-note-section="${esc(key)}" aria-expanded="${!!open}"><span class="chevron ${open ? "open" : ""}" aria-hidden="true">›</span><span class="list-dot ${s.color}"></span><h2>${esc(s.name)}</h2><span class="note-count">${items.length}</span></button>
-          <button class="icon-button" data-new-note="${esc(s.id)}" aria-label="New note in ${esc(s.name)}">${plus}</button>
+      const open = !collapsedNoteSections.has(key) || items.some((n) => n.id === openID);
+      const selected = page === "lists" && (selectedList || "") === s.id && selectedList !== null;
+      return `<div class="notes-nav-group">
+        <div class="notes-nav-row ${selected ? "selected" : ""}">
+          <button class="notes-nav-toggle" data-note-section="${esc(key)}" aria-expanded="${open}" aria-label="${open ? "Collapse" : "Expand"} ${esc(s.name)}"><span class="chevron ${open ? "open" : ""}">${icon(ICONS.chevron)}</span></button>
+          <button class="notes-nav-name" data-notes-home="${esc(s.id)}" title="${esc(s.name)}"><span class="list-dot ${s.color}"></span>${esc(s.name)}<span class="note-count">${items.length || ""}</span></button>
+          <button class="icon-button small" data-new-note="${esc(s.id)}" aria-label="New note in ${esc(s.name)}" title="New note in ${esc(s.name)}">${icon(ICONS.plus)}</button>
         </div>
-        ${list}
-      </section>`;
+        ${
+          open
+            ? `<div class="notes-nav-pages">${
+                items
+                  .map(
+                    (n) =>
+                      `<button class="notes-nav-page ${n.id === openID ? "selected" : ""}" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" data-search="${esc([n.title, n.notes].join(" ").toLowerCase())}">${docIcon}<span>${esc(n.title || "Untitled")}</span></button>`,
+                  )
+                  .join("") || `<p class="notes-nav-empty">No pages</p>`
+              }</div>`
+            : ""
+        }
+      </div>`;
     })
     .join("");
-  // Tasks filed in a section stay reachable here; Today → All shows every task by date.
-  const filed = tasks.filter((t) => (selectedList ? t.listID === selectedList : true));
+  return `<aside class="notes-nav" aria-label="Notes">
+    <div class="notes-nav-head">
+      <span>Notes</span>
+      <button class="icon-button" data-new-note="${esc(selectedList || "")}" aria-label="New note" title="New note">${icon(ICONS.compose)}</button>
+    </div>
+    <input id="note-filter" type="search" placeholder="Find a page" aria-label="Find a page" value="${esc(noteFilter)}" />
+    <button class="notes-nav-all ${page === "lists" && selectedList === null ? "selected" : ""}" data-notes-home="all">All notes<span class="note-count">${notes().length}</span></button>
+    <div class="notes-nav-sections">${sections}</div>
+    <button class="notes-nav-add" data-new-list>${icon(ICONS.plus)}New section</button>
+  </aside>`;
+}
+
+function noteCard(n) {
+  const snippet = OrbitNotes.snippet(n.notes);
+  const search = [n.title, n.notes].join(" ").toLowerCase();
+  return `<button class="note-card" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" data-search="${esc(search)}">
+    <span class="note-card-title">${docIcon}<span>${esc(n.title || "Untitled")}</span></span>
+    <span class="note-card-text">${esc(snippet) || '<span class="muted">Empty page</span>'}</span>
+    <span class="note-card-meta">${esc(n.listID ? sectionName(n.listID) : "Unsorted")} · ${esc(edited(n))}</span>
+  </button>`;
+}
+
+/** The overview: a section's (or every) page as cards, and the tasks filed there. */
+function renderNotes(tasks) {
+  const heading =
+    selectedList !== null && selectedList !== undefined ? sectionName(selectedList) || "Unsorted" : "Notes";
+  const pages =
+    selectedList === null || selectedList === undefined
+      ? notes().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+      : notesIn(selectedList);
+  const filed = tasks.filter((t) =>
+    selectedList === null || selectedList === undefined ? true : (t.listID || "") === selectedList,
+  );
   const groups = ["Today", "Overdue", "Upcoming", "No date", "Someday", "Completed"]
     .map((group) => {
       const items = filed.filter((task) => OrbitPlanner.dateGroup(planItem(task), today()) === group);
       return items.length
-        ? `<details class="task-date-group" data-task-group="${group}" ${collapsedTaskGroups.has(group) || !selectedList ? "" : "open"}><summary>${group} (${items.length})</summary><div class="check-list">${items.map(taskRow).join("")}</div></details>`
+        ? `<details class="task-date-group" data-task-group="${group}" ${collapsedTaskGroups.has(group) || !selectedList ? "" : "open"}><summary>${group} <span class="note-count">${items.length}</span></summary><div class="check-list">${items.map(taskRow).join("")}</div></details>`
         : "";
     })
     .join("");
-  const heading = selectedList ? sectionName(selectedList) : "Notes";
-  return `<div class="narrow notes-page">
-    <header class="page-head">
-      <div><div class="eyebrow">Write it down</div><h1>${esc(heading)}</h1><p class="subtitle">Ideas, lists and anything longer than a task.</p></div>
-      <input id="search" type="search" placeholder="Search" aria-label="Search notes and tasks" value="${esc(searchQuery)}" />
-    </header>
-    <div class="notes-actions"><button class="pill" data-new-note="${esc(selectedList || "")}">+ New note</button><button class="pill quiet" data-new-list>+ New section</button></div>
-    ${addField()}
-    ${all.length || selectedList ? "" : '<p class="empty">No notes yet. Start a page, or type something long into Add a task.</p>'}
-    ${body}
-    ${groups ? `<div class="section-label"><h2>${selectedList ? "Tasks in " + esc(heading) : "Tasks"}</h2><span>To-dos</span></div>${groups}` : ""}
+  const title = selectedList === "" ? "Unsorted" : heading;
+  return `<div class="notes-app">
+    ${notesNav()}
+    <section class="notes-pane notes-overview">
+      <header class="page-head">
+        <div><div class="eyebrow">${selectedList === null ? "Write it down" : "Section"}</div><h1>${esc(title)}</h1><p class="subtitle">${pages.length} ${pages.length === 1 ? "page" : "pages"}${filed.length ? ` · ${filed.length} ${filed.length === 1 ? "task" : "tasks"}` : ""}</p></div>
+        <div class="head-tools">
+          <input id="search" type="search" placeholder="Search" aria-label="Search notes and tasks" value="${esc(searchQuery)}" />
+          <button class="primary-pill" data-new-note="${esc(selectedList || "")}">${icon(ICONS.compose)}New page</button>
+        </div>
+      </header>
+      ${
+        pages.length
+          ? `<div class="note-grid">${pages.map(noteCard).join("")}</div>`
+          : `<div class="empty-state">${docIcon}<p><strong>No pages yet</strong><br />Start typing anywhere to begin a new page.</p></div>`
+      }
+      ${groups ? `<div class="section-label"><h2>${selectedList ? "Tasks in " + esc(title) : "Tasks"}</h2><span>To-dos</span></div>${groups}` : ""}
+    </section>
   </div>`;
 }
 
-/** A note as a page: icon, large title, properties and the text, like Notion. */
-function openNote(id, section = null) {
+/** Opens a page (or a new one in a section). */
+function openNote(id, section = null, title = "") {
   noteID = id;
   noteSection = id ? (notes().find((n) => n.id === id)?.listID ?? null) : section;
+  noteDraftTitle = title;
   page = "note";
   render();
+  const field = $(id ? "#note-body" : "#note-title");
+  if (field) {
+    field.focus();
+    field.setSelectionRange(field.value.length, field.value.length);
+  }
 }
+let noteDraftTitle = "";
 function renderNoteEditor() {
   const note = notes().find((n) => n.id === noteID);
   const section = note ? note.listID || "" : noteSection || "";
   const options = [`<option value="">No section</option>`]
     .concat(orderedLists().map((l) => `<option value="${esc(l.id)}">${esc(l.name)}</option>`))
     .concat(`<option value="${SOMEDAY}">Someday</option>`)
-    .join("");
-  const edited = note
+    .join("")
+    .replace(`value="${esc(section)}"`, `value="${esc(section)}" selected`);
+  const when = note
     ? new Date(note.updatedAt || Date.now()).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })
     : "Not saved yet";
-  return `<article class="note-page" aria-label="Note">
-    <button class="back-link" data-back-notes>‹ ${esc(section ? sectionName(section) : "Notes")}</button>
-    <div class="note-glyph">${docIcon}</div>
-    <textarea id="note-title" class="note-title-input" rows="1" maxlength="500" placeholder="Untitled" aria-label="Note title" spellcheck="true">${esc(note?.title === "Untitled" ? "" : note?.title || "")}</textarea>
-    <dl class="note-props">
-      <div><dt>Section</dt><dd><select id="note-section" aria-label="Section">${options.replace(`value="${esc(section)}"`, `value="${esc(section)}" selected`)}</select></dd></div>
-      <div><dt>Edited</dt><dd id="note-edited">${esc(edited)}</dd></div>
-    </dl>
-    <hr />
-    <textarea id="note-body" class="note-body" placeholder="Start writing…" aria-label="Note text" spellcheck="true">${esc(note?.notes || "")}</textarea>
-    <footer class="note-tools">
-      <button data-copy-note>Copy text</button>${note ? `<button data-note-to-task>Make it a Task</button><button class="danger" data-delete-note>Delete</button>` : ""}
-    </footer>
-  </article>`;
+  const titleValue = note ? (note.title === "Untitled" ? "" : note.title) : noteDraftTitle;
+  return `<div class="notes-app">
+    ${notesNav()}
+    <section class="notes-pane note-pane" aria-label="Note">
+      <div class="note-toolbar">
+        <nav class="crumbs" aria-label="Location"><button data-back-notes>Notes</button><span>/</span><button data-notes-home="${esc(section)}">${esc(section ? sectionName(section) : "Unsorted")}</button></nav>
+        <span id="note-status" class="note-status">${note ? "Saved" : ""}</span>
+        <button class="icon-button" data-copy-note aria-label="Copy text" title="Copy text">${icon(ICONS.copy)}</button>
+        ${note ? `<button class="icon-button" data-note-to-task aria-label="Make it a Task" title="Make it a Task">${icon(ICONS.task)}</button><button class="icon-button danger" data-delete-note aria-label="Delete note" title="Delete note">${icon(ICONS.trash)}</button>` : ""}
+      </div>
+      <article class="note-page">
+        <div class="note-glyph">${docIcon}</div>
+        <textarea id="note-title" class="note-title-input" rows="1" maxlength="500" placeholder="Untitled" aria-label="Note title" spellcheck="true">${esc(titleValue)}</textarea>
+        <dl class="note-props">
+          <div><dt>${icon("M3 7h18M3 12h18M3 17h12")}Section</dt><dd><select id="note-section" aria-label="Section">${options}</select></dd></div>
+          <div><dt>${icon("M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0")}Edited</dt><dd id="note-edited">${esc(when)}</dd></div>
+        </dl>
+        <textarea id="note-body" class="note-body" placeholder="Start writing, or press Esc to go back…" aria-label="Note text" spellcheck="true">${esc(note?.notes || "")}</textarea>
+      </article>
+    </section>
+  </div>`;
 }
 
 let noteSaveTimer = null;
 /** Saves without a forced re-render, so typing keeps its place; the first words create the page. */
 async function saveNote() {
   clearTimeout(noteSaveTimer);
+  // Leaving a page re-renders, and the field's blur arrives after the page has closed: never save then,
+  // or the closed page would be written again as a new note.
+  if (page !== "note") return;
   const titleField = $("#note-title"),
     bodyField = $("#note-body");
   if (!titleField || !bodyField) return;
@@ -169,37 +270,63 @@ async function saveNote() {
     return;
   const record = existing || { ...newTask(finalTitle, null), isNote: true };
   noteID = record.id;
+  if ($("#note-status")) $("#note-status").textContent = "Saving…";
   try {
     await saveTasks([{ ...record, title: finalTitle, notes: text, listID: section, updatedAt: Date.now() }]);
-    if ($("#note-edited")) $("#note-edited").textContent = "Saved";
+    if ($("#note-status")) $("#note-status").textContent = "Saved";
+    if ($("#note-edited")) $("#note-edited").textContent = "Just now";
   } catch (e) {
     showNotice(e.message);
   }
+}
+function leaveNote(section) {
+  page = "lists";
+  selectedList = section === undefined ? null : section;
+  noteID = null;
+  render();
 }
 function bindNoteEditor() {
   if (!$("#note-title")) return;
   const later = () => {
     clearTimeout(noteSaveTimer);
+    if ($("#note-status")) $("#note-status").textContent = "Editing";
     noteSaveTimer = setTimeout(() => void saveNote(), 600);
   };
   $("#note-title").oninput = later;
   $("#note-body").oninput = later;
   $("#note-title").onkeydown = (e) => {
-    if (e.key === "Enter") {
+    if (
+      e.key === "Enter" ||
+      (e.key === "ArrowDown" && $("#note-title").selectionStart === $("#note-title").value.length)
+    ) {
       e.preventDefault();
       $("#note-body").focus();
     }
   };
+  $("#note-body").onkeydown = (e) => {
+    if (e.key === "Backspace" && !$("#note-body").value) {
+      e.preventDefault();
+      $("#note-title").focus();
+    }
+  };
+  for (const field of [$("#note-title"), $("#note-body")])
+    field.addEventListener("keydown", async (e) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      await saveNote();
+      leaveNote($("#note-section")?.value ?? null);
+    });
   $("#note-section").onchange = () => void saveNote();
   $("#note-title").onblur = () => void saveNote();
   $("#note-body").onblur = () => void saveNote();
-  $("[data-back-notes]").onclick = async () => {
-    await saveNote();
-    const section = $("#note-section").value;
-    page = "lists";
-    selectedList = section || null;
-    render();
-  };
+  // Leaving through the breadcrumbs saves first.
+  document.querySelectorAll(".note-toolbar [data-back-notes], .note-toolbar [data-notes-home]").forEach(
+    (b) =>
+      (b.onclick = async () => {
+        await saveNote();
+        leaveNote(b.dataset.backNotes !== undefined ? null : b.dataset.notesHome);
+      }),
+  );
   $("[data-copy-note]").onclick = () => {
     const title = $("#note-title").value.trim(),
       text = $("#note-body").value.trim();
@@ -213,6 +340,7 @@ function bindNoteEditor() {
         if (!n) return;
         await put("tasks", { ...n, isNote: false, updatedAt: Date.now() });
         page = "lists";
+        noteID = null;
       });
   if ($("[data-delete-note]"))
     $("[data-delete-note]").onclick = () =>

@@ -228,12 +228,14 @@ function sectionLabel(title, note = "") {
  * Inline task entry: Return saves, then the field is ready for the next item; Return on an empty field
  * leaves it. The field grows as you type, and long text (OrbitNotes) becomes a note.
  */
-function addField() {
+function addField(placeholder = "Add a task · gym tomorrow 6pm") {
   return `<form id="inline-add-form" class="inline-capture">
-    <div class="add-field"><textarea id="inline-task-input" aria-label="New task" placeholder="Add a task · gym tomorrow 6pm" maxlength="5000" autocomplete="off" spellcheck="true" rows="1">${esc(inlineDraft)}</textarea>
-      <button type="submit" aria-label="Add a task">${plus}</button>
-      <button type="button" id="inline-dictate" aria-label="Dictate task" title="Windows voice typing (Win+H)">🎙</button>
-      <button type="button" data-quick-add aria-label="Task options" title="Choose a date or list"><svg class="capture-calendar" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="4"/><path d="M7 3v4m10-4v4M3 11h18m-13 4h2m4 0h2"/></svg></button>
+    <div class="add-field"><textarea id="inline-task-input" aria-label="New task" placeholder="${esc(placeholder)}" maxlength="5000" autocomplete="off" spellcheck="true" rows="1">${esc(inlineDraft)}</textarea>
+      <span class="capture-tools">
+        <button type="button" class="icon-button" id="inline-dictate" aria-label="Dictate task" title="Voice typing (Win+H)"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button
+        ><button type="button" class="icon-button" data-quick-add aria-label="Task options" title="Date, time and section"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 10h18"/></svg></button
+        ><button type="submit" class="icon-button capture-submit" aria-label="Add a task" title="Add (Enter)"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+      </span>
     </div><div class="chip-row inline-chip" aria-live="polite"><p id="inline-preview" class="chip" hidden></p></div>
     <div id="inline-overlap" hidden><p id="inline-overlap-text"></p><button type="button" id="inline-save-overlap">Add anyway</button></div>
     <p id="inline-receipt" class="secondary" role="status"></p>
@@ -248,7 +250,7 @@ function itemIcon(id, title) {
 function planCard(done, total) {
   return `<div class="card plan-card">
     <div class="eyebrow">Your plan</div>
-    <div class="plan-count">${done} of ${total} done</div>
+    <div class="plan-count">${total ? `${done} of ${total} done` : "A clear day"}</div>
     <div class="plan-bar" role="progressbar" aria-label="Daily progress" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${done}"><i data-fill="${total ? done / total : 0}"></i></div>
   </div>`;
 }
@@ -442,6 +444,7 @@ function bindTiles() {
           )),
     );
   document.querySelectorAll("[data-habit-edit]").forEach((b) => (b.onclick = () => openHabit(b.dataset.habitEdit)));
+  document.querySelectorAll("[data-new-habit]").forEach((b) => (b.onclick = () => openHabit(null)));
   document.querySelectorAll("[data-start-timer]").forEach((b) => (b.onclick = () => startTimer(b.dataset.startTimer)));
   if ($("[data-stop-timer]")) $("[data-stop-timer]").onclick = () => stopTimer();
   document.querySelectorAll("[data-row-menu], [data-note-menu]").forEach((row) => (row.oncontextmenu = openRowMenu));

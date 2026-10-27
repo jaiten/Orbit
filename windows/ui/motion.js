@@ -45,39 +45,21 @@ function settleRows(before) {
     el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], { duration, easing });
   });
 }
-/** A new page: content fades up, then rows arrive one after another (50 ms apart). */
+/**
+ * A new page: one quick, soft cross-fade with a hint of focus, like switching panes on macOS. No row
+ * stagger, so switching tabs never feels slow; rows only move when they actually change (settleRows).
+ */
 function enterPage() {
-  const content = $("#content"),
-    reduce = reducedMotion();
-  const { easing, duration } = spring("ui");
+  const content = $("#content");
+  content.getAnimations().forEach((a) => a.cancel());
   content.animate(
-    reduce
+    reducedMotion()
       ? [{ opacity: 0 }, { opacity: 1 }]
       : [
-          { opacity: 0, transform: "translateY(8px)" },
-          { opacity: 1, transform: "none" },
+          { opacity: 0, transform: "translateY(4px) scale(0.995)", filter: "blur(2px)" },
+          { opacity: 1, transform: "none", filter: "blur(0)" },
         ],
-    {
-      duration: 200,
-      easing: "ease-out",
-    },
-  );
-  if (reduce) return;
-  const stagger = tokenNumber("--stagger", 50),
-    slide = tokenNumber("--row-slide", 20);
-  content.querySelectorAll("[data-flip]").forEach((el, i) =>
-    el.animate(
-      [
-        { opacity: 0, transform: `translateX(${-slide}px)` },
-        { opacity: 1, transform: "none" },
-      ],
-      {
-        duration,
-        easing,
-        delay: Math.min(i, 12) * stagger,
-        fill: "backwards",
-      },
-    ),
+    { duration: reducedMotion() ? 120 : 180, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
   );
 }
 /** A row leaving (an overdue item moved to Later or Someday). Resolves when it has gone. */

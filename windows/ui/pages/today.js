@@ -75,8 +75,15 @@ function renderToday(tasks, allHabits) {
   const featured = [...allHabits].sort((a, b) => recent(b) - recent(a))[0];
   return `<div class="today-layout">
     <header class="page-head">
-        <div><div class="eyebrow">${eyebrow}</div><h1>${heading}</h1>${isToday ? '<p class="subtitle">Make room for what matters.</p>' : ""}</div>
-        ${scopeTabs()}
+        <div><div class="eyebrow">${eyebrow}</div><h1>${heading}</h1><p class="subtitle">${isToday ? "Make room for what matters." : "Planning ahead"}</p></div>
+        <div class="head-tools">
+          <div class="day-nav" role="group" aria-label="Day">
+            <button class="icon-button" data-day-step="-1" aria-label="Previous day" title="Previous day"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button
+            ><button id="go-today" class="today-button" ${isToday ? "disabled" : ""}>Today</button
+            ><button class="icon-button" data-day-step="1" aria-label="Next day" title="Next day"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+          </div>
+          ${scopeTabs()}
+        </div>
       </header>
     <section class="today-main">
       ${focusBanner()}
@@ -86,7 +93,11 @@ function renderToday(tasks, allHabits) {
       ${overdue.length ? sectionLabel("Overdue", `${overdue.length} to review`) + checklist(overdue) : ""}
       ${timed.length ? sectionLabel("On the agenda", "Time blocks") + checklist(timed) : ""}
       ${untimed.length ? sectionLabel("At your own pace", "To-dos") + checklist(untimed) : ""}
-      ${open.length ? "" : '<p class="empty">Nothing planned for today.</p>'}
+      ${
+        open.length
+          ? ""
+          : `<div class="empty-state"><svg class="doc-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><p><strong>${complete.length ? "All done" : "Nothing planned"}</strong><br />Just start typing to add a task.</p></div>`
+      }
       ${
         complete.length
           ? `<details class="completed-items" ${completedOpen ? "open" : ""}>
@@ -95,9 +106,6 @@ function renderToday(tasks, allHabits) {
             </details>`
           : ""
       }
-      <div class="day-controls">
-        <input type="date" id="selected-day" aria-label="Selected day" value="${selected}" /><button id="go-today">Today</button>
-      </div>
     </section>
     <aside class="today-side" aria-label="Plan and habits">
       ${planCard(done, total)}
@@ -221,11 +229,13 @@ function bindToday() {
       completedOpen = e.target.open;
       localStorage.setItem("todayCompletedExpanded", String(completedOpen));
     };
-  if ($("#selected-day"))
-    $("#selected-day").onchange = (e) => {
-      selected = e.target.value || dayKey(new Date());
-      render();
-    };
+  document.querySelectorAll("[data-day-step]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        selected = OrbitHabits.addDays(selected, Number(b.dataset.dayStep));
+        render();
+      }),
+  );
   if ($("#go-today"))
     $("#go-today").onclick = () => {
       selected = dayKey(new Date());

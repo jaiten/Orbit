@@ -75,34 +75,71 @@ function removeExamples() {
 
 const onboardingDots = () =>
   `<div class="onboarding-dots" aria-hidden="true">${[0, 1, 2].map((i) => `<span class="${i === onboardingStep ? "on" : ""}"></span>`).join("")}</div>`;
+const onboardingArt = {
+  capture: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+  habits:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m17 2 4 4-4 4M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3"/></svg>',
+  sync: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="13" height="10" rx="2"/><rect x="16" y="8" width="6" height="12" rx="1.5"/><path d="M6 18h6"/></svg>',
+};
+/**
+ * Every step has the same frame: art, heading and text at the top, the step's content in the middle,
+ * and one footer whose two buttons never move (secondary on the left, primary on the right).
+ * The × in the corner skips setup at any point.
+ */
+function onboardingFrame({ art, title, text, body, secondary, primary, form = false }) {
+  const inner = `<div class="onboarding-body">
+      <div class="onboarding-art">${onboardingArt[art]}</div>
+      <h2 id="onboarding-title">${title}</h2>
+      <p class="secondary">${text}</p>
+      <div class="onboarding-content">${body}</div>
+    </div>
+    <footer class="onboarding-footer">
+      ${onboardingDots()}
+      <div class="onboarding-actions">${secondary}${primary}</div>
+    </footer>`;
+  return `<button type="button" class="onboarding-close icon-button" data-onboarding-skip aria-label="Skip setup" title="Skip setup">×</button>
+    ${form ? `<form id="onboarding-capture" class="onboarding-frame">${inner}</form>` : `<div class="onboarding-frame">${inner}</div>`}`;
+}
 const onboardingScreens = [
-  () => `<h2>Welcome to Orbit</h2>
-    <p class="secondary">Type anything. Orbit works out when.</p>
-    <form id="onboarding-capture">
-      <input name="text" aria-label="Quick add" placeholder="Try “gym tomorrow 6pm” or “read every day”" maxlength="500" autocomplete="off" />
-      <p id="onboarding-preview" class="chip" aria-live="polite" hidden></p>
-      <footer>
-        <button type="button" id="onboarding-examples">Start with Examples</button
-        ><button type="button" data-onboarding-next>Skip</button><button class="primary" type="submit">Add</button>
-      </footer>
-    </form>`,
-  () => `<h2>Pick a habit or two</h2>
-    <p class="secondary">Habits repeat on their own and reset at midnight.</p>
-    <div class="habit-suggestions">${OrbitOnboardingData.habitSuggestions
-      .map((s, i) => {
-        const label =
-          s.frequencyRule === "WEEKLY"
-            ? `${s.target} times a week`
-            : s.target > 1
-              ? `${s.target} times a day`
-              : OrbitHabits.label(s);
-        return `<button type="button" data-suggestion="${i}" aria-pressed="${chosenHabits.has(i)}">${esc(s.title)}<small>${esc(label)}</small></button>`;
-      })
-      .join("")}</div>
-    <footer><button type="button" data-onboarding-next>Skip</button><button class="primary" id="add-habits">Continue</button></footer>`,
-  () => `<h2>Stay in sync</h2>
-    <p class="secondary">Sign in to keep your iPhone and this PC in step. Everything stays on this PC until you do.</p>
-    <footer><button type="button" data-onboarding-next>Not Now</button><button class="primary" id="onboarding-sync">Set Up Sync</button></footer>`,
+  () =>
+    onboardingFrame({
+      art: "capture",
+      title: "Welcome to Orbit",
+      text: "Type anything. Orbit works out when.",
+      body: `<input name="text" aria-label="Quick add" placeholder="Try “gym tomorrow 6pm” or “read every day”" maxlength="500" autocomplete="off" spellcheck="true" />
+        <div class="chip-row"><p id="onboarding-preview" class="chip" aria-live="polite" hidden></p></div>`,
+      secondary: `<button type="button" class="onboarding-secondary" id="onboarding-examples">Start with Examples</button>`,
+      primary: `<button class="primary onboarding-primary" type="submit">Add</button>`,
+      form: true,
+    }),
+  () =>
+    onboardingFrame({
+      art: "habits",
+      title: "Pick a habit or two",
+      text: "Habits repeat on their own and reset at midnight.",
+      body: `<div class="habit-suggestions">${OrbitOnboardingData.habitSuggestions
+        .map((s, i) => {
+          const label =
+            s.frequencyRule === "WEEKLY"
+              ? `${s.target} times a week`
+              : s.target > 1
+                ? `${s.target} times a day`
+                : OrbitHabits.label(s);
+          return `<button type="button" data-suggestion="${i}" aria-pressed="${chosenHabits.has(i)}"><span>${esc(s.title)}<small>${esc(label)}</small></span><i class="pick" aria-hidden="true"></i></button>`;
+        })
+        .join("")}</div>`,
+      secondary: `<button type="button" class="onboarding-secondary" data-onboarding-next>Not Now</button>`,
+      primary: `<button class="primary onboarding-primary" id="add-habits">Continue</button>`,
+    }),
+  () =>
+    onboardingFrame({
+      art: "sync",
+      title: "Stay in sync",
+      text: "Sign in to keep your iPhone and this PC in step. Everything stays on this PC until you do.",
+      body: `<ul class="onboarding-points"><li>Works offline; nothing leaves this PC without an account</li><li>Free, and no account needed to use Orbit</li><li>Turn it on any time in Settings → Account</li></ul>`,
+      secondary: `<button type="button" class="onboarding-secondary" data-onboarding-next>Not Now</button>`,
+      primary: `<button class="primary onboarding-primary" id="onboarding-sync">Set Up Sync</button>`,
+    }),
 ];
 
 function showOnboarding() {
@@ -120,10 +157,11 @@ function nextOnboarding() {
   if (onboardingStep >= onboardingScreens.length - 1) return $("#onboarding").close();
   onboardingStep += 1;
   renderOnboarding();
-  $("#onboarding-step").querySelector("input, .primary")?.focus();
+  $("#onboarding-step").querySelector("input, .onboarding-primary")?.focus();
 }
 function bindOnboarding() {
   document.querySelectorAll("[data-onboarding-next]").forEach((b) => (b.onclick = nextOnboarding));
+  document.querySelectorAll("[data-onboarding-skip]").forEach((b) => (b.onclick = () => $("#onboarding").close()));
   const form = $("#onboarding-capture");
   if (form) {
     const parse = () => OrbitPlanning.parse(form.elements.text.value, null);

@@ -33,11 +33,11 @@ function renderSettings() {
     <section class="settings-block">
       <h2>Appearance</h2>
       <label class="toggle"><input type="checkbox" id="compact-rows" ${root.compact === "true" ? "checked" : ""} /> Compact habits and tasks</label>
-      <div class="accent-options">${choiceButtons("appearance", appearances, root.appearance)}</div>
+      <div class="accent-options segmented" role="group" aria-label="Appearance">${choiceButtons("appearance", appearances, root.appearance)}</div>
     </section>
     <section class="settings-block">
       <h2>Accent</h2>
-      <div class="accent-options">${choiceButtons("accent", accents, root.accent)}</div>
+      <div class="accent-options segmented" role="group" aria-label="Accent">${choiceButtons("accent", accents, root.accent)}</div>
     </section>
     <section class="settings-block" id="desktop-settings">
       <h2>Reminders & Shortcuts</h2>

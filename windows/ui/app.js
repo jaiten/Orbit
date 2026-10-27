@@ -33,7 +33,7 @@ function render() {
     account: renderAccount,
     review: renderReview,
   };
-  // A new page enters with a stagger; the same page re-forms with rows springing to their new places.
+  // A new page cross-fades in; the same page re-forms with rows springing to their new places.
   const view =
     page +
     "|" +
@@ -45,6 +45,8 @@ function render() {
   const changedPage = view !== shownView;
   const before = !changedPage ? captureRows() : null;
   shownView = view;
+  // Notes fill the window edge to edge, like a document app; other pages keep the reading width.
+  document.body.dataset.view = page === "note" ? "lists" : page;
   $("#content").innerHTML = (pages[page] || renderSettings)();
   renderLists();
   bind();

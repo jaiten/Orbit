@@ -4,6 +4,7 @@ let quickContext = { defaultDate: null, listID: null };
 
 function quickAddContext() {
   if (page === "lists") return { defaultDate: "undated", listID: selectedList };
+  if (page === "calendar" && calendarDay && calendarDay !== today()) return { defaultDate: calendarDay, listID: null };
   if (page === "today" && selected !== today()) return { defaultDate: selected, listID: null };
   return { defaultDate: null, listID: null };
 }

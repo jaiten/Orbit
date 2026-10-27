@@ -208,9 +208,9 @@ const remove = (folder) => {
     await p.getByRole("group", { name: "Days" }).waitFor();
     const firstDay = () => p.locator(".day-tile").first().getAttribute("data-day");
     const thisWeek = await firstDay();
-    await p.getByRole("button", { name: "Next week" }).click();
-    if ((await firstDay()) === thisWeek) throw Error("Next week did not move the calendar");
-    await p.locator(".week-nav .pill").click();
+    await p.getByRole("button", { name: "Next month" }).click();
+    if ((await firstDay()) === thisWeek) throw Error("Next month did not move the calendar");
+    await p.locator(".week-nav .today-button").click();
     if ((await firstDay()) !== thisWeek) throw Error("Today did not return to this week");
     await p.keyboard.press("Control+1");
     // Clear any earlier Undo (a move a moment ago), then tick: ticking never offers Undo.
@@ -343,8 +343,12 @@ const remove = (folder) => {
       throw Error("Details lost the title");
     await p.getByRole("button", { name: "Cancel", exact: true }).click();
     // Adding to a list keeps the task undated in that list, off Today.
-    await p.getByRole("button", { name: "Someday", exact: true }).click();
-    await quickAdd("Learn the cello", "Someday");
+    await p.getByRole("button", { name: "Someday", exact: true }).first().click();
+    // Sections are on the Notes page, which has no task field: Ctrl+N adds a task to the open section.
+    await p.keyboard.press("Control+n");
+    await p.getByRole("textbox", { name: "Quick add" }).fill("Learn the cello");
+    await p.locator("#quick-add-preview").getByText("Someday", { exact: true }).waitFor();
+    await p.getByRole("button", { name: "Add", exact: true }).click();
     await p.getByRole("checkbox", { name: "Complete Learn the cello", exact: true }).waitFor();
     await p.locator('[data-page="today"]').click();
     if (await p.getByRole("checkbox", { name: "Complete Learn the cello" }).count())
@@ -370,14 +374,38 @@ const remove = (folder) => {
     if (await p.locator("#inline-receipt").textContent()) throw Error("A success message appeared");
     await p.locator('[data-page="lists"]').click();
     await p.getByRole("heading", { name: "Notes", exact: true, level: 1 }).waitFor();
-    await p.getByRole("button", { name: /^Garden ideas/ }).click();
+    await p.locator(".note-card", { hasText: "Garden ideas" }).click();
     await p.getByRole("textbox", { name: "Note text" }).fill("Tomatoes by the fence. Herbs by the door.");
     await p.getByRole("textbox", { name: "Note title" }).fill("Garden plan");
-    await p.getByRole("button", { name: /^‹/ }).click();
-    await p.getByRole("button", { name: /^Garden plan/ }).click({ button: "right" });
+    // Esc saves and returns to the overview; the page is in the notes sidebar too.
+    await p.getByRole("textbox", { name: "Note title" }).press("Escape");
+    await p.locator(".notes-nav-page", { hasText: "Garden plan" }).waitFor();
+    await p.locator(".note-card", { hasText: "Garden plan" }).click({ button: "right" });
     await p.getByRole("menuitem", { name: "Copy text", exact: true }).click();
     const copied = await app.evaluate(({ clipboard }) => clipboard.readText());
     if (copied !== "Garden plan\n\nTomatoes by the fence. Herbs by the door.") throw Error("Copy text: " + copied);
+    // Typing with nothing focused starts something: a page on Notes, a task on Today. Shortcuts don't.
+    await p.locator("body").click({ position: { x: 900, y: 760 } });
+    await p.keyboard.type("Packing list");
+    await p.getByRole("textbox", { name: "Note title" }).waitFor();
+    if ((await p.getByRole("textbox", { name: "Note title" }).inputValue()) !== "Packing list")
+      throw Error("Typing did not start a page");
+    await p.keyboard.press("Escape");
+    await p.waitForFunction(async () =>
+      (await window.orbit.read()).records.some((r) => r.payload.isNote && r.payload.title === "Packing list"),
+    );
+    await p.locator('[data-page="today"]').click();
+    await p.locator("body").click({ position: { x: 900, y: 760 } });
+    await p.keyboard.press("Control+2");
+    await p.keyboard.press("Control+1");
+    if (await p.getByRole("textbox", { name: "New task", exact: true }).inputValue())
+      throw Error("A shortcut started a task");
+    await p.keyboard.type("Water plants");
+    if ((await p.getByRole("textbox", { name: "New task", exact: true }).inputValue()) !== "Water plants")
+      throw Error("Typing did not start a task");
+    await p.keyboard.press("Enter");
+    await p.getByRole("checkbox", { name: "Complete Water plants", exact: true }).waitFor();
+    await p.getByRole("textbox", { name: "New task", exact: true }).press("Enter");
     // Week, month and everything show every task and how habits are going.
     await p.locator('[data-page="today"]').click();
     await p.getByRole("tab", { name: "All", exact: true }).click();
@@ -480,10 +508,18 @@ const remove = (folder) => {
       let w = await app.firstWindow();
       const welcome = w.locator("#onboarding");
       await welcome.getByRole("heading", { name: "Welcome to Orbit" }).waitFor();
+      // Skipping is an × in the corner; the footer buttons sit in the same place on every step.
+      await welcome.getByRole("button", { name: "Skip setup", exact: true }).waitFor();
+      await w.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))));
+      const primaryBox = await welcome.locator(".onboarding-primary").boundingBox();
       await welcome.getByRole("textbox", { name: "Quick add" }).fill("dentist tomorrow 9am");
       await welcome.locator("#onboarding-preview").getByText("Task · Tomorrow", { exact: false }).waitFor();
       await welcome.getByRole("button", { name: "Add", exact: true }).click();
       await welcome.getByRole("heading", { name: "Pick a habit or two" }).waitFor();
+      await w.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))));
+      const nextBox = await welcome.locator(".onboarding-primary").boundingBox();
+      if (Math.abs(nextBox.x - primaryBox.x) > 1 || Math.abs(nextBox.y - primaryBox.y) > 1)
+        throw Error("Onboarding buttons moved between steps: " + JSON.stringify([primaryBox, nextBox]));
       await welcome.getByRole("button", { name: /^Stretch/ }).click();
       await welcome.getByRole("button", { name: "Continue", exact: true }).click();
       await welcome.getByRole("heading", { name: "Stay in sync" }).waitFor();
@@ -503,7 +539,7 @@ const remove = (folder) => {
       app = await electron.launch({ ...firstRun, env: { ...firstRun.env, ORBIT_TEST_DATA: another } });
       w = await app.firstWindow();
       await w.getByRole("button", { name: "Start with Examples", exact: true }).click();
-      await w.getByRole("button", { name: "Skip", exact: true }).click();
+      await w.getByRole("button", { name: "Not Now", exact: true }).click();
       await w.getByRole("button", { name: "Set Up Sync", exact: true }).click();
       await w.getByRole("heading", { name: "Account", exact: true }).waitFor();
       await w.locator('[data-page="today"]').click();

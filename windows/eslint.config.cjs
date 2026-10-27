@@ -120,6 +120,8 @@ const shared = Object.fromEntries(
     "calendarStart",
     "calendarDay",
     "OrbitNotes",
+    "updateQuickPreview",
+    "noteSection",
     "renderNotes",
     "renderNoteEditor",
     "noteID",

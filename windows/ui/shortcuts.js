@@ -11,6 +11,7 @@ const SHORTCUT_HELP = [
   ["Esc", "Close a dialog"],
   ["Ctrl+Z", "Undo a delete or move"],
   ["Ctrl+/", "Show these shortcuts"],
+  ["Just start typing", "Add a task (on Notes: start a new page)"],
 ];
 
 function openShortcuts() {
@@ -61,7 +62,11 @@ document.addEventListener("keydown", (e) => {
   if (typing || dialogOpen || e.altKey || e.metaKey || e.ctrlKey) return;
   // Space and Enter press the focused tile's button natively; E and Delete act on the focused tile.
   const tile = e.target.closest?.(".check-tile");
-  if (!tile) return;
+  if (!tile || (key !== "e" && e.key !== "Delete")) {
+    // Anything else typed while nothing is being edited starts a new item: a page on Notes, a task elsewhere.
+    if (e.key.length === 1 && e.key.trim() && !e.isComposing && startTyping(e.key)) e.preventDefault();
+    return;
+  }
   if (key === "e") {
     e.preventDefault();
     const habit = tile.querySelector("[data-habit-menu]")?.dataset.habitMenu;
@@ -72,3 +77,26 @@ document.addEventListener("keydown", (e) => {
     void action(() => deleteItem(tile));
   }
 });
+
+/** Starts capture with the first typed character. Returns false when there is nowhere sensible to type. */
+function startTyping(char) {
+  if ($("#row-menu") && !$("#row-menu").hidden) return false;
+  if (page === "lists" || page === "note") {
+    openNote(null, page === "lists" ? selectedList || null : noteSection, char);
+    return true;
+  }
+  const field = $("#inline-task-input");
+  if (field) {
+    field.focus();
+    field.value += char;
+    field.setSelectionRange(field.value.length, field.value.length);
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  }
+  if (["account", "review", "settings"].includes(page)) return false;
+  openQuickAdd();
+  const input = $("#quick-add-form").elements.text;
+  input.value = char;
+  updateQuickPreview();
+  return true;
+}
