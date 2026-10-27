@@ -212,7 +212,7 @@ const remove = (folder) => {
     const thisWeek = await firstDay();
     await p.getByRole("button", { name: "Next month" }).click();
     if ((await firstDay()) === thisWeek) throw Error("Next month did not move the calendar");
-    await p.locator(".week-nav .today-button").click();
+    await p.locator('[data-month="0"]').click();
     if ((await firstDay()) !== thisWeek) throw Error("Today did not return to this week");
     await p.keyboard.press("Control+1");
     // Clear any earlier Undo (a move a moment ago), then tick: ticking never offers Undo.
