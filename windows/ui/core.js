@@ -510,6 +510,7 @@ setInterval(() => {
   if ($("#focus-left")) $("#focus-left").textContent = left > 0 ? timeLeft(left) : "Finished";
 }, 1000);
 
+let rowMenuScrollPosition = null;
 /** Right-click (or the Menu key) on a row: copy its text and other quick actions. */
 function openRowMenu(e) {
   e.preventDefault();
@@ -570,7 +571,8 @@ function openRowMenu(e) {
   menu.hidden = false;
   menu.style.left = Math.min(x, window.innerWidth - menu.offsetWidth - 8) + "px";
   menu.style.top = Math.min(y, window.innerHeight - menu.offsetHeight - 8) + "px";
-  menu.querySelector("button").focus();
+  menu.querySelector("button").focus({ preventScroll: true });
+  rowMenuScrollPosition = { x: scrollX, y: scrollY };
 }
 function closeRowMenu() {
   if ($("#row-menu")) $("#row-menu").hidden = true;
@@ -585,4 +587,14 @@ document.addEventListener("keydown", (e) => {
   }
 });
 window.addEventListener("blur", closeRowMenu);
-document.addEventListener("scroll", closeRowMenu, true);
+document.addEventListener(
+  "scroll",
+  (event) => {
+    // A layout change can queue a scroll event before the menu opens. Dismiss only
+    // when the document actually moves from its position at opening.
+    if (event.target === document && rowMenuScrollPosition?.x === scrollX && rowMenuScrollPosition?.y === scrollY)
+      return;
+    closeRowMenu();
+  },
+  true,
+);

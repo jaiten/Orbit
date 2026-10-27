@@ -21,6 +21,8 @@ const remove = (folder) => {
   try {
     app = await electron.launch(options);
     const p = await app.firstWindow();
+    if (process.env.ORBIT_SMALL_SCREEN)
+      await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1200, 700));
     const quickAdd = async (text, preview) => {
       await p.getByRole("button", { name: "Task options", exact: true }).first().click();
       await p.getByRole("textbox", { name: "Quick add" }).fill(text);
@@ -135,8 +137,9 @@ const remove = (folder) => {
     await p.getByText("0 of 1 today", { exact: true }).waitFor();
     await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).click();
     await p.getByRole("button", { name: "Make it a Habit", exact: true }).click();
-    // Habits on Today log on click; right-click edits them.
+    // A queued scroll from layout must not close the newly opened context menu.
     await p.getByRole("checkbox", { name: "Log Read for twenty minutes", exact: true }).click({ button: "right" });
+    await p.evaluate(() => document.dispatchEvent(new Event("scroll")));
     await p.getByRole("menuitem", { name: "Edit…", exact: true }).click();
     await p.getByRole("button", { name: "Make it a Task", exact: true }).click();
     await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).click();
