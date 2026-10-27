@@ -2657,3 +2657,43 @@ body[data-view="lists"] .page {
 .page-head .primary-pill {
   align-self: center;
 }
+
+/* The writing bar docks at the bottom of the window (Today and Notes), over a fade of the page. */
+.today-main,
+.notes-overview {
+  display: flex;
+  flex-direction: column;
+}
+.today-main {
+  min-height: calc(100vh - 220px);
+}
+.notes-overview {
+  min-height: 100vh;
+}
+.capture-dock {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  margin-top: auto;
+  padding: 28px 0 20px;
+  background: linear-gradient(to bottom, transparent, var(--canvas) 34%);
+}
+.capture-dock .inline-capture {
+  margin: 0;
+}
+.capture-dock .add-field {
+  box-shadow:
+    0 0 0 0.5px color-mix(in srgb, var(--ink) 16%, transparent),
+    0 8px 28px rgb(0 0 0 / 0.12);
+}
+.capture-dock .inline-chip {
+  order: -1;
+  margin: 0 0 8px;
+}
+.capture-dock .inline-capture {
+  display: flex;
+  flex-direction: column;
+}
+.notes-overview .capture-dock [data-quick-add] {
+  display: none;
+}

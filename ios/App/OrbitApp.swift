@@ -38,6 +38,7 @@ struct RootView: View {
     @ObservedObject private var undo = UndoJournal.shared
     @ObservedObject private var sync = SyncService.shared
     @State private var selectedTab = 0
+    @State private var captureDockHeight: CGFloat = 0
     @State private var errorMessage: String?
     @AppStorage("onboarded") private var onboarded = false
     @State private var showOnboarding = false
@@ -54,6 +55,7 @@ struct RootView: View {
             HabitsView().tabItem { Label("Habits", systemImage: "repeat").environment(\.symbolVariants, .none) }.tag(3)
             SettingsView().tabItem { Label("Settings", systemImage: "gearshape").environment(\.symbolVariants, .none) }.tag(4)
         }
+        .onPreferenceChange(CaptureDockHeight.self) { captureDockHeight = $0 }
         // Undo appears only for deletions, moves and imports. It springs up from the bottom and slides
         // away again; shaking the phone offers the same Undo.
         .overlay(alignment: .bottom) {
@@ -69,7 +71,7 @@ struct RootView: View {
                     .padding(.leading, 18).padding(.trailing, 14).padding(.vertical, 12)
                     .background(Color.orbitSurface, in: Capsule()).overlay(Capsule().strokeBorder(Color.orbitLine))
                     .shadow(color: .black.opacity(0.12), radius: 18, y: 8)
-                    .padding(.bottom, 100)
+                    .padding(.bottom, 100 + (selectedTab == 0 || selectedTab == 2 ? captureDockHeight : 0))
                     .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity).combined(with: .scale(scale: 0.96)))
                     .task(id: change.created) { try? await Task.sleep(for: .seconds(8)); if undo.change?.created == change.created { undo.dismiss() } }
                 }

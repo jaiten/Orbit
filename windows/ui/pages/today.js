@@ -37,22 +37,22 @@ function missedYesterdayPrompt(allHabits) {
     .join("")}</section>`;
 }
 
-let todayScope = "day";
+// Calendar's views: the month grid, or every task this week or overall (renderAgenda).
+let todayScope = "week",
+  calendarView = "month";
 const SCOPES = [
-  ["day", "Day"],
-  ["week", "Week"],
   ["month", "Month"],
+  ["week", "Week"],
   ["all", "All"],
 ];
 function scopeTabs() {
   return `<div class="scope-tabs" role="tablist" aria-label="Show">${SCOPES.map(
     ([id, label]) =>
-      `<button role="tab" data-scope="${id}" aria-selected="${todayScope === id}" class="${todayScope === id ? "selected" : ""}">${label}</button>`,
+      `<button role="tab" data-scope="${id}" aria-selected="${calendarView === id}" class="${calendarView === id ? "selected" : ""}">${label}</button>`,
   ).join("")}</div>`;
 }
 
 function renderToday(tasks, allHabits) {
-  if (todayScope !== "day") return renderAgenda(tasks, allHabits);
   // Today: dated today or earlier and still open, or finished today. Undated and Someday items stay in Notes.
   const relevant = tasks.filter((t) => OrbitPlanner.onDay(planItem(t), selected, today()));
   const habits = allHabits.filter((h) => dueOn(h));
@@ -82,12 +82,10 @@ function renderToday(tasks, allHabits) {
             ><button id="go-today" class="today-button" ${isToday ? "disabled" : ""}>Today</button
             ><button class="icon-button" data-day-step="1" aria-label="Next day" title="Next day"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
           </div>
-          ${scopeTabs()}
         </div>
       </header>
     <section class="today-main">
       ${focusBanner()}
-      ${addField()}
       ${conflictBanner()}
       ${missedYesterdayPrompt(allHabits)}
       ${overdue.length ? sectionLabel("Overdue", `${overdue.length} to review`) + checklist(overdue) : ""}
@@ -106,6 +104,7 @@ function renderToday(tasks, allHabits) {
             </details>`
           : ""
       }
+      <div class="capture-dock">${addField()}</div>
     </section>
     <aside class="today-side" aria-label="Plan and habits">
       ${planCard(done, total)}
@@ -153,7 +152,7 @@ function habitSummaryRow(h, days) {
 }
 
 /** Week, month and everything: tasks by day (or by when) and how each habit is going. */
-function renderAgenda(tasks, allHabits) {
+function renderAgenda(tasks, allHabits, head = "") {
   const t = today();
   const days = todayScope === "all" ? [] : scopeDays();
   const inRange = todayScope === "all" ? tasks : tasks.filter((task) => days.includes(taskDate(task)));
@@ -191,13 +190,8 @@ function renderAgenda(tasks, allHabits) {
     todayScope
   ];
   return `<div class="today-layout agenda">
-    <header class="page-head">
-      <div><div class="eyebrow">${localDay(t).toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</div><h1>${title}</h1><p class="subtitle">Every task and habit, at a glance.</p></div>
-      ${scopeTabs()}
-    </header>
+    ${head}
     <section class="today-main">
-      ${focusBanner()}
-      ${addField()}
       ${body || `<p class="empty">${empty}</p>`}
     </section>
     <aside class="today-side" aria-label="Plan and habits">
@@ -208,14 +202,6 @@ function renderAgenda(tasks, allHabits) {
 }
 
 function bindToday() {
-  document.querySelectorAll("[data-scope]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        todayScope = b.dataset.scope;
-        render();
-        $(`[data-scope="${todayScope}"]`)?.focus();
-      }),
-  );
   if ($("#dismiss-missed"))
     $("#dismiss-missed").onclick = () => {
       localStorage.setItem("dismissedMissedHabitPromptDay", today());

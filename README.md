@@ -24,7 +24,7 @@ SwiftData app currently requires Xcode; WSL/xtool is not yet supported.
 
 | Area | Current behavior |
 | --- | --- |
-| Both apps | Today (today plus overdue) with Day / Week / Month / All views, Calendar, Notes in sections with a built-in Someday section, Habits, Settings and Account; one growing quick add field with an opaque preview chip, where long text becomes a note; first-launch onboarding with optional examples; JSON and CSV export, JSON import with a preview |
+| Both apps | Today (today plus overdue) with the writing bar docked at the bottom, Calendar with a Week / Month / All overview, Calendar, Notes in sections with a built-in Someday section, Habits, Settings and Account; one growing quick add field with an opaque preview chip, where long text becomes a note; first-launch onboarding with optional examples; JSON and CSV export, JSON import with a preview |
 | iOS | Checklist tiles, swipe actions, week/month calendar, notes, tags, subtasks, reminders, Shortcuts and Siri (Add to Orbit, Complete Item), share sheet extension |
 | Windows | Notion-style Notes (notes sidebar beside a full-page editor), a month Calendar with the chosen day beside it, start typing anywhere to add a task (or a page on Notes), a fixed-size onboarding with × to skip, Today with optional progress/history, compact rows, list reordering, Windows voice typing, keyboard shortcuts (Ctrl+N, Ctrl+1–5, Ctrl+F, Ctrl+/), reminders as Windows notifications, tray icon and a global quick add shortcut |
 | Sync | Separate Supabase backend, email/password accounts, durable outbox, tombstones, revision checks, conflict review, reconnect catch-up |
@@ -77,8 +77,9 @@ the text below. Type more than about 120 characters (or a line break) into Add a
 the chip changes to *Note*; Return saves it to Notes instead of Today. Notes are task
 records marked `isNote`, so they sync, back up and undo with everything else, and never
 appear as to-dos. Sections are the former lists; tasks filed in one still show on its
-Notes page (Windows) and in Today → All. Today's **Day / Week / Month / All** control shows
-every task in that period by day, and how each habit is going.
+Notes page (Windows) and in Today → All. Calendar's **Overview** (iPhone) and **Month / Week / All** views (Windows) show
+every task in that period by day, and how each habit is going. Notes has the same bottom
+bar as Today; whatever you type there becomes a note.
 
 Today accepts tasks directly in its text field: Return adds one and keeps entry ready for another; Return on an empty field closes the keyboard. No success message appears; the cleared field is the confirmation. The field uses the system autocorrect and capitalisation. The options button opens date/list capture. Microphone controls dictate into an editable draft (iOS Speech and Windows voice typing); saving stays explicit. Habits offer 35 named icons or Automatic; on iPhone, task icons follow title keywords. Windows shows only icons you choose: automatic (title-guessed) emoji are hidden. Edit Lists lets you reorder lists.
 

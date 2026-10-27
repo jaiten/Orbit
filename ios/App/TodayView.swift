@@ -30,8 +30,6 @@ struct TodayView: View {
     @State private var addingHabit = false
     @State private var customizing = false
     @AppStorage("todayCompletedExpanded") private var showingCompleted = false
-    /// Today always opens on the day; the wider views are a glance away.
-    @State private var scope = AgendaScope.day
     @AppStorage("lastMissedHabitPromptDay") private var lastMissedPromptDay = ""
     @State private var error: String?
     @State private var missedYesterdayHabits: [Habit] = []
@@ -64,6 +62,7 @@ struct TodayView: View {
     private var page: some View {
         ScrollView { content }
             .scrollDismissesKeyboard(.interactively)
+            .captureDock(scheme) { InlineCapture() }
             .background(DayTheme.canvas(scheme)).tint(accent.fill)
             .onAppear {
                 let layout = HomeLayoutEditor.upgradedLayout(sections: homeSections, hidden: hiddenSections)
@@ -80,16 +79,11 @@ struct TodayView: View {
             header
             FocusBanner()
             ConflictBanner()
-            // As on the website: the plan, then capture, then the day's sections.
-            if scope == .day && sections.contains("progress") { PlanCard(done: planDone, total: relevant.count + dueHabits.count, accent: accent.fill) }
-            InlineCapture()
-            if scope == .day {
-                missedYesterdayBanner
-                ForEach(sections.filter { $0 != "progress" }, id: \.self) { section in
-                    homeSection(section)
-                }
-            } else {
-                AgendaView(scope: scope, day: day, edit: { editing = $0 }, editHabit: { editingHabit = $0 })
+            // The plan, then the day's sections; capture is docked at the bottom.
+            if sections.contains("progress") { PlanCard(done: planDone, total: relevant.count + dueHabits.count, accent: accent.fill) }
+            missedYesterdayBanner
+            ForEach(sections.filter { $0 != "progress" }, id: \.self) { section in
+                homeSection(section)
             }
         }
         .padding(.top, CGFloat(DesignTokens.spaceS))
@@ -99,20 +93,10 @@ struct TodayView: View {
 
     private var planDone: Int { relevant.filter { $0.completedAt != nil }.count + checkedHabits.count }
 
-    /// The daily heading stays above the plan; the scope menu widens it to the week, month or everything.
+    /// The daily heading stays above the plan.
     private var header: some View {
-        PageHeader(eyebrow: day.formatted(.dateTime.weekday(.wide).month(.wide).day()), title: scope.title,
-                   subtitle: scope == .day ? "Make room for what matters." : "Every task and habit, at a glance.") {
-            Menu {
-                Picker("Show", selection: $scope) {
-                    ForEach(AgendaScope.allCases) { Text($0.label).tag($0) }
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    Text(scope.label).font(.subheadline.weight(.medium))
-                    Image(systemName: "chevron.down").font(.caption.weight(.semibold))
-                }.padding(.horizontal, 14).frame(minHeight: 44)
-            }.accessibilityLabel("Show").accessibilityValue(scope.label).accessibilityIdentifier("today-scope")
+        PageHeader(eyebrow: day.formatted(.dateTime.weekday(.wide).month(.wide).day()), title: "Today",
+                   subtitle: "Make room for what matters.") {
             Button { customizing = true } label: { Image(systemName: "slider.horizontal.3").font(.system(size: 20)).frame(width: 44, height: 44) }.accessibilityLabel("Edit Today")
             SyncIndicator()
         }

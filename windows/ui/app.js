@@ -41,7 +41,7 @@ function render() {
     "|" +
     (page === "habit-history" ? historyHabitID : page === "note" ? noteID || "new" : "") +
     "|" +
-    (page === "today" ? todayScope : "");
+    (page === "calendar" ? calendarView : "");
   const changedPage = view !== shownView;
   const before = !changedPage ? captureRows() : null;
   shownView = view;

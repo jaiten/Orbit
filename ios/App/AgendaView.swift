@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// How much of the plan Today shows: the day itself, or every task and habit in a longer stretch.
+/// How much of the plan the Overview shows: a week, a month, or everything.
 enum AgendaScope: String, CaseIterable, Identifiable {
     case day, week, month, all
     var id: String { rawValue }
@@ -181,5 +181,35 @@ struct HabitSummaryRow: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(habit.title), \(done) of \(due) scheduled days checked")
         .accessibilityHint("Opens the habit")
+    }
+}
+
+/// Calendar's Overview: every task in the week, the month or everything, and how each habit is going.
+struct AgendaSheet: View {
+    var day: Date = .now
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.orbitAccent) private var accent
+    @AppStorage("overviewScope") private var scope = AgendaScope.week
+    @State private var editing: PlannerTask?
+    @State private var editingHabit: Habit?
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
+                    Picker("Show", selection: $scope) {
+                        ForEach(AgendaScope.allCases.filter { $0 != .day }) { Text($0.label).tag($0) }
+                    }.pickerStyle(.segmented).accessibilityIdentifier("overview-scope")
+                    AgendaView(scope: scope == .day ? .week : scope, day: day, edit: { editing = $0 }, editHabit: { editingHabit = $0 })
+                }
+                .padding(.horizontal, CGFloat(DesignTokens.screenPadding)).padding(.vertical, CGFloat(DesignTokens.spaceS))
+                .frame(maxWidth: 760).frame(maxWidth: .infinity)
+            }
+            .background(DayTheme.canvas(scheme)).tint(accent.fill)
+            .navigationTitle(scope == .day ? AgendaScope.week.title : scope.title).navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .sheet(item: $editing) { TaskEditor(task: $0) }
+            .sheet(item: $editingHabit) { HabitEditor(habit: $0) }
+        }
     }
 }

@@ -13,6 +13,19 @@ function shiftMonth(key, delta) {
 
 function renderCalendar(tasks) {
   const t = today();
+  if (calendarView !== "month") {
+    todayScope = calendarView;
+    const title = calendarView === "week" ? "This week" : "Everything";
+    const head = `<header class="page-head">
+      <div><div class="eyebrow">Plan ahead</div><h1>${title}</h1><p class="subtitle">Every task and habit, at a glance.</p></div>
+      <div class="head-tools">${scopeTabs()}</div>
+    </header>`;
+    return renderAgenda(
+      tasks,
+      rows("habits").sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)),
+      head,
+    );
+  }
   calendarDay ??= t;
   calendarStart ??= monthOf(calendarDay);
   const first = localDay(calendarStart);
@@ -62,10 +75,13 @@ function renderCalendar(tasks) {
   return `<div class="calendar-page">
     <header class="page-head">
       <div><div class="eyebrow">Plan ahead</div><h1>${month}</h1><p class="subtitle">${count ? `${count} ${count === 1 ? "item" : "items"} this month` : "Nothing planned this month yet"}</p></div>
+      <div class="head-tools">
       <div class="week-nav day-nav" role="group" aria-label="Month">
         <button class="icon-button" data-month="-1" aria-label="Previous month" title="Previous month">${chevron("m15 18-6-6 6-6")}</button
         ><button class="today-button" data-month="0" ${calendarStart === monthOf(t) && calendarDay === t ? "disabled" : ""}>Today</button
         ><button class="icon-button" data-month="1" aria-label="Next month" title="Next month">${chevron("m9 18 6-6-6-6")}</button>
+      </div>
+      ${scopeTabs()}
       </div>
     </header>
     <div class="cal-layout">
@@ -83,6 +99,14 @@ function renderCalendar(tasks) {
 }
 
 function bindCalendar() {
+  document.querySelectorAll("[data-scope]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        calendarView = b.dataset.scope;
+        render();
+        $(`[data-scope="${calendarView}"]`)?.focus();
+      }),
+  );
   document.querySelectorAll("[data-day]").forEach((b) => {
     b.onclick = () => {
       calendarDay = b.dataset.day;

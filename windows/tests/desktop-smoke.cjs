@@ -394,6 +394,11 @@ const remove = (folder) => {
     await p.waitForFunction(async () =>
       (await window.orbit.read()).records.some((r) => r.payload.isNote && r.payload.title === "Packing list"),
     );
+    // The Notes bottom bar writes a note, even a short one.
+    await p.getByRole("textbox", { name: "New task", exact: true }).fill("Gift ideas");
+    await p.locator("#inline-preview").getByText("Note", { exact: true }).waitFor();
+    await p.getByRole("textbox", { name: "New task", exact: true }).press("Enter");
+    await p.locator(".note-card", { hasText: "Gift ideas" }).waitFor();
     await p.locator('[data-page="today"]').click();
     await p.evaluate(() => document.activeElement?.blur());
     await p.keyboard.press("Control+2");
@@ -406,15 +411,17 @@ const remove = (folder) => {
     await p.keyboard.press("Enter");
     await p.getByRole("checkbox", { name: "Complete Water plants", exact: true }).waitFor();
     await p.getByRole("textbox", { name: "New task", exact: true }).press("Enter");
-    // Week, month and everything show every task and how habits are going.
-    await p.locator('[data-page="today"]').click();
+    // Today has no view switcher; Calendar's Week and All show every task and how habits are going.
+    if (await p.getByRole("tab", { name: "All", exact: true }).count()) throw Error("Today still has view tabs");
+    await p.locator('[data-page="calendar"]').click();
     await p.getByRole("tab", { name: "All", exact: true }).click();
     await p.getByRole("heading", { name: "Everything", exact: true }).waitFor();
     await p.getByRole("checkbox", { name: "Complete Learn the cello", exact: true }).waitFor();
     await p.getByRole("tab", { name: "Week", exact: true }).click();
     await p.getByRole("heading", { name: "This week", exact: true }).waitFor();
-    await p.getByRole("tab", { name: "Day", exact: true }).click();
-    await p.getByRole("heading", { name: "Today", exact: true, level: 1 }).waitFor();
+    await p.getByRole("tab", { name: "Month", exact: true }).click();
+    await p.getByRole("group", { name: "Days" }).waitFor();
+    await p.locator('[data-page="today"]').click();
     await p.getByRole("button", { name: "Settings", exact: true }).click();
     const backupFile = path.join(folder, "planner-backup.json");
     await app.evaluate(({ dialog }, file) => {

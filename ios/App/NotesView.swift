@@ -69,6 +69,8 @@ struct NotesView: View {
                     .frame(maxWidth: 760).frame(maxWidth: .infinity)
             }
             .scrollDismissesKeyboard(.interactively)
+            // The same bottom bar as Today; what you type here becomes a note.
+            .captureDock(scheme) { InlineCapture(notesOnly: true) }
             .background(DayTheme.canvas(scheme)).tint(accent.fill)
             .navigationTitle("Notes").navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)

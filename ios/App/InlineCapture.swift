@@ -1,9 +1,36 @@
 import SwiftUI
 import SwiftData
 
-/// Capture on Today; advanced options use the same parser and save path. The field grows as you type,
-/// and past `NoteRules.threshold` (or with a line break) the text becomes a note instead of a task.
+/// Lets global transient controls (Undo) clear the docked capture bar, including Dynamic Type and chips.
+struct CaptureDockHeight: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
+
+extension View {
+    /// Docks a capture bar above the tab bar and keyboard, over a fade of the page colour.
+    func captureDock<Bar: View>(_ scheme: ColorScheme, @ViewBuilder bar: () -> Bar) -> some View {
+        safeAreaInset(edge: .bottom, spacing: 0) {
+            bar()
+                .padding(.horizontal, CGFloat(DesignTokens.screenPadding))
+                .padding(.vertical, 8)
+                .frame(maxWidth: 760).frame(maxWidth: .infinity)
+                .background {
+                    GeometryReader { geometry in Color.clear.preference(key: CaptureDockHeight.self, value: geometry.size.height) }
+                }
+                .background {
+                    LinearGradient(colors: [DayTheme.canvas(scheme).opacity(0), DayTheme.canvas(scheme), DayTheme.canvas(scheme)],
+                                   startPoint: .top, endPoint: .bottom).ignoresSafeArea(edges: .bottom)
+                }
+        }
+    }
+}
+
+/// Capture docked at the bottom of Today; advanced options use the same parser and save path. The field
+/// grows as you type, and past `NoteRules.threshold` (or with a line break) the text becomes a note.
+/// With `notesOnly` (on Notes) everything typed becomes a note.
 struct InlineCapture: View {
+    var notesOnly = false
     @Environment(\.modelContext) private var context
     @Environment(\.orbitAccent) private var accent
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -15,10 +42,15 @@ struct InlineCapture: View {
     @State private var conflicts: [String] = []
     @State private var confirmConflict = false
     private var result: QuickAddResult { QuickAdd.parse(text) }
-    private var isNote: Bool { NoteRules.isNote(text) }
-    private var preview: String { isNote ? "Note · Notes" : QuickAdd.describe(result) }
+    private var isNote: Bool { notesOnly || NoteRules.isNote(text) }
+    private var preview: String { isNote ? "Note · Unsorted" : QuickAdd.describe(result) }
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            // The chip belongs to the keyboard: it leaves when the keyboard is swiped away.
+            if focused && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                PreviewChip(text: preview)
+                    .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
+            }
             HStack(alignment: .top, spacing: 8) {
                 Button {
                     if focused { dismissKeyboard() }
@@ -26,17 +58,15 @@ struct InlineCapture: View {
                     else { save() }
                 } label: {
                     Image(systemName: focused ? "chevron.down" : "plus").font(.system(size: 20)).frame(width: 44, height: 44)
-                }.accessibilityLabel(focused ? "Dismiss keyboard" : "Add a task").disabled(saving)
-                CaptureTextField(text: $text, focused: $focused, identifier: "inline-task-input", placeholder: "Add a task · gym tomorrow 6pm", minimumHeight: 44) { save() }
+                }.accessibilityLabel(focused ? "Dismiss keyboard" : notesOnly ? "Add a note" : "Add a task").disabled(saving)
+                CaptureTextField(text: $text, focused: $focused, identifier: notesOnly ? "note-capture-input" : "inline-task-input", placeholder: notesOnly ? "Write a note" : "Add a task · gym tomorrow 6pm", minimumHeight: 44) { save() }
                 DictationButton(text: $text)
-                Button { options = true } label: { Image(systemName: "calendar.badge.clock").font(.system(size: 20)).frame(width: 44, height: 44) }
-                    .accessibilityLabel("Task options").accessibilityHint("Choose a date or list before adding")
+                if !notesOnly {
+                    Button { options = true } label: { Image(systemName: "calendar.badge.clock").font(.system(size: 20)).frame(width: 44, height: 44) }
+                        .accessibilityLabel("Task options").accessibilityHint("Choose a date or list before adding")
+                }
             }.padding(.trailing, 6).padding(.vertical, 4).frame(minHeight: 52).orbitSurface(radius: CGFloat(DesignTokens.radiusInput))
-            // The chip belongs to the keyboard: it leaves when the keyboard is swiped away.
-            if focused && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                PreviewChip(text: preview)
-                    .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
-            }
+                .shadow(color: .black.opacity(0.06), radius: 12, y: 3)
         }.tint(accent.text)
             .animation(reduceMotion ? .easeOut(duration: 0.15) : .orbit, value: focused)
             .animation(reduceMotion ? nil : .orbit, value: isNote)

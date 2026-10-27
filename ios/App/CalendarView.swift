@@ -13,6 +13,7 @@ struct CalendarView: View {
     @State private var mode = "Week"
     @State private var editing: PlannerTask?
     @State private var adding = false
+    @State private var overview = false
     @State private var error: String?
     private var calendar: Calendar { .current }
     private var days: [Date] {
@@ -32,6 +33,8 @@ struct CalendarView: View {
                 let visibleEvents = calendars.events(from: days[0], to: calendar.date(byAdding: .day, value: 1, to: days.last!)!)
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
                     PageHeader(eyebrow: "Plan ahead", title: "Calendar") {
+                        Button { overview = true } label: { Image(systemName: "list.bullet.rectangle").font(.system(size: 19)).frame(width: 44, height: 44) }
+                            .accessibilityLabel("Overview").accessibilityHint("Every task and habit this week, this month or overall")
                         Button { selected = .now } label: { Text("Today").padding(.horizontal, 14).frame(minHeight: 44) }
                         Button { adding = true } label: { Image(systemName: "plus").font(.system(size: 20)).frame(width: 44, height: 44) }.accessibilityLabel("New task")
                     }
@@ -89,6 +92,7 @@ struct CalendarView: View {
                 .toolbar(.hidden, for: .navigationBar)
                 .sheet(item: $editing) { TaskEditor(task: $0) }
                 .sheet(isPresented: $adding) { QuickCapture(initialDate: selected) }
+                .sheet(isPresented: $overview) { AgendaSheet(day: selected) }
                 .modifier(MutationErrorModifier(error: $error))
         }
     }

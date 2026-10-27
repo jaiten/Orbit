@@ -198,6 +198,7 @@ function renderNotes(tasks) {
           : `<div class="empty-state">${docIcon}<p><strong>No pages yet</strong><br />Start typing anywhere to begin a new page.</p></div>`
       }
       ${groups ? `<div class="section-label"><h2>${selectedList ? "Tasks in " + esc(title) : "Tasks"}</h2><span>To-dos</span></div>${groups}` : ""}
+      <div class="capture-dock">${addField(selectedList ? `Write a note in ${title}` : "Write a note")}</div>
     </section>
   </div>`;
 }

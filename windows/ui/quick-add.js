@@ -163,9 +163,10 @@ function bindInlineCapture() {
     inlineDraft = input.value;
     const parsed = OrbitPlanning.parse(inlineDraft, quickAddContext().defaultDate);
     const section = quickAddContext().listID;
+    // On Notes, the bottom bar always writes a note.
     const text = !inlineDraft.trim()
       ? ""
-      : OrbitNotes.isNote(inlineDraft)
+      : page === "lists" || OrbitNotes.isNote(inlineDraft)
         ? "Note · " + (section ? sectionName(section) : "Notes")
         : OrbitPlanning.describe(parsed);
     showChip($("#inline-preview"), text);
@@ -196,7 +197,7 @@ function bindInlineCapture() {
   form.onsubmit = (event) => {
     event.preventDefault();
     if (!input.value.trim()) return input.blur();
-    if (OrbitNotes.isNote(input.value)) {
+    if (page === "lists" || OrbitNotes.isNote(input.value)) {
       const { title, body } = OrbitNotes.split(input.value);
       const note = { ...newTask(title, null), isNote: true, notes: body };
       note.listID = quickAddContext().listID;
