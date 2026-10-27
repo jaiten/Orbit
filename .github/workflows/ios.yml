@@ -1,11 +1,22 @@
 name: iOS prototype
+run-name: iOS ${{ inputs.test_scope || 'smoke' }} checks — ${{ github.ref_name }}
 on:
   push:
     branches: [main]
-    paths: ['ios/**', 'shared/**', '.github/workflows/ios.yml', '.github/workflows/testflight.yml', 'scripts/prepare_testflight.py']
+    paths: ['ios/**', 'shared/**', '.github/workflows/ios.yml', '.github/workflows/testflight.yml', 'scripts/prepare_testflight.py', 'scripts/run_ios_tests.sh', 'scripts/restore_source_mtimes.py']
   pull_request:
-    paths: ['ios/**', 'shared/**', '.github/workflows/ios.yml', '.github/workflows/testflight.yml', 'scripts/prepare_testflight.py']
+    paths: ['ios/**', 'shared/**', '.github/workflows/ios.yml', '.github/workflows/testflight.yml', 'scripts/prepare_testflight.py', 'scripts/run_ios_tests.sh', 'scripts/restore_source_mtimes.py']
   workflow_dispatch:
+    inputs:
+      test_scope:
+        description: Tests to run (manual runs do not upload to TestFlight)
+        type: choice
+        options: [smoke, full, unit, focused]
+        default: smoke
+      test_filter:
+        description: For focused runs, e.g. OrbitUITests/ChecklistUITests/testNotesHaveSectionsAndPages
+        type: string
+        required: false
 concurrency:
   group: ios-${{ github.ref }}
   cancel-in-progress: true
@@ -17,6 +28,26 @@ jobs:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Validate CI helpers
+        run: python3 -m unittest discover -s scripts/tests -v
+      - name: Restore source timestamps for incremental builds
+        run: python3 scripts/restore_source_mtimes.py
+      - name: Identify Xcode cache
+        id: xcode
+        run: echo "version=$(xcodebuild -version | shasum -a 256 | cut -c1-16)" >> "$GITHUB_OUTPUT"
+      - name: Restore Xcode build cache
+        id: build-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ${{ runner.temp }}/OrbitDerivedData/Build
+            ${{ runner.temp }}/OrbitDerivedData/ModuleCache.noindex
+            ${{ runner.temp }}/OrbitDerivedData/SDKStatCaches.noindex
+          key: ios-build-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.version }}-${{ hashFiles('ios/**/*.swift', 'ios/**/*.xcassets/**', 'ios/project.yml', 'shared/**') }}
+          restore-keys: |
+            ios-build-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.version }}-
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate project
@@ -32,9 +63,26 @@ jobs:
           # still verifies that SpringBoard and the device services have finished starting.
           xcrun simctl boot "$DEVICE_ID" || true
           xcrun simctl bootstatus "$DEVICE_ID" -b
-      - name: Build and test app and extension
-        working-directory: ios
-        run: xcodebuild test -parallel-testing-enabled NO -project Orbit.xcodeproj -scheme Orbit -destination "platform=iOS Simulator,id=$DEVICE_ID" CODE_SIGNING_ALLOWED=NO -resultBundlePath ../TestResults.xcresult
+      - name: Build app, extensions and test bundles
+        id: compile
+        env:
+          IOS_TEST_SCOPE: ${{ inputs.test_scope || 'smoke' }}
+          IOS_TEST_FILTER: ${{ inputs.test_filter }}
+        run: bash scripts/run_ios_tests.sh build
+      - name: Save Xcode build cache
+        if: steps.compile.outcome == 'success' && github.event_name != 'pull_request' && steps.build-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ runner.temp }}/OrbitDerivedData/Build
+            ${{ runner.temp }}/OrbitDerivedData/ModuleCache.noindex
+            ${{ runner.temp }}/OrbitDerivedData/SDKStatCaches.noindex
+          key: ${{ steps.build-cache.outputs.cache-primary-key }}
+      - name: Run selected tests without rebuilding
+        env:
+          IOS_TEST_SCOPE: ${{ inputs.test_scope || 'smoke' }}
+          IOS_TEST_FILTER: ${{ inputs.test_filter }}
+        run: bash scripts/run_ios_tests.sh test
       - name: Export simulator screenshots
         if: always()
         run: |
@@ -42,12 +90,14 @@ jobs:
             xcrun xcresulttool export attachments --path TestResults.xcresult --output-path TestAttachments || true
           fi
       - name: Print Today screenshot for manual runs
-        if: always() && github.event_name == 'workflow_dispatch'
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.test_scope == 'full'
         run: python3 scripts/print_screenshot.py TestAttachments "Orbit Today screenshot" || true
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: ios-test-results
+          retention-days: 7
           path: |
+            BuildResults.xcresult
             TestResults.xcresult
             TestAttachments

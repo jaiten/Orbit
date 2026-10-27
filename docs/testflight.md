@@ -35,7 +35,7 @@ an App Store Connect distribution profile for it with the same certificate, and 
 base64 as the `SHARE_PROFILE_BASE64` secret. Without that secret, TestFlight builds leave
 the extension out and everything else uploads as before.
 
-A successful **iOS prototype** check for a push to `main` automatically starts
+A successful **iOS prototype** beta check for a push to `main` automatically starts
 **TestFlight** for that tested commit. Pull requests and failed checks do not upload.
 You can also use **Actions → TestFlight → Run workflow** on `main` for a manual retry.
 The workflow signs and uploads through an ephemeral keychain. Build numbers increase
@@ -49,3 +49,35 @@ need the build added in App Store Connect.
 The app declares that it does not use non-exempt encryption: current networking
 uses operating-system HTTPS and credentials use Keychain. Revisit that declaration
 if encryption features change.
+
+## Faster beta testing
+
+Pushes run all unit tests plus four UI smoke tests: capture/Undo, Notes pages,
+Calendar task creation, and Settings/theme/habit history. The full 15-test UI
+suite remains available; it is no longer required for every beta upload.
+
+In **Actions → iOS prototype → Run workflow**, choose:
+
+- `smoke`: the same unit + core UI checks used before automatic TestFlight uploads.
+- `unit`: unit tests only (quick logic checks).
+- `focused`: one test class/method; enter a filter such as
+  `OrbitUITests/ChecklistUITests/testNotesHaveSectionsAndPages`.
+- `full`: all unit and UI tests; use before a wider release or after broad UI changes.
+
+Manual test runs never automatically upload. Use the TestFlight workflow for an
+explicit manual upload. A `[skip testflight]` marker in a commit message runs CI
+but suppresses its automatic upload, useful for test/CI-only changes.
+
+The app/test bundles build once, and the selected tests run without rebuilding.
+Compiled products are cached before UI tests start, so a failed UI assertion does
+not discard a successful build. Xcode build products and module caches are reused
+between compatible runs. A
+clean checkout restores source modification dates from Git so incremental builds
+can use that cache. The first run still pays the full build cost; simulator startup
+and Apple's TestFlight processing remain outside this cache. Signing keys,
+provisioning profiles and credentials are never stored in the build cache.
+
+On a Mac, use Xcode's Run button on a connected iPhone for UI iteration, and click
+the diamond beside an individual test to rerun it. This avoids a TestFlight upload
+for each visual adjustment. Without a Mac, focused CI runs provide the same narrow
+feedback loop through GitHub Actions.
