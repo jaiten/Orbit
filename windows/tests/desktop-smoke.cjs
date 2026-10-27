@@ -385,7 +385,7 @@ const remove = (folder) => {
     const copied = await app.evaluate(({ clipboard }) => clipboard.readText());
     if (copied !== "Garden plan\n\nTomatoes by the fence. Herbs by the door.") throw Error("Copy text: " + copied);
     // Typing with nothing focused starts something: a page on Notes, a task on Today. Shortcuts don't.
-    await p.locator("body").click({ position: { x: 900, y: 760 } });
+    await p.evaluate(() => document.activeElement?.blur());
     await p.keyboard.type("Packing list");
     await p.getByRole("textbox", { name: "Note title" }).waitFor();
     if ((await p.getByRole("textbox", { name: "Note title" }).inputValue()) !== "Packing list")
@@ -395,7 +395,7 @@ const remove = (folder) => {
       (await window.orbit.read()).records.some((r) => r.payload.isNote && r.payload.title === "Packing list"),
     );
     await p.locator('[data-page="today"]').click();
-    await p.locator("body").click({ position: { x: 900, y: 760 } });
+    await p.evaluate(() => document.activeElement?.blur());
     await p.keyboard.press("Control+2");
     await p.keyboard.press("Control+1");
     if (await p.getByRole("textbox", { name: "New task", exact: true }).inputValue())
