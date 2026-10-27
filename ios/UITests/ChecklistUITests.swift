@@ -278,8 +278,8 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 5), app.debugDescription)
         let list = XCTAttachment(screenshot: app.screenshot())
         list.name = "Notes with sections"; list.lifetime = .keepAlways; add(list)
-        row.press(forDuration: 1.5)
-        XCTAssertTrue(app.buttons["Copy text"].waitForExistence(timeout: 8), app.debugDescription)
+        app.buttons["More for Trail options"].tap()
+        XCTAssertTrue(app.buttons["Copy text"].waitForExistence(timeout: 5), app.debugDescription)
         app.buttons["Copy text"].tap()
         // Notes never appear as to-dos.
         app.tabBars.buttons["Today"].tap()

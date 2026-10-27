@@ -109,17 +109,20 @@ struct NotesView: View {
                     VStack(spacing: 0) {
                         ForEach(Array(pages.enumerated()), id: \.element.id) { index, note in
                             if index > 0 { Divider().padding(.leading, 48) }
-                            // A tap target rather than a Button or NavigationLink: those took the touch and
-                            // hold as a tap, so the menu never appeared.
-                            NoteRow(note: note)
-                                .contentShape(Rectangle())
-                                .onTapGesture { path.append(.open(note.id)) }
-                                .accessibilityElement(children: .ignore)
-                                .accessibilityAddTraits(.isButton)
-                                .accessibilityLabel(note.title.isEmpty ? "Untitled" : note.title)
-                                .accessibilityValue(NoteRules.snippet(note.notes))
-                                .accessibilityIdentifier("note-row")
-                                .accessibilityAction { path.append(.open(note.id)) }
+                            // The row opens the page; ⋯ (or touch and hold) shows Copy text, Move, Make It a Task, Delete.
+                            HStack(spacing: 0) {
+                                NoteRow(note: note)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { path.append(.open(note.id)) }
+                                    .accessibilityElement(children: .ignore)
+                                    .accessibilityAddTraits(.isButton)
+                                    .accessibilityLabel(note.title.isEmpty ? "Untitled" : note.title)
+                                    .accessibilityValue(NoteRules.snippet(note.notes))
+                                    .accessibilityIdentifier("note-row")
+                                    .accessibilityAction { path.append(.open(note.id)) }
+                                NoteMenu(note: note)
+                            }
+                            .contentShape(Rectangle())
                             .modifier(NoteActions(note: note))
                         }
                     }.orbitSurface(radius: CGFloat(DesignTokens.radiusCard))
@@ -158,25 +161,21 @@ struct NoteRow: View {
 }
 
 /// Touch and hold a note: copy it, move it to another section, turn it into a task, or delete it.
-struct NoteActions: ViewModifier {
+/// The note actions, shared by touch and hold and the row's ⋯ button.
+struct NoteMenuItems: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
     let note: PlannerTask
-    @State private var error: String?
-    func body(content: Content) -> some View {
-        content.contextMenu {
-            Button("Copy text", systemImage: "doc.on.doc") { UIPasteboard.general.string = NoteActions.text(of: note) }
-            Menu("Move to section", systemImage: "folder") {
-                Button("No section") { move(nil) }
-                ForEach(lists.filter { $0.id != TodayRules.somedayID }) { list in Button(list.name) { move(list.id) } }
-                Button("Someday") { move(TodayRules.somedayID) }
-            }
-            Button("Make It a Task", systemImage: "checklist") { change { note.isNote = nil; note.updatedAt = .now; try Mutations.save(context) } }
-            Button("Delete", systemImage: "trash", role: .destructive) { change { context.delete(note); try Mutations.save(context) } }
-        }.modifier(MutationErrorModifier(error: $error))
-    }
-    static func text(of note: PlannerTask) -> String {
-        note.notes.isEmpty ? note.title : note.title + "\n\n" + note.notes
+    @Binding var error: String?
+    var body: some View {
+        Button("Copy text", systemImage: "doc.on.doc") { UIPasteboard.general.string = NoteActions.text(of: note) }
+        Menu("Move to section", systemImage: "folder") {
+            Button("No section") { move(nil) }
+            ForEach(lists.filter { $0.id != TodayRules.somedayID }) { list in Button(list.name) { move(list.id) } }
+            Button("Someday") { move(TodayRules.somedayID) }
+        }
+        Button("Make It a Task", systemImage: "checklist") { change { note.isNote = nil; note.updatedAt = .now; try Mutations.save(context) } }
+        Button("Delete", systemImage: "trash", role: .destructive) { change { context.delete(note); try Mutations.save(context) } }
     }
     private func move(_ id: UUID?) {
         change {
@@ -186,6 +185,33 @@ struct NoteActions: ViewModifier {
     }
     private func change(_ action: () throws -> Void) {
         do { try action() } catch { context.rollback(); self.error = error.localizedDescription }
+    }
+}
+
+/// The row's ⋯ button.
+struct NoteMenu: View {
+    let note: PlannerTask
+    @State private var error: String?
+    var body: some View {
+        Menu { NoteMenuItems(note: note, error: $error) } label: {
+            Image(systemName: "ellipsis").font(.system(size: 16, weight: .medium)).foregroundStyle(.secondary)
+                .frame(width: 44, height: 44).contentShape(Rectangle())
+        }
+        .accessibilityLabel("More for " + (note.title.isEmpty ? "Untitled" : note.title))
+        .modifier(MutationErrorModifier(error: $error))
+    }
+}
+
+/// Touch and hold a note: copy it, move it to another section, turn it into a task, or delete it.
+struct NoteActions: ViewModifier {
+    let note: PlannerTask
+    @State private var error: String?
+    func body(content: Content) -> some View {
+        content.contextMenu { NoteMenuItems(note: note, error: $error) }
+            .modifier(MutationErrorModifier(error: $error))
+    }
+    static func text(of note: PlannerTask) -> String {
+        note.notes.isEmpty ? note.title : note.title + "\n\n" + note.notes
     }
 }
 
