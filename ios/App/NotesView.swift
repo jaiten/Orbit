@@ -109,8 +109,9 @@ struct NotesView: View {
                     VStack(spacing: 0) {
                         ForEach(Array(pages.enumerated()), id: \.element.id) { index, note in
                             if index > 0 { Divider().padding(.leading, 48) }
-                            NavigationLink(value: NoteRoute.open(note.id)) { NoteRow(note: note) }
-                                .buttonStyle(.plain)
+                            // A button rather than a NavigationLink, so touch and hold opens the menu, not the page.
+                            Button { path.append(.open(note.id)) } label: { NoteRow(note: note) }
+                                .buttonStyle(OrbitPress())
                                 .accessibilityLabel(note.title.isEmpty ? "Untitled" : note.title)
                                 .accessibilityValue(NoteRules.snippet(note.notes))
                                 .accessibilityIdentifier("note-row")
