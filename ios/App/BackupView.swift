@@ -20,6 +20,7 @@ struct BackupView: View {
     @State private var importing = false
     @State private var document = ExportDocument()
     @State private var plan: PlannerBackup.Plan?
+    @State private var photoFiles: [String: String] = [:]
     @State private var replaceChanged = false
     @State private var error: String?
     @State private var message: String?
@@ -38,6 +39,8 @@ struct BackupView: View {
             .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
                 do {
                     let url = try result.get(); let access = url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }
+                    let data = try Data(contentsOf: url)
+                    photoFiles = ((try JSONSerialization.jsonObject(with: data)) as? [String: Any])?["photoFiles"] as? [String: String] ?? [:]
                     plan = PlannerBackup.plan(current: try SyncRecords.snapshots(context), records: try PlannerBackup.decode(Data(contentsOf: url)))
                     replaceChanged = false
                 } catch { self.error = "This file could not be read. Nothing has changed. " + error.localizedDescription }
@@ -46,7 +49,11 @@ struct BackupView: View {
             .modifier(MutationErrorModifier(error: $error))
     }
     private func export(csv: Bool) {
+        Task {
         do {
+            if !csv {
+                for task in try context.fetch(FetchDescriptor<PlannerTask>()) { for photo in task.photos { _ = try await SyncService.shared.loadPhoto(photo.id) } }
+            }
             let snapshots = try SyncRecords.snapshots(context)
             if csv {
                 let records = try snapshots.map { ["key": $0.key, "payload": try SyncRecords.object($0.value)] as [String: Any] }
@@ -59,11 +66,13 @@ struct BackupView: View {
             }
             exporting = true
         } catch { self.error = error.localizedDescription }
+        }
     }
     private func restore() {
         guard let plan else { return }
         let chosen = plan.added + (replaceChanged ? plan.changed : [])
         do {
+            try NotePhotos.restoreFiles(photoFiles, records: chosen)
             for record in chosen {
                 var payload = record["payload"] as! [String: Any]; payload["updatedAt"] = Date.now.timeIntervalSince1970 * 1000
                 try SyncRecords.apply(["key": record["key"]!, "payload": payload, "deleted": false], context: context)

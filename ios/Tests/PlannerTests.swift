@@ -1,8 +1,42 @@
 import XCTest
 import SwiftData
+import UIKit
 @testable import Orbit
 
 @MainActor final class PlannerTests: XCTestCase {
+    func testNavigationOrderRepairsDuplicatesAndKeepsAllTabs() {
+        XCTAssertEqual(OrbitTab.ordered("notes,notes,invalid,tasks"), [.notes, .tasks, .today, .habits, .calendar])
+        XCTAssertEqual(OrbitTab.ordered(OrbitTab.defaultOrder), [.today, .tasks, .notes, .habits, .calendar])
+    }
+    func testCapturedNotesKeepBodyAndPhotosSurviveSyncAndBackup() throws {
+        let context = ModelContext(try Persistence.makeContainer(inMemory: true))
+        let text = "A note whose entire capture belongs in the body, even if the first sentence sounds like a title."
+        let note = try QuickAddSaver.saveNote(text, in: context)
+        XCTAssertEqual(note.title, "")
+        XCTAssertEqual(note.notes, text)
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 20, height: 20)).image { renderer in
+            UIColor.orange.setFill(); renderer.fill(CGRect(x: 0, y: 0, width: 20, height: 20))
+        }
+        let photo = try NotePhotos.save(image)
+        defer { if let file = try? NotePhotos.file(photo.id) { try? FileManager.default.removeItem(at: file) } }
+        note.photos = [photo]
+        try context.save()
+        let snapshots = try SyncRecords.snapshots(context)
+        let backup = try PlannerBackup.encode(snapshots)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: backup) as? [String: Any])
+        let files = try XCTUnwrap(object["photoFiles"] as? [String: String])
+        XCTAssertNotNil(files[photo.id])
+        let records = try PlannerBackup.decode(backup)
+        let other = ModelContext(try Persistence.makeContainer(inMemory: true))
+        try SyncRecords.apply(records[0], context: other)
+        let restored = try XCTUnwrap(other.fetch(FetchDescriptor<PlannerTask>()).first)
+        XCTAssertEqual(restored.title, "")
+        XCTAssertEqual(restored.photos, [photo])
+        try FileManager.default.removeItem(at: NotePhotos.file(photo.id))
+        try NotePhotos.restoreFiles(files, records: records)
+        XCTAssertNotNil(NotePhotos.local(photo.id))
+        XCTAssertThrowsError(try NotePhotos.file("../session"))
+    }
     func testShakeTracksRoutineEditsWithoutShowingToast() {
         let journal = UndoJournal()
         let first = ["tasks/test": "{\"title\":\"First\"}"]

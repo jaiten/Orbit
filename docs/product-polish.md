@@ -162,3 +162,48 @@ Shared shape tokens now use continuous 24-point rows, 26-point inputs and 28-poi
 Habit history keeps the existing week and long-term views, with circular daily check-ins and explicit spoken dates/statuses. Off-schedule days and days before creation stay neutral; existing recorded check-ins remain visible. Larger text stacks the history heading and reflows the week across two rows. Windows shares the shape tokens and adapts history charts to their card width, including zoom. No new board is added to Today or the Habits action list.
 
 The whiteboard's useful product lesson is visibility: a configurable Home Screen widget can serve as the everyday board, while saved check-ins and scheduled tasks maintain the history automatically. Keep Today focused on actions, make future-day scheduling easy to reach, and reserve detailed progress for History.
+
+## Notes and navigation beta (October 2026)
+
+Both apps accept photo attachments in notes. Windows supports the Add photo picker,
+image paste into either note field, and Copy photo. iPhone supports Photos, Paste
+photo, native paste in the body, and Copy photo from the image menu. Photos are
+resized to at most 1600 pixels, encoded as JPEG, and limited to 2 MB each / 12 per
+note. The original picker file is untouched. Originals' location metadata is not
+included in the re-encoded image. Text remains editable separately from photos.
+
+Attachments cache on the device and upload before their note references. Supabase
+Storage's private `orbit-note-photos` bucket restricts access to the account folder
+and a non-revoked session. Account deletion removes cloud photos before deleting
+the account, then clears this device's photo cache. Removing an attachment from a
+note retains cached/cloud bytes for offline history until account deletion.
+JSON backups include referenced photos, load uncached photos before exporting,
+and keep the existing 50 MB import limit. CSV remains text only. Older iOS builds
+should be updated before editing notes with attachments.
+
+Someday includes all tasks without a date while retaining existing categories.
+Calendar and Tasks tuck completed tasks into closed disclosures. Calendar month
+arrows are horizontal; Windows anchors them with the right-hand controls and
+limits its capture bar to the month column. Windows Copy text stays silent;
+Ctrl-click or Select item in the context menu enables beta multi-selection and
+Copy text, Ctrl+C copies, and Done/Escape exits selection. Sync text changes are
+coalesced and held while a note or dialog is being edited.
+
+iPhone's default tabs are Today, Tasks, Notes, Habits, Calendar. Settings → Layout
+→ Tab order permits reordering and restoring the default. Today defaults to Recent
+progress, Your day, Habits, then Completed/Calendar when present. Customized layouts
+are preserved. New notes open with native navigation animation and a canvas-colour
+accessory above the keyboard. Undo sits just above capture and dismisses on swipe.
+Long task cards show a heading/body layout; automatic note captures keep the entire
+capture in the body and leave the title blank.
+
+### Deferred task rules
+
+Rules are deliberately not implemented. A future rule could match an explicitly
+selected calendar event (e.g. a recurring "At Dad's" event) or a saved place. The
+calendar variant surfaces a task when that event starts; a geofence variant needs
+optional iPhone location permission and surfaces it on arrival. Save the trigger,
+task template and cooldown separately; produce one dated occurrence per matching
+event/visit without reopening previously completed occurrences. Windows can show
+calendar-triggered occurrences and sync those generated on iPhone. Event matching
+should be user-confirmed rather than guessing a sensitive place from task text.

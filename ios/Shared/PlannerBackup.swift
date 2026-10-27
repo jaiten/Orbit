@@ -6,7 +6,12 @@ import Foundation
     static func encode(_ records: [String: String], exportedAt: Date = .now) throws -> Data {
         let entries = try records.sorted { $0.key < $1.key }.map { ["key": $0.key, "payload": try SyncRecords.object($0.value)] as [String: Any] }
         let formatter = ISO8601DateFormatter(); formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return try JSONSerialization.data(withJSONObject: ["format": "orbit-backup", "version": 2, "exportedAt": formatter.string(from: exportedAt), "app": "Orbit", "records": entries], options: [.sortedKeys, .prettyPrinted])
+        var object: [String: Any] = ["format": "orbit-backup", "version": 2, "exportedAt": formatter.string(from: exportedAt), "app": "Orbit", "records": entries]
+        let photos = try NotePhotos.backupFiles(entries)
+        if !photos.isEmpty { object["photoFiles"] = photos }
+        let data = try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys, .prettyPrinted])
+        guard data.count <= 50_000_000 else { throw CocoaError(.fileWriteOutOfSpace) }
+        return data
     }
     static func decode(_ data: Data) throws -> [[String: Any]] {
         guard data.count <= 50_000_000, let object = try JSONSerialization.jsonObject(with: data) as? [String: Any], object["format"] as? String == "orbit-backup", [1, 2].contains(object["version"] as? Int ?? 0), let records = object["records"] as? [[String: Any]], records.count <= 100_000 else { throw CocoaError(.coderReadCorrupt) }
@@ -17,7 +22,7 @@ import Foundation
             if entity == "habit_logs" {
                 guard let habit = p["habitID"] as? String, UUID(uuidString: habit) != nil, let day = p["dayKey"] as? String, day.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil, key == "habit_logs/" + habit.lowercased() + "-" + day, let count = p["count"] as? Int, count >= 0 else { throw CocoaError(.coderReadCorrupt) }
             } else {
-                guard ["tasks", "habits", "lists", "idea_prompts"].contains(entity), key == entity + "/" + id.lowercased(), let name = p[entity == "lists" ? "name" : entity == "idea_prompts" ? "text" : "title"] as? String, (!name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (entity == "tasks" && p["isNote"] as? Bool == true && (!(p["notes"] as? String ?? "").isEmpty || !(p["photos"] as? [[String: Any]] ?? []).isEmpty))) else { throw CocoaError(.coderReadCorrupt) }
+                guard ["tasks", "habits", "lists", "idea_prompts"].contains(entity), key == entity + "/" + id.lowercased(), let name = p[entity == "lists" ? "name" : entity == "idea_prompts" ? "text" : "title"] as? String, (!name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (entity == "tasks" && p["isNote"] as? Bool == true)) else { throw CocoaError(.coderReadCorrupt) }
             }
             if entity == "tasks" {
                 guard p["notes"] is String, p["hasTime"] is Bool, p["recurrenceRule"] is String, p["reminders"] is [Double], p["tags"] is [String], let steps = p["subtasks"] as? [[String: Any]], steps.allSatisfy({ ($0["id"] as? String).flatMap(UUID.init(uuidString:)) != nil && $0["title"] is String && $0["completed"] is Bool }), let duration = p["durationMinutes"] as? Int, (5...1440).contains(duration), let priority = p["priority"] as? Int, (0...3).contains(priority) else { throw CocoaError(.coderReadCorrupt) }

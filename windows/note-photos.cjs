@@ -43,7 +43,27 @@ class NotePhotos {
     if (error) throw error;
     const bytes = Buffer.from(await data.arrayBuffer());
     this.save(bytes, id);
+    fs.writeFileSync(file + ".uploaded", session.user.id, { mode: 0o600 });
     return bytes;
+  }
+  backupFiles(records) {
+    const files = {};
+    for (const record of records.filter((r) => !r.deleted))
+      for (const photo of record.payload.photos || []) {
+        files[photo.id] = fs.readFileSync(this.file(photo.id)).toString("base64");
+      }
+    return files;
+  }
+  restoreFiles(files, records) {
+    for (const record of records)
+      for (const photo of record.payload.photos || []) {
+        if (!files[photo.id]) continue;
+        const bytes = Buffer.from(files[photo.id], "base64"),
+          file = this.file(photo.id);
+        if (fs.existsSync(file)) {
+          if (!fs.readFileSync(file).equals(bytes)) throw Error("This backup contains a conflicting photo.");
+        } else this.save(bytes, photo.id);
+      }
   }
   async eraseRemote(client) {
     const {

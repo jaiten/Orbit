@@ -5,8 +5,11 @@ let quickContext = { defaultDate: null, listID: null };
 function quickAddContext() {
   if (page === "tasks")
     return {
-      defaultDate:
-        taskScope === "week" ? today() : taskScope === "future" ? OrbitHabits.addDays(today(), 1) : "undated",
+      defaultDate: ["week", "today"].includes(taskScope)
+        ? today()
+        : taskScope === "future"
+          ? OrbitHabits.addDays(today(), 1)
+          : "undated",
       listID: taskScope === "someday" ? SOMEDAY : selectedList,
     };
   if (page === "lists") return { defaultDate: "undated", listID: selectedList };

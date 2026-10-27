@@ -8,7 +8,7 @@ Orbit's Supabase project so it can sync between your signed-in devices.
 
 - Your email address and authentication/session records when you create an account.
 - Planner content you choose to sync, including task and habit titles, notes,
-  schedules, reminders, tags, subtasks and completion history.
+  schedules, reminders, tags, subtasks, completion history and photos attached to notes.
 - A device label and last-active time for the active-sign-ins screen.
 - Operational service logs maintained by Supabase. Orbit's application diagnostics
   must not include planner titles, passwords, email links or session tokens.
@@ -23,6 +23,12 @@ resolve conflicting offline edits, deliver requested reminders and protect accou
 access. Orbit does not sell personal data or use planner content for advertising.
 
 ## Service providers and retention
+
+Note photos are kept in a private Storage bucket accessible to your account and
+non-revoked sessions. Selected photos are resized and re-encoded before syncing.
+JSON exports include attached photos; copies you export remain under your control.
+Windows also contacts GitHub to check for and download application updates. Planner
+content is not sent to GitHub.
 
 Supabase hosts authentication and synchronized data in the project's configured
 region. Apple and Microsoft operate their respective app platforms and device

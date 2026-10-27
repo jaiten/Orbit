@@ -3,6 +3,7 @@ contextBridge.exposeInMainWorld("orbit", {
   dictate: () => ipcRenderer.invoke("dictate"),
   copy: (text) => ipcRenderer.invoke("copy", text),
   addNotePhoto: (bytes) => ipcRenderer.invoke("add-note-photo", bytes),
+  copyNotePhoto: (id) => ipcRenderer.invoke("copy-note-photo", id),
   timerDone: (title) => ipcRenderer.invoke("timer-done", title),
   undo: () => ipcRenderer.invoke("undo"),
   backup: (mode, options) => ipcRenderer.invoke("backup", { mode, ...options }),

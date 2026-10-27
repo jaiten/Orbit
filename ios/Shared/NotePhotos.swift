@@ -49,5 +49,29 @@ enum NotePhotos {
         guard let file = try? file(id) else { return nil }
         return UIImage(contentsOfFile: file.path)
     }
+    static func backupFiles(_ records: [[String: Any]]) throws -> [String: String] {
+        var result: [String: String] = [:]
+        for record in records {
+            let payload = record["payload"] as? [String: Any] ?? [:]
+            for photo in payload["photos"] as? [[String: String]] ?? [] {
+                guard let id = photo["id"] else { throw CocoaError(.coderReadCorrupt) }
+                result[id] = try Data(contentsOf: file(id)).base64EncodedString()
+            }
+        }
+        return result
+    }
+    static func restoreFiles(_ files: [String: String], records: [[String: Any]]) throws {
+        for record in records {
+            let payload = record["payload"] as? [String: Any] ?? [:]
+            for photo in payload["photos"] as? [[String: String]] ?? [] {
+                guard let id = photo["id"], let value = files[id] else { continue }
+                guard let data = Data(base64Encoded: value) else { throw CocoaError(.fileReadCorruptFile) }
+                let location = try file(id)
+                if FileManager.default.fileExists(atPath: location.path) {
+                    guard try Data(contentsOf: location) == data else { throw CocoaError(.fileWriteFileExists) }
+                } else { try cache(data, id: id) }
+            }
+        }
+    }
     static func eraseLocal() { try? FileManager.default.removeItem(at: directory) }
 }

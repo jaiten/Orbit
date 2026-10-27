@@ -114,6 +114,7 @@ function bindCalendar() {
     (b) =>
       (b.onclick = () => {
         const step = Number(b.dataset.month);
+        calendarCompletedOpen = false;
         if (step) {
           if (calendarView === "week") {
             calendarDay = OrbitHabits.addDays(calendarDay, step * 7);

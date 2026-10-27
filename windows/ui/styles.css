@@ -3116,3 +3116,6 @@ dialog {
   top: 8px;
   background: var(--surface);
 }
+.note-photos figure .copy-photo {
+  right: 48px;
+}

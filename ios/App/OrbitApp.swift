@@ -41,6 +41,7 @@ struct RootView: View {
     @AppStorage("tabOrder") private var tabOrder = OrbitTab.defaultOrder
     @GestureState private var undoDrag: CGSize = .zero
     @State private var captureDockHeight: CGFloat = 0
+    @State private var keyboardVisible = false
     @State private var errorMessage: String?
     @AppStorage("onboarded") private var onboarded = false
     @State private var showOnboarding = false
@@ -49,54 +50,7 @@ struct RootView: View {
     @State private var confirmShakeUndo = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        TabView(selection: $selectedTab) {
-            ForEach(OrbitTab.ordered(tabOrder)) { tab in
-                tabPage(tab)
-                    .tabItem { Label(tab.title, systemImage: tab.symbol).environment(\.symbolVariants, .none) }
-                    .tag(tab)
-            }
-        }
-        .onPreferenceChange(CaptureDockHeight.self) { captureDockHeight = $0 }
-        // The toast stays quiet for routine edits; shake can undo the latest local mutation.
-        .overlay(alignment: .bottom) {
-            ZStack {
-                if let change = undo.change {
-                    HStack(spacing: 14) {
-                        Text(change.kind.rawValue).font(.subheadline)
-                        Button("Undo", action: performUndo).font(.subheadline.weight(.semibold))
-                            .foregroundStyle(OrbitAccent(name: accentTheme).text)
-                        Button { undo.dismiss() } label: { Image(systemName: "xmark").font(.caption.weight(.semibold)).foregroundStyle(.secondary) }
-                            .accessibilityLabel("Dismiss Undo")
-                    }
-                    .padding(.leading, 18).padding(.trailing, 14).padding(.vertical, 12)
-                    .background(Color.orbitSurface, in: Capsule()).overlay(Capsule().strokeBorder(Color.orbitLine))
-                    .shadow(color: .black.opacity(0.12), radius: 18, y: 8)
-                    .offset(x: undoDrag.width, y: max(0, undoDrag.height))
-                    .opacity(max(0.25, 1 - abs(undoDrag.width) / 180))
-                    .gesture(DragGesture(minimumDistance: 12).updating($undoDrag) { value, state, _ in state = value.translation }.onEnded { value in
-                        if abs(value.translation.width) > 45 || value.translation.height > 30 { undo.dismiss() }
-                    })
-                    .padding(.bottom, ([OrbitTab.today, .habits, .tasks].contains(selectedTab) ? captureDockHeight : 0) + 8)
-                    .transition(.opacity)
-                    .task(id: change.created) { try? await Task.sleep(for: .seconds(8)); if undo.change?.created == change.created { undo.dismiss() } }
-                }
-            }
-            .animation(reduceMotion ? .easeOut(duration: 0.2) : .orbit, value: undo.change?.created)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .orbitShake)) { _ in
-            if undo.shakeChange != nil && UIAccessibility.isShakeToUndoEnabled { confirmShakeUndo = true }
-        }
-        .alert("Undo \(undo.shakeChange?.kind.verb ?? "change")?", isPresented: $confirmShakeUndo) {
-            Button("Cancel", role: .cancel) {}
-            Button("Undo") {
-                do { try undo.undo(in: context, latest: true); Task { try? await refreshReminders(context) } }
-                catch { errorMessage = error.localizedDescription }
-            }
-        }
-        .tint(DayTheme.accentText(accentTheme))
-        // The one source for the accent: every view reads it from the environment and updates at once.
-        .environment(\.orbitAccent, OrbitAccent(name: accentTheme))
-        .preferredColorScheme(appearance == "system" ? nil : (appearance == "dark" ? .dark : .light))
+        shell
         .onOpenURL { url in
             if let code = RecoveryFlow.code(from: url) {
                 showAccount = true
@@ -142,6 +96,65 @@ struct RootView: View {
             Button("OK") { errorMessage = nil }
         } message: { Text(errorMessage ?? "") }
     }
+    private var plannerTabs: some View {
+        TabView(selection: $selectedTab) {
+            ForEach(OrbitTab.ordered(tabOrder)) { tab in
+                tabPage(tab)
+                    .tabItem { Label(tab.title, systemImage: tab.symbol).environment(\.symbolVariants, .none) }
+                    .tag(tab)
+            }
+        }
+    }
+
+    private var shell: some View {
+        plannerTabs
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in keyboardVisible = true }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in keyboardVisible = false }
+        .onPreferenceChange(CaptureDockHeight.self) { captureDockHeight = $0 }
+        // The toast stays quiet for routine edits; shake can undo the latest local mutation.
+        .overlay(alignment: .bottom) { undoToast }
+        .onReceive(NotificationCenter.default.publisher(for: .orbitShake)) { _ in
+            if undo.shakeChange != nil && UIAccessibility.isShakeToUndoEnabled { confirmShakeUndo = true }
+        }
+        .alert("Undo \(undo.shakeChange?.kind.verb ?? "change")?", isPresented: $confirmShakeUndo) {
+            Button("Cancel", role: .cancel) {}
+            Button("Undo") {
+                do { try undo.undo(in: context, latest: true); Task { try? await refreshReminders(context) } }
+                catch { errorMessage = error.localizedDescription }
+            }
+        }
+        .tint(DayTheme.accentText(accentTheme))
+        // The one source for the accent: every view reads it from the environment and updates at once.
+        .environment(\.orbitAccent, OrbitAccent(name: accentTheme))
+        .preferredColorScheme(appearance == "system" ? nil : (appearance == "dark" ? .dark : .light))
+    }
+
+    private var undoToast: some View {
+            ZStack {
+                if let change = undo.change {
+                    HStack(spacing: 14) {
+                        Text(change.kind.rawValue).font(.subheadline)
+                        Button("Undo", action: performUndo).font(.subheadline.weight(.semibold))
+                            .foregroundStyle(OrbitAccent(name: accentTheme).text)
+                        Button { undo.dismiss() } label: { Image(systemName: "xmark").font(.caption.weight(.semibold)).foregroundStyle(.secondary) }
+                            .accessibilityLabel("Dismiss Undo")
+                    }
+                    .padding(.leading, 18).padding(.trailing, 14).padding(.vertical, 12)
+                    .background(Color.orbitSurface, in: Capsule()).overlay(Capsule().strokeBorder(Color.orbitLine))
+                    .shadow(color: .black.opacity(0.12), radius: 18, y: 8)
+                    .offset(x: undoDrag.width, y: max(0, undoDrag.height))
+                    .opacity(max(0.25, 1 - abs(undoDrag.width) / 180))
+                    .gesture(DragGesture(minimumDistance: 12).updating($undoDrag) { value, state, _ in state = value.translation }.onEnded { value in
+                        if abs(value.translation.width) > 45 || value.translation.height > 30 { undo.dismiss() }
+                    })
+                    .padding(.bottom, ([OrbitTab.today, .habits, .tasks].contains(selectedTab) ? captureDockHeight : 0) + (keyboardVisible ? 8 : 58))
+                    .transition(.opacity)
+                    .task(id: change.created) { try? await Task.sleep(for: .seconds(8)); if undo.change?.created == change.created { undo.dismiss() } }
+                }
+            }
+            .animation(reduceMotion ? .easeOut(duration: 0.2) : .orbit, value: undo.change?.created)
+    }
+
     @ViewBuilder private func tabPage(_ tab: OrbitTab) -> some View {
         switch tab {
         case .today: TodayView()

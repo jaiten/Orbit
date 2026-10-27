@@ -119,12 +119,15 @@ struct CheckTile: View {
                     }
     }
 
+    private var longTitle: Bool { title.split(whereSeparator: \.isWhitespace).count > 10 }
+    private var cardHeading: String { longTitle && bodyText.isEmpty ? title.split(whereSeparator: \.isWhitespace).prefix(10).joined(separator: " ") + "…" : title }
+    private var cardBody: String { longTitle && bodyText.isEmpty ? title.split(whereSeparator: \.isWhitespace).dropFirst(10).joined(separator: " ") : bodyText }
     private var line: some View {
         Group {
-            if typeSize.isAccessibilitySize || !bodyText.isEmpty || title.split(whereSeparator: \.isWhitespace).count > 10 {
+            if typeSize.isAccessibilitySize || !cardBody.isEmpty || longTitle {
                 VStack(alignment: .leading, spacing: 7) {
                     titleText
-                    if !bodyText.isEmpty { Text(bodyText).font(.subheadline).foregroundStyle(.secondary).lineLimit(5) }
+                    if !cardBody.isEmpty { Text(cardBody).font(.subheadline).foregroundStyle(.secondary).lineLimit(5) }
                     detailText
                 }
             } else {
@@ -134,7 +137,7 @@ struct CheckTile: View {
             .frame(maxWidth: .infinity, minHeight: rowHeight, alignment: .leading).contentShape(Rectangle())
     }
     private var titleText: some View {
-        Text(title).font(.body).foregroundStyle(done ? .secondary : .primary)
+        Text(cardHeading).font(.body.weight(longTitle || !cardBody.isEmpty ? .semibold : .regular)).foregroundStyle(done ? .secondary : .primary)
             .strikethrough(done, color: .secondary)
             .lineLimit(typeSize.isAccessibilitySize || title.split(whereSeparator: \.isWhitespace).count > 10 ? nil : 2).fixedSize(horizontal: false, vertical: true)
     }

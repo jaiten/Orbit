@@ -84,6 +84,24 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(undo.waitForExistence(timeout: 3))
         undo.tap()
         XCTAssertTrue(app.buttons["Complete Call mum"].waitForExistence(timeout: 5))
+        app.buttons["Edit Call mum"].press(forDuration: 1.2)
+        app.buttons["Delete"].tap()
+        XCTAssertTrue(undo.waitForExistence(timeout: 3))
+        input.tap()
+        XCTAssertTrue(keyboard.waitForExistence(timeout: 5))
+        let gap = input.frame.minY - undo.frame.maxY
+        XCTAssertGreaterThanOrEqual(gap, -2)
+        XCTAssertLessThan(gap, 50, "Undo should sit close above the capture bar")
+        undo.swipeLeft()
+        XCTAssertTrue(undo.waitForNonExistence(timeout: 3))
+        let longText = "These words should remain stable while typing a longer task that wraps across several lines and changes the capture preview into a note without replacing any of the characters already entered."
+        input.typeText(longText)
+        XCTAssertEqual(input.value as? String, longText)
+        input.typeText(" More text")
+        XCTAssertEqual(input.value as? String, longText + " More text")
+        input.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 10))
+        XCTAssertEqual(input.value as? String, longText)
+
     }
 
     func testInlineCaptureAddsMultipleItemsWithoutASheet() {

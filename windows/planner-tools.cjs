@@ -34,7 +34,7 @@ function decodeBackup(data) {
         r.key !== `${entity}/${p.id.toLowerCase()}` ||
         typeof p[entity === "lists" ? "name" : entity === "idea_prompts" ? "text" : "title"] !== "string" ||
         (!p[entity === "lists" ? "name" : entity === "idea_prompts" ? "text" : "title"].trim() &&
-          !(entity === "tasks" && p.isNote === true && (p.notes?.trim() || p.photos?.length)))
+          !(entity === "tasks" && p.isNote === true))
       )
         throw Error("Invalid planner item");
     }

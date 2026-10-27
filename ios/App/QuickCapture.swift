@@ -182,7 +182,7 @@ struct CaptureTextField: UIViewRepresentable {
         field.autocapitalizationType = .sentences
         field.autocorrectionType = .default
         field.spellCheckingType = .default
-        field.returnKeyType = .next
+        field.returnKeyType = allowsNewlines ? .default : .next
         field.isScrollEnabled = false
         field.textContainerInset = UIEdgeInsets(top: 11, left: 0, bottom: 11, right: 0)
         field.textContainer.lineFragmentPadding = 0
@@ -224,6 +224,10 @@ struct CaptureTextField: UIViewRepresentable {
     final class Input: UITextView {
         var wantsFocus = false
         var onPasteImage: ((UIImage) -> Void)?
+        override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+            if action == #selector(paste(_:)), onPasteImage != nil, UIPasteboard.general.hasImages { return true }
+            return super.canPerformAction(action, withSender: sender)
+        }
         override func paste(_ sender: Any?) {
             if let onPasteImage, let image = UIPasteboard.general.image { onPasteImage(image) }
             else { super.paste(sender) }

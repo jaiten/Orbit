@@ -119,7 +119,7 @@ struct NotesView: View {
                                     .onTapGesture { withAnimation(.orbit) { path.append(.open(note.id)) } }
                                     .accessibilityElement(children: .ignore)
                                     .accessibilityAddTraits(.isButton)
-                                    .accessibilityLabel(note.title.isEmpty ? "Untitled" : note.title)
+                                    .accessibilityLabel(note.title.isEmpty ? (note.notes.isEmpty ? "Photo note" : NoteRules.snippet(note.notes)) : note.title)
                                     .accessibilityValue(NoteRules.snippet(note.notes))
                                     .accessibilityIdentifier("note-row")
                                     .accessibilityAction { withAnimation(.orbit) { path.append(.open(note.id)) } }
@@ -238,7 +238,7 @@ struct NoteActions: ViewModifier {
             .modifier(MutationErrorModifier(error: $error))
     }
     static func text(of note: PlannerTask) -> String {
-        note.notes.isEmpty ? note.title : note.title + "\n\n" + note.notes
+        [note.title, note.notes].filter { !$0.isEmpty }.joined(separator: "\n\n")
     }
 }
 

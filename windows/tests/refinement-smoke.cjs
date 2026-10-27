@@ -13,6 +13,7 @@ const fs = require("node:fs");
   await p.addInitScript(() => {
     const data = { records: [], onboarded: true, configured: true, email: null, status: "Saved locally" };
     window.authCalls = [];
+    window.copiedTexts = [];
     let updateState = { status: "idle", currentVersion: "0.3.4", version: null, percent: 0 };
     window.updateInstalls = 0;
     let changed = () => {};
@@ -39,7 +40,14 @@ const fs = require("node:fs");
         return structuredClone(data);
       },
       onChange: (cb) => (changed = cb),
-      onSyncStatus() {},
+      onSyncStatus(cb) {
+        window.emitSync = cb;
+      },
+      copy: async (text) => {
+        window.copiedTexts.push(text);
+      },
+      addNotePhoto: async () => ({ id: crypto.randomUUID(), contentType: "image/jpeg" }),
+      copyNotePhoto: async () => {},
       onWake() {},
       onQuickAdd() {},
       onUpdateStatus(cb) {
@@ -287,6 +295,52 @@ const fs = require("node:fs");
   await p.evaluate(() => window.emitUpdate({ status: "error" }));
   await p.getByRole("button", { name: "Try again", exact: true }).click();
   assert.equal(await p.locator("#update-status").innerText(), "You’re up to date.");
+  // Photo attachment saves without replacing the title/body or stealing typing focus.
+  await p.locator('[data-page="lists"]').click();
+  await p.locator("#note-photo-file").setInputFiles(path.resolve(__dirname, "../assets/orbit.png"));
+  await p.waitForFunction(async () => (await window.orbit.read()).records.some((r) => r.payload.photos?.length === 1));
+  assert.equal(await p.locator("#note-body").inputValue(), "Last edit before restart");
+  await p.locator("#note-body").focus();
+  const syncBefore = await p.locator("#sync-text").innerText();
+  await p.evaluate(() => {
+    window.emitSync({ status: "Syncing…", syncing: true });
+    window.emitSync({ status: "All changes synced", syncing: false });
+    window.emitSync({ status: "Syncing…", syncing: true });
+    window.emitSync({ status: "All changes synced", syncing: false });
+  });
+  await p.waitForTimeout(1300);
+  assert.equal(await p.locator("#sync-text").innerText(), syncBefore);
+  assert.equal(await p.evaluate(() => document.activeElement.id), "note-body");
+  await p.locator('[data-page="today"]').click();
+  assert.equal(await p.locator("#sync-text").innerText(), "Synced");
+  if (await p.locator("#notice").isVisible()) await p.getByRole("button", { name: "Dismiss message" }).click();
+  for (const title of ["First selection", "Second selection"]) {
+    await p.locator("#inline-task-input").fill(title);
+    await p.locator("#inline-task-input").press("Enter");
+    await p.getByRole("button", { name: `Edit ${title}`, exact: true }).waitFor();
+  }
+  await p.getByRole("button", { name: "Edit First selection", exact: true }).click({ modifiers: ["Control"] });
+  await p.getByRole("button", { name: "Edit Second selection", exact: true }).click({ modifiers: ["Control"] });
+  await p.locator("#copy-selected").click();
+  const copied = await p.evaluate(() => window.copiedTexts.at(-1));
+  assert.ok(copied.includes("First selection") && copied.includes("Second selection"));
+  assert.equal(await p.locator("#notice").isVisible(), false, "Copying should stay silent");
+  await p.locator("#clear-selection").click();
+  await p.getByRole("button", { name: "Edit First selection", exact: true }).click({ button: "right" });
+  const copyItem = p.locator("#row-menu").getByRole("menuitem", { name: "Copy text", exact: true });
+  await copyItem.hover();
+  await p.waitForFunction(
+    () => getComputedStyle(document.querySelector("#row-menu button")).color === "rgb(255, 255, 255)",
+  );
+  await copyItem.click();
+  assert.equal(await p.locator("#notice").isVisible(), false);
+  await p.getByRole("checkbox", { name: "Complete First selection", exact: true }).click();
+  await p.locator('[data-page="calendar"]').click();
+  await p.locator('[data-month="0"]').click();
+  assert.equal(await p.locator("#calendar-completed").getAttribute("open"), null);
+  const dock = await p.locator(".calendar-page > .capture-dock").boundingBox();
+  const panel = await p.locator(".cal-day").boundingBox();
+  assert.ok(dock.x + dock.width < panel.x, "Calendar capture overlaps the day panel");
   if (process.env.ORBIT_SCREENSHOT) await p.screenshot({ path: process.env.ORBIT_SCREENSHOT });
   assert.deepEqual(errors, []);
   console.log(

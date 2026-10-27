@@ -204,6 +204,7 @@ import OSLog
         guard let uid = (session?["user"] as? [String: Any])?["id"] as? String else { throw CocoaError(.fileReadNoPermission) }
         let data = try await photoRequest(uid + "/" + id + ".jpg")
         try NotePhotos.cache(data, id: id)
+        try uid.write(to: NotePhotos.file(id).appendingPathExtension("uploaded"), atomically: true, encoding: .utf8)
         guard let image = NotePhotos.local(id) else { throw CocoaError(.fileReadCorruptFile) }
         return image
     }

@@ -15,8 +15,7 @@ function renderTasks(tasks) {
         (taskScope === "today" && date === current && task.listID !== SOMEDAY) ||
         (taskScope === "week" && date >= week && date < end && task.listID !== SOMEDAY) ||
         (taskScope === "future" && date > current && task.listID !== SOMEDAY && !task.completedAt) ||
-        (taskScope === "someday" && (!date || task.listID === SOMEDAY)) ||
-        (taskScope === "undated" && !date && task.listID !== SOMEDAY))
+        (taskScope === "someday" && (!date || task.listID === SOMEDAY)))
     );
   });
   filtered.sort(

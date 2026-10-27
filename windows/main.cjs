@@ -301,6 +301,9 @@ app.whenReady().then(async () => {
       image = image.resize(size.width >= size.height ? { width: 1600 } : { height: 1600 });
     return notePhotos.save(image.toJPEG(80));
   });
+  handle("copy-note-photo", async (id) =>
+    clipboard.writeImage(nativeImage.createFromBuffer(await notePhotos.read(id, client))),
+  );
   // A focus timer finished: a Windows notification, like reminders.
   handle("timer-done", async (title) => {
     if (typeof title !== "string") throw Error("Invalid timer");
@@ -376,10 +379,16 @@ app.whenReady().then(async () => {
   handle("backup", async (request) => {
     const { mode, replaceChanged } = typeof request === "string" ? { mode: request } : request || {};
     const day = new Date().toLocaleDateString("en-CA");
-    if (mode === "export")
-      return (await saveFile(`Orbit-${day}.json`, "Orbit export", "json", encodeBackup(store.rows())))
-        ? "Exported"
-        : null;
+    if (mode === "export") {
+      for (const record of store.rows().filter((r) => !r.deleted))
+        for (const photo of record.payload.photos || []) await notePhotos.read(photo.id, client);
+      const backup = JSON.parse(encodeBackup(store.rows()));
+      const photos = notePhotos.backupFiles(store.rows());
+      if (Object.keys(photos).length) backup.photoFiles = photos;
+      const text = JSON.stringify(backup, null, 2);
+      if (Buffer.byteLength(text) > 50000000) throw Error("This backup exceeds the 50 MB import limit.");
+      return (await saveFile(`Orbit-${day}.json`, "Orbit export", "json", text)) ? "Exported" : null;
+    }
     if (mode === "export-csv")
       // The byte-order mark lets Excel read accented characters correctly.
       return (await saveFile(
@@ -397,7 +406,9 @@ app.whenReady().then(async () => {
       });
       if (canceled) return null;
       if (fs.statSync(filePaths[0]).size > 50000000) throw Error("This file is too large");
-      pendingBackup = planImport(store.rows(), decodeBackup(fs.readFileSync(filePaths[0], "utf8")));
+      const text = fs.readFileSync(filePaths[0], "utf8");
+      pendingBackup = planImport(store.rows(), decodeBackup(text));
+      pendingBackup.photoFiles = JSON.parse(text).photoFiles || {};
       const title = (r) => r.payload.title || r.payload.name || r.payload.dayKey || "Item";
       return {
         added: pendingBackup.added.length,
@@ -407,6 +418,7 @@ app.whenReady().then(async () => {
     }
     if (mode === "restore" && pendingBackup) {
       const chosen = [...pendingBackup.added, ...(replaceChanged === true ? pendingBackup.changed : [])];
+      notePhotos.restoreFiles(pendingBackup.photoFiles, chosen);
       plannerTools.change(
         chosen.map((r) => ({ ...r, payload: { ...r.payload, updatedAt: Date.now() } })),
         "imported",

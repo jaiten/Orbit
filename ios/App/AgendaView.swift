@@ -271,7 +271,7 @@ struct TasksView: View {
             .background(DayTheme.canvas(scheme))
             .navigationTitle("Tasks").toolbar(.hidden, for: .navigationBar)
             .sheet(item: $editing) { TaskEditor(task: $0) }
-            .sheet(isPresented: $managing) { ListsView() }
+            .sheet(isPresented: $managing) { ListsView(categoryMode: true) }
         }
     }
     @ViewBuilder private func category(_ name: String, id: String, items: [PlannerTask]) -> some View {

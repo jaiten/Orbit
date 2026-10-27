@@ -291,7 +291,7 @@ const remove = (folder) => {
       });
       BrowserWindow.getAllWindows()[0].webContents.send("changed");
     }, conflictKey);
-    await p.getByRole("button", { name: "1 item has two versions to review →", exact: true }).click();
+    await p.getByRole("button", { name: "1 item has two versions to review", exact: true }).click();
     await p.getByRole("heading", { name: "Review", exact: true }).waitFor();
     await p.locator(".version-text", { hasText: "Call Mum" }).waitFor();
     await p.getByRole("button", { name: "Keep This Version", exact: true }).nth(1).click();
@@ -385,6 +385,16 @@ const remove = (folder) => {
     await p.locator(".note-card", { hasText: "Garden ideas" }).click();
     await p.getByRole("textbox", { name: "Note text" }).fill("Tomatoes by the fence. Herbs by the door.");
     await p.getByRole("textbox", { name: "Note title" }).fill("Garden plan");
+    await p.locator("#note-photo-file").setInputFiles(path.resolve(__dirname, "../assets/orbit.png"));
+    await p.waitForFunction(async () =>
+      (await window.orbit.read()).records.some(
+        (r) => r.payload.title === "Garden plan" && r.payload.photos?.length === 1,
+      ),
+    );
+    await p.waitForFunction(() => document.querySelector("#note-photos img")?.naturalWidth > 0);
+    await p.getByRole("button", { name: "Copy photo", exact: true }).click();
+    if (await app.evaluate(({ clipboard }) => clipboard.readImage().isEmpty()))
+      throw Error("Photo was not copied to the native clipboard");
     // Esc saves and returns to the overview; the page is in the notes sidebar too.
     await p.getByRole("textbox", { name: "Note title" }).press("Escape");
     await p.locator(".notes-nav-page", { hasText: "Garden plan" }).waitFor();

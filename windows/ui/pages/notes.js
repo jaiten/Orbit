@@ -22,6 +22,8 @@ const ICONS = {
   chevron: "m9 6 6 6-6 6",
 };
 const notes = () => rows("tasks").filter((t) => t.isNote);
+const noteDisplayTitle = (note) =>
+  note.title || OrbitNotes.snippet(note.notes).slice(0, 60) || (note.photos?.length ? "Photo note" : "Untitled");
 
 /** Hides rows that don't match the search; the text includes notes and tags. Searching opens every group. */
 function applySearch() {
@@ -153,7 +155,7 @@ function notesNav() {
                 items
                   .map(
                     (n) =>
-                      `<button class="notes-nav-page ${n.id === openID ? "selected" : ""}" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" data-search="${esc([n.title, n.notes].join(" ").toLowerCase())}">${docIcon}<span>${esc(n.title || "Untitled")}</span></button>`,
+                      `<button class="notes-nav-page ${n.id === openID ? "selected" : ""}" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" data-search="${esc([n.title, n.notes].join(" ").toLowerCase())}">${docIcon}<span>${esc(noteDisplayTitle(n))}</span></button>`,
                   )
                   .join("") || `<p class="notes-nav-empty">No pages</p>`
               }</div>`
@@ -173,7 +175,7 @@ function notesNav() {
       .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
       .map(
         (n) =>
-          `<button class="notes-nav-page ${n.id === openID ? "selected" : ""}" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" data-search="${esc([n.title, n.notes].join(" ").toLowerCase())}">${docIcon}<span>${esc(n.title || "Untitled")}</span></button>`,
+          `<button class="notes-nav-page ${n.id === openID ? "selected" : ""}" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" data-search="${esc([n.title, n.notes].join(" ").toLowerCase())}">${docIcon}<span>${esc(noteDisplayTitle(n))}</span></button>`,
       )
       .join("")}</div>
     <div class="notes-nav-sections">${sections}</div>
@@ -185,7 +187,7 @@ function noteCard(n) {
   const snippet = OrbitNotes.snippet(n.notes);
   const search = [n.title, n.notes].join(" ").toLowerCase();
   return `<button class="note-card" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" data-search="${esc(search)}">
-    <span class="note-card-title">${docIcon}<span>${esc(n.title || "Untitled")}</span></span>
+    <span class="note-card-title">${docIcon}<span>${esc(noteDisplayTitle(n))}</span></span>
     <span class="note-card-text">${esc(snippet) || '<span class="muted">Empty page</span>'}</span>
     <span class="note-card-meta">${esc(n.listID ? sectionName(n.listID) : "All")} · ${esc(edited(n))}</span>
   </button>`;
@@ -461,7 +463,8 @@ function renderLists() {
   document.querySelectorAll("[data-list]").forEach(
     (b) =>
       (b.onclick = () => {
-        selectedList = b.dataset.list;
+        selectedList = b.dataset.list === SOMEDAY ? null : b.dataset.list;
+        taskScope = b.dataset.list === SOMEDAY ? "someday" : "all";
         page = "tasks";
         render();
       }),
@@ -550,11 +553,18 @@ function notePhotoMarkup() {
   return notePhotoDraft
     .map(
       (photo) =>
-        `<figure><img src="orbit://app/photos/${esc(photo.id)}.jpg" alt="Note photo" loading="lazy" /><button class="icon-button" data-remove-note-photo="${esc(photo.id)}" aria-label="Remove photo">${icon(ICONS.trash)}</button></figure>`,
+        `<figure><img src="orbit://app/photos/${esc(photo.id)}.jpg" alt="Note photo" loading="lazy" /><button class="copy-photo icon-button" data-copy-note-photo="${esc(photo.id)}" aria-label="Copy photo">${icon(ICONS.copy)}</button><button class="icon-button" data-remove-note-photo="${esc(photo.id)}" aria-label="Remove photo">${icon(ICONS.trash)}</button></figure>`,
     )
     .join("");
 }
 function bindPhotoRemoval() {
+  document
+    .querySelectorAll("[data-copy-note-photo]")
+    .forEach(
+      (button) =>
+        (button.onclick = () =>
+          void api.copyNotePhoto(button.dataset.copyNotePhoto).catch((error) => showNotice(error.message))),
+    );
   document.querySelectorAll("[data-remove-note-photo]").forEach(
     (button) =>
       (button.onclick = async () => {

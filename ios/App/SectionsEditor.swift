@@ -3,6 +3,7 @@ import SwiftData
 
 /// Sections (stored as lists) group notes and tasks. Someday is built in.
 struct ListsView: View {
+    var categoryMode = false
     @Environment(\.orbitAccent) private var accent
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -30,15 +31,15 @@ struct ListsView: View {
                     }
                         .onMove(perform: moveLists)
                         .onDelete { indices in pendingDelete = indices.first.map { editable[$0] } }
-                } header: { Text("Sections") }
+                } header: { Text(categoryMode ? "Categories" : "Sections") }
                 Section {
-                    TextField("New section name", text: $name).focused($naming).accessibilityIdentifier("new-list-name")
-                    Button("Add Section") {
+                    TextField(categoryMode ? "New category name" : "New section name", text: $name).focused($naming).accessibilityIdentifier("new-list-name")
+                    Button(categoryMode ? "Add category" : "Add Section") {
                         context.insert(TaskList(name: name.trimmingCharacters(in: .whitespacesAndNewlines), sortOrder: lists.count))
                         do { try Mutations.save(context); name = "" } catch { context.rollback(); self.error = error.localizedDescription }
                     }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-            }.onAppear { naming = true }.tint(accent.fill).navigationTitle("Edit Sections")
+            }.onAppear { naming = true }.tint(accent.fill).navigationTitle(categoryMode ? "Categories" : "Edit Sections")
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) { EditButton() }
                     ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
