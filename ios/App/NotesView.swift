@@ -109,13 +109,17 @@ struct NotesView: View {
                     VStack(spacing: 0) {
                         ForEach(Array(pages.enumerated()), id: \.element.id) { index, note in
                             if index > 0 { Divider().padding(.leading, 48) }
-                            // A button rather than a NavigationLink, so touch and hold opens the menu, not the page.
-                            Button { path.append(.open(note.id)) } label: { NoteRow(note: note) }
-                                .buttonStyle(OrbitPress())
-                                .accessibilityLabel(note.title.isEmpty ? "Untitled" : note.title)
-                                .accessibilityValue(NoteRules.snippet(note.notes))
-                                .accessibilityIdentifier("note-row")
-                                .modifier(NoteActions(note: note))
+                            // As with task rows, the menu belongs to a container around the button, so touch
+                            // and hold opens the menu rather than the page.
+                            ZStack {
+                                Button { path.append(.open(note.id)) } label: { NoteRow(note: note) }
+                                    .buttonStyle(OrbitPress())
+                                    .accessibilityLabel(note.title.isEmpty ? "Untitled" : note.title)
+                                    .accessibilityValue(NoteRules.snippet(note.notes))
+                                    .accessibilityIdentifier("note-row")
+                            }
+                            .contentShape(Rectangle())
+                            .modifier(NoteActions(note: note))
                         }
                     }.orbitSurface(radius: CGFloat(DesignTokens.radiusCard))
                 }
