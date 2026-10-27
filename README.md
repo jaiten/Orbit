@@ -77,7 +77,7 @@ the text below. Type more than about 120 characters (or a line break) into Add a
 the chip changes to *Note*; Return saves it to Notes instead of Today. Notes are task
 records marked `isNote`, so they sync, back up and undo with everything else, and never
 appear as to-dos. Sections are the former lists; tasks filed in one still show on its
-Notes page (Windows) and in Today → All. Calendar's **Overview** (iPhone) and **Month / Week / All** views (Windows) show
+Notes page (Windows) and in Calendar's overview. Calendar's **Overview** (iPhone) and **Month / Week / All** views (Windows) show
 every task in that period by day, and how each habit is going. Notes has the same bottom
 bar as Today; whatever you type there becomes a note.
 
