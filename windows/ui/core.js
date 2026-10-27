@@ -292,7 +292,7 @@ function taskRow(t) {
   const id = esc(t.id),
     title = esc(t.title);
   const addToToday =
-    page === "lists" && !t.completedAt && !onToday
+    page === "tasks" && !t.completedAt && !onToday
       ? `<button class="pill today-action" data-today="${id}">Add to Today</button>`
       : "";
   const moves = overdue
