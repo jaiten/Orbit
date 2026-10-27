@@ -80,7 +80,7 @@ appear as to-dos. Sections are the former lists; tasks filed in one still show o
 Notes page (Windows) and in Today → All. Today's **Day / Week / Month / All** control shows
 every task in that period by day, and how each habit is going.
 
-Today accepts tasks directly in its text field: Return adds one and keeps entry ready for another; Return on an empty field closes the keyboard. No success message appears; the cleared field is the confirmation. The field uses the system autocorrect and capitalisation. The options button opens date/list capture. Microphone controls dictate into an editable draft (iOS Speech and Windows voice typing); saving stays explicit. Habits offer 35 named icons or Automatic; task icons follow title keywords. Edit Lists lets you reorder lists.
+Today accepts tasks directly in its text field: Return adds one and keeps entry ready for another; Return on an empty field closes the keyboard. No success message appears; the cleared field is the confirmation. The field uses the system autocorrect and capitalisation. The options button opens date/list capture. Microphone controls dictate into an editable draft (iOS Speech and Windows voice typing); saving stays explicit. Habits offer 35 named icons or Automatic; on iPhone, task icons follow title keywords. Windows shows only icons you choose: automatic (title-guessed) emoji are hidden. Edit Lists lets you reorder lists.
 
 Quick add reads plain phrases such as `gym tomorrow 6pm`, `read every day`,
 `someday`; the chip shows what will be created before you save. On iPhone, Return saves the item and clears the field for another; Save saves and

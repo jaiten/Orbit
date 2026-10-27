@@ -239,7 +239,9 @@ function addField() {
     <p id="inline-receipt" class="secondary" role="status"></p>
   </form>`;
 }
+/** A habit's chosen icon. Automatic (title-guessed) emoji are not shown on Windows. */
 function itemIcon(id, title) {
+  if (!id || id === "automatic") return "";
   return `<span class="item-icon" aria-hidden="true">${OrbitIcons.resolve(id, title).glyph}</span>`;
 }
 /** "Your plan": the day's count and a bar that fills with a spring. */
@@ -320,7 +322,7 @@ function taskRow(t) {
   return `<div class="row task-row check-tile ${t.completedAt ? "complete" : ""} ${overdue ? "overdue" : ""} ${started ? "in-progress" : ""}" data-flip="task-${id}" data-search="${esc(search)}" data-row-menu="task:${id}">
     <div class="row-line">
       <button class="row-tick" role="checkbox" aria-label="${controlLabel} ${title}" aria-checked="${!!t.completedAt}" data-toggle="${id}">${control}</button
-      ><button class="row-body" aria-label="Edit ${title}" data-edit="${id}">${itemIcon("automatic", t.title)}<span class="row-title">${title}</span>${detail ? `<span class="row-detail">${detail}</span>` : ""}</button
+      ><button class="row-body" aria-label="Edit ${title}" data-edit="${id}"><span class="row-title">${title}</span>${detail ? `<span class="row-detail">${detail}</span>` : ""}</button
       >${timer}${addToToday}${options}
     </div>
     ${moves}
