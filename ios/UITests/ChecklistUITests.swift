@@ -264,9 +264,12 @@ final class ChecklistUITests: XCTestCase {
         app.buttons["New note in Weekend"].tap()
         let title = app.descendants(matching: .any).matching(identifier: "note-title").firstMatch
         XCTAssertTrue(title.waitForExistence(timeout: 5))
-        title.tap(); title.typeText("Trail options")
+        title.tap(); title.typeText("Trail options\n")
+        // Return in the title moves to the text.
         let body = app.descendants(matching: .any).matching(identifier: "note-body").firstMatch
-        body.tap(); body.typeText("Ridge loop or the lake path")
+        XCTAssertTrue(body.waitForExistence(timeout: 5))
+        app.typeText("Ridge loop or the lake path")
+        XCTAssertEqual(title.value as? String, "Trail options")
         let page = XCTAttachment(screenshot: app.screenshot())
         page.name = "New note page"; page.lifetime = .keepAlways; add(page)
         let back = app.navigationBars.buttons["Notes"]

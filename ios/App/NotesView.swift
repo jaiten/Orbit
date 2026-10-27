@@ -267,6 +267,12 @@ struct NoteEditor: View {
         .onDisappear { save() }
         .onChange(of: phase) { _, value in if value != .active { save() } }
         .onChange(of: section) { _, _ in if loaded { save() } }
+        // Return in the title moves to the text, as in Notion.
+        .onChange(of: title) { _, value in
+            guard value.contains("\n") else { return }
+            title = value.replacingOccurrences(of: "\n", with: " ").trimmingCharacters(in: .whitespaces)
+            focus = .body
+        }
         .task(id: title + "\u{1F}" + text) {
             // Save once typing pauses, so sync sends one change rather than one per key.
             guard loaded else { return }
