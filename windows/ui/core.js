@@ -91,6 +91,12 @@ function showNotice(message) {
   notice.hidden = false;
 }
 
+function openDialog(dialog) {
+  document.querySelectorAll("dialog[open]").forEach((open) => {
+    if (open !== dialog) open.close();
+  });
+  if (!dialog.open) dialog.showModal();
+}
 let actionBusy = false;
 async function action(fn) {
   if (actionBusy) return;
@@ -109,10 +115,28 @@ async function action(fn) {
 let onboardingShown = false,
   contentSignature = "",
   pendingRender = false,
-  loadSequence = 0;
+  loadSequence = 0,
+  renderRevision = 0;
+let pointerBusy = false;
+document.addEventListener(
+  "pointerdown",
+  () => {
+    pointerBusy = true;
+  },
+  true,
+);
+const endPointer = () =>
+  setTimeout(() => {
+    pointerBusy = false;
+    flushPending();
+  }, 0);
+document.addEventListener("pointerup", endPointer, true);
+document.addEventListener("pointercancel", endPointer, true);
+window.addEventListener("blur", endPointer);
 function interacting() {
   return (
-    !!document.querySelector("dialog[open]") ||
+    pointerBusy ||
+    !!document.querySelector("dialog[open], details.mac-picker[open], #row-menu:not([hidden])") ||
     ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)
   );
 }
@@ -134,6 +158,7 @@ function updateSync(value) {
 }
 async function load(force = false) {
   const sequence = ++loadSequence;
+  const revision = renderRevision;
   const next = await api.read();
   if (sequence !== loadSequence) return;
   const signature = JSON.stringify({
@@ -155,9 +180,17 @@ async function load(force = false) {
     showNotice(notice);
     force = true;
   }
-  if (!force && signature === contentSignature) return;
-  if (document.querySelector("dialog[open]") || (!force && interacting())) {
+  if (!force && signature === contentSignature) {
+    pendingRender = false;
+    return;
+  }
+  if (
+    document.querySelector("dialog[open]") ||
+    revision !== renderRevision ||
+    ((!force || page === "note") && interacting())
+  ) {
     pendingRender = true;
+    setTimeout(flushPending, 0);
     return;
   }
   contentSignature = signature;
@@ -165,7 +198,7 @@ async function load(force = false) {
   render();
 }
 function flushPending() {
-  if (pendingRender && !interacting()) void load(true);
+  if (pendingRender && !interacting()) void load();
 }
 document.addEventListener("toggle", flushPending, true);
 document.addEventListener("close", flushPending, true);
@@ -271,6 +304,9 @@ function boxGrid(levels, color, label, weeks = 12) {
   return `<div class="box-grid fill-${color}" role="img" aria-label="${esc(label)}: ${done} of ${levels.length} days over the last ${weeks} weeks">${cells}</div>`;
 }
 
+function rowActions(id, title, habit = false) {
+  return `<span class="row-actions"><button class="icon-button" ${habit ? "data-habit-edit" : "data-edit"}="${id}" aria-label="Edit ${habit ? "habit" : "task"}: ${title}" title="Edit (E)"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m16 3 5 5-12 12-6 1 1-6zM14 5l5 5"/></svg></button><button class="icon-button danger" data-delete-row="${id}" aria-label="Delete ${title}" title="Delete"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V3h8v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg></button></span>`;
+}
 function taskRow(t) {
   const time =
     t.hasTime && t.dueDate ? new Date(t.dueDate).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
@@ -325,7 +361,7 @@ function taskRow(t) {
     <div class="row-line">
       <button class="row-tick" role="checkbox" aria-label="${controlLabel} ${title}" aria-checked="${!!t.completedAt}" data-toggle="${id}">${control}</button
       ><button class="row-body" aria-label="Edit ${title}" data-edit="${id}"><span class="row-title">${title}</span>${detail ? `<span class="row-detail">${detail}</span>` : ""}</button
-      >${timer}${addToToday}${options}
+      >${timer}${addToToday}${rowActions(id, title)}${options}
     </div>
     ${moves}
   </div>`;
@@ -339,7 +375,7 @@ function habitCard(h, { editable = false } = {}) {
     <div class="row-line">
       <button class="row-tick" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-menu="${id}" ${selected > today() ? "disabled" : ""}>${tick(done, poppedID === h.id)}</button>
       <button class="row-body" aria-label="Edit ${title}" data-habit-edit="${id}">${itemIcon(h.icon || "automatic", h.title)}<span class="row-title">${title}</span><span class="row-detail ${done ? "met" : ""}">${habitDetail(h)}</span></button>
-      ${editable ? `<span class="habit-color dot ${colorName(h.color)}" aria-hidden="true"></span>` : ""}
+      ${editable ? `<span class="habit-color dot ${colorName(h.color)}" aria-hidden="true"></span>` : ""}${rowActions(id, title, true)}
     </div>
   </div>`;
 }
@@ -409,6 +445,9 @@ async function backfillYesterday(id) {
 
 // Shared tile handlers, used by every page that shows tasks or habits.
 function bindTiles() {
+  document.querySelectorAll("[data-delete-row]").forEach((button) => {
+    button.onclick = () => void action(() => deleteItem(button.closest(".check-tile")));
+  });
   document.querySelectorAll(".progress-options").forEach((menu) => {
     menu.onkeydown = (event) => {
       if (event.key === "Escape") {

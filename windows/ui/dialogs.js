@@ -29,7 +29,7 @@ function openTask(id, date, draft = null) {
   $("#editor-title").textContent = editing ? "Edit Task" : "New Task";
   $("#delete-task").hidden = !editing;
   $("#move-task").hidden = !editing;
-  $("#editor").showModal();
+  openDialog($("#editor"));
 }
 
 function updateTargetLabel() {
@@ -60,7 +60,7 @@ function openHabit(id, draft = null) {
   $("#habit-editor-title").textContent = editingHabit ? "Edit Habit" : "New Habit";
   $("#delete-habit").hidden = !editingHabit;
   $("#move-habit").hidden = !editingHabit;
-  $("#habit-editor").showModal();
+  openDialog($("#habit-editor"));
 }
 
 async function moveItem(entity, source) {
@@ -236,3 +236,22 @@ function updateUndo(next) {
 }
 $("#undo-change").onclick = () => action(() => api.undo());
 $("#dismiss-undo").onclick = () => showUndo(false);
+
+// Only a press and release on the backdrop dismisses; dragging text out of a field does not.
+document.querySelectorAll("dialog").forEach((dialog) => {
+  let outside = false;
+  const onBackdrop = (event) => {
+    const box = dialog.getBoundingClientRect();
+    return (
+      event.target === dialog &&
+      (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom)
+    );
+  };
+  dialog.addEventListener("pointerdown", (event) => {
+    outside = onBackdrop(event);
+  });
+  dialog.addEventListener("pointerup", (event) => {
+    if (outside && onBackdrop(event) && dialog.id !== "onboarding") dialog.close();
+    outside = false;
+  });
+});

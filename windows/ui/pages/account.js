@@ -17,7 +17,7 @@ function renderAccount() {
 }
 
 function bindAccount() {
-  if ($("#change-password")) $("#change-password").onclick = () => $("#password-editor").showModal();
+  if ($("#change-password")) $("#change-password").onclick = () => openDialog($("#password-editor"));
   if ($("#forgot-password"))
     $("#forgot-password").onclick = () =>
       action(async () => {

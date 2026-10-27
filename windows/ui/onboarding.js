@@ -146,7 +146,7 @@ function showOnboarding() {
   onboardingStep = 0;
   chosenHabits = new Set();
   renderOnboarding();
-  $("#onboarding").showModal();
+  openDialog($("#onboarding"));
   $("#onboarding-capture")?.elements.text.focus();
 }
 function renderOnboarding() {

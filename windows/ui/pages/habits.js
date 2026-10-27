@@ -1,10 +1,9 @@
 function renderHabits(habits) {
-  const head = `<header class="page-head"><div><h1>Habits</h1></div></header>`;
+  const head = `<header class="page-head"><div><h1>Habits</h1></div><button id="habit-history" class="quiet-control" title="Habit history"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>History</button></header>`;
   if (!habits.length)
     return `<div class="narrow habits-page">${head}<div class="empty-state"><svg class="doc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m17 2 4 4-4 4M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3"/></svg><p><strong>No habits yet</strong><br />Add one, or type “read every day” anywhere.</p></div><div class="capture-dock">${addField("Add a habit")}</div></div>`;
   return `<div class="narrow habits-page">${head}
     <div class="check-list">${habits.map((h) => habitCard(h, { editable: true })).join("")}</div>
-    <button id="habit-history" class="card history-card"><span><span class="eyebrow">History</span><strong>The last 7 days, for every habit</strong></span><span aria-hidden="true">→</span></button>
     <div class="capture-dock">${addField("Add a habit")}</div>
   </div>`;
 }
@@ -50,7 +49,7 @@ function renderHistoryIndex(habits) {
     <div class="history-list">${habits
       .map(
         (h) => `<section class="card habit-history" data-flip="history-${esc(h.id)}">
-      <button class="history-head" data-history="${esc(h.id)}"><span class="dot ${colorName(h.color)}" aria-hidden="true"></span><strong>${esc(h.title)}</strong><span>${OrbitHabits.checkedDays(h, habitLogs(), t, 7)} of the last 7 days →</span></button>
+      <button class="history-head" data-history="${esc(h.id)}"><span class="dot ${colorName(h.color)}" aria-hidden="true"></span><strong>${esc(h.title)}</strong><span>${OrbitHabits.checkedDays(h, habitLogs(), t, 7)} of the last 7 days <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4m8-4v4M3 10h18M8 14h1m6 0h1"/></svg></span></button>
       <p class="history-schedule">${OrbitHabits.label(h)} · ${habitDetail(h, t)}</p>
       ${habitHistoryCharts(h)}
     </section>`,

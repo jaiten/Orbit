@@ -21,7 +21,7 @@ function openQuickAdd(context = quickAddContext()) {
   f.reset();
   f.elements.text.value = inlineDraft;
   updateQuickPreview();
-  $("#quick-add-dialog").showModal();
+  openDialog($("#quick-add-dialog"));
   f.elements.text.focus();
 }
 

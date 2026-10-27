@@ -19,9 +19,21 @@ npm run pack
 ```
 
 If npm disables install scripts, first run `node node_modules/electron/install.js`.
-The portable executable is `dist/Orbit-0.3.0.exe`. Windows CI uploads it as the
-`Orbit-Windows` artifact. This build is unsigned; Windows may show a publisher
-warning. Code signing and automatic updates are not configured.
+Packaging creates `dist/Orbit-Setup-<version>.exe` (the installer) and
+`dist/Orbit-<version>.exe` (portable). Windows CI uploads both in `Orbit-Windows`.
+The installer installs for the current Windows user, adds Start menu and desktop
+shortcuts, and provides an uninstaller. Run a newer installer to upgrade Orbit.
+The app ID and user-data location are shared with the portable build, so upgrades
+keep the local planner, preferences and sign-in data. Uninstalling keeps app data.
+Automatic update checks and background downloads are not configured yet.
+
+Builds are unsigned unless the signing credentials below are configured. A direct
+installer needs a trusted code-signing certificate or cloud signing service.
+For new signing infrastructure, use a hardware-backed or managed signing service
+(such as Microsoft Artifact Signing); wire its supported signing integration into
+CI rather than committing private keys. The existing `CSC_LINK`/`CSC_KEY_PASSWORD`
+hooks support compatible certificate-based signing. An MSIX distribution through
+the Microsoft Store instead uses Store package signing and Store-managed updates.
 
 ## Connect iPhone
 
@@ -38,7 +50,7 @@ read credentials or access Node. Only a publishable Supabase key is bundled.
 
 ## Desktop
 
-- **Ctrl+N** quick add, **Ctrl+1–5** pages, **Ctrl+F** search lists, **Ctrl+/** all shortcuts.
+- **Ctrl+N** quick add, **Ctrl+1–6** pages, **Ctrl+F** search lists, **Ctrl+/** all shortcuts.
   On a focused item, **E** edits and **Delete** deletes.
 - Quick add from anywhere with **Ctrl+Shift+Space** (changeable in Settings). Closing
   the window keeps Orbit in the tray so reminders still arrive; quit from the tray.

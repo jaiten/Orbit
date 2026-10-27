@@ -1,8 +1,9 @@
 // Keyboard shortcuts. Ctrl+/ shows this list in the app.
-const SHORTCUT_PAGES = ["today", "calendar", "lists", "habits", "settings", "tasks"];
+const SHORTCUT_PAGES = ["today", "calendar", "tasks", "lists", "habits", "settings"];
 const SHORTCUT_HELP = [
-  ["Ctrl+N", "New item (quick add)"],
-  ["Ctrl+1 … Ctrl+6", "Today, Calendar, Notes, Habits, Settings, Tasks"],
+  ["Ctrl+N", "New note in Notes; quick add elsewhere"],
+  ["Ctrl+Shift+V", "Switch Calendar between week and month"],
+  ["Ctrl+1 … Ctrl+6", "Today, Calendar, Tasks, Notes, Habits, Settings"],
   ["Ctrl+F", "Search notes and tasks"],
   ["Space or Enter", "Complete or check the focused item"],
   ["Shift+F10 or right-click", "Item menu: copy text, timer and more"],
@@ -18,10 +19,16 @@ function openShortcuts() {
   $("#shortcuts-list").innerHTML = SHORTCUT_HELP.map(
     ([keys, text]) => `<dt><kbd>${keys}</kbd></dt><dd>${text}</dd>`,
   ).join("");
-  $("#shortcuts-dialog").showModal();
+  openDialog($("#shortcuts-dialog"));
 }
 
-function goTo(name) {
+async function goTo(name) {
+  if (page === "note") await saveNote();
+  if (name === "lists") {
+    resumeNote();
+    return;
+  }
+  closeRowMenu();
   page = name;
   selectedList = null;
   render();
@@ -47,11 +54,21 @@ document.addEventListener("keydown", (e) => {
   const key = e.key.toLowerCase();
   if (e.ctrlKey && !e.altKey && !e.metaKey) {
     if (dialogOpen) return;
-    if (key === "n" && !e.shiftKey) openQuickAdd();
-    else if (/^[1-6]$/.test(key)) goTo(SHORTCUT_PAGES[Number(key) - 1]);
+    if (key === "n" && !e.shiftKey) {
+      if (page === "lists" || page === "note") void createNote(selectedList);
+      else openQuickAdd();
+    } else if (key === "v" && e.shiftKey && page === "calendar") {
+      calendarView = calendarView === "week" ? "month" : "week";
+      render();
+    } else if (/^[1-6]$/.test(key)) goTo(SHORTCUT_PAGES[Number(key) - 1]);
     else if (key === "f") {
-      goTo("lists");
-      $("#search")?.focus();
+      void (async () => {
+        if (page === "note") await saveNote();
+        page = "lists";
+        selectedList = null;
+        render();
+        $("#search")?.focus();
+      })();
     } else if (key === "/") openShortcuts();
     else if (key === "z" && !e.shiftKey && !$("#undo-toast").hidden) void action(() => api.undo());
     else return;
@@ -92,8 +109,16 @@ document.addEventListener("keydown", (e) => {
 /** Starts capture with the first typed character. Returns false when there is nowhere sensible to type. */
 function startTyping(char) {
   if ($("#row-menu") && !$("#row-menu").hidden) return false;
-  if (page === "lists" || page === "note") {
-    openNote(null, page === "lists" ? selectedList || null : noteSection, char);
+  if (page === "note") {
+    const field = $("#note-body");
+    if (!field) return false;
+    field.focus();
+    field.setRangeText(char, field.selectionStart, field.selectionEnd, "end");
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  }
+  if (page === "lists") {
+    openNote(null, selectedList || null, char);
     return true;
   }
   const field = $("#inline-task-input");

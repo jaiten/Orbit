@@ -27,10 +27,6 @@ function renderTasks(tasks) {
           ? (a.sortOrder || 0) - (b.sortOrder || 0)
           : (taskDate(a) || "9999").localeCompare(taskDate(b) || "9999")),
   );
-  const options = (values, value) =>
-    values
-      .map(([id, label]) => `<option value="${esc(id)}" ${id === value ? "selected" : ""}>${esc(label)}</option>`)
-      .join("");
   const groups = ["Today", "Overdue", "Upcoming", "No date", "Someday", "Completed"]
     .map((group) => {
       const items = filtered.filter((task) => OrbitPlanner.dateGroup(planItem(task), current) === group);
@@ -38,7 +34,9 @@ function renderTasks(tasks) {
     })
     .join("");
   return `<div class="narrow wide"><header class="page-head"><h1>Tasks</h1><input id="task-search" type="search" aria-label="Search tasks" placeholder="Search tasks" value="${esc(taskSearch)}" /></header>
-    <div class="tasks-controls"><select id="task-scope" aria-label="Show tasks">${options(
+    <div class="tasks-controls">${macPicker(
+      "task-scope",
+      "Show tasks",
       [
         ["all", "All tasks"],
         ["week", "This week"],
@@ -47,35 +45,42 @@ function renderTasks(tasks) {
         ["someday", "Someday"],
       ],
       taskScope,
-    )}</select>
-    <select id="task-category" aria-label="Task category">${options([["", "All categories"], ...orderedLists().map((list) => [list.id, list.name]), [SOMEDAY, "Someday"]], selectedList || "")}</select>
-    <select id="task-sort" aria-label="Sort tasks">${options(
+    )}
+    ${macPicker("task-category", "Task category", [["", "All categories"], ...orderedLists().map((list) => [list.id, list.name]), [SOMEDAY, "Someday"]], selectedList || "")}
+    ${macPicker(
+      "task-sort",
+      "Sort tasks",
       [
         ["date", "By date"],
         ["title", "By title"],
         ["manual", "As arranged"],
       ],
       taskSort,
-    )}</select><button data-new-list>New category</button></div>
+    )}<button class="quiet-control" data-new-list>New category</button></div>
     ${groups || '<p class="empty">No tasks in this view.</p>'}<div class="capture-dock">${addField()}</div></div>`;
 }
 function bindTasks() {
   if (!$("#task-scope")) return;
-  $("#task-scope").onchange = (e) => {
-    taskScope = e.target.value;
-    render();
-  };
-  $("#task-category").onchange = (e) => {
-    selectedList = e.target.value || null;
-    render();
-  };
-  $("#task-sort").onchange = (e) => {
-    taskSort = e.target.value;
-    render();
-  };
+  bindPickers({
+    "task-scope": (value) => {
+      taskScope = value;
+      render();
+    },
+    "task-category": (value) => {
+      selectedList = value || null;
+      render();
+    },
+    "task-sort": (value) => {
+      taskSort = value;
+      render();
+    },
+  });
   $("#task-search").oninput = (e) => {
     taskSearch = e.target.value;
+    const start = e.target.selectionStart,
+      end = e.target.selectionEnd;
     render();
     $("#task-search").focus();
+    $("#task-search").setSelectionRange(start, end);
   };
 }

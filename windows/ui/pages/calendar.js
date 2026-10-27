@@ -13,24 +13,12 @@ function shiftMonth(key, delta) {
 
 function renderCalendar(tasks) {
   const t = today();
-  if (calendarView !== "month") {
-    todayScope = calendarView;
-    const title = calendarView === "week" ? "This week" : "Everything";
-    const head = `<header class="page-head">
-      <div><h1>${title}</h1><p class="subtitle">Every task and habit, at a glance.</p></div>
-      <div class="head-tools">${scopeTabs()}</div>
-    </header>`;
-    return renderAgenda(
-      tasks,
-      rows("habits").sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)),
-      head,
-    );
-  }
   calendarDay ??= t;
   calendarStart ??= monthOf(calendarDay);
   const first = localDay(calendarStart);
-  const gridStart = OrbitHabits.weekStartKey(calendarStart, weekStart);
-  const days = Array.from({ length: 42 }, (_, i) => OrbitHabits.addDays(gridStart, i));
+  const weekly = calendarView === "week";
+  const gridStart = weekly ? OrbitHabits.addDays(calendarDay, -6) : OrbitHabits.weekStartKey(calendarStart, weekStart);
+  const days = Array.from({ length: weekly ? 7 : 42 }, (_, i) => OrbitHabits.addDays(gridStart, i));
   const month = first.toLocaleDateString([], { month: "long", year: "numeric" });
   const order = (a, b) =>
     !!a.completedAt - !!b.completedAt || (a.hasTime ? a.dueDate : Infinity) - (b.hasTime ? b.dueDate : Infinity);
@@ -43,10 +31,10 @@ function renderCalendar(tasks) {
     .map((key) => {
       const d = localDay(key);
       const items = on(key);
-      const outside = d.getMonth() !== first.getMonth();
+      const outside = !weekly && d.getMonth() !== first.getMonth();
       const label = d.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
       const lines = items
-        .slice(0, 3)
+        .slice(0, weekly ? 8 : 3)
         .map((task) => {
           const time = task.hasTime
             ? new Date(task.dueDate).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
@@ -61,7 +49,8 @@ function renderCalendar(tasks) {
           }<em>${esc(task.title)}</em></span>`;
         })
         .join("");
-      const more = items.length > 3 ? `<span class="cal-more">${items.length - 3} more</span>` : "";
+      const more =
+        items.length > (weekly ? 8 : 3) ? `<span class="cal-more">${items.length - (weekly ? 8 : 3)} more</span>` : "";
       return `<button class="day-tile cal-cell ${key === calendarDay ? "selected" : ""} ${key === t ? "today" : ""} ${outside ? "outside" : ""}" data-day="${key}" aria-pressed="${key === calendarDay}" aria-label="${label}${items.length ? `, ${items.length} ${items.length === 1 ? "item" : "items"}` : ""}">
         <span class="cal-date">${d.getDate()}</span>${lines}${more}
       </button>`;
@@ -74,7 +63,7 @@ function renderCalendar(tasks) {
   const count = tasks.filter((task) => monthOf(taskDate(task) || "") === calendarStart).length;
   return `<div class="calendar-page">
     <header class="page-head">
-      <div><div class="month-heading"><h1>${month}</h1><div class="month-arrows"><button class="icon-button" data-month="-1" aria-label="Previous month">${chevron("m6 15 6-6 6 6")}</button><button class="icon-button" data-month="1" aria-label="Next month">${chevron("m6 9 6 6 6-6")}</button></div></div><p class="subtitle">${count ? `${count} ${count === 1 ? "item" : "items"} this month` : "Nothing planned this month yet"}</p></div>
+      <div><div class="month-heading"><h1>${weekly ? "This week" : month}</h1><div class="month-arrows"><button class="icon-button" data-month="-1" aria-label="Previous ${weekly ? "week" : "month"}">${chevron("m6 15 6-6 6 6")}</button><button class="icon-button" data-month="1" aria-label="Next ${weekly ? "week" : "month"}">${chevron("m6 9 6 6 6-6")}</button></div></div><p class="subtitle">${weekly ? `${localDay(days[0]).toLocaleDateString([], { month: "short", day: "numeric" })} – ${localDay(days[6]).toLocaleDateString([], { month: "short", day: "numeric" })}` : count ? `${count} ${count === 1 ? "item" : "items"} this month` : "Nothing planned this month yet"}</p></div>
       <div class="head-tools">
       <button class="today-button" data-month="0">Today</button>
       ${scopeTabs()}
@@ -83,14 +72,15 @@ function renderCalendar(tasks) {
     <div class="cal-layout">
       <div class="cal-month">
         <div class="cal-weekdays" aria-hidden="true">${weekdays}</div>
-        <div class="day-tiles cal-grid" role="group" aria-label="Days">${cells}</div>
+        <div class="day-tiles cal-grid ${weekly ? "cal-week-grid" : ""}" role="group" aria-label="Days">${cells}</div>
       </div>
       <aside class="cal-day card" aria-label="${heading}">
         <div class="cal-day-head"><h2>${heading}</h2><span>${date}</span></div>
-        ${addField(calendarDay === t ? "Add to today" : "Add to " + heading)}
+
         <div class="check-list">${items.map(taskRow).join("") || `<p class="empty">Nothing planned. Type to add something for ${calendarDay === t ? "today" : heading}.</p>`}</div>
       </aside>
     </div>
+    <div class="capture-dock">${addField(calendarDay === t ? "Add to today" : "Add to " + heading)}</div>
   </div>`;
 }
 
@@ -117,8 +107,13 @@ function bindCalendar() {
       (b.onclick = () => {
         const step = Number(b.dataset.month);
         if (step) {
-          calendarStart = shiftMonth(calendarStart, step);
-          calendarDay = calendarStart;
+          if (calendarView === "week") {
+            calendarDay = OrbitHabits.addDays(calendarDay, step * 7);
+            calendarStart = monthOf(calendarDay);
+          } else {
+            calendarStart = shiftMonth(calendarStart, step);
+            calendarDay = calendarStart;
+          }
         } else {
           calendarDay = today();
           calendarStart = monthOf(calendarDay);

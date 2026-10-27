@@ -225,7 +225,8 @@ nav button span {
   display: flex;
   align-items: center;
 }
-.sidebar-list button[data-list] {
+.sidebar-list button[data-list],
+.sidebar-list button[data-notes-section-link] {
   display: flex;
   align-items: center;
   gap: var(--space-m);
@@ -1486,7 +1487,8 @@ dialog footer .danger {
   min-width: 36px;
   min-height: 36px;
 }
-.sidebar-list button[data-list] {
+.sidebar-list button[data-list],
+.sidebar-list button[data-notes-section-link] {
   min-width: 0;
   height: auto;
   min-height: 44px;
@@ -2766,4 +2768,242 @@ dialog[open] {
   display: flex;
   flex-direction: column;
   min-height: calc(100vh - 100px);
+}
+
+/* Consistent editing surfaces and compact controls. */
+:root {
+  --content-inset: 32px;
+  --capture-width: 760px;
+}
+.page {
+  max-width: none;
+  padding: 28px var(--content-inset) 110px;
+}
+.narrow,
+.narrow.wide {
+  margin-left: 0;
+  max-width: 960px;
+}
+.capture-dock {
+  position: fixed;
+  left: calc(var(--sidebar-width) + var(--content-inset));
+  bottom: 0;
+  width: min(var(--capture-width), calc(100vw - var(--sidebar-width) - 2 * var(--content-inset)));
+  margin: 0;
+  padding: 18px 0 16px;
+  z-index: 4;
+}
+body[data-view="lists"] .page {
+  padding-bottom: 100px;
+}
+.notes-pane {
+  padding-bottom: 110px;
+}
+.today-side .plan-card,
+.today-main .empty-state {
+  min-height: 104px;
+  padding: 16px;
+}
+.today-main .empty-state {
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+.today-side .plan-count {
+  font-size: 23px;
+}
+.month-heading {
+  display: grid;
+  grid-template-columns: 300px 72px;
+  gap: 8px;
+}
+.month-heading h1 {
+  font-size: 28px;
+  white-space: nowrap;
+}
+.month-arrows {
+  gap: 2px;
+}
+.month-arrows button:active {
+  transform: none;
+}
+.cal-week-grid .cal-cell {
+  min-height: 250px;
+}
+.tasks-controls {
+  gap: 8px;
+}
+.quiet-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  border-radius: 7px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.mac-picker {
+  position: relative;
+  flex: none;
+  font-size: 13px;
+}
+.mac-picker summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 34px;
+  min-width: 120px;
+  max-width: 240px;
+  padding: 0 10px;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.mac-picker summary::-webkit-details-marker {
+  display: none;
+}
+.mac-picker summary > span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.mac-picker summary .ui-icon {
+  width: 14px;
+  height: 14px;
+}
+.picker-menu {
+  position: absolute;
+  z-index: 12;
+  top: calc(100% + 5px);
+  left: 0;
+  min-width: max(100%, 170px);
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+.picker-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  white-space: nowrap;
+  border-radius: 5px;
+  font-size: 13px;
+  min-height: 30px;
+  padding: 5px 8px;
+}
+.picker-menu button > span {
+  flex: 0 0 14px;
+  color: var(--accent-text);
+}
+.picker-menu button:focus-visible {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  outline: none;
+}
+.row-actions {
+  display: flex;
+  gap: 2px;
+  flex: none;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease;
+}
+.check-tile:hover .row-actions,
+.check-tile:focus-within .row-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+.row-actions .icon-button {
+  min-width: 30px;
+  min-height: 30px;
+}
+dialog {
+  border-radius: 14px;
+}
+.dialog-head [data-close] {
+  min-width: 38px;
+  min-height: 38px;
+  padding: 0;
+  font-size: 23px;
+  border-radius: 8px;
+}
+.note-title-input,
+.note-body {
+  field-sizing: fixed;
+  width: 100%;
+  padding: 0;
+  margin-left: 0;
+  overflow: hidden;
+  text-align: left;
+  text-indent: 0;
+}
+.note-body {
+  font:
+    16px/26px "Segoe UI Variable",
+    "Segoe UI",
+    system-ui,
+    sans-serif;
+  letter-spacing: normal;
+  min-height: 260px;
+}
+.note-title-input {
+  line-height: 48px;
+}
+.account-sign-in {
+  color: #0a84ff;
+  font-weight: 600;
+}
+#shortcut-hint {
+  position: fixed;
+  right: 24px;
+  bottom: 84px;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  box-shadow: 0 3px 12px rgb(0 0 0 / 0.08);
+  pointer-events: none;
+}
+#shortcut-hint[hidden] {
+  display: none;
+}
+#shortcut-hint kbd {
+  font: inherit;
+  color: var(--ink);
+}
+.sidebar-lists {
+  overflow-y: auto;
+  min-height: 0;
+}
+.history-head .ui-icon {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+@media (max-width: 1000px) {
+  :root {
+    --content-inset: 24px;
+  }
+  .month-heading {
+    grid-template-columns: 250px 72px;
+  }
+  .month-heading h1 {
+    font-size: 23px;
+  }
+}
+.undo-toast {
+  z-index: 30;
+  bottom: 88px;
 }

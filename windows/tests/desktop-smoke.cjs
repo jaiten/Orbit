@@ -76,10 +76,10 @@ const remove = (folder) => {
     await p.locator('[data-page="habits"]').click();
     await p.getByRole("button", { name: /^History/ }).click();
     await p.getByRole("heading", { name: "History", exact: true }).waitFor();
-    await p.getByRole("button", { name: "Gym weekly test 1 of the last 7 days →", exact: true }).waitFor();
+    await p.getByRole("button", { name: "Gym weekly test 1 of the last 7 days", exact: true }).waitFor();
     if ((await p.locator('.habit-history .box-grid i[data-o]:not([data-o="0"])').count()) !== 1)
       throw Error("History grid is missing a check-in");
-    await p.getByRole("button", { name: "Gym weekly test 1 of the last 7 days →", exact: true }).click();
+    await p.getByRole("button", { name: "Gym weekly test 1 of the last 7 days", exact: true }).click();
     await p.getByRole("heading", { name: "Gym weekly test", exact: true }).waitFor();
     await p.getByText("1 check-in", { exact: true }).waitFor();
     await p.locator('[data-page="today"]').click();
@@ -112,9 +112,9 @@ const remove = (folder) => {
     await p.getByLabel("Notes", { exact: true }).fill("A small, clear commitment");
     await p.getByLabel("Section", { exact: true }).selectOption({ label: "Personal" });
     await p.getByRole("button", { name: "Save", exact: true }).click();
-    await p.getByRole("button", { name: "Personal", exact: true }).click();
+    await p.locator("[data-list]").filter({ hasText: "Personal" }).click();
     await p.getByRole("heading", { name: "Tasks", exact: true }).waitFor();
-    if ((await p.locator("#task-category option:checked").textContent()) !== "Personal")
+    if ((await p.locator("#task-category > span").textContent()) !== "Personal")
       throw Error("Category selection did not follow the sidebar");
     await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).waitFor();
     await p.locator('[data-page="today"]').click();
@@ -178,7 +178,7 @@ const remove = (folder) => {
     await p.getByRole("button", { name: "Sage", exact: true }).click();
     if ((await p.locator("html").getAttribute("data-accent")) !== "sage") throw Error("Theme did not change");
     await p.getByRole("button", { name: "Coral", exact: true }).click();
-    await p.locator("[data-edit-list]").click();
+    await p.locator("[data-edit-list]").last().click();
     await p.getByRole("button", { name: "Delete section", exact: true }).click();
     await p.getByRole("button", { name: "Delete Section, Keep Items", exact: true }).click();
     const afterDelete = await p.evaluate(() => window.orbit.read());
@@ -378,6 +378,7 @@ const remove = (folder) => {
       throw Error("Empty Return kept focus");
     if (await p.locator("#inline-receipt").textContent()) throw Error("A success message appeared");
     await p.locator('[data-page="lists"]').click();
+    await p.getByRole("button", { name: "Back to notes", exact: false }).click();
     await p.getByRole("heading", { name: "Notes", exact: true, level: 1 }).waitFor();
     await p.locator(".note-card", { hasText: "Garden ideas" }).click();
     await p.getByRole("textbox", { name: "Note text" }).fill("Tomatoes by the fence. Herbs by the door.");

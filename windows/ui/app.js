@@ -1,6 +1,7 @@
 // Page routing and start-up. Pages live in ui/pages; shared helpers in core.js, motion in motion.js.
 let shownView = null;
 function render() {
+  renderRevision++;
   // Keep keyboard focus on the same item across re-renders (Space/Enter toggles it repeatedly).
   const focused = document.activeElement?.closest?.("[data-toggle], [data-habit-toggle]");
   const focusSelector = focused?.dataset.toggle
@@ -51,14 +52,17 @@ function render() {
   $("#content").innerHTML = (pages[page] || renderSettings)();
   renderLists();
   bind();
-  if (changedPage) window.scrollTo(0, 0);
+  if (changedPage) {
+    window.scrollTo(0, 0);
+    showShortcutHint();
+  }
   applyFills();
   if (before) settleRows(before);
   else enterPage();
   movePill();
   poppedID = null;
   if (focusSelector) document.querySelector(focusSelector)?.focus();
-  if (state.recoveryReady && !$("#password-editor").open) $("#password-editor").showModal();
+  if (state.recoveryReady && !$("#password-editor").open) openDialog($("#password-editor"));
 }
 
 function bind() {
@@ -76,12 +80,11 @@ function bind() {
 document.querySelectorAll("[data-page]").forEach(
   (b) =>
     (b.onclick = () => {
-      page = b.dataset.page;
-      selectedList = null;
-      render();
+      void goTo(b.dataset.page);
     }),
 );
-$("#sidebar-search").onclick = () => {
+$("#sidebar-search").onclick = async () => {
+  if (page === "note") await saveNote();
   page = "lists";
   selectedList = null;
   render();

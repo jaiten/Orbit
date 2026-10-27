@@ -33,6 +33,7 @@ jobs:
       - run: npm test
       - run: npm run test:desktop
       - run: npm run pack
+      - run: npm run test:installer
       - uses: actions/upload-artifact@v7
         with:
           name: Orbit-Windows
