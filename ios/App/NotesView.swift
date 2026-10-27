@@ -109,16 +109,17 @@ struct NotesView: View {
                     VStack(spacing: 0) {
                         ForEach(Array(pages.enumerated()), id: \.element.id) { index, note in
                             if index > 0 { Divider().padding(.leading, 48) }
-                            // As with task rows, the menu belongs to a container around the button, so touch
-                            // and hold opens the menu rather than the page.
-                            ZStack {
-                                Button { path.append(.open(note.id)) } label: { NoteRow(note: note) }
-                                    .buttonStyle(OrbitPress())
-                                    .accessibilityLabel(note.title.isEmpty ? "Untitled" : note.title)
-                                    .accessibilityValue(NoteRules.snippet(note.notes))
-                                    .accessibilityIdentifier("note-row")
-                            }
-                            .contentShape(Rectangle())
+                            // A tap target rather than a Button or NavigationLink: those took the touch and
+                            // hold as a tap, so the menu never appeared.
+                            NoteRow(note: note)
+                                .contentShape(Rectangle())
+                                .onTapGesture { path.append(.open(note.id)) }
+                                .accessibilityElement(children: .ignore)
+                                .accessibilityAddTraits(.isButton)
+                                .accessibilityLabel(note.title.isEmpty ? "Untitled" : note.title)
+                                .accessibilityValue(NoteRules.snippet(note.notes))
+                                .accessibilityIdentifier("note-row")
+                                .accessibilityAction { path.append(.open(note.id)) }
                             .modifier(NoteActions(note: note))
                         }
                     }.orbitSurface(radius: CGFloat(DesignTokens.radiusCard))
