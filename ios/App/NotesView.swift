@@ -39,7 +39,9 @@ struct NotesView: View {
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
                     PageHeader(eyebrow: "", title: "Notes")
                     HStack {
-                        Button("New section", systemImage: "folder.badge.plus") { managing = true }.frame(minHeight: 44).accessibilityIdentifier("edit-sections")
+                        Button { managing = true } label: {
+                            Label("New section", systemImage: "folder.badge.plus").frame(minHeight: 44).contentShape(Rectangle())
+                        }.accessibilityIdentifier("edit-sections")
                         Spacer()
                         Button { path.append(.new(section: nil, token: UUID())) } label: { Image(systemName: "square.and.pencil") }.accessibilityLabel("New note")
                     }.frame(minHeight: 44)
