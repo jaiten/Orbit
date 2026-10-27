@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Orbit Notes concept</title>
+<style>
+:root{--canvas:#141416;--surface:#1F1F21;--raised:#26262A;--ink:#F5F5F7;--muted:#A6A6AD;--line:#323236;--accent:#E87359;--sage:#6E8C78;--lav:#8C85BF;--honey:#D19E4D}
+*{box-sizing:border-box}body{margin:0;background:#0c0c0e;font-family:Inter,-apple-system,"SF Pro Text",system-ui,sans-serif;color:var(--ink);padding:40px}
+h1.title{font-size:22px;font-weight:600;margin:0 0 4px}p.sub{color:var(--muted);margin:0 0 28px;font-size:14px}
+.row{display:flex;gap:36px;align-items:flex-start}
+.phone{width:320px;height:680px;border-radius:44px;background:var(--canvas);border:10px solid #2a2a2e;position:relative;overflow:hidden;flex:none}
+.cap{font-size:12px;color:var(--muted);text-align:center;margin-top:12px;width:320px}
+.status{display:flex;justify-content:space-between;padding:14px 24px 0;font-size:12px;font-weight:600}
+.scr{padding:10px 16px}
+.eyebrow{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.big{font-size:28px;font-weight:700;letter-spacing:-.8px;margin:2px 0 2px}
+.muted{color:var(--muted)}.small{font-size:12px}
+.card{background:var(--surface);border:1px solid rgba(50,50,54,.6);border-radius:16px}
+.field{background:var(--surface);border:1px solid rgba(50,50,54,.6);border-radius:14px;padding:11px 12px;font-size:14px;line-height:1.45;display:flex;gap:10px}
+.chip{display:inline-block;padding:6px 12px;border-radius:12px;font-size:12px;font-weight:600;color:var(--accent);background:linear-gradient(rgba(232,115,89,.2),rgba(232,115,89,.2)),var(--surface);border:1px solid rgba(232,115,89,.4);box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.kb{position:absolute;left:0;right:0;bottom:0;height:220px;background:#2b2b2f;border-top:1px solid #3a3a3f;display:grid;grid-template-columns:repeat(10,1fr);gap:5px;padding:8px 4px 40px}
+.kb i{background:#47474c;border-radius:5px;height:34px}
+.sec{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;margin:16px 4px 8px}
+.dot{width:8px;height:8px;border-radius:50%}
+.chev{color:var(--muted);font-size:11px;width:10px}
+.pg{display:flex;gap:10px;padding:10px 12px;align-items:flex-start}
+.pg+.pg{border-top:1px solid rgba(50,50,54,.6)}
+.doc{width:18px;height:18px;flex:none;margin-top:1px;stroke:var(--muted);fill:none;stroke-width:1.6}
+.pt{font-size:14px;font-weight:500}.ps{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+.when{margin-left:auto;font-size:11px;color:#6f6f76}
+.recent{display:flex;gap:8px;overflow:hidden;margin:8px 0 4px}
+.rc{width:116px;flex:none;height:96px;border-radius:14px;background:var(--surface);border:1px solid rgba(50,50,54,.6);padding:10px;position:relative;overflow:hidden}
+.rc .band{position:absolute;left:0;right:0;top:0;height:30px;opacity:.35}
+.rc .t{position:absolute;bottom:10px;left:10px;right:10px;font-size:12px;font-weight:600}
+.tab{position:absolute;bottom:0;left:0;right:0;height:64px;border-top:1px solid #26262a;background:rgba(20,20,22,.96);display:flex;justify-content:space-around;padding-top:9px;font-size:9px;color:var(--muted)}
+.tab span{display:flex;flex-direction:column;align-items:center;gap:3px}.tab b{width:18px;height:18px;border-radius:5px;border:1.5px solid currentColor;display:block}
+.tab .on{color:var(--accent)}
+.prop{display:flex;font-size:12.5px;padding:5px 0}.prop .k{width:92px;color:var(--muted)}
+.tag{display:inline-block;padding:1px 8px;border-radius:6px;font-size:11.5px;margin-right:4px}
+.body{font-size:13.5px;line-height:1.6}
+.body h3{font-size:15px;margin:12px 0 4px}
+.todo{display:flex;gap:8px;align-items:center;margin:3px 0}.box{width:15px;height:15px;border-radius:50%;border:1.6px solid rgba(232,115,89,.6)}
+.done .box{background:var(--accent);border-color:var(--accent)}.done span{color:var(--muted);text-decoration:line-through}
+.slash{position:absolute;z-index:5;left:30px;top:270px;width:220px;background:var(--raised);border:1px solid #3a3a3f;border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.5);padding:6px;font-size:13px}
+.slash .h{font-size:10px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;padding:4px 8px}
+.slash .it{display:flex;gap:10px;align-items:center;padding:6px 8px;border-radius:8px}.slash .it.sel{background:rgba(232,115,89,.16)}
+.slash .ic{width:24px;height:24px;border-radius:6px;background:#333338;display:grid;place-items:center;font-size:12px}
+.hint{position:absolute;left:16px;right:16px;bottom:78px;background:var(--surface);border:1px solid rgba(50,50,54,.6);border-radius:14px;padding:10px 12px;font-size:12px;display:flex;justify-content:space-between;align-items:center}
+.btn{color:var(--accent);font-weight:600}
+</style></head><body>
+<h1 class="title">Orbit Notes — a Notion-like direction in Orbit's colours</h1>
+<p class="sub">Concept only. Screens 1–2 are close to what this change builds; 3–4 sketch where notes could go next (blocks, slash commands, lines that become tasks).</p>
+<div class="row">
+<div>
+<div class="phone"><div class="status"><span>9:41</span><span>●●● ▮</span></div>
+<div class="scr">
+<div class="eyebrow">Tuesday, October 20</div><div class="big">Today</div><div class="muted small" style="margin-bottom:12px">Make room for what matters.</div>
+<div class="card" style="padding:14px 16px;margin-bottom:10px"><div class="eyebrow">Your plan</div><div style="font-size:19px;font-weight:500;margin:4px 0 8px">2 of 5 done</div><div style="height:5px;border-radius:3px;background:#2c2c30"><div style="width:40%;height:5px;border-radius:3px;background:var(--accent)"></div></div></div>
+<div class="field"><span class="muted">⌄</span><span>Garden ideas. Plant tomatoes along the south fence and move the herbs closer to the kitchen door so they get used more often</span></div>
+<div style="margin-top:8px"><span class="chip">Note · Unsorted</span></div>
+</div>
+<div class="kb">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+<i style="grid-column:span 2"></i><i style="grid-column:span 6"></i><i style="grid-column:span 2;background:var(--accent)"></i>
+</div></div>
+<div class="cap">1 · The add field grows; past ~2 lines the chip (now opaque) says it will be a note.</div>
+</div>
+
+<div>
+<div class="phone"><div class="status"><span>9:41</span><span>●●● ▮</span></div>
+<div class="scr">
+<div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div class="eyebrow">Write it down</div><div class="big">Notes</div></div><div style="display:flex;gap:6px;margin-top:8px"><span class="card small" style="padding:6px 10px">Sections</span><span class="card" style="padding:4px 9px">✎</span></div></div>
+<div class="field muted" style="margin-top:8px;padding:9px 12px">⌕ Search notes</div>
+<div class="eyebrow" style="margin:14px 4px 0">Recently edited</div>
+<div class="recent">
+<div class="rc"><div class="band" style="background:var(--sage)"></div><div class="t">Trip ideas</div></div>
+<div class="rc"><div class="band" style="background:var(--lav)"></div><div class="t">Q4 planning</div></div>
+<div class="rc"><div class="band" style="background:var(--accent)"></div><div class="t">Garden ideas</div></div>
+</div>
+<div class="sec"><span class="chev">›</span><span class="dot" style="background:var(--sage)"></span>Personal <span class="muted small">2</span><span style="margin-left:auto" class="muted">+</span></div>
+<div class="card">
+<div class="pg"><svg class="doc" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg><div><div class="pt">Trip ideas</div><div class="ps">Lisbon in May — tram 28, Sintra…</div></div><span class="when">2h</span></div>
+<div class="pg"><svg class="doc" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg><div><div class="pt">Garden ideas</div><div class="ps">Plant tomatoes along the south…</div></div><span class="when">now</span></div>
+</div>
+<div class="sec"><span class="chev">›</span><span class="dot" style="background:var(--lav)"></span>Work <span class="muted small">2</span><span style="margin-left:auto" class="muted">+</span></div>
+<div class="card">
+<div class="pg"><svg class="doc" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg><div><div class="pt">Q4 planning notes</div><div class="ps">Three outcomes for the quarter…</div></div><span class="when">1d</span></div>
+</div>
+<div class="sec"><span class="chev">›</span><span class="dot" style="background:var(--lav)"></span>Someday <span class="muted small">1</span></div>
+</div>
+<div class="tab"><span><b></b>Today</span><span><b></b>Calendar</span><span class="on"><b></b>Notes</span><span><b></b>Habits</span><span><b></b>Settings</span></div>
+</div>
+<div class="cap">2 · Notes home: sections as toggles, pages in quiet cards, a “recently edited” shelf.</div>
+</div>
+
+<div>
+<div class="phone"><div class="status"><span>9:41</span><span>●●● ▮</span></div>
+<div class="scr">
+<div class="small" style="display:flex;justify-content:space-between;color:var(--accent)"><span>‹ Personal</span><span>⋯</span></div>
+<div style="font-size:34px;margin:14px 0 4px">🌱</div>
+<div class="big" style="font-size:26px">Garden ideas</div>
+<div style="margin:8px 0 6px">
+<div class="prop"><span class="k">▢ Section</span><span>Personal</span></div>
+<div class="prop"><span class="k">◷ Edited</span><span class="muted">Just now</span></div>
+<div class="prop"><span class="k">≡ Tags</span><span><span class="tag" style="background:rgba(110,140,120,.25);color:#9fc1aa">outside</span><span class="tag" style="background:rgba(209,158,77,.22);color:#e3bb7a">spring</span></span></div>
+</div>
+<div style="height:1px;background:var(--line);margin:8px 0"></div>
+<div class="body">Plant tomatoes along the south fence and move the herbs closer to the kitchen door.
+<h3>This weekend</h3>
+<div class="todo done"><i class="box"></i><span>Buy compost</span></div>
+<div class="todo"><i class="box"></i><span>Build the bean frame</span></div>
+<div class="todo"><i class="box"></i><span>Move rosemary &amp; thyme</span></div>
+<h3>Later</h3>
+<div>• Rain barrel by the shed</div><div>• Ask Sam about seedlings</div>
+</div></div>
+<div class="hint"><span>“Build the bean frame” → add to Saturday?</span><span class="btn">Add</span></div>
+</div>
+<div class="cap">3 · A page: icon, big title, properties, blocks. Checklist lines can be sent to Today as real tasks.</div>
+</div>
+
+<div>
+<div class="phone"><div class="status"><span>9:41</span><span>●●● ▮</span></div>
+<div class="scr">
+<div class="small" style="display:flex;justify-content:space-between;color:var(--accent)"><span>‹ Work</span><span>Done</span></div>
+<div class="big" style="font-size:26px;margin-top:18px">Q4 planning notes</div>
+<div class="prop"><span class="k">▢ Section</span><span>Work</span></div>
+<div style="height:1px;background:var(--line);margin:8px 0"></div>
+<div class="body">Three outcomes for the quarter:<br>1. Ship notes<br>2. Calmer onboarding<br>3. Windows calendar<br><br><span class="muted">/to</span><span style="border-left:2px solid var(--accent);margin-left:1px"></span></div>
+</div>
+<div class="slash">
+<div class="h">Turn into</div>
+<div class="it sel"><span class="ic">☐</span>To-do · adds to Today</div>
+<div class="it"><span class="ic">H</span>Heading</div>
+<div class="it"><span class="ic">•</span>Bulleted list</div>
+<div class="it"><span class="ic">❝</span>Quote</div>
+<div class="it"><span class="ic">↻</span>Habit</div>
+</div>
+<div class="kb" style="height:200px"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+</div>
+<div class="cap">4 · Later: a “/” menu to turn a line into a heading, a to-do on Today, or a habit.</div>
+</div>
+</div>
+</body></html>

@@ -1,0 +1,40 @@
+{
+  "cases": [
+    {
+      "text": "Buy milk tomorrow 6pm",
+      "isNote": false,
+      "title": "Buy milk tomorrow 6pm",
+      "body": ""
+    },
+    {
+      "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "isNote": true,
+      "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…",
+      "body": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+      "text": "Trip ideas\nLisbon in May\nPorto food tour",
+      "isNote": true,
+      "title": "Trip ideas",
+      "body": "Lisbon in May\nPorto food tour"
+    },
+    {
+      "text": "Ideas for the garden. Plant tomatoes along the south fence and move the herbs closer to the kitchen door so they get used more often.",
+      "isNote": true,
+      "title": "Ideas for the garden",
+      "body": "Plant tomatoes along the south fence and move the herbs closer to the kitchen door so they get used more often."
+    },
+    {
+      "text": "remember to ask the landlord about the heating schedule and whether the radiator in the back bedroom can be bled before winter starts properly",
+      "isNote": true,
+      "title": "remember to ask the landlord about the heating schedule and…",
+      "body": "remember to ask the landlord about the heating schedule and whether the radiator in the back bedroom can be bled before winter starts properly"
+    },
+    {
+      "text": "  Short line with spaces  ",
+      "isNote": false,
+      "title": "Short line with spaces",
+      "body": ""
+    }
+  ]
+}

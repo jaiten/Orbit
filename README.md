@@ -24,7 +24,7 @@ SwiftData app currently requires Xcode; WSL/xtool is not yet supported.
 
 | Area | Current behavior |
 | --- | --- |
-| Both apps | Today (today plus overdue), Calendar, Lists with a built-in Someday list, Habits, Settings and Account; one quick add field with a preview chip; first-launch onboarding with optional examples; JSON and CSV export, JSON import with a preview |
+| Both apps | Today (today plus overdue) with Day / Week / Month / All views, Calendar, Notes in sections with a built-in Someday section, Habits, Settings and Account; one growing quick add field with an opaque preview chip, where long text becomes a note; first-launch onboarding with optional examples; JSON and CSV export, JSON import with a preview |
 | iOS | Checklist tiles, swipe actions, week/month calendar, notes, tags, subtasks, reminders, Shortcuts and Siri (Add to Orbit, Complete Item), share sheet extension |
 | Windows | Habits-first Today with optional progress/history, compact rows, list reordering, Windows voice typing, keyboard shortcuts (Ctrl+N, Ctrl+1–5, Ctrl+F, Ctrl+/), reminders as Windows notifications, tray icon and a global quick add shortcut |
 | Sync | Separate Supabase backend, email/password accounts, durable outbox, tombstones, revision checks, conflict review, reconnect catch-up |
@@ -47,16 +47,16 @@ and confirm saving. Repeat sends reopen the same event where its identifier is s
 valid. Edits to calendar events do not update the original task. Calendar event
 access currently runs on iPhone; Windows does not connect directly to calendar providers.
 
-**Plan this day** in Calendar suggests time for selected habits and tasks around
-existing commitments, using durations you choose. Review before saving to a writable
-calendar. It creates one one-off block per selected item; completion keeps the event.
-Habit calendar durations stay on the iPhone. **Settings → Appearance → Compact habits
+**Plan this day** has been removed while it is redesigned; see the
+[design prompt](docs/prompts/plan-your-day.md). **Settings → Appearance → Compact habits
 and tasks** reduces spacing while accessibility text keeps full-size controls.
 
-Touch and hold a to-do for **Start focus timer**. The timer uses the task duration
-(5–240 minutes) and appears in Today and as a Lock Screen Live Activity; compatible
-phones also show Dynamic Island. Stop it from Today. Live Activities must be enabled
-in iPhone Settings. A completed timer becomes stale; reopening Orbit clears it.
+Touch and hold a to-do for **Start focus timer**; starting a tracked task also suggests
+one, and its progress menu offers Start timer. The timer uses the task duration
+(5–240 minutes) and appears in Today, and as a Lock Screen Live Activity (and Dynamic
+Island) when Live Activities are enabled; otherwise it runs in the app. On Windows, an
+in-progress row shows a timer button on hover, and a notification appears when it ends.
+Touch and hold (or right-click on Windows) any item for **Copy text**.
 
 Email setup and recovery: [confirmation guide](docs/email-confirmation.md).
 TestFlight uploads follow successful iOS checks on main: [release guide](docs/testflight.md).
@@ -71,11 +71,16 @@ use the separate check control to complete a task or log a habit. Touch and hold
 row for actions, including Make It a Habit / Make It a Task. Arrange sections in
 Edit Today.
 
-On iPhone, the Lists + button creates a list. Use Add a task to add items to the
-selected list; tasks are grouped by day with collapsible sections. Edit Lists adds,
-renames and deletes lists. Capture offers a day picker and list picker.
+**Notes** replaces Lists. Notes are titled pages grouped into sections (Personal,
+Work, Someday…); open one to edit it as a page with a large title, a Section property and
+the text below. Type more than about 120 characters (or a line break) into Add a task and
+the chip changes to *Note*; Return saves it to Notes instead of Today. Notes are task
+records marked `isNote`, so they sync, back up and undo with everything else, and never
+appear as to-dos. Sections are the former lists; tasks filed in one still show on its
+Notes page (Windows) and in Today → All. Today's **Day / Week / Month / All** control shows
+every task in that period by day, and how each habit is going.
 
-Today accepts tasks directly in its text field: Return adds one and keeps entry ready for another. The options button opens date/list capture. Microphone controls dictate into an editable draft (iOS Speech and Windows voice typing); saving stays explicit. Habits offer 35 named icons or Automatic; task icons follow title keywords. Edit Lists lets you reorder lists.
+Today accepts tasks directly in its text field: Return adds one and keeps entry ready for another; Return on an empty field closes the keyboard. No success message appears; the cleared field is the confirmation. The field uses the system autocorrect and capitalisation. The options button opens date/list capture. Microphone controls dictate into an editable draft (iOS Speech and Windows voice typing); saving stays explicit. Habits offer 35 named icons or Automatic; task icons follow title keywords. Edit Lists lets you reorder lists.
 
 Quick add reads plain phrases such as `gym tomorrow 6pm`, `read every day`,
 `someday`; the chip shows what will be created before you save. On iPhone, Return saves the item and clears the field for another; Save saves and

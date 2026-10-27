@@ -13,13 +13,19 @@ function render() {
     ? "settings"
     : ["history", "habit-history"].includes(page)
       ? "habits"
-      : page;
+      : page === "note"
+        ? "lists"
+        : page;
   document.querySelectorAll("[data-page]").forEach((b) => b.classList.toggle("selected", b.dataset.page === navPage));
-  const tasks = rows("tasks").sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  // Notes are task records too, but never to-dos: only the Notes page shows them.
+  const tasks = rows("tasks")
+    .filter((t) => !t.isNote)
+    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   const habits = rows("habits").sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
   const pages = {
     today: () => renderToday(tasks, habits),
-    lists: () => renderInbox(tasks),
+    lists: () => renderNotes(tasks),
+    note: renderNoteEditor,
     calendar: () => renderCalendar(tasks),
     history: () => renderHistoryIndex(habits),
     "habit-history": () => renderHabitHistory(habits),
@@ -28,7 +34,14 @@ function render() {
     review: renderReview,
   };
   // A new page enters with a stagger; the same page re-forms with rows springing to their new places.
-  const view = page + "|" + (selectedList || "") + "|" + (page === "habit-history" ? historyHabitID : "");
+  const view =
+    page +
+    "|" +
+    (selectedList || "") +
+    "|" +
+    (page === "habit-history" ? historyHabitID : page === "note" ? noteID || "new" : "") +
+    "|" +
+    (page === "today" ? todayScope : "");
   const changedPage = view !== shownView;
   const before = !changedPage ? captureRows() : null;
   shownView = view;

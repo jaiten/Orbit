@@ -13,7 +13,7 @@ function openTask(id, date, draft = null) {
   const f = $("#task-form");
   f.reset();
   f.elements.listID.innerHTML =
-    `<option value="">Inbox</option><option value="${SOMEDAY}">Someday</option>` +
+    `<option value="">No section</option><option value="${SOMEDAY}">Someday</option>` +
     rows("lists")
       .filter((l) => l.id !== SOMEDAY)
       .map((l) => `<option value="${esc(l.id)}">${esc(l.name)}</option>`)

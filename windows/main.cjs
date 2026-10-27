@@ -1,4 +1,16 @@
-const { app, BrowserWindow, ipcMain, safeStorage, session, protocol, net, dialog, powerMonitor } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  safeStorage,
+  session,
+  protocol,
+  net,
+  dialog,
+  powerMonitor,
+  clipboard,
+  Notification,
+} = require("electron");
 const { confirmationNotice } = require("./auth-links.cjs");
 const { PlannerTools, encodeBackup, decodeBackup, planImport, encodeTasksCSV } = require("./planner-tools.cjs");
 const { SOMEDAY_LIST_ID } = require("./ui/planner.js");
@@ -222,6 +234,17 @@ app.whenReady().then(async () => {
         (error) => (error ? reject(Error("Could not start voice typing. Press Win+H in the task field.")) : resolve()),
       );
     });
+  });
+  // Copy text from a row's menu or a note; plain text only.
+  handle("copy", async (text) => {
+    if (typeof text !== "string" || text.length > 200000) throw Error("Invalid text");
+    clipboard.writeText(text);
+  });
+  // A focus timer finished: a Windows notification, like reminders.
+  handle("timer-done", async (title) => {
+    if (typeof title !== "string") throw Error("Invalid timer");
+    if (Notification.isSupported())
+      new Notification({ title: "Timer finished", body: title.slice(0, 200), silent: false }).show();
   });
   handle("devices", async () => {
     if (!client) throw Error("Sign in first");

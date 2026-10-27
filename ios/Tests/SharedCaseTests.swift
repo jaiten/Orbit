@@ -22,6 +22,16 @@ final class SharedCaseTests: XCTestCase {
         XCTAssertEqual(Set(ItemIcons.all.map(\.id)).count, ItemIcons.all.count)
     }
 
+    func testNoteCases() throws {
+        for row in try Self.cases("notes") {
+            let text = row["text"] as! String
+            XCTAssertEqual(NoteRules.isNote(text), row["isNote"] as! Bool, text)
+            let parts = NoteRules.split(text)
+            XCTAssertEqual(parts.title, row["title"] as? String, text)
+            XCTAssertEqual(parts.body, row["body"] as? String, text)
+        }
+    }
+
     func testTaskProgressSuggestions() throws {
         for row in try Self.cases("task-progress") {
             XCTAssertEqual(TaskProgress.suggests(row["title"] as! String), row["expect"] as! Bool, row["title"] as! String)

@@ -1,6 +1,8 @@
 const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("orbit", {
   dictate: () => ipcRenderer.invoke("dictate"),
+  copy: (text) => ipcRenderer.invoke("copy", text),
+  timerDone: (title) => ipcRenderer.invoke("timer-done", title),
   undo: () => ipcRenderer.invoke("undo"),
   backup: (mode, options) => ipcRenderer.invoke("backup", { mode, ...options }),
   devices: () => ipcRenderer.invoke("devices"),

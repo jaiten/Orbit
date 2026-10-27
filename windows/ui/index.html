@@ -13,7 +13,12 @@
   </head>
   <body>
     <aside class="sidebar">
-      <button id="sidebar-search" class="search-field" aria-label="Search tasks" aria-keyshortcuts="Control+F">
+      <button
+        id="sidebar-search"
+        class="search-field"
+        aria-label="Search notes and tasks"
+        aria-keyshortcuts="Control+F"
+      >
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="11" cy="11" r="7" />
           <path d="m20 20-3.5-3.5" /></svg
@@ -34,8 +39,10 @@
             <path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01" /></svg
           ><span>Calendar</span><kbd aria-hidden="true">Ctrl+2</kbd></button
         ><button data-page="lists" aria-keyshortcuts="Control+3">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 17 2 2 4-4M3 7l2 2 4-4M13 6h8M13 12h8M13 18h8" /></svg
-          ><span>Lists</span><kbd aria-hidden="true">Ctrl+3</kbd></button
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+            <path d="M14 3v5h5M9 13h6M9 17h4" /></svg
+          ><span>Notes</span><kbd aria-hidden="true">Ctrl+3</kbd></button
         ><button data-page="habits" aria-keyshortcuts="Control+4">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="m17 2 4 4-4 4M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3" /></svg
@@ -49,9 +56,9 @@
           ><span>Settings</span><kbd aria-hidden="true">Ctrl+5</kbd>
         </button>
       </nav>
-      <div class="list-heading">Lists</div>
+      <div class="list-heading">Sections</div>
       <div id="sidebar-lists" class="sidebar-lists"></div>
-      <button id="new-list" class="quiet-add">+ New list</button>
+      <button id="new-list" class="quiet-add">+ New section</button>
       <button id="sync-status" class="sync-status" aria-label="Sync status" title="Saved locally">
         <span id="sync-dot" aria-hidden="true"></span><span id="sync-text">Saved locally</span>
       </button>
@@ -73,7 +80,7 @@
             placeholder="gym tomorrow 6pm"
             maxlength="500"
             autocomplete="off"
-            spellcheck="false"
+            spellcheck="true"
           />
         </label>
         <div class="chip-row" aria-live="polite">
@@ -104,7 +111,7 @@
         <details class="capture-options">
           <summary>More options</summary>
           <label><input name="progressTracking" type="checkbox" />Track start &amp; finish</label>
-          <label>List<select name="listID" aria-label="List"></select></label
+          <label>Section<select name="listID" aria-label="Section"></select></label
           ><label>Notes<textarea name="notes" rows="3"></textarea></label>
           <div class="fields">
             <label
@@ -167,7 +174,7 @@
     <dialog id="list-editor">
       <form id="list-form">
         <div class="dialog-head">
-          <h2 id="list-editor-title">New List</h2>
+          <h2 id="list-editor-title">New Section</h2>
           <button type="button" data-close aria-label="Close">×</button>
         </div>
         <label>Name<input name="name" required maxlength="100" placeholder="Personal" /></label
@@ -180,15 +187,15 @@
           </select></label
         >
         <div id="list-order-controls" class="fields">
-          <button type="button" id="list-move-up">Move list up</button>
-          <button type="button" id="list-move-down">Move list down</button>
+          <button type="button" id="list-move-up">Move section up</button>
+          <button type="button" id="list-move-down">Move section down</button>
         </div>
         <div id="list-delete-confirm" hidden>
-          <p>Delete this list? Its tasks move to Inbox.</p>
-          <button type="button" class="danger" id="confirm-delete-list">Delete List, Keep Tasks</button>
+          <p>Delete this section? Its notes and tasks are kept, without a section.</p>
+          <button type="button" class="danger" id="confirm-delete-list">Delete Section, Keep Items</button>
         </div>
         <footer>
-          <button type="button" class="danger" id="delete-list" hidden>Delete list</button
+          <button type="button" class="danger" id="delete-list" hidden>Delete section</button
           ><button class="primary">Save</button>
         </footer>
       </form>
@@ -226,6 +233,7 @@
       <dl id="shortcuts-list" class="shortcuts"></dl>
     </dialog>
     <script src="planning.js"></script>
+    <script src="notes.js"></script>
     <script src="habits.js"></script>
     <script src="planner.js"></script>
     <script src="conversions.js"></script>
@@ -234,7 +242,7 @@
     <script src="core.js"></script>
     <script src="motion.js"></script>
     <script src="pages/today.js"></script>
-    <script src="pages/lists.js"></script>
+    <script src="pages/notes.js"></script>
     <script src="pages/calendar.js"></script>
     <script src="pages/habits.js"></script>
     <script src="pages/settings.js"></script>

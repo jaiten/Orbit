@@ -89,29 +89,29 @@ const remove = (folder) => {
           .map((r) => ({ key: r.key, payload: r.payload, deleted: true })),
       );
     }, weekly);
-    await p.getByRole("button", { name: "+ New list", exact: true }).first().click();
+    await p.getByRole("button", { name: "+ New section", exact: true }).first().click();
     await p.locator("#list-form input[name=name]").fill("Personal");
     await p.getByRole("button", { name: "Save", exact: true }).click();
     // The list order controls persist positions, including after saving the editor.
-    await p.getByRole("button", { name: "+ New list", exact: true }).first().click();
+    await p.getByRole("button", { name: "+ New section", exact: true }).first().click();
     await p.locator("#list-form input[name=name]").fill("Temporary list");
     await p.getByRole("button", { name: "Save", exact: true }).click();
-    await p.getByRole("button", { name: "Edit Temporary list list", exact: true }).click();
-    await p.getByRole("button", { name: "Move list up", exact: true }).click();
+    await p.getByRole("button", { name: "Edit Temporary list section", exact: true }).click();
+    await p.getByRole("button", { name: "Move section up", exact: true }).click();
     await p.getByRole("button", { name: "Save", exact: true }).click();
     const listOrder = await p.locator("#sidebar-lists [data-list]").allTextContents();
     if (listOrder.indexOf("Temporary list") > listOrder.indexOf("Personal")) throw Error("List order did not persist");
-    await p.getByRole("button", { name: "Edit Temporary list list", exact: true }).click();
-    await p.getByRole("button", { name: "Delete list", exact: true }).click();
-    await p.getByRole("button", { name: "Delete List, Keep Tasks", exact: true }).click();
+    await p.getByRole("button", { name: "Edit Temporary list section", exact: true }).click();
+    await p.getByRole("button", { name: "Delete section", exact: true }).click();
+    await p.getByRole("button", { name: "Delete Section, Keep Items", exact: true }).click();
     await quickAdd("Read for twenty minutes", "Task · Today");
     await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).click();
     await p.getByText("More options", { exact: true }).click();
-    await p.getByLabel("Notes").fill("A small, clear commitment");
-    await p.getByLabel("List", { exact: true }).selectOption({ label: "Personal" });
+    await p.getByLabel("Notes", { exact: true }).fill("A small, clear commitment");
+    await p.getByLabel("Section", { exact: true }).selectOption({ label: "Personal" });
     await p.getByRole("button", { name: "Save", exact: true }).click();
     await p.getByRole("button", { name: "Personal", exact: true }).click();
-    await p.getByRole("heading", { name: "Lists", exact: true }).waitFor();
+    await p.getByRole("heading", { name: "Personal", exact: true }).waitFor();
     await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).waitFor();
     await p.locator('[data-page="today"]').click();
     // Sync updates never close or clear an open quick add.
@@ -135,9 +135,10 @@ const remove = (folder) => {
     await p.getByRole("button", { name: "Make it a Habit", exact: true }).click();
     // Habits on Today log on click; right-click edits them.
     await p.getByRole("checkbox", { name: "Log Read for twenty minutes", exact: true }).click({ button: "right" });
+    await p.getByRole("menuitem", { name: "Edit…", exact: true }).click();
     await p.getByRole("button", { name: "Make it a Task", exact: true }).click();
     await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).click();
-    if ((await p.getByLabel("Notes").inputValue()) !== "A small, clear commitment")
+    if ((await p.getByLabel("Notes", { exact: true }).inputValue()) !== "A small, clear commitment")
       throw Error("Conversion lost notes");
     await p.getByRole("button", { name: "Save", exact: true }).click();
     // A repeating task from an older device becomes a habit with the same ID.
@@ -155,6 +156,7 @@ const remove = (folder) => {
     }, original.payload.id);
     if (migrated?.payload.frequencyRule !== "DAILY") throw Error("Repeating task did not become a daily habit");
     await p.getByRole("checkbox", { name: "Log Read for twenty minutes", exact: true }).click({ button: "right" });
+    await p.getByRole("menuitem", { name: "Edit…", exact: true }).click();
     await p.getByRole("button", { name: "Make it a Task", exact: true }).click();
     await p.getByRole("checkbox", { name: "Complete Read for twenty minutes" }).click();
     const restored = await p.evaluate(
@@ -172,8 +174,8 @@ const remove = (folder) => {
     if ((await p.locator("html").getAttribute("data-accent")) !== "sage") throw Error("Theme did not change");
     await p.getByRole("button", { name: "Coral", exact: true }).click();
     await p.locator("[data-edit-list]").click();
-    await p.getByRole("button", { name: "Delete list", exact: true }).click();
-    await p.getByRole("button", { name: "Delete List, Keep Tasks", exact: true }).click();
+    await p.getByRole("button", { name: "Delete section", exact: true }).click();
+    await p.getByRole("button", { name: "Delete Section, Keep Items", exact: true }).click();
     const afterDelete = await p.evaluate(() => window.orbit.read());
     if (afterDelete.records.some((r) => r.key.startsWith("tasks/") && !r.deleted && r.payload.listID))
       throw Error("Deleted list left orphaned to-dos");
@@ -239,12 +241,12 @@ const remove = (folder) => {
     await p.getByRole("heading", { name: "Keyboard Shortcuts", exact: true }).waitFor();
     await p.keyboard.press("Escape");
     await p.keyboard.press("Control+f");
-    await p.getByRole("searchbox", { name: "Search tasks" }).fill("mom");
+    await p.getByRole("searchbox", { name: "Search notes and tasks" }).fill("mom");
     if (!(await p.getByRole("checkbox", { name: "Complete Call Mom", exact: true }).isVisible()))
       throw Error("Search hid the match");
     if (await p.getByRole("checkbox", { name: "Complete Wash car", exact: true }).isVisible())
       throw Error("Search kept a non-match");
-    await p.getByRole("searchbox", { name: "Search tasks" }).fill("");
+    await p.getByRole("searchbox", { name: "Search notes and tasks" }).fill("");
     await p.keyboard.press("Control+1");
     // Reminders: one timer for the next reminder, re-planned after every change.
     const soon = Date.now() + 120000;
@@ -321,7 +323,7 @@ const remove = (folder) => {
     await overdue.getByRole("button", { name: "Someday", exact: true }).click();
     await overdue.waitFor({ state: "detached" });
     await p.locator(`[data-list="00000000-0000-4000-8000-000000000001"]`).click();
-    await p.getByRole("heading", { name: "Lists", exact: true }).waitFor();
+    await p.getByRole("heading", { name: "Someday", exact: true }).waitFor();
     await p.getByRole("button", { name: "Add to Today", exact: true }).click();
     await p.locator('[data-page="today"]').click();
     await p.getByRole("checkbox", { name: "Complete Renew passport", exact: true }).waitFor();
@@ -347,6 +349,44 @@ const remove = (folder) => {
     await p.locator('[data-page="today"]').click();
     if (await p.getByRole("checkbox", { name: "Complete Learn the cello" }).count())
       throw Error("Someday item shown on Today");
+    // Long text in the add field grows it and becomes a note, never a to-do; the page edits in place.
+    const capture = p.getByRole("textbox", { name: "New task", exact: true });
+    const shortHeight = (await capture.boundingBox()).height;
+    await capture.fill(
+      "Garden ideas. Plant tomatoes along the south fence and move the herbs closer to the kitchen door so they get used more often.",
+    );
+    await p.locator("#inline-preview").getByText("Note", { exact: true }).waitFor();
+    if ((await capture.boundingBox()).height <= shortHeight + 10) throw Error("Add field did not grow");
+    await capture.press("Enter");
+    await p.waitForFunction(async () =>
+      (await window.orbit.read()).records.some((r) => r.payload.isNote && r.payload.title === "Garden ideas"),
+    );
+    if (await p.getByRole("checkbox", { name: /Garden ideas/ }).count()) throw Error("A note showed as a to-do");
+    // Return on an empty field leaves it.
+    await capture.focus();
+    await capture.press("Enter");
+    if (await p.evaluate(() => document.activeElement?.id === "inline-task-input"))
+      throw Error("Empty Return kept focus");
+    if (await p.locator("#inline-receipt").textContent()) throw Error("A success message appeared");
+    await p.locator('[data-page="lists"]').click();
+    await p.getByRole("heading", { name: "Notes", exact: true, level: 1 }).waitFor();
+    await p.getByRole("button", { name: /^Garden ideas/ }).click();
+    await p.getByRole("textbox", { name: "Note text" }).fill("Tomatoes by the fence. Herbs by the door.");
+    await p.getByRole("textbox", { name: "Note title" }).fill("Garden plan");
+    await p.getByRole("button", { name: /^‹/ }).click();
+    await p.getByRole("button", { name: /^Garden plan/ }).click({ button: "right" });
+    await p.getByRole("menuitem", { name: "Copy text", exact: true }).click();
+    const copied = await app.evaluate(({ clipboard }) => clipboard.readText());
+    if (copied !== "Garden plan\n\nTomatoes by the fence. Herbs by the door.") throw Error("Copy text: " + copied);
+    // Week, month and everything show every task and how habits are going.
+    await p.locator('[data-page="today"]').click();
+    await p.getByRole("tab", { name: "All", exact: true }).click();
+    await p.getByRole("heading", { name: "Everything", exact: true }).waitFor();
+    await p.getByRole("checkbox", { name: "Complete Learn the cello", exact: true }).waitFor();
+    await p.getByRole("tab", { name: "Week", exact: true }).click();
+    await p.getByRole("heading", { name: "This week", exact: true }).waitFor();
+    await p.getByRole("tab", { name: "Day", exact: true }).click();
+    await p.getByRole("heading", { name: "Today", exact: true, level: 1 }).waitFor();
     await p.getByRole("button", { name: "Settings", exact: true }).click();
     const backupFile = path.join(folder, "planner-backup.json");
     await app.evaluate(({ dialog }, file) => {

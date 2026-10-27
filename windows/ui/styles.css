@@ -1410,14 +1410,33 @@ dialog footer .danger {
   margin-bottom: 0;
   padding: 0 6px 0 14px;
 }
-.inline-capture input {
+.inline-capture textarea {
   min-width: 0;
   flex: 1;
+  align-self: stretch;
   background: transparent;
   box-shadow: none;
   border: none;
+  outline: none;
   font: inherit;
-  padding: 12px 0;
+  color: var(--ink);
+  line-height: 1.45;
+  padding: 13px 0;
+  resize: none;
+  /* Grows with the text, then scrolls. */
+  field-sizing: content;
+  min-height: 48px;
+  max-height: 40vh;
+}
+.inline-capture .add-field {
+  align-items: flex-start;
+}
+.inline-chip {
+  min-height: 0;
+  margin-top: var(--space-s);
+}
+.inline-chip .chip[hidden] {
+  display: none;
 }
 .inline-capture button {
   min-width: 44px;
@@ -1447,11 +1466,16 @@ dialog footer .danger {
   margin-top: 4px;
 }
 .today-layout {
-  display: block;
-  max-width: 760px;
+  max-width: 1120px;
 }
-.today-side {
-  margin-top: var(--space-l);
+@media (max-width: 1000px) {
+  .today-layout {
+    display: block;
+    max-width: 760px;
+  }
+  .today-side {
+    margin-top: var(--space-l);
+  }
 }
 .progress-details > summary {
   min-height: 44px;
@@ -1687,4 +1711,341 @@ dialog footer .danger {
   max-width: 100%;
   padding-inline: 4px;
   overflow-wrap: anywhere;
+}
+
+/* Day / Week / Month / All */
+.scope-tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-chip);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  align-self: center;
+}
+.scope-tabs button {
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: var(--radius-chip);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.scope-tabs button.selected {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 45%, transparent);
+}
+.habit-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-s);
+  width: 100%;
+  min-height: 52px;
+  padding: 0 var(--space-l);
+  text-align: left;
+}
+.habit-summary .row-title {
+  flex: 1;
+}
+.mini-bar {
+  width: 56px;
+  height: 4px;
+  flex: none;
+  overflow: hidden;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--ink) var(--tint-progress-track), transparent);
+  --fill: var(--accent);
+}
+.mini-bar.fill-sage {
+  --fill: var(--sage);
+}
+.mini-bar.fill-lavender {
+  --fill: var(--lavender);
+}
+.mini-bar.fill-honey {
+  --fill: var(--honey);
+}
+.mini-bar.fill-clay {
+  --fill: var(--clay);
+}
+.mini-bar i {
+  display: block;
+  height: 100%;
+  background: var(--fill);
+  transform-origin: left;
+  transform: scaleX(0);
+}
+
+/* Focus timer */
+.focus-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-s);
+  margin-bottom: var(--space-l);
+  padding: 8px 8px 8px var(--space-l);
+  border-radius: var(--radius-row);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.focus-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.focus-left {
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-text);
+  font-weight: 600;
+}
+.timer-action {
+  flex: none;
+  align-self: center;
+  margin-right: 6px;
+  padding: 5px 12px;
+  border-radius: var(--radius-chip);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent-text);
+  background: color-mix(in srgb, var(--accent) var(--tint-accent-fill), transparent);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.task-row:hover .timer-action,
+.timer-action:focus-visible,
+.timer-action.suggested {
+  opacity: 1;
+}
+
+/* Row menu (right-click) */
+.row-menu {
+  position: fixed;
+  z-index: 50;
+  display: grid;
+  min-width: 180px;
+  padding: 4px;
+  border-radius: var(--radius-input);
+  background: var(--surface);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--line) 60%, transparent),
+    0 12px 32px rgb(0 0 0 / 0.18);
+}
+.row-menu[hidden] {
+  display: none;
+}
+.row-menu button {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 6px;
+  text-align: left;
+  font-size: 14px;
+}
+.row-menu button:hover,
+.row-menu button:focus-visible {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  outline: none;
+}
+
+/* Notes: Notion-like sections and pages, in Orbit's colours */
+.notes-actions {
+  display: flex;
+  gap: var(--space-s);
+  margin-bottom: var(--space-l);
+}
+.pill.quiet {
+  color: var(--muted);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.note-section {
+  margin-top: var(--space-l);
+}
+.note-section-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.note-toggle {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 4px;
+  border-radius: 6px;
+  text-align: left;
+}
+.note-toggle:hover {
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+}
+.note-toggle h2 {
+  margin: 0;
+  font-size: var(--type-section);
+  font-weight: 600;
+}
+.note-toggle .chevron {
+  display: inline-block;
+  width: 12px;
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+.note-toggle .chevron.open {
+  transform: rotate(90deg);
+}
+.note-count {
+  color: var(--muted);
+  font-size: 12px;
+}
+.note-list {
+  display: grid;
+  margin-top: 4px;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 45%, transparent);
+  overflow: hidden;
+}
+.note-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  text-align: left;
+  border-radius: 0;
+}
+.note-row + .note-row {
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--line) 45%, transparent);
+}
+.note-row:hover {
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+}
+.note-row[hidden] {
+  display: none;
+}
+.doc-icon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin-top: 2px;
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.note-text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+.note-title {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.note-snippet {
+  color: var(--muted);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.note-edited {
+  flex: none;
+  color: var(--muted);
+  font-size: 12px;
+}
+.note-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding-bottom: var(--space-section);
+}
+.back-link {
+  min-height: 32px;
+  padding: 0 8px;
+  margin-left: -8px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.back-link:hover {
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+}
+.note-glyph .doc-icon {
+  width: 44px;
+  height: 44px;
+  margin: var(--space-xl) 0 var(--space-s);
+  stroke: var(--accent);
+  stroke-width: 1.2;
+}
+.note-title-input,
+.note-body {
+  display: block;
+  width: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  padding: 0 2px;
+  margin-left: -2px;
+  field-sizing: content;
+  box-shadow: none;
+}
+.note-title-input {
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.note-title-input::placeholder,
+.note-body::placeholder {
+  color: color-mix(in srgb, var(--muted) 70%, transparent);
+}
+.note-props {
+  display: grid;
+  gap: 2px;
+  margin: var(--space-l) 0 0;
+  font-size: 14px;
+}
+.note-props > div {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+}
+.note-props dt {
+  width: 120px;
+  color: var(--muted);
+}
+.note-props dd {
+  margin: 0;
+}
+.note-props select {
+  min-height: 30px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+}
+.note-props select:hover {
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+}
+.note-page hr {
+  border: none;
+  height: 1px;
+  margin: var(--space-l) 0;
+  background: color-mix(in srgb, var(--line) 60%, transparent);
+}
+.note-body {
+  min-height: 40vh;
+  font-size: 16px;
+  line-height: 1.7;
+}
+.note-tools {
+  display: flex;
+  gap: var(--space-s);
+  margin-top: var(--space-xl);
 }

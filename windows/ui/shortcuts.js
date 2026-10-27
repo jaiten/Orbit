@@ -2,9 +2,10 @@
 const SHORTCUT_PAGES = ["today", "calendar", "lists", "habits", "settings"];
 const SHORTCUT_HELP = [
   ["Ctrl+N", "New item (quick add)"],
-  ["Ctrl+1 … Ctrl+5", "Today, Calendar, Lists, Habits, Settings"],
-  ["Ctrl+F", "Search tasks"],
+  ["Ctrl+1 … Ctrl+5", "Today, Calendar, Notes, Habits, Settings"],
+  ["Ctrl+F", "Search notes and tasks"],
   ["Space or Enter", "Complete or check the focused item"],
+  ["Shift+F10 or right-click", "Item menu: copy text, timer and more"],
   ["E", "Edit the focused item"],
   ["Delete", "Delete the focused item (Undo appears)"],
   ["Esc", "Close a dialog"],

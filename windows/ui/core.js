@@ -224,14 +224,17 @@ function tick(done, pop = false) {
 function sectionLabel(title, note = "") {
   return `<div class="section-label"><h2>${title}</h2>${note ? `<span>${note}</span>` : ""}</div>`;
 }
-/** Inline task entry: Return saves, then the field is ready for the next item. */
+/**
+ * Inline task entry: Return saves, then the field is ready for the next item; Return on an empty field
+ * leaves it. The field grows as you type, and long text (OrbitNotes) becomes a note.
+ */
 function addField() {
   return `<form id="inline-add-form" class="inline-capture">
-    <div class="add-field"><input id="inline-task-input" aria-label="New task" placeholder="Add a task" maxlength="500" autocomplete="off" value="${esc(inlineDraft)}" />
+    <div class="add-field"><textarea id="inline-task-input" aria-label="New task" placeholder="Add a task · gym tomorrow 6pm" maxlength="5000" autocomplete="off" spellcheck="true" rows="1">${esc(inlineDraft)}</textarea>
       <button type="submit" aria-label="Add a task">${plus}</button>
       <button type="button" id="inline-dictate" aria-label="Dictate task" title="Windows voice typing (Win+H)">🎙</button>
       <button type="button" data-quick-add aria-label="Task options" title="Choose a date or list"><svg class="capture-calendar" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="4"/><path d="M7 3v4m10-4v4M3 11h18m-13 4h2m4 0h2"/></svg></button>
-    </div><p id="inline-preview" class="secondary" aria-live="polite"></p>
+    </div><div class="chip-row inline-chip" aria-live="polite"><p id="inline-preview" class="chip" hidden></p></div>
     <div id="inline-overlap" hidden><p id="inline-overlap-text"></p><button type="button" id="inline-save-overlap">Add anyway</button></div>
     <p id="inline-receipt" class="secondary" role="status"></p>
   </form>`;
@@ -269,7 +272,15 @@ function taskRow(t) {
     t.hasTime && t.dueDate ? new Date(t.dueDate).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
   const overdue = page === "today" && OrbitPlanner.isOverdue(planItem(t), today());
   const length = time && t.durationMinutes ? `${t.durationMinutes} min` : "";
-  const status = !t.completedAt && t.progressTracking ? (t.startedAt ? "In progress" : "Ready to start") : "";
+  const timing = focusTimer?.taskID === t.id;
+  const status =
+    !t.completedAt && t.progressTracking
+      ? t.startedAt
+        ? timing
+          ? "Timer running"
+          : "In progress"
+        : "Ready to start"
+      : "";
   const detail = [status, overdue ? OrbitPlanner.overdueLabel(taskDate(t), today()) : "", time, length]
     .filter(Boolean)
     .join(" · ");
@@ -299,12 +310,18 @@ function taskRow(t) {
             : `<button data-progress="${id}" data-progress-action="enable">Track start &amp; finish</button><button data-progress="${id}" data-progress-action="dismiss">No thanks</button>`
         }</div></details>`
       : "";
+  // In progress: a timer is one click away (on hover, and suggested right after starting).
+  const minutes = Math.min(240, Math.max(5, t.durationMinutes || 30));
+  const timer =
+    started && !timing
+      ? `<button class="timer-action ${poppedID === t.id ? "suggested" : ""}" data-start-timer="${id}" aria-label="Start a ${minutes}-minute timer for ${title}" title="Start a ${minutes}-minute timer">⏱ ${minutes} min</button>`
+      : "";
   const search = [t.title, t.notes, ...(t.tags || [])].join(" ").toLowerCase();
-  return `<div class="row task-row check-tile ${t.completedAt ? "complete" : ""} ${overdue ? "overdue" : ""} ${started ? "in-progress" : ""}" data-flip="task-${id}" data-search="${esc(search)}">
+  return `<div class="row task-row check-tile ${t.completedAt ? "complete" : ""} ${overdue ? "overdue" : ""} ${started ? "in-progress" : ""}" data-flip="task-${id}" data-search="${esc(search)}" data-row-menu="task:${id}">
     <div class="row-line">
       <button class="row-tick" role="checkbox" aria-label="${controlLabel} ${title}" aria-checked="${!!t.completedAt}" data-toggle="${id}">${control}</button
       ><button class="row-body" aria-label="Edit ${title}" data-edit="${id}">${itemIcon("automatic", t.title)}<span class="row-title">${title}</span>${detail ? `<span class="row-detail">${detail}</span>` : ""}</button
-      >${addToToday}${options}
+      >${timer}${addToToday}${options}
     </div>
     ${moves}
   </div>`;
@@ -314,7 +331,7 @@ function habitCard(h, { editable = false } = {}) {
   const done = checked(h);
   const id = esc(h.id),
     title = esc(h.title);
-  return `<div class="row habit-row check-tile ${done ? "complete" : ""}" data-flip="habit-${id}">
+  return `<div class="row habit-row check-tile ${done ? "complete" : ""}" data-flip="habit-${id}" data-row-menu="habit:${id}">
     <div class="row-line">
       <button class="row-tick" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-menu="${id}" ${selected > today() ? "disabled" : ""}>${tick(done, poppedID === h.id)}</button>
       <button class="row-body" aria-label="Edit ${title}" data-habit-edit="${id}">${itemIcon(h.icon || "automatic", h.title)}<span class="row-title">${title}</span><span class="row-detail ${done ? "met" : ""}">${habitDetail(h)}</span></button>
@@ -353,6 +370,7 @@ async function toggle(id) {
     return;
   }
   poppedID = t.completedAt ? null : t.id;
+  if (!t.completedAt && focusTimer?.taskID === t.id) stopTimer();
   await put("tasks", {
     ...t,
     startedAt: t.completedAt ? null : t.startedAt,
@@ -422,13 +440,9 @@ function bindTiles() {
           )),
     );
   document.querySelectorAll("[data-habit-edit]").forEach((b) => (b.onclick = () => openHabit(b.dataset.habitEdit)));
-  document.querySelectorAll("[data-habit-menu]").forEach(
-    (b) =>
-      (b.oncontextmenu = (e) => {
-        e.preventDefault();
-        openHabit(b.dataset.habitMenu);
-      }),
-  );
+  document.querySelectorAll("[data-start-timer]").forEach((b) => (b.onclick = () => startTimer(b.dataset.startTimer)));
+  if ($("[data-stop-timer]")) $("[data-stop-timer]").onclick = () => stopTimer();
+  document.querySelectorAll("[data-row-menu], [data-note-menu]").forEach((row) => (row.oncontextmenu = openRowMenu));
   document.querySelectorAll("[data-quick-add]").forEach((b) => (b.onclick = () => openQuickAdd()));
   bindInlineCapture();
   // Choosing Today, Later or Someday springs the row away before the list re-forms.
@@ -446,3 +460,124 @@ function bindTiles() {
   move("later", (t) => OrbitPlanner.moveLater(t));
   move("someday", (t) => OrbitPlanner.moveToSomeday(t));
 }
+
+// Focus timer: one at a time, kept across restarts. Finishing shows a Windows notification.
+let focusTimer = JSON.parse(localStorage.getItem("focusTimer") || "null");
+function saveTimer() {
+  if (focusTimer) localStorage.setItem("focusTimer", JSON.stringify(focusTimer));
+  else localStorage.removeItem("focusTimer");
+}
+function startTimer(id) {
+  const t = rows("tasks").find((task) => task.id === id);
+  if (!t) return;
+  const minutes = Math.min(240, Math.max(5, t.durationMinutes || 30));
+  focusTimer = { taskID: t.id, title: t.title, startedAt: Date.now(), endsAt: Date.now() + minutes * 60000 };
+  saveTimer();
+  render();
+}
+function stopTimer() {
+  focusTimer = null;
+  saveTimer();
+  render();
+}
+const timeLeft = (ms) => {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+};
+function focusBanner() {
+  if (!focusTimer) return "";
+  const left = focusTimer.endsAt - Date.now();
+  return `<div class="focus-banner" role="timer" aria-label="Focus timer for ${esc(focusTimer.title)}">
+    <span class="focus-glyph" aria-hidden="true">⏱</span><span class="focus-title">${esc(focusTimer.title)}</span>
+    <span id="focus-left" class="focus-left">${left > 0 ? timeLeft(left) : "Finished"}</span>
+    <button class="pill" data-stop-timer>${left > 0 ? "Stop" : "Done"}</button>
+  </div>`;
+}
+setInterval(() => {
+  if (!focusTimer) return;
+  const left = focusTimer.endsAt - Date.now();
+  if (left <= 0 && !focusTimer.notified) {
+    focusTimer.notified = true;
+    saveTimer();
+    void api.timerDone?.(focusTimer.title).catch(() => {});
+    if (!interacting()) render();
+  }
+  if ($("#focus-left")) $("#focus-left").textContent = left > 0 ? timeLeft(left) : "Finished";
+}, 1000);
+
+/** Right-click (or the Menu key) on a row: copy its text and other quick actions. */
+function openRowMenu(e) {
+  e.preventDefault();
+  const [kind, id] = (e.currentTarget.dataset.rowMenu || "note:" + e.currentTarget.dataset.noteMenu).split(":");
+  const item = rows(kind === "habit" ? "habits" : "tasks").find((r) => r.id === id);
+  if (!item) return;
+  const text = item.notes?.trim() ? `${item.title}\n\n${item.notes.trim()}` : item.title;
+  const entries = [["Copy text", () => api.copy(text).then(() => showNotice("Copied"))]];
+  if (kind === "habit") entries.push(["Edit…", () => openHabit(id)]);
+  if (kind === "note") entries.push(["Open", () => openNote(id)]);
+  if (kind === "task") {
+    entries.push(["Edit…", () => openTask(id)]);
+    if (!item.completedAt && item.progressTracking === true && item.startedAt)
+      entries.push(
+        focusTimer?.taskID === id ? ["Stop timer", () => stopTimer()] : ["Start timer", () => startTimer(id)],
+      );
+    entries.push([
+      "Make it a Note",
+      () =>
+        action(() =>
+          put("tasks", {
+            ...item,
+            isNote: true,
+            localDate: null,
+            dueDate: null,
+            hasTime: false,
+            reminders: [],
+            progressTracking: null,
+            startedAt: null,
+            updatedAt: Date.now(),
+          }),
+        ),
+    ]);
+  }
+  let menu = $("#row-menu");
+  if (!menu) {
+    menu = document.createElement("div");
+    menu.id = "row-menu";
+    menu.className = "row-menu";
+    menu.setAttribute("role", "menu");
+    document.body.append(menu);
+  }
+  menu.replaceChildren(
+    ...entries.map(([label, run]) => {
+      const button = document.createElement("button");
+      button.setAttribute("role", "menuitem");
+      button.textContent = label;
+      button.onclick = () => {
+        closeRowMenu();
+        void Promise.resolve(run()).catch((error) => showNotice(error.message));
+      };
+      return button;
+    }),
+  );
+  const box = e.currentTarget.getBoundingClientRect();
+  const x = e.clientX || box.left + 24,
+    y = e.clientY || box.bottom;
+  menu.hidden = false;
+  menu.style.left = Math.min(x, window.innerWidth - menu.offsetWidth - 8) + "px";
+  menu.style.top = Math.min(y, window.innerHeight - menu.offsetHeight - 8) + "px";
+  menu.querySelector("button").focus();
+}
+function closeRowMenu() {
+  if ($("#row-menu")) $("#row-menu").hidden = true;
+}
+document.addEventListener("click", (e) => {
+  if (!e.target.closest?.("#row-menu")) closeRowMenu();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && $("#row-menu") && !$("#row-menu").hidden) {
+    e.stopPropagation();
+    closeRowMenu();
+  }
+});
+window.addEventListener("blur", closeRowMenu);
+document.addEventListener("scroll", closeRowMenu, true);

@@ -161,9 +161,23 @@ function bindInlineCapture() {
     $("#inline-overlap").hidden = true;
     inlineDraft = input.value;
     const parsed = OrbitPlanning.parse(inlineDraft, quickAddContext().defaultDate);
-    $("#inline-preview").textContent = OrbitPlanning.describe(parsed);
+    const section = quickAddContext().listID;
+    const text = !inlineDraft.trim()
+      ? ""
+      : OrbitNotes.isNote(inlineDraft)
+        ? "Note · " + (section ? sectionName(section) : "Notes")
+        : OrbitPlanning.describe(parsed);
+    showChip($("#inline-preview"), text);
+    $("#inline-receipt").textContent = "";
   };
   input.oninput = preview;
+  // Return adds; Shift+Return starts a new line (which makes a note); Return on an empty field leaves it.
+  input.onkeydown = (event) => {
+    if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+    event.preventDefault();
+    if (!input.value.trim()) input.blur();
+    else form.requestSubmit();
+  };
   preview();
   $("#inline-dictate").onclick = async () => {
     input.focus();
@@ -180,6 +194,17 @@ function bindInlineCapture() {
   };
   form.onsubmit = (event) => {
     event.preventDefault();
+    if (!input.value.trim()) return input.blur();
+    if (OrbitNotes.isNote(input.value)) {
+      const { title, body } = OrbitNotes.split(input.value);
+      const note = { ...newTask(title, null), isNote: true, notes: body };
+      note.listID = quickAddContext().listID;
+      void action(async () => {
+        await saveTasks([note]);
+        inlineDraft = "";
+      }).then(() => $("#inline-task-input")?.focus());
+      return;
+    }
     const result = OrbitPlanning.parse(input.value, quickAddContext().defaultDate);
     if (!result.title) return;
     quickContext = quickAddContext();
@@ -210,9 +235,8 @@ function bindInlineCapture() {
       const current = $("#inline-task-input");
       if (current) {
         current.focus();
-        $("#inline-receipt").textContent = inlineDraft
-          ? "Could not add this item. Your draft is still here."
-          : `Added “${result.title}”`;
+        // No success message: the cleared field is the confirmation. Only failures are reported.
+        $("#inline-receipt").textContent = inlineDraft ? "Could not add this item. Your draft is still here." : "";
       }
       $('#inline-add-form button[type="submit"]')?.removeAttribute("disabled");
     });

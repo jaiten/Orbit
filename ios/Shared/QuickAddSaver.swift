@@ -26,6 +26,19 @@ import SwiftData
         return QuickAdd.describe(result)
     }
 
+    /// Saves long text as a note: an undated page in Notes, never a to-do.
+    @discardableResult
+    static func saveNote(_ text: String, listID: UUID? = nil, in context: ModelContext) throws -> PlannerTask {
+        let parts = NoteRules.split(text)
+        guard !parts.title.isEmpty else { throw CocoaError(.validationMissingMandatoryProperty) }
+        let note = PlannerTask(title: parts.title, listID: listID)
+        note.isNote = true; note.notes = parts.body
+        context.insert(note)
+        if listID == TodayRules.somedayID { try TodayRules.ensureSomeday(context) }
+        try Mutations.save(context)
+        return note
+    }
+
     /// A new habit's default colour, so habits mix (HabitRules.nextColor over existing habits, oldest first).
     /// `adding` are colours of habits about to be inserted.
     static func nextHabitColor(in context: ModelContext, adding: [String] = []) throws -> String {

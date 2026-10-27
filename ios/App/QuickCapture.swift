@@ -26,14 +26,15 @@ struct QuickCapture: View {
     @State private var conflictTitles: [String] = []
     @State private var keepAddingAfterConflict = false
     @State private var addedCount = 0
-    @State private var lastAdded: String?
     @State private var focused = false
 
     private var defaultDay: DefaultDay {
         scheduled ? .day(PlannerLogic.dayKey(selectedDay)) : .undated
     }
     private var result: QuickAddResult { QuickAdd.parse(text, defaultDay: defaultDay) }
+    private var isNote: Bool { NoteRules.isNote(text) }
     private var preview: String {
+        if isNote { return "Note · " + (contextListName ?? "Notes") }
         var value = QuickAdd.describe(result)
         if !value.isEmpty, result.kind == .task, !result.someday, result.list == nil, let name = contextListName { value += " · " + name }
         return value
@@ -58,11 +59,6 @@ struct QuickCapture: View {
                     .overlay(RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusInput), style: .continuous)
                         .strokeBorder(focused ? accent.text : Color.orbitLine, lineWidth: focused ? 2 : 1))
                     PreviewChip(text: preview, identifier: "quick-add-preview").frame(minHeight: 34, alignment: .leading)
-                    if let lastAdded {
-                        Label("Added “\(lastAdded)”", systemImage: "checkmark.circle.fill")
-                            .font(.subheadline).foregroundStyle(accent.text).lineLimit(2)
-                            .accessibilityIdentifier("quick-add-receipt")
-                    }
                     if fromList { Toggle("Choose a day", isOn: $scheduled) }
                     if scheduled {
                         DatePicker("Day", selection: $selectedDay, displayedComponents: .date)
@@ -76,7 +72,7 @@ struct QuickCapture: View {
                         }
                     }
                     .pickerStyle(.menu)
-                    Text("Return adds this item and starts another. Save adds it and closes.")
+                    Text("Return adds this item and starts another; Return on an empty line closes the keyboard. Long text becomes a note.")
                         .font(.footnote).foregroundStyle(.secondary)
                     Text("You can also type a day: “Call dentist tomorrow at 9am”.")
                         .font(.footnote).foregroundStyle(.secondary)
@@ -85,17 +81,16 @@ struct QuickCapture: View {
                 .padding(CGFloat(DesignTokens.screenPadding))
             }
             .background(Color.orbitSurface)
-            .tint(accent.fill).navigationTitle(result.kind == .habit ? "New habit" : "New task").navigationBarTitleDisplayMode(.inline)
+            .tint(accent.fill).navigationTitle(isNote ? "New note" : result.kind == .habit ? "New habit" : "New task").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button(addedCount == 0 ? "Cancel" : "Done") { dismiss() } }
-                    ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.disabled(result.title.isEmpty) }
+                    ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.disabled(result.title.isEmpty && !isNote) }
                 }
                 .confirmationDialog("This time overlaps another plan", isPresented: $confirmConflict, titleVisibility: .visible) {
                     Button("Save Anyway") { save(allowConflict: true, keepAdding: keepAddingAfterConflict) }; Button("Change Time", role: .cancel) {}
                 } message: { Text(conflictTitles.joined(separator: ", ")) }
                 .onChange(of: selectedListID) { _, id in if id == TodayRules.somedayID { scheduled = false } }
                 .onChange(of: scheduled) { _, on in if on && selectedListID == TodayRules.somedayID { selectedListID = nil } }
-                .sensoryFeedback(.success, trigger: addedCount)
                 .onAppear { NotificationCenter.default.post(name: Notification.Name("orbitCaptureSubmitted"), object: nil); text = initialText; selectedDay = initialDate ?? .now; scheduled = !fromList || initialDate != nil; selectedListID = listID; focused = true }.modifier(MutationErrorModifier(error: $error))
         }
         .presentationDetents([.medium, .large])
@@ -103,6 +98,16 @@ struct QuickCapture: View {
 
     private func save(allowConflict: Bool = false, keepAdding: Bool = false) {
         let result = self.result
+        // Return on an empty field means the person is done adding.
+        if keepAdding && text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { focused = false; return }
+        if isNote {
+            do {
+                try QuickAddSaver.saveNote(text, listID: selectedListID, in: context)
+                onSaved(); addedCount += 1
+                if keepAdding { text = ""; focused = true } else { dismiss() }
+            } catch { context.rollback(); self.error = error.localizedDescription }
+            return
+        }
         guard !result.title.isEmpty else { return }
         NotificationCenter.default.post(name: Notification.Name("orbitCaptureSubmitted"), object: nil)
         do {
@@ -119,7 +124,6 @@ struct QuickCapture: View {
             onSaved()
             addedCount += 1
             if keepAdding {
-                lastAdded = result.title
                 text = ""
                 focused = true
             } else {
@@ -129,47 +133,89 @@ struct QuickCapture: View {
     }
 }
 
-/// Intercept Return before UIKit ends editing. Keeping the same first responder makes
-/// repeated entry work for both the software keyboard and a hardware Return key.
+/// A capture field that grows with what is typed, then scrolls. Return submits instead of adding a line
+/// (pasted line breaks are kept, which makes the text a note). Keeping the same first responder makes
+/// repeated entry work for both the software keyboard and a hardware Return key. Autocorrect,
+/// capitalisation and spelling follow the system keyboard settings.
 struct CaptureTextField: UIViewRepresentable {
     @Binding var text: String
     @Binding var focused: Bool
     var identifier = "task-title-input"
     var placeholder = "What do you need to do?"
     var minimumHeight: CGFloat = 0
+    /// Grows up to this many lines, then scrolls.
+    var maximumLines = 6
     var onSubmit: () -> Void
 
     func makeUIView(context: Context) -> Input {
         let field = Input()
         field.placeholder = placeholder
         field.accessibilityIdentifier = identifier
+        field.accessibilityLabel = placeholder
         field.font = .preferredFont(forTextStyle: .title3)
         field.adjustsFontForContentSizeCategory = true
-        field.autocapitalizationType = .none
-        field.autocorrectionType = .no
+        field.backgroundColor = .clear
+        field.autocapitalizationType = .sentences
+        field.autocorrectionType = .default
+        field.spellCheckingType = .default
         field.returnKeyType = .next
+        field.isScrollEnabled = false
+        field.textContainerInset = UIEdgeInsets(top: 11, left: 0, bottom: 11, right: 0)
+        field.textContainer.lineFragmentPadding = 0
         field.delegate = context.coordinator
-        field.addTarget(context.coordinator, action: #selector(Coordinator.changed(_:)), for: .editingChanged)
         field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        field.setContentHuggingPriority(.defaultLow, for: .horizontal)
         return field
     }
 
     func updateUIView(_ field: Input, context: Context) {
         context.coordinator.parent = self
-        if field.text != text { field.text = text }
+        if field.text != text { field.text = text; field.textChanged() }
         field.wantsFocus = focused
         field.scheduleFocusUpdate()
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: Input, context: Context) -> CGSize? {
-        CGSize(width: proposal.width ?? 200, height: max(minimumHeight, uiView.intrinsicContentSize.height))
+        let width = proposal.width ?? 200
+        let fitting = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude)).height
+        let lineHeight = uiView.font?.lineHeight ?? 24
+        let limit = lineHeight * CGFloat(maximumLines) + uiView.textContainerInset.top + uiView.textContainerInset.bottom
+        let scrolls = fitting > limit
+        if uiView.isScrollEnabled != scrolls { DispatchQueue.main.async { uiView.isScrollEnabled = scrolls } }
+        return CGSize(width: width, height: max(minimumHeight, min(fitting, limit)))
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
-    final class Input: UITextField {
+    final class Input: UITextView {
         var wantsFocus = false
         private var focusUpdateScheduled = false
+        private let placeholderLabel = UILabel()
+        var placeholder = "" {
+            didSet { placeholderLabel.text = placeholder }
+        }
+
+        override init(frame: CGRect, textContainer: NSTextContainer?) {
+            super.init(frame: frame, textContainer: textContainer)
+            placeholderLabel.textColor = .placeholderText
+            placeholderLabel.font = .preferredFont(forTextStyle: .title3)
+            placeholderLabel.adjustsFontForContentSizeCategory = true
+            placeholderLabel.isAccessibilityElement = false
+            addSubview(placeholderLabel)
+        }
+        required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            placeholderLabel.frame = CGRect(x: textContainerInset.left, y: textContainerInset.top,
+                                            width: max(0, bounds.width - textContainerInset.left - textContainerInset.right),
+                                            height: font?.lineHeight ?? 24)
+        }
+
+        func textChanged() {
+            placeholderLabel.isHidden = !text.isEmpty
+            invalidateIntrinsicContentSize()
+        }
 
         // UIKit can synchronously trigger keyboard layout and delegate callbacks here.
         // Wait until SwiftUI has finished updating, and use the latest requested focus.
@@ -191,19 +237,23 @@ struct CaptureTextField: UIViewRepresentable {
         }
     }
 
-    final class Coordinator: NSObject, UITextFieldDelegate {
+    final class Coordinator: NSObject, UITextViewDelegate {
         var parent: CaptureTextField
         init(parent: CaptureTextField) { self.parent = parent }
-        @objc func changed(_ field: UITextField) { parent.text = field.text ?? "" }
-        func textFieldDidBeginEditing(_ textField: UITextField) {
+        func textViewDidChange(_ textView: UITextView) {
+            (textView as? Input)?.textChanged()
+            parent.text = textView.text ?? ""
+        }
+        func textViewDidBeginEditing(_ textView: UITextView) {
             if !parent.focused { parent.focused = true }
         }
-        func textFieldDidEndEditing(_ textField: UITextField) {
+        func textViewDidEndEditing(_ textView: UITextView) {
             if parent.focused { parent.focused = false }
         }
-        func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+            // Return submits; the save routine validates the draft (an empty one closes the keyboard).
+            guard text == "\n" else { return true }
             parent.onSubmit()
-            // An empty or invalid draft also keeps editing; the save routine validates it.
             return false
         }
     }

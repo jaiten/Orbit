@@ -264,19 +264,22 @@ struct WeekSegments: View {
     }
 }
 
-/// A readable preview that wraps with larger text and long list names.
+/// A readable preview that wraps with larger text and long list names. The background is opaque so
+/// the chip stays legible over whatever scrolls behind it.
 struct PreviewChip: View {
     let text: String
     var identifier = "quick-add-preview"
     @Environment(\.orbitAccent) private var accent
     var body: some View {
         if !text.isEmpty {
+            let shape = RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusInput), style: .continuous)
             Text(text).font(.subheadline.weight(.medium)).foregroundStyle(accent.text)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 14).padding(.vertical, 8)
-                .background(accent.fill.opacity(0.24), in: RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusInput), style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusInput), style: .continuous)
-                    .strokeBorder(accent.fill.opacity(0.22), lineWidth: 1))
+                .background(accent.fill.opacity(0.2), in: shape)
+                .background(Color.orbitSurface, in: shape)
+                .overlay(shape.strokeBorder(accent.fill.opacity(0.35), lineWidth: 1))
+                .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
                 .accessibilityIdentifier(identifier)
         }
     }

@@ -17,6 +17,8 @@ import SwiftData
     var conversionData: String? = nil
     var progressTracking: Bool? = nil
     var startedAt: Date? = nil
+    /// A note: a titled page of text in Notes, never a to-do. Nil on older records means a task.
+    var isNote: Bool? = nil
     @Attribute(.unique) var id: UUID
     var title: String
     var notes: String
@@ -97,6 +99,7 @@ struct Subtask: Codable, Identifiable, Equatable {
 }
 
 extension PlannerTask {
+    var note: Bool { isNote == true }
     /// The task's local calendar day ("YYYY-MM-DD"), or nil when it has no date.
     /// All-day tasks keep their floating day in any time zone; timed tasks use the local day of their instant.
     var day: String? { hasTime ? dueDate.map { PlannerLogic.dayKey($0) } : localDate ?? dueDate.map { PlannerLogic.dayKey($0) } }

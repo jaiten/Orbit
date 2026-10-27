@@ -4,15 +4,16 @@ import SwiftData
 /// Home layout is a device preference, never a destructive edit to planner data.
 struct HomeLayoutEditor: View {
     @Environment(\.orbitAccent) private var accent
-    /// Habits lead the day; history follows the actionable lists.
-    static let defaultSections = "routine,today,completed,calendar,progress,consistency"
-    static let defaultHidden = "progress,consistency"
+    /// The plan card, then the day's tasks and habits; history follows the actionable lists.
+    static let defaultSections = "progress,today,routine,completed,calendar,consistency"
+    static let defaultHidden = "consistency"
 
     /// Upgrade only the previous default profile. Preserve customized orders, pins and visibility.
     static func upgradedLayout(sections: String, hidden: String) -> (sections: String, hidden: String) {
         let original = sections == "progress,today,routine,completed,calendar,consistency" && hidden == "consistency"
         let previous = sections == "progress,routine,today,completed,consistency,calendar" && hidden.isEmpty
-        guard original || previous else { return (sections, hidden) }
+        let habitsFirst = sections == "routine,today,completed,calendar,progress,consistency" && hidden == "progress,consistency"
+        guard original || previous || habitsFirst else { return (sections, hidden) }
         return (defaultSections, defaultHidden)
     }
     @AppStorage("homeSections") private var stored = defaultSections
@@ -23,8 +24,8 @@ struct HomeLayoutEditor: View {
     static func title(_ id: String, lists: [TaskList]) -> String {
         switch id {
         case "consistency": return "Recent progress"
-        case "progress": return "Progress summary"
-        case "today": return "Tasks"
+        case "progress": return "Your plan"
+        case "today": return "Your day"
         case "routine": return "Habits"
         case "completed": return "Completed"
         case "calendar": return "Calendar"

@@ -21,3 +21,11 @@ The rules, in short:
 
 `windows-*.png` and `ios-today.png` are the apps as they look now, with the website's
 sample plan. `comparisons/` shows each screen as website · before · after.
+
+## Notes (October 2026)
+
+`notes/notes-concept.png` (from `notes/notes-concept.html`) is the Notion-like direction for
+Notes in Orbit's colours: a growing add field that turns long text into a note, sections as
+toggles with pages in quiet cards, and a page with an icon, large title and properties. Screens
+3–4 (blocks, a `/` menu, checklist lines that become tasks) are concepts, not built.
+`notes/windows-*.png` are screenshots of the Windows build from this change.

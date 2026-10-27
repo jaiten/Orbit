@@ -35,6 +35,7 @@ import SwiftData
             var payload: [String: Any] = ["conversionData": t.conversionData ?? NSNull() as Any, "id": id(t.id), "title": t.title, "notes": t.notes, "listID": id(t.listID), "dueDate": t.hasTime ? stamp(t.dueDate) : NSNull(), "localDate": t.day ?? NSNull() as Any, "hasTime": t.hasTime, "durationMinutes": t.durationMinutes, "reminders": t.reminders.map { $0.timeIntervalSince1970 * 1000 }, "recurrenceRule": t.recurrenceRule, "priority": t.priority, "tags": t.tags, "subtasks": t.subtasks.map { ["id": id($0.id), "title": $0.title, "completed": $0.completed] }, "completedAt": stamp(t.completedAt), "nextOccurrenceID": id(t.nextOccurrenceID), "sortOrder": t.sortOrder, "updatedAt": stamp(t.updatedAt)]
             if let tracking = t.progressTracking { payload["progressTracking"] = tracking }
             if let started = t.startedAt { payload["startedAt"] = stamp(started) }
+            if t.isNote == true { payload["isNote"] = true }
             try add("tasks", t.id.uuidString.lowercased(), payload)
         }
         for h in try context.fetch(FetchDescriptor<Habit>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) {
@@ -90,7 +91,7 @@ import SwiftData
             if t.hasTime { t.dueDate = date("dueDate"); t.localDate = nil } else if let day = p["localDate"] as? String { t.schedule(day: day) } else { t.dueDate = nil; t.localDate = nil }
             t.durationMinutes = p["durationMinutes"] as? Int ?? 30; t.reminders = (p["reminders"] as? [Double] ?? []).map { Date(timeIntervalSince1970: $0 / 1000) }; t.recurrenceRule = p["recurrenceRule"] as? String ?? ""; t.priority = p["priority"] as? Int ?? 0; t.tags = p["tags"] as? [String] ?? []
             t.subtasks = (p["subtasks"] as? [[String: Any]] ?? []).compactMap { s in guard let id = (s["id"] as? String).flatMap(UUID.init(uuidString:)), let title = s["title"] as? String else { return nil }; return Subtask(id: id, title: title, completed: s["completed"] as? Bool ?? false) }
-            t.progressTracking = p["progressTracking"] as? Bool; t.startedAt = date("startedAt")
+            t.progressTracking = p["progressTracking"] as? Bool; t.startedAt = date("startedAt"); t.isNote = (p["isNote"] as? Bool) == true ? true : nil
             t.completedAt = date("completedAt"); t.nextOccurrenceID = uid("nextOccurrenceID"); t.sortOrder = p["sortOrder"] as? Int ?? 0; t.updatedAt = date("updatedAt") ?? .now
         case "habits":
             let old = try context.fetch(FetchDescriptor<Habit>()).first { $0.id == uuid }

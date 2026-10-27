@@ -30,6 +30,8 @@ struct TodayView: View {
     @State private var addingHabit = false
     @State private var customizing = false
     @AppStorage("todayCompletedExpanded") private var showingCompleted = false
+    /// Today always opens on the day; the wider views are a glance away.
+    @State private var scope = AgendaScope.day
     @AppStorage("lastMissedHabitPromptDay") private var lastMissedPromptDay = ""
     @State private var error: String?
     @State private var missedYesterdayHabits: [Habit] = []
@@ -62,19 +64,6 @@ struct TodayView: View {
     private var page: some View {
         ScrollView { content }
             .scrollDismissesKeyboard(.interactively)
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                InlineCapture()
-                    .padding(.horizontal, CGFloat(DesignTokens.screenPadding))
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: 760).frame(maxWidth: .infinity)
-                    .background {
-                        GeometryReader { geometry in Color.clear.preference(key: CaptureDockHeight.self, value: geometry.size.height) }
-                    }
-                    .background {
-                        LinearGradient(colors: [DayTheme.canvas(scheme).opacity(0), DayTheme.canvas(scheme), DayTheme.canvas(scheme)],
-                                       startPoint: .top, endPoint: .bottom).ignoresSafeArea(edges: .bottom)
-                    }
-            }
             .background(DayTheme.canvas(scheme)).tint(accent.fill)
             .onAppear {
                 let layout = HomeLayoutEditor.upgradedLayout(sections: homeSections, hidden: hiddenSections)
@@ -91,9 +80,16 @@ struct TodayView: View {
             header
             FocusBanner()
             ConflictBanner()
-            missedYesterdayBanner
-            ForEach(sections, id: \.self) { section in
-                homeSection(section)
+            // As on the website: the plan, then capture, then the day's sections.
+            if scope == .day && sections.contains("progress") { PlanCard(done: planDone, total: relevant.count + dueHabits.count, accent: accent.fill) }
+            InlineCapture()
+            if scope == .day {
+                missedYesterdayBanner
+                ForEach(sections.filter { $0 != "progress" }, id: \.self) { section in
+                    homeSection(section)
+                }
+            } else {
+                AgendaView(scope: scope, day: day, edit: { editing = $0 }, editHabit: { editingHabit = $0 })
             }
         }
         .padding(.top, CGFloat(DesignTokens.spaceS))
@@ -101,9 +97,22 @@ struct TodayView: View {
         .frame(maxWidth: 760).frame(maxWidth: .infinity)
     }
 
-    /// The daily heading stays above the customizable sections; capture is docked below.
+    private var planDone: Int { relevant.filter { $0.completedAt != nil }.count + checkedHabits.count }
+
+    /// The daily heading stays above the plan; the scope menu widens it to the week, month or everything.
     private var header: some View {
-        PageHeader(eyebrow: day.formatted(.dateTime.weekday(.wide).month(.wide).day()), title: "Today") {
+        PageHeader(eyebrow: day.formatted(.dateTime.weekday(.wide).month(.wide).day()), title: scope.title,
+                   subtitle: scope == .day ? "Make room for what matters." : "Every task and habit, at a glance.") {
+            Menu {
+                Picker("Show", selection: $scope) {
+                    ForEach(AgendaScope.allCases) { Text($0.label).tag($0) }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Text(scope.label).font(.subheadline.weight(.medium))
+                    Image(systemName: "chevron.down").font(.caption.weight(.semibold))
+                }.padding(.horizontal, 14).frame(minHeight: 44)
+            }.accessibilityLabel("Show").accessibilityValue(scope.label).accessibilityIdentifier("today-scope")
             Button { customizing = true } label: { Image(systemName: "slider.horizontal.3").font(.system(size: 20)).frame(width: 44, height: 44) }.accessibilityLabel("Edit Today")
             SyncIndicator()
         }
@@ -132,37 +141,10 @@ struct TodayView: View {
         }
     }
 
-    private var progressSummary: some View {
-        VStack(spacing: 12) {
-            progressLine("Habits", done: checkedHabits.count, total: dueHabits.count, empty: "None due today")
-            progressLine("Tasks", done: relevant.filter { $0.completedAt != nil }.count, total: relevant.count, empty: "Nothing planned")
-        }.padding(16).orbitSurface(radius: CGFloat(DesignTokens.radiusCard))
-    }
-
-    private func progressLine(_ title: String, done: Int, total: Int, empty: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 12) {
-                Text(title).font(.subheadline.weight(.medium))
-                Spacer(minLength: 8)
-                Text(total == 0 ? empty : "\(done) of \(total)")
-                    .font(.subheadline).monospacedDigit().foregroundStyle(.secondary)
-                if total > 0 && !typeSize.isAccessibilitySize {
-                    ProgressView(value: Double(done), total: Double(total)).tint(accent.fill).frame(width: 60)
-                }
-            }
-            if total > 0 && typeSize.isAccessibilitySize {
-                ProgressView(value: Double(done), total: Double(total)).tint(accent.fill)
-            }
-        }.accessibilityElement(children: .ignore)
-            .accessibilityLabel(total == 0 ? "\(title): \(empty)" : "\(title): \(done) of \(total) done today")
-    }
-
     @ViewBuilder private func homeSection(_ id: String) -> some View {
         switch id {
         case "consistency":
             if !habits.isEmpty { ConsistencyStrip(habits: habits, logs: logs).orbitCard() }
-        case "progress":
-            progressSummary
         case "today":
             let today = PlannerLogic.dayKey(.now)
             let open = relevant.filter { $0.completedAt == nil }
@@ -172,7 +154,7 @@ struct TodayView: View {
                 return a.hasTime ? (a.dueDate ?? .distantFuture) < (b.dueDate ?? .distantFuture) : a.sortOrder < b.sortOrder
             }
             VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
-                checklistSection("Today", note: "\(relevant.filter { $0.completedAt != nil }.count)/\(relevant.count) done", items: planned.map { TodayItem(task: $0) }, empty: relevant.isEmpty ? "Nothing planned. Add a task to get started." : "No more tasks scheduled for today.")
+                checklistSection("Your day", note: "Today", items: planned.map { TodayItem(task: $0) }, empty: relevant.isEmpty ? "Nothing planned. Add a task to get started." : "No more tasks scheduled for today.")
                 if !overdue.isEmpty { checklistSection("Overdue", note: "\(overdue.count) to review", items: overdue.map { TodayItem(task: $0) }, empty: "") }
             }
         case "routine":
@@ -186,7 +168,7 @@ struct TodayView: View {
                         .font(.subheadline.weight(.medium)).frame(minHeight: 44)
                 }
             } else {
-                checklistSection("Habits", note: "\(checkedHabits.count)/\(dueHabits.count) done", items: open.map { TodayItem(habit: $0) }, empty: "All habits checked for today.")
+                checklistSection("Habits", note: "Repeats", items: open.map { TodayItem(habit: $0) }, empty: "All habits checked for today.")
             }
         case "completed":
             if !completedItems.isEmpty {
@@ -200,7 +182,7 @@ struct TodayView: View {
         case "calendar": if calendars.connected { calendarSection }
         default:
             if let list = lists.first(where: { "list:" + $0.id.uuidString == id }) {
-                checklistSection(list.name, items: tasks.filter { $0.listID == list.id && $0.completedAt == nil }.map { TodayItem(task: $0) }, empty: "No tasks.")
+                checklistSection(list.name, items: tasks.filter { $0.listID == list.id && $0.completedAt == nil && !$0.note }.map { TodayItem(task: $0) }, empty: "No tasks.")
             }
         }
     }
@@ -298,14 +280,15 @@ private struct FocusBanner: View {
     @ObservedObject private var focus = FocusSession.shared
     var body: some View {
         if let title = focus.title, let end = focus.endsAt {
-            HStack {
+            HStack(spacing: 10) {
                 Image(systemName: "timer").foregroundStyle(accent.fill)
                 Text(title).lineLimit(1)
                 Spacer()
                 if end > .now { Text(timerInterval: focus.startedAt...end, countsDown: true).monospacedDigit().frame(width: 70) }
                 else { Text("Finished").font(.caption) }
-                Button("Stop") { Task { await focus.stop() } }.font(.caption)
-            }
+                Button("Stop") { Task { await focus.stop() } }.font(.subheadline.weight(.medium)).frame(minHeight: 44)
+            }.padding(.horizontal, 14).orbitSurface(radius: CGFloat(DesignTokens.radiusRow))
+                .accessibilityElement(children: .combine)
         }
     }
 }

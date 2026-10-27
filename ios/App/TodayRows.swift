@@ -196,8 +196,17 @@ struct TaskRow: View {
     @State private var error: String?
     @State private var feedback = 0
     @State private var startedFeedback = 0
+    /// Set when this row was just started, to suggest a timer once.
+    @State private var suggestTimer = false
+    @ObservedObject private var focus = FocusSession.shared
+    private var timing: Bool { focus.taskID == task.id }
     private var overdue: Bool { showMoves && TodayRules.isOverdue(TodayRules.item(task), today: PlannerLogic.dayKey(.now)) }
+    private var timerMinutes: Int { min(240, max(5, task.durationMinutes)) }
     private var moves: [TileMove] {
+        if progress == 2 && suggestTimer && !timing {
+            return [TileMove(title: "Start a \(timerMinutes)-min timer") { startTimer() },
+                    TileMove(title: "Not now") { suggestTimer = false }]
+        }
         guard overdue else { return [] }
         return [TileMove(title: "Today") { change { TodayRules.moveToDay(task, day: .now); try Mutations.save(context) } },
                 TileMove(title: "Later") { change { TodayRules.moveLater(task); try Mutations.save(context) } },
@@ -208,6 +217,8 @@ struct TaskRow: View {
         guard task.completedAt == nil else { return [] }
         if task.progressTracking == true {
             var options: [TileMove] = []
+            if task.startedAt != nil && !timing { options.append(TileMove(title: "Start timer") { startTimer() }) }
+            if timing { options.append(TileMove(title: "Stop timer") { Task { await focus.stop() } }) }
             if task.startedAt != nil { options.append(TileMove(title: "Reset progress") { change { try Mutations.setProgress(task, enabled: true, in: context) } }) }
             options.append(TileMove(title: "Turn off start & finish") { change { try Mutations.setProgress(task, enabled: false, in: context) } })
             return options
@@ -219,7 +230,7 @@ struct TaskRow: View {
     private var completionLabel: String { (task.completedAt != nil ? "Reopen " : progress == 1 ? "Start " : progress == 2 ? "Finish " : "Complete ") + task.title }
     private var subtitle: String {
         var parts: [String] = []
-        if task.completedAt == nil && task.progressTracking == true { parts.append(task.startedAt == nil ? "Ready to start" : "In progress") }
+        if task.completedAt == nil && task.progressTracking == true { parts.append(task.startedAt == nil ? "Ready to start" : timing ? "Timer running" : "In progress") }
         if overdue, let day = task.day { parts.append(TodayRules.overdueLabel(day, today: PlannerLogic.dayKey(.now))) }
         if task.hasTime, let date = task.dueDate { parts.append(date.formatted(date: .omitted, time: .shortened)) }
         if !task.subtasks.isEmpty { parts.append("\(task.subtasks.filter(\.completed).count)/\(task.subtasks.count) steps") }
@@ -234,13 +245,17 @@ struct TaskRow: View {
     }
     private func toggle() {
         if progress == 1 {
-            change { try Mutations.setProgress(task, enabled: true, start: true, in: context); startedFeedback += 1 }
+            change { try Mutations.setProgress(task, enabled: true, start: true, in: context); startedFeedback += 1; suggestTimer = true }
             return
         }
         change {
             try Mutations.toggle(task, in: context); feedback += 1
             if task.completedAt != nil { Task { await FocusSession.shared.stopIfMatching(task.id) } }
         }
+    }
+    private func startTimer() {
+        suggestTimer = false
+        Task { do { try await focus.start(task) } catch { self.error = error.localizedDescription } }
     }
     private func change(_ action: () throws -> Void) {
         do { try action(); Task { do { try await refreshReminders(context) } catch { self.error = error.localizedDescription } } }

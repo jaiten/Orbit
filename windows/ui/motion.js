@@ -101,6 +101,9 @@ function applyFills() {
   document
     .querySelectorAll("#content .box-grid i[data-o]")
     .forEach((cell) => cell.style.setProperty("--o", cell.dataset.o));
+  document
+    .querySelectorAll("#content .mini-bar i[data-fill]")
+    .forEach((bar) => (bar.style.transform = `scaleX(${Number(bar.dataset.fill) || 0})`));
   const bar = $("#content .plan-bar i");
   if (!bar) return;
   const target = Number(bar.dataset.fill) || 0;

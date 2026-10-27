@@ -13,7 +13,6 @@ struct CalendarView: View {
     @State private var mode = "Week"
     @State private var editing: PlannerTask?
     @State private var adding = false
-    @State private var planning = false
     @State private var error: String?
     private var calendar: Calendar { .current }
     private var days: [Date] {
@@ -70,8 +69,6 @@ struct CalendarView: View {
                     SectionLabel(title: selected.formatted(.dateTime.weekday(.wide).month().day()), note: calendar.isDateInToday(selected) ? "Today" : "")
                     Button("Add task for " + selected.formatted(.dateTime.month(.abbreviated).day()), systemImage: "plus.circle.fill") { adding = true }
                         .frame(minHeight: 44).accessibilityIdentifier("calendar-add-task")
-                    Button("Plan this day", systemImage: "calendar.badge.clock") { planning = true }
-                        .frame(minHeight: 44)
                     if !calendars.connected {
                         Button("Connect Calendars", systemImage: "calendar.badge.plus") { Task { do { try await calendars.connect() } catch { self.error = error.localizedDescription } } }
                     }
@@ -92,7 +89,6 @@ struct CalendarView: View {
                 .toolbar(.hidden, for: .navigationBar)
                 .sheet(item: $editing) { TaskEditor(task: $0) }
                 .sheet(isPresented: $adding) { QuickCapture(initialDate: selected) }
-                .sheet(isPresented: $planning) { CalendarPlanningView(day: selected) }
                 .modifier(MutationErrorModifier(error: $error))
         }
     }
