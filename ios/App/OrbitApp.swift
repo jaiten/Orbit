@@ -53,11 +53,10 @@ struct RootView: View {
             CalendarView().tabItem { Label("Calendar", systemImage: "calendar").environment(\.symbolVariants, .none) }.tag(1)
             NotesView().tabItem { Label("Notes", systemImage: "note.text").environment(\.symbolVariants, .none) }.tag(2)
             HabitsView().tabItem { Label("Habits", systemImage: "repeat").environment(\.symbolVariants, .none) }.tag(3)
-            SettingsView().tabItem { Label("Settings", systemImage: "gearshape").environment(\.symbolVariants, .none) }.tag(4)
+            TasksView().tabItem { Label("Tasks", systemImage: "checklist").environment(\.symbolVariants, .none) }.tag(4)
         }
         .onPreferenceChange(CaptureDockHeight.self) { captureDockHeight = $0 }
-        // Undo appears only for deletions, moves and imports. It springs up from the bottom and slides
-        // away again; shaking the phone offers the same Undo.
+        // The toast stays quiet for routine edits; shake can undo the latest local mutation.
         .overlay(alignment: .bottom) {
             ZStack {
                 if let change = undo.change {
@@ -71,19 +70,22 @@ struct RootView: View {
                     .padding(.leading, 18).padding(.trailing, 14).padding(.vertical, 12)
                     .background(Color.orbitSurface, in: Capsule()).overlay(Capsule().strokeBorder(Color.orbitLine))
                     .shadow(color: .black.opacity(0.12), radius: 18, y: 8)
-                    .padding(.bottom, 100 + (selectedTab == 0 || selectedTab == 2 ? captureDockHeight : 0))
-                    .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity).combined(with: .scale(scale: 0.96)))
+                    .padding(.bottom, 75 + (selectedTab == 0 || selectedTab == 3 || selectedTab == 4 ? captureDockHeight : 0))
+                    .transition(.opacity)
                     .task(id: change.created) { try? await Task.sleep(for: .seconds(8)); if undo.change?.created == change.created { undo.dismiss() } }
                 }
             }
             .animation(reduceMotion ? .easeOut(duration: 0.2) : .orbit, value: undo.change?.created)
         }
         .onReceive(NotificationCenter.default.publisher(for: .orbitShake)) { _ in
-            if undo.change != nil && UIAccessibility.isShakeToUndoEnabled { confirmShakeUndo = true }
+            if undo.shakeChange != nil && UIAccessibility.isShakeToUndoEnabled { confirmShakeUndo = true }
         }
-        .alert("Undo \(undo.change?.kind.verb ?? "change")?", isPresented: $confirmShakeUndo) {
+        .alert("Undo \(undo.shakeChange?.kind.verb ?? "change")?", isPresented: $confirmShakeUndo) {
             Button("Cancel", role: .cancel) {}
-            Button("Undo", action: performUndo)
+            Button("Undo") {
+                do { try undo.undo(in: context, latest: true); Task { try? await refreshReminders(context) } }
+                catch { errorMessage = error.localizedDescription }
+            }
         }
         .tint(DayTheme.accentText(accentTheme))
         // The one source for the accent: every view reads it from the environment and updates at once.
@@ -91,10 +93,10 @@ struct RootView: View {
         .preferredColorScheme(appearance == "system" ? nil : (appearance == "dark" ? .dark : .light))
         .onOpenURL { url in
             if let code = RecoveryFlow.code(from: url) {
-                selectedTab = 4
+                showAccount = true
                 Task { do { try await sync.acceptRecovery(code: code, context: context) } catch { errorMessage = error.localizedDescription } }
             }
-            else if let notice = AuthConfirmation.notice(for: url) { selectedTab = 4; errorMessage = notice }
+            else if let notice = AuthConfirmation.notice(for: url) { showAccount = true; errorMessage = notice }
             else { selectedTab = 0 }
         }
         .sheet(isPresented: $sync.recoveryReady) { NavigationStack { PasswordChangeView() } }

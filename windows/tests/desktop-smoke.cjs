@@ -240,13 +240,13 @@ const remove = (folder) => {
     await p.keyboard.press("Control+/");
     await p.getByRole("heading", { name: "Keyboard Shortcuts", exact: true }).waitFor();
     await p.keyboard.press("Escape");
-    await p.keyboard.press("Control+f");
-    await p.getByRole("searchbox", { name: "Search notes and tasks" }).fill("mom");
+    await p.locator('[data-page="tasks"]').click();
+    await p.getByRole("searchbox", { name: "Search tasks" }).fill("mom");
     if (!(await p.getByRole("checkbox", { name: "Complete Call Mom", exact: true }).isVisible()))
       throw Error("Search hid the match");
     if (await p.getByRole("checkbox", { name: "Complete Wash car", exact: true }).isVisible())
       throw Error("Search kept a non-match");
-    await p.getByRole("searchbox", { name: "Search notes and tasks" }).fill("");
+    await p.getByRole("searchbox", { name: "Search tasks" }).fill("");
     await p.keyboard.press("Control+1");
     // Reminders: one timer for the next reminder, re-planned after every change.
     const soon = Date.now() + 120000;
@@ -344,7 +344,7 @@ const remove = (folder) => {
     await p.getByRole("button", { name: "Cancel", exact: true }).click();
     // Adding to a list keeps the task undated in that list, off Today.
     await p.getByRole("button", { name: "Someday", exact: true }).first().click();
-    // Sections are on the Notes page, which has no task field: Ctrl+N adds a task to the open section.
+    // Task categories open in Tasks; Ctrl+N adds to the selected category.
     await p.keyboard.press("Control+n");
     await p.getByRole("textbox", { name: "Quick add" }).fill("Learn the cello");
     await p.locator("#quick-add-preview").getByText("Someday", { exact: true }).waitFor();
@@ -411,12 +411,12 @@ const remove = (folder) => {
     await p.keyboard.press("Enter");
     await p.getByRole("checkbox", { name: "Complete Water plants", exact: true }).waitFor();
     await p.getByRole("textbox", { name: "New task", exact: true }).press("Enter");
-    // Today has no view switcher; Calendar's Week and All show every task and how habits are going.
+    // Every task, including Someday, is reachable from Tasks; Calendar keeps Week and Month.
     if (await p.getByRole("tab", { name: "All", exact: true }).count()) throw Error("Today still has view tabs");
-    await p.locator('[data-page="calendar"]').click();
-    await p.getByRole("tab", { name: "All", exact: true }).click();
-    await p.getByRole("heading", { name: "Everything", exact: true }).waitFor();
+    await p.locator('[data-page="tasks"]').click();
+    await p.getByRole("heading", { name: "Tasks", exact: true }).waitFor();
     await p.getByRole("checkbox", { name: "Complete Learn the cello", exact: true }).waitFor();
+    await p.locator('[data-page="calendar"]').click();
     await p.getByRole("tab", { name: "Week", exact: true }).click();
     await p.getByRole("heading", { name: "This week", exact: true }).waitFor();
     await p.getByRole("tab", { name: "Month", exact: true }).click();

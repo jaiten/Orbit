@@ -41,9 +41,8 @@ function missedYesterdayPrompt(allHabits) {
 let todayScope = "week",
   calendarView = "month";
 const SCOPES = [
-  ["month", "Month"],
   ["week", "Week"],
-  ["all", "All"],
+  ["month", "Month"],
 ];
 function scopeTabs() {
   return `<div class="scope-tabs" role="tablist" aria-label="Show">${SCOPES.map(
@@ -75,7 +74,7 @@ function renderToday(tasks, allHabits) {
   const featured = [...allHabits].sort((a, b) => recent(b) - recent(a))[0];
   return `<div class="today-layout">
     <header class="page-head">
-        <div><div class="eyebrow">${eyebrow}</div><h1>${heading}</h1><p class="subtitle">${isToday ? "Make room for what matters." : "Planning ahead"}</p></div>
+        <div><div class="eyebrow">${eyebrow}</div><h1>${heading}</h1></div>
         <div class="head-tools">
           <div class="day-nav" role="group" aria-label="Day">
             <button class="icon-button" data-day-step="-1" aria-label="Previous day" title="Previous day"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button
@@ -94,7 +93,7 @@ function renderToday(tasks, allHabits) {
       ${
         open.length
           ? ""
-          : `<div class="empty-state"><svg class="doc-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><p><strong>${complete.length ? "All done" : "Nothing planned"}</strong><br />Just start typing to add a task.</p></div>`
+          : `<div class="empty-state"><svg class="doc-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><p><strong>${complete.length ? "All done" : "Nothing planned"}</strong><br />Start typing to add a task.</p></div>`
       }
       ${
         complete.length

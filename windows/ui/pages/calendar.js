@@ -17,7 +17,7 @@ function renderCalendar(tasks) {
     todayScope = calendarView;
     const title = calendarView === "week" ? "This week" : "Everything";
     const head = `<header class="page-head">
-      <div><div class="eyebrow">Plan ahead</div><h1>${title}</h1><p class="subtitle">Every task and habit, at a glance.</p></div>
+      <div><h1>${title}</h1><p class="subtitle">Every task and habit, at a glance.</p></div>
       <div class="head-tools">${scopeTabs()}</div>
     </header>`;
     return renderAgenda(
@@ -74,13 +74,9 @@ function renderCalendar(tasks) {
   const count = tasks.filter((task) => monthOf(taskDate(task) || "") === calendarStart).length;
   return `<div class="calendar-page">
     <header class="page-head">
-      <div><div class="eyebrow">Plan ahead</div><h1>${month}</h1><p class="subtitle">${count ? `${count} ${count === 1 ? "item" : "items"} this month` : "Nothing planned this month yet"}</p></div>
+      <div><div class="month-heading"><h1>${month}</h1><div class="month-arrows"><button class="icon-button" data-month="-1" aria-label="Previous month">${chevron("m6 15 6-6 6 6")}</button><button class="icon-button" data-month="1" aria-label="Next month">${chevron("m6 9 6 6 6-6")}</button></div></div><p class="subtitle">${count ? `${count} ${count === 1 ? "item" : "items"} this month` : "Nothing planned this month yet"}</p></div>
       <div class="head-tools">
-      <div class="week-nav day-nav" role="group" aria-label="Month">
-        <button class="icon-button" data-month="-1" aria-label="Previous month" title="Previous month">${chevron("m15 18-6-6 6-6")}</button
-        ><button class="today-button" data-month="0" ${calendarStart === monthOf(t) && calendarDay === t ? "disabled" : ""}>Today</button
-        ><button class="icon-button" data-month="1" aria-label="Next month" title="Next month">${chevron("m9 18 6-6-6-6")}</button>
-      </div>
+      <button class="today-button" data-month="0">Today</button>
       ${scopeTabs()}
       </div>
     </header>
@@ -128,6 +124,14 @@ function bindCalendar() {
           calendarStart = monthOf(calendarDay);
         }
         render();
+        if (step && !reducedMotion())
+          $(".cal-grid")?.animate(
+            [
+              { opacity: 0.5, transform: `translateY(${step * 6}px)` },
+              { opacity: 1, transform: "none" },
+            ],
+            { duration: 160, easing: "ease-out" },
+          );
       }),
   );
 }

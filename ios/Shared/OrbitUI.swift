@@ -7,7 +7,7 @@ import SwiftUI
 
 extension Animation {
     /// Rows, chips and buttons.
-    static var orbit: Animation { .spring(response: DesignTokens.springUi.response, dampingFraction: DesignTokens.springUi.damping) }
+    static var orbit: Animation { .easeInOut(duration: 0.18) }
     /// Livelier, for presses.
     static var orbitLift: Animation { .spring(response: DesignTokens.springLift.response, dampingFraction: DesignTokens.springLift.damping) }
     /// Large elements and progress.
@@ -51,7 +51,7 @@ struct PageHeader<Trailing: View>: View {
     }
     private var heading: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(eyebrow).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            if !eyebrow.isEmpty { Text(eyebrow).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
             Text(title).font(.largeTitle.bold()).tracking(-1).fixedSize(horizontal: true, vertical: true).accessibilityAddTraits(.isHeader)
             if !subtitle.isEmpty { Text(subtitle).font(.body).foregroundStyle(.secondary) }
         }

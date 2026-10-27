@@ -1,0 +1,81 @@
+// A permanent home for dated, undated and Someday tasks.
+let taskScope = "all",
+  taskSort = "date",
+  taskSearch = "";
+function renderTasks(tasks) {
+  const current = today(),
+    week = OrbitHabits.weekStartKey(current, weekStart),
+    end = OrbitHabits.addDays(week, 7);
+  const filtered = tasks.filter((task) => {
+    const date = taskDate(task);
+    return (
+      (!selectedList || task.listID === selectedList) &&
+      `${task.title} ${task.notes || ""}`.toLowerCase().includes(taskSearch.toLowerCase()) &&
+      (taskScope === "all" ||
+        (taskScope === "week" && date >= week && date < end && task.listID !== SOMEDAY) ||
+        (taskScope === "future" && date > current && task.listID !== SOMEDAY && !task.completedAt) ||
+        (taskScope === "someday" && task.listID === SOMEDAY) ||
+        (taskScope === "undated" && !date && task.listID !== SOMEDAY))
+    );
+  });
+  filtered.sort(
+    (a, b) =>
+      !!a.completedAt - !!b.completedAt ||
+      (taskSort === "title"
+        ? a.title.localeCompare(b.title)
+        : taskSort === "manual"
+          ? (a.sortOrder || 0) - (b.sortOrder || 0)
+          : (taskDate(a) || "9999").localeCompare(taskDate(b) || "9999")),
+  );
+  const options = (values, value) =>
+    values
+      .map(([id, label]) => `<option value="${esc(id)}" ${id === value ? "selected" : ""}>${esc(label)}</option>`)
+      .join("");
+  const groups = ["Today", "Overdue", "Upcoming", "No date", "Someday", "Completed"]
+    .map((group) => {
+      const items = filtered.filter((task) => OrbitPlanner.dateGroup(planItem(task), current) === group);
+      return items.length ? sectionLabel(group, String(items.length)) + checklist(items) : "";
+    })
+    .join("");
+  return `<div class="narrow wide"><header class="page-head"><h1>Tasks</h1><input id="task-search" type="search" aria-label="Search tasks" placeholder="Search tasks" value="${esc(taskSearch)}" /></header>
+    <div class="tasks-controls"><select id="task-scope" aria-label="Show tasks">${options(
+      [
+        ["all", "All tasks"],
+        ["week", "This week"],
+        ["future", "Future"],
+        ["undated", "No date"],
+        ["someday", "Someday"],
+      ],
+      taskScope,
+    )}</select>
+    <select id="task-category" aria-label="Task category">${options([["", "All categories"], ...orderedLists().map((list) => [list.id, list.name]), [SOMEDAY, "Someday"]], selectedList || "")}</select>
+    <select id="task-sort" aria-label="Sort tasks">${options(
+      [
+        ["date", "By date"],
+        ["title", "By title"],
+        ["manual", "As arranged"],
+      ],
+      taskSort,
+    )}</select><button data-new-list>New category</button></div>
+    ${groups || '<p class="empty">No tasks in this view.</p>'}<div class="capture-dock">${addField()}</div></div>`;
+}
+function bindTasks() {
+  if (!$("#task-scope")) return;
+  $("#task-scope").onchange = (e) => {
+    taskScope = e.target.value;
+    render();
+  };
+  $("#task-category").onchange = (e) => {
+    selectedList = e.target.value || null;
+    render();
+  };
+  $("#task-sort").onchange = (e) => {
+    taskSort = e.target.value;
+    render();
+  };
+  $("#task-search").oninput = (e) => {
+    taskSearch = e.target.value;
+    render();
+    $("#task-search").focus();
+  };
+}

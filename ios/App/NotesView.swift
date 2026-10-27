@@ -30,21 +30,19 @@ struct NotesView: View {
     private struct NoteSection: Identifiable { let id: String; let name: String; let color: String; let listID: UUID? }
     private var sections: [NoteSection] {
         lists.filter { $0.id != TodayRules.somedayID }.map { NoteSection(id: $0.id.uuidString, name: $0.name, color: $0.color, listID: $0.id) }
-            + [NoteSection(id: "none", name: "Unsorted", color: "clay", listID: nil),
-               NoteSection(id: TodayRules.somedayID.uuidString, name: "Someday", color: "lavender", listID: TodayRules.somedayID)]
+            + [NoteSection(id: "none", name: "All notes", color: "clay", listID: nil)]
     }
 
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
-                    PageHeader(eyebrow: "Write it down", title: "Notes", subtitle: "Ideas, lists and anything longer than a task.") {
-                        Button { managing = true } label: { Text("Sections").padding(.horizontal, 14).frame(minHeight: 44) }
-                            .accessibilityIdentifier("edit-sections")
-                        Button { path.append(.new(section: nil, token: UUID())) } label: {
-                            Image(systemName: "square.and.pencil").font(.system(size: 19)).frame(width: 44, height: 44)
-                        }.accessibilityLabel("New note")
-                    }
+                    PageHeader(eyebrow: "", title: "Notes")
+                    HStack {
+                        Button("New section", systemImage: "folder.badge.plus") { managing = true }.frame(minHeight: 44).accessibilityIdentifier("edit-sections")
+                        Spacer()
+                        Button { path.append(.new(section: nil, token: UUID())) } label: { Image(systemName: "square.and.pencil") }.accessibilityLabel("New note")
+                    }.frame(minHeight: 44)
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                         TextField("Search notes", text: $search).textInputAutocapitalization(.never)
@@ -58,7 +56,7 @@ struct NotesView: View {
                     }
                     ForEach(sections) { section in
                         let pages = notes.filter { note in
-                            section.listID == nil ? (note.listID == nil || (note.listID != TodayRules.somedayID && !lists.contains { $0.id == note.listID })) : note.listID == section.listID
+                            section.listID == nil ? true : note.listID == section.listID
                         }
                         // Your own sections always show, so a new one has somewhere to start.
                         if !pages.isEmpty || (section.listID != nil && section.listID != TodayRules.somedayID && search.isEmpty) {
@@ -70,7 +68,7 @@ struct NotesView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             // The same bottom bar as Today; what you type here becomes a note.
-            .captureDock(scheme) { InlineCapture(notesOnly: true) }
+            .captureDock(scheme) { Button { path.append(.new(section: nil, token: UUID())) } label: { Label("Write a note", systemImage: "square.and.pencil").frame(maxWidth: .infinity, minHeight: 48) }.orbitSurface(radius: CGFloat(DesignTokens.radiusInput)) }
             .background(DayTheme.canvas(scheme)).tint(accent.fill)
             .navigationTitle("Notes").navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
@@ -100,7 +98,7 @@ struct NotesView: View {
                     }.frame(minHeight: 44).contentShape(Rectangle())
                 }.buttonStyle(.plain)
                     .accessibilityLabel("\(name), \(pages.count) notes").accessibilityValue(open ? "Expanded" : "Collapsed")
-                Button { path.append(.new(section: listID, token: UUID())) } label: {
+                Button { if listID == nil { managing = true } else { path.append(.new(section: listID, token: UUID())) } } label: {
                     Image(systemName: "plus").font(.system(size: 16, weight: .medium)).frame(width: 44, height: 44)
                 }.foregroundStyle(.secondary).accessibilityLabel("New note in \(name)")
             }.padding(.horizontal, 4)
@@ -206,10 +204,34 @@ struct NoteMenu: View {
 
 /// Touch and hold a note: copy it, move it to another section, turn it into a task, or delete it.
 struct NoteActions: ViewModifier {
+    @Environment(\.modelContext) private var context
+    @GestureState private var drag: CGFloat = 0
+    @State private var revealingDelete = false
     let note: PlannerTask
     @State private var error: String?
     func body(content: Content) -> some View {
-        content.contextMenu { NoteMenuItems(note: note, error: $error) }
+        content
+            .offset(x: revealingDelete ? -76 : max(-76, min(0, drag)))
+            .background(alignment: .trailing) {
+                if revealingDelete || drag < -15 {
+                    Button(role: .destructive) {
+                        do { context.delete(note); try Mutations.save(context) }
+                        catch { context.rollback(); self.error = error.localizedDescription }
+                    } label: { Image(systemName: "trash").frame(width: 70, height: 56).foregroundStyle(.white).background(Color.red) }
+                        .accessibilityLabel("Delete note")
+                }
+            }
+            .clipped()
+            .simultaneousGesture(DragGesture(minimumDistance: 25)
+                .updating($drag) { value, state, _ in
+                    if abs(value.translation.width) > abs(value.translation.height) { state = value.translation.width }
+                }
+                .onEnded { value in
+                    if abs(value.translation.width) > abs(value.translation.height) {
+                        withAnimation(.easeOut(duration: 0.18)) { revealingDelete = value.translation.width < -40 }
+                    }
+                })
+            .contextMenu { NoteMenuItems(note: note, error: $error) }
             .modifier(MutationErrorModifier(error: $error))
     }
     static func text(of note: PlannerTask) -> String {

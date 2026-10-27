@@ -24,6 +24,7 @@ function render() {
   const habits = rows("habits").sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
   const pages = {
     today: () => renderToday(tasks, habits),
+    tasks: () => renderTasks(tasks),
     lists: () => renderNotes(tasks),
     note: renderNoteEditor,
     calendar: () => renderCalendar(tasks),
@@ -63,6 +64,7 @@ function render() {
 function bind() {
   bindTiles();
   bindToday();
+  bindTasks();
   bindCalendar();
   bindHabits();
   bindSettings();

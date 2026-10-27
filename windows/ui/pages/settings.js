@@ -29,7 +29,7 @@ applyCompact(localStorage.getItem("compactRows") === "true");
 function renderSettings() {
   const root = document.documentElement.dataset;
   return `<header class="page-head"><div><div class="eyebrow">Preferences</div><h1>Settings</h1></div></header>
-    <button class="card account-row" data-open-page="account"><span>Account</span><span class="secondary">${esc(state.email || "Not signed in")} →</span></button>
+    <button class="card account-row" data-open-page="account"><span>Account</span><span class="secondary">${esc(state.email || "Sign in")} →</span></button>
     <section class="settings-block">
       <h2>Appearance</h2>
       <label class="toggle"><input type="checkbox" id="compact-rows" ${root.compact === "true" ? "checked" : ""} /> Compact habits and tasks</label>

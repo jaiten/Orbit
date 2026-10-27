@@ -1,8 +1,8 @@
 // Keyboard shortcuts. Ctrl+/ shows this list in the app.
-const SHORTCUT_PAGES = ["today", "calendar", "lists", "habits", "settings"];
+const SHORTCUT_PAGES = ["today", "calendar", "lists", "habits", "settings", "tasks"];
 const SHORTCUT_HELP = [
   ["Ctrl+N", "New item (quick add)"],
-  ["Ctrl+1 … Ctrl+5", "Today, Calendar, Notes, Habits, Settings"],
+  ["Ctrl+1 … Ctrl+6", "Today, Calendar, Notes, Habits, Settings, Tasks"],
   ["Ctrl+F", "Search notes and tasks"],
   ["Space or Enter", "Complete or check the focused item"],
   ["Shift+F10 or right-click", "Item menu: copy text, timer and more"],
@@ -48,7 +48,7 @@ document.addEventListener("keydown", (e) => {
   if (e.ctrlKey && !e.altKey && !e.metaKey) {
     if (dialogOpen) return;
     if (key === "n" && !e.shiftKey) openQuickAdd();
-    else if (/^[1-5]$/.test(key)) goTo(SHORTCUT_PAGES[Number(key) - 1]);
+    else if (/^[1-6]$/.test(key)) goTo(SHORTCUT_PAGES[Number(key) - 1]);
     else if (key === "f") {
       goTo("lists");
       $("#search")?.focus();
@@ -60,6 +60,17 @@ document.addEventListener("keydown", (e) => {
   }
   const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName) || e.target.isContentEditable;
   if (typing || dialogOpen || e.altKey || e.metaKey || e.ctrlKey) return;
+  if (page === "today" && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
+    e.preventDefault();
+    selected =
+      e.key === "ArrowLeft"
+        ? OrbitHabits.addDays(selected, -1)
+        : e.key === "ArrowRight"
+          ? OrbitHabits.addDays(selected, 1)
+          : today();
+    render();
+    return;
+  }
   // Space and Enter press the focused tile's button natively; E and Delete act on the focused tile.
   const tile = e.target.closest?.(".check-tile");
   if (!tile || (key !== "e" && e.key !== "Delete")) {

@@ -3,6 +3,12 @@
 let quickContext = { defaultDate: null, listID: null };
 
 function quickAddContext() {
+  if (page === "tasks")
+    return {
+      defaultDate:
+        taskScope === "week" ? today() : taskScope === "future" ? OrbitHabits.addDays(today(), 1) : "undated",
+      listID: taskScope === "someday" ? SOMEDAY : selectedList,
+    };
   if (page === "lists") return { defaultDate: "undated", listID: selectedList };
   if (page === "calendar" && calendarDay && calendarDay !== today()) return { defaultDate: calendarDay, listID: null };
   if (page === "today" && selected !== today()) return { defaultDate: selected, listID: null };
@@ -19,8 +25,13 @@ function openQuickAdd(context = quickAddContext()) {
   f.elements.text.focus();
 }
 
+function parseCapture(text, date) {
+  const parsed = OrbitPlanning.parse(text, date);
+  if (page === "habits" && parsed.kind !== "habit") return { ...parsed, kind: "habit", schedule: "DAILY" };
+  return parsed;
+}
 function quickParse() {
-  return OrbitPlanning.parse($("#quick-add-form").elements.text.value, quickContext.defaultDate);
+  return parseCapture($("#quick-add-form").elements.text.value, quickContext.defaultDate);
 }
 
 function contextListName() {
@@ -161,7 +172,7 @@ function bindInlineCapture() {
     allowOverlap = false;
     $("#inline-overlap").hidden = true;
     inlineDraft = input.value;
-    const parsed = OrbitPlanning.parse(inlineDraft, quickAddContext().defaultDate);
+    const parsed = parseCapture(inlineDraft, quickAddContext().defaultDate);
     const section = quickAddContext().listID;
     // On Notes, the bottom bar always writes a note.
     const text = !inlineDraft.trim()
@@ -197,7 +208,7 @@ function bindInlineCapture() {
   form.onsubmit = (event) => {
     event.preventDefault();
     if (!input.value.trim()) return input.blur();
-    if (page === "lists" || OrbitNotes.isNote(input.value)) {
+    if (page === "lists" || (page !== "habits" && OrbitNotes.isNote(input.value))) {
       const { title, body } = OrbitNotes.split(input.value);
       const note = { ...newTask(title, null), isNote: true, notes: body };
       note.listID = quickAddContext().listID;
@@ -207,7 +218,7 @@ function bindInlineCapture() {
       }).then(() => $("#inline-task-input")?.focus());
       return;
     }
-    const result = OrbitPlanning.parse(input.value, quickAddContext().defaultDate);
+    const result = parseCapture(input.value, quickAddContext().defaultDate);
     if (!result.title) return;
     quickContext = quickAddContext();
     const records = quickRecords(result);

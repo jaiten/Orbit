@@ -3,6 +3,7 @@ import SwiftData
 
 /// Settings: appearance, accent, reminders, calendars, widgets and your data. Account has its own screen.
 struct SettingsView: View {
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.orbitAccent) private var accent
     @Environment(\.colorScheme) private var scheme
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -11,7 +12,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: CGFloat(DesignTokens.spaceL)) {
-                PageHeader(eyebrow: "Preferences", title: "Settings") { SyncIndicator() }
+                PageHeader(eyebrow: "Preferences", title: "Settings")
                     .padding(.horizontal, 20).padding(.top, 8)
                 Form {
                     Section {
@@ -19,12 +20,17 @@ struct SettingsView: View {
                             if typeSize.isAccessibilitySize {
                                 VStack(alignment: .leading, spacing: 8) {
                                     Text("Account")
-                                    Text(sync.email ?? "Not signed in").foregroundStyle(.secondary)
+                                    Text(sync.email ?? "Sign in").foregroundStyle(.secondary)
                                 }.fixedSize(horizontal: false, vertical: true)
                             } else {
-                                LabeledContent("Account", value: sync.email ?? "Not signed in")
+                                LabeledContent("Account", value: sync.email ?? "Sign in")
                             }
                         }
+                    }
+                    Section("Today") { NavigationLink("Arrange Today") { HomeLayoutEditor() } }
+                    Section("Sync") {
+                        Text(sync.status == "All changes synced" ? "Synced" : sync.status)
+                            .foregroundStyle(sync.status == "All changes synced" ? Color.green : Color.orange)
                     }
                     AppearanceSection()
                     RemindersSection(message: $message)
@@ -39,7 +45,8 @@ struct SettingsView: View {
                 .scrollContentBackground(.hidden).background(DayTheme.canvas(scheme))
             }.frame(maxWidth: 760).frame(maxWidth: .infinity).background(DayTheme.canvas(scheme))
                 .tint(accent.fill).navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
-                .toolbar(.hidden, for: .navigationBar)
+                .toolbar(.visible, for: .navigationBar)
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
                 .alert("Orbit", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
                     Button("OK") { message = nil }
                 } message: { Text(message ?? "") }

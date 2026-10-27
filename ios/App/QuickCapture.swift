@@ -16,9 +16,15 @@ struct QuickCapture: View {
     var listID: UUID? = nil
     var fromList = false
     var initialText = ""
+    var habitsOnly = false
     var onSaved: () -> Void = {}
     @State private var text = ""
     @State private var scheduled = true
+    @State private var editedTime = false
+    @State private var hasTime = false
+    @State private var time = Date.now
+    @State private var editedDay = false
+    @State private var ready = false
     @State private var selectedDay = Date.now
     @State private var selectedListID: UUID?
     @State private var error: String?
@@ -31,8 +37,14 @@ struct QuickCapture: View {
     private var defaultDay: DefaultDay {
         scheduled ? .day(PlannerLogic.dayKey(selectedDay)) : .undated
     }
-    private var result: QuickAddResult { QuickAdd.parse(text, defaultDay: defaultDay) }
-    private var isNote: Bool { NoteRules.isNote(text) }
+    private var result: QuickAddResult {
+        var parsed = QuickAdd.parse(text, defaultDay: defaultDay)
+        if habitsOnly { parsed.kind = .habit; parsed.schedule = parsed.schedule ?? "DAILY" }
+        if editedDay && parsed.kind == .task { parsed.date = scheduled ? PlannerLogic.dayKey(selectedDay) : nil; parsed.someday = false }
+        if editedTime { parsed.time = hasTime ? Calendar.current.component(.hour, from: time) * 60 + Calendar.current.component(.minute, from: time) : nil }
+        return parsed
+    }
+    private var isNote: Bool { !habitsOnly && NoteRules.isNote(text) }
     private var preview: String {
         if isNote { return "Note · " + (contextListName ?? "Notes") }
         var value = QuickAdd.describe(result)
@@ -64,14 +76,18 @@ struct QuickCapture: View {
                         DatePicker("Day", selection: $selectedDay, displayedComponents: .date)
                             .accessibilityIdentifier("quick-add-day")
                     }
-                    Picker("List", selection: $selectedListID) {
-                        Text("Inbox").tag(nil as UUID?)
+                    Toggle(result.kind == .habit ? "Reminder time" : "Time", isOn: $hasTime).onChange(of: hasTime) { _, _ in editedTime = true }
+                    if hasTime { DatePicker("Time", selection: $time, displayedComponents: .hourAndMinute).onChange(of: time) { _, _ in editedTime = true } }
+                    if initialDate == nil && !habitsOnly {
+                    Picker("Category", selection: $selectedListID) {
+                        Text("No category").tag(nil as UUID?)
                         Text("Someday").tag(Optional(TodayRules.somedayID))
                         ForEach(lists.filter { $0.id != TodayRules.somedayID }) { list in
                             Text(list.name).tag(Optional(list.id))
                         }
                     }
                     .pickerStyle(.menu)
+                    }
                     Text("Return adds this item and starts another; Return on an empty line closes the keyboard. Long text becomes a note.")
                         .font(.footnote).foregroundStyle(.secondary)
                     Text("You can also type a day: “Call dentist tomorrow at 9am”.")
@@ -89,9 +105,14 @@ struct QuickCapture: View {
                 .confirmationDialog("This time overlaps another plan", isPresented: $confirmConflict, titleVisibility: .visible) {
                     Button("Save Anyway") { save(allowConflict: true, keepAdding: keepAddingAfterConflict) }; Button("Change Time", role: .cancel) {}
                 } message: { Text(conflictTitles.joined(separator: ", ")) }
+                .onChange(of: selectedDay) { _, _ in if ready { editedDay = true } }
                 .onChange(of: selectedListID) { _, id in if id == TodayRules.somedayID { scheduled = false } }
                 .onChange(of: scheduled) { _, on in if on && selectedListID == TodayRules.somedayID { selectedListID = nil } }
-                .onAppear { NotificationCenter.default.post(name: Notification.Name("orbitCaptureSubmitted"), object: nil); text = initialText; selectedDay = initialDate ?? .now; scheduled = !fromList || initialDate != nil; selectedListID = listID; focused = true }.modifier(MutationErrorModifier(error: $error))
+                .onAppear { NotificationCenter.default.post(name: Notification.Name("orbitCaptureSubmitted"), object: nil); text = initialText; selectedDay = initialDate ?? .now; scheduled = !fromList || initialDate != nil; selectedListID = listID;
+                    let parsed = QuickAdd.parse(initialText)
+                    hasTime = parsed.time != nil
+                    if let minutes = parsed.time { time = Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: .now) ?? .now }
+                    focused = true; Task { await Task.yield(); ready = true; editedTime = false } }.modifier(MutationErrorModifier(error: $error))
         }
         .presentationDetents([.medium, .large])
     }

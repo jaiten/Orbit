@@ -1,10 +1,11 @@
 function renderHabits(habits) {
-  const head = `<header class="page-head"><div><div class="eyebrow">Repeats</div><h1>Habits</h1><p class="subtitle">Your routines, reminders and progress.</p></div><button class="primary-pill" data-new-habit><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>New habit</button></header>`;
+  const head = `<header class="page-head"><div><h1>Habits</h1></div></header>`;
   if (!habits.length)
-    return `<div class="narrow">${head}<div class="empty-state"><svg class="doc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m17 2 4 4-4 4M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3"/></svg><p><strong>No habits yet</strong><br />Add one, or type “read every day” anywhere.</p></div></div>`;
-  return `<div class="narrow">${head}
+    return `<div class="narrow habits-page">${head}<div class="empty-state"><svg class="doc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m17 2 4 4-4 4M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3"/></svg><p><strong>No habits yet</strong><br />Add one, or type “read every day” anywhere.</p></div><div class="capture-dock">${addField("Add a habit")}</div></div>`;
+  return `<div class="narrow habits-page">${head}
     <div class="check-list">${habits.map((h) => habitCard(h, { editable: true })).join("")}</div>
     <button id="habit-history" class="card history-card"><span><span class="eyebrow">History</span><strong>The last 7 days, for every habit</strong></span><span aria-hidden="true">→</span></button>
+    <div class="capture-dock">${addField("Add a habit")}</div>
   </div>`;
 }
 

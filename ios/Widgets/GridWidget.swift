@@ -33,7 +33,7 @@ struct ActivityGrid: View {
                         }
                     }
                 }
-            }.frame(maxWidth: .infinity, alignment: .leading)
+            }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
         .accessibilityElement(children: .ignore).accessibilityLabel(label)
     }
@@ -87,7 +87,7 @@ struct MonthGrid: View {
                         }
                     }
                 }
-            }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
         .accessibilityElement(children: .ignore)
     }

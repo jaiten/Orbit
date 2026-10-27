@@ -3,6 +3,21 @@ import SwiftData
 @testable import Orbit
 
 @MainActor final class PlannerTests: XCTestCase {
+    func testShakeTracksRoutineEditsWithoutShowingToast() {
+        let journal = UndoJournal()
+        let first = ["tasks/test": "{\"title\":\"First\"}"]
+        journal.record(before: [:], after: first)
+        XCTAssertEqual(journal.shakeChange?.kind, .added)
+        XCTAssertNil(journal.change)
+        journal.record(before: first, after: ["tasks/test": "{\"title\":\"Edited\"}"])
+        XCTAssertEqual(journal.shakeChange?.kind, .edited)
+        XCTAssertNil(journal.change)
+        journal.record(before: first, after: [:])
+        XCTAssertEqual(journal.change?.kind, .deleted)
+        journal.dismiss()
+        XCTAssertNil(journal.change)
+        XCTAssertEqual(journal.shakeChange?.kind, .deleted)
+    }
     private var calendar: Calendar {
         var c = Calendar(identifier: .gregorian)
         c.timeZone = TimeZone(identifier: "America/Vancouver")!

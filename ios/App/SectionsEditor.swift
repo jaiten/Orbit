@@ -8,6 +8,7 @@ struct ListsView: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
     @State private var name = ""
+    @FocusState private var naming: Bool
     @State private var error: String?
     @State private var pendingDelete: TaskList?
     private var editable: [TaskList] { lists.filter { $0.id != TodayRules.somedayID } }
@@ -31,13 +32,13 @@ struct ListsView: View {
                         .onDelete { indices in pendingDelete = indices.first.map { editable[$0] } }
                 } header: { Text("Sections") }
                 Section {
-                    TextField("New section name", text: $name).accessibilityIdentifier("new-list-name")
+                    TextField("New section name", text: $name).focused($naming).accessibilityIdentifier("new-list-name")
                     Button("Add Section") {
                         context.insert(TaskList(name: name.trimmingCharacters(in: .whitespacesAndNewlines), sortOrder: lists.count))
                         do { try Mutations.save(context); name = "" } catch { context.rollback(); self.error = error.localizedDescription }
                     }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-            }.tint(accent.fill).navigationTitle("Edit Sections")
+            }.onAppear { naming = true }.tint(accent.fill).navigationTitle("Edit Sections")
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) { EditButton() }
                     ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
@@ -75,6 +76,7 @@ struct ListNameRow: View {
     @Environment(\.modelContext) private var context
     let list: TaskList
     @State private var name = ""
+    @FocusState private var naming: Bool
     @State private var error: String?
     var body: some View {
         HStack {

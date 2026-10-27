@@ -29,6 +29,7 @@ struct TodayView: View {
     @State private var editingHabit: Habit?
     @State private var addingHabit = false
     @State private var customizing = false
+    @State private var showSettings = false
     @AppStorage("todayCompletedExpanded") private var showingCompleted = false
     @AppStorage("lastMissedHabitPromptDay") private var lastMissedPromptDay = ""
     @State private var error: String?
@@ -54,6 +55,7 @@ struct TodayView: View {
             page
                 .navigationTitle("Today").navigationBarTitleDisplayMode(.inline)
                 .toolbar(.hidden, for: .navigationBar)
+                .sheet(isPresented: $showSettings) { SettingsView() }
                 .modifier(TodaySheets(addingHabit: $addingHabit, customizing: $customizing, editing: $editing, editingHabit: $editingHabit))
                 .modifier(MutationErrorModifier(error: $error))
         }
@@ -96,9 +98,8 @@ struct TodayView: View {
     /// The daily heading stays above the plan.
     private var header: some View {
         PageHeader(eyebrow: day.formatted(.dateTime.weekday(.wide).month(.wide).day()), title: "Today",
-                   subtitle: "Make room for what matters.") {
-            Button { customizing = true } label: { Image(systemName: "slider.horizontal.3").font(.system(size: 20)).frame(width: 44, height: 44) }.accessibilityLabel("Edit Today")
-            SyncIndicator()
+                   subtitle: "") {
+            Button { showSettings = true } label: { Image(systemName: "gearshape").font(.system(size: 17)).frame(width: 44, height: 44) }.accessibilityLabel("Settings")
         }
     }
 

@@ -72,6 +72,30 @@ function bindLists() {
     };
     applyNoteFilter();
   }
+  document.querySelectorAll("[data-drag-section]").forEach((group) => {
+    group.ondragstart = (event) => event.dataTransfer.setData("text/orbit-section", group.dataset.dragSection);
+    group.ondragover = (event) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+    };
+    group.ondrop = (event) => {
+      event.preventDefault();
+      const source = event.dataTransfer.getData("text/orbit-section");
+      const ordered = orderedLists();
+      const from = ordered.findIndex((list) => list.id === source);
+      const to = ordered.findIndex((list) => list.id === group.dataset.dragSection);
+      if (from < 0 || from === to) return;
+      ordered.splice(to, 0, ordered.splice(from, 1)[0]);
+      void action(() =>
+        api.batch(
+          ordered.map((list, sortOrder) => ({
+            key: list._key,
+            payload: { ...clean(list), sortOrder, updatedAt: Date.now() },
+          })),
+        ),
+      );
+    };
+  });
   bindNoteEditor();
   if (!$("#search")) return;
   $("#search").oninput = (e) => {
@@ -94,7 +118,7 @@ function sectionName(id) {
 /** Your sections in order, then notes without one, then Someday. */
 function noteSections() {
   const own = orderedLists().map((l) => ({ id: l.id, name: l.name, color: colorName(l.color), own: true }));
-  return [...own, { id: "", name: "Unsorted", color: "clay" }, { id: SOMEDAY, name: "Someday", color: "lavender" }];
+  return [...own, { id: "", name: "Unsorted", color: "clay" }];
 }
 function notesIn(id) {
   const known = new Set(rows("lists").map((l) => l.id));
@@ -119,7 +143,7 @@ function notesNav() {
       const key = s.id || "none";
       const open = !collapsedNoteSections.has(key) || items.some((n) => n.id === openID);
       const selected = page === "lists" && (selectedList || "") === s.id && selectedList !== null;
-      return `<div class="notes-nav-group">
+      return `<div class="notes-nav-group" ${s.own ? `draggable="true" data-drag-section="${esc(s.id)}"` : ""}>
         <div class="notes-nav-row ${selected ? "selected" : ""}">
           <button class="notes-nav-toggle" data-note-section="${esc(key)}" aria-expanded="${open}" aria-label="${open ? "Collapse" : "Expand"} ${esc(s.name)}"><span class="chevron ${open ? "open" : ""}">${icon(ICONS.chevron)}</span></button>
           <button class="notes-nav-name" data-notes-home="${esc(s.id)}" title="${esc(s.name)}"><span class="list-dot ${s.color}"></span>${esc(s.name)}<span class="note-count">${items.length || ""}</span></button>
@@ -163,33 +187,22 @@ function noteCard(n) {
 }
 
 /** The overview: a section's (or every) page as cards, and the tasks filed there. */
-function renderNotes(tasks) {
+function renderNotes() {
   const heading =
     selectedList !== null && selectedList !== undefined ? sectionName(selectedList) || "Unsorted" : "Notes";
   const pages =
     selectedList === null || selectedList === undefined
       ? notes().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
       : notesIn(selectedList);
-  const filed = tasks.filter((t) =>
-    selectedList === null || selectedList === undefined ? true : (t.listID || "") === selectedList,
-  );
-  const groups = ["Today", "Overdue", "Upcoming", "No date", "Someday", "Completed"]
-    .map((group) => {
-      const items = filed.filter((task) => OrbitPlanner.dateGroup(planItem(task), today()) === group);
-      return items.length
-        ? `<details class="task-date-group" data-task-group="${group}" ${collapsedTaskGroups.has(group) || !selectedList ? "" : "open"}><summary>${group} <span class="note-count">${items.length}</span></summary><div class="check-list">${items.map(taskRow).join("")}</div></details>`
-        : "";
-    })
-    .join("");
   const title = selectedList === "" ? "Unsorted" : heading;
   return `<div class="notes-app">
     ${notesNav()}
     <section class="notes-pane notes-overview">
       <header class="page-head">
-        <div><div class="eyebrow">${selectedList === null ? "Write it down" : "Section"}</div><h1>${esc(title)}</h1><p class="subtitle">${pages.length} ${pages.length === 1 ? "page" : "pages"}${filed.length ? ` · ${filed.length} ${filed.length === 1 ? "task" : "tasks"}` : ""}</p></div>
+        <div><h1>${esc(title)}</h1><p class="subtitle">${pages.length} ${pages.length === 1 ? "page" : "pages"}</p></div>
         <div class="head-tools">
-          <input id="search" type="search" placeholder="Search" aria-label="Search notes and tasks" value="${esc(searchQuery)}" />
-          <button class="primary-pill" data-new-note="${esc(selectedList || "")}">${icon(ICONS.compose)}New page</button>
+          <input id="search" type="search" placeholder="Search" aria-label="Search notes" value="${esc(searchQuery)}" />
+
         </div>
       </header>
       ${
@@ -197,7 +210,7 @@ function renderNotes(tasks) {
           ? `<div class="note-grid">${pages.map(noteCard).join("")}</div>`
           : `<div class="empty-state">${docIcon}<p><strong>No pages yet</strong><br />Start typing anywhere to begin a new page.</p></div>`
       }
-      ${groups ? `<div class="section-label"><h2>${selectedList ? "Tasks in " + esc(title) : "Tasks"}</h2><span>To-dos</span></div>${groups}` : ""}
+
       <div class="capture-dock">${addField(selectedList ? `Write a note in ${title}` : "Write a note")}</div>
     </section>
   </div>`;
@@ -233,7 +246,7 @@ function renderNoteEditor() {
     ${notesNav()}
     <section class="notes-pane note-pane" aria-label="Note">
       <div class="note-toolbar">
-        <nav class="crumbs" aria-label="Location"><button data-back-notes>Notes</button><span>/</span><button data-notes-home="${esc(section)}">${esc(section ? sectionName(section) : "Unsorted")}</button></nav>
+        <nav class="crumbs" aria-label="Location"><button data-back-notes>← Back to notes</button><span>/</span><button data-notes-home="${esc(section)}">${esc(section ? sectionName(section) : "Unsorted")}</button></nav>
         <span id="note-status" class="note-status">${note ? "Saved" : ""}</span>
         <button class="icon-button" data-copy-note aria-label="Copy text" title="Copy text">${icon(ICONS.copy)}</button>
         ${note ? `<button class="icon-button" data-note-to-task aria-label="Make it a Task" title="Make it a Task">${icon(ICONS.task)}</button><button class="icon-button danger" data-delete-note aria-label="Delete note" title="Delete note">${icon(ICONS.trash)}</button>` : ""}
@@ -340,7 +353,8 @@ function bindNoteEditor() {
         const n = notes().find((item) => item.id === noteID) || rows("tasks").find((item) => item.id === noteID);
         if (!n) return;
         await put("tasks", { ...n, isNote: false, updatedAt: Date.now() });
-        page = "lists";
+        page = "tasks";
+        selectedList = null;
         noteID = null;
       });
   if ($("[data-delete-note]"))
@@ -367,7 +381,7 @@ function renderLists() {
     (b) =>
       (b.onclick = () => {
         selectedList = b.dataset.list;
-        page = "lists";
+        page = "tasks";
         render();
       }),
   );
@@ -388,6 +402,7 @@ function openList(id) {
   $("#list-move-down").disabled = index < 0 || index === ordered.length - 1;
   $("#list-editor-title").textContent = editingList ? "Edit Section" : "New Section";
   $("#list-editor").showModal();
+  f.elements.name.focus();
 }
 
 $("#new-list").onclick = () => openList();

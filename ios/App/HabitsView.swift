@@ -14,10 +14,8 @@ struct HabitsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
-                    PageHeader(eyebrow: "Repeats", title: "Habits", subtitle: "Your routines, reminders and progress.") {
-                        Button { adding = true } label: { Image(systemName: "plus").font(.system(size: 20)).frame(width: 44, height: 44) }.accessibilityLabel("New habit")
-                    }
-                    if habits.isEmpty { ContentUnavailableView("No Habits", systemImage: "repeat", description: Text("Tap + to add one.")) }
+                    PageHeader(eyebrow: "", title: "Habits")
+                    if habits.isEmpty { ContentUnavailableView("No Habits", systemImage: "repeat", description: Text("Start typing to add a habit.")) }
                     VStack(spacing: compactRows && !typeSize.isAccessibilitySize ? 3 : CGFloat(DesignTokens.spaceS)) {
                         ForEach(habits) { habit in
                             HabitRow(habit: habit, logs: logs, date: .now, edit: { editing = habit })
@@ -37,7 +35,7 @@ struct HabitsView: View {
                     }
                 }.padding(.horizontal, CGFloat(DesignTokens.screenPadding)).padding(.vertical, CGFloat(DesignTokens.spaceS))
                     .frame(maxWidth: 760).frame(maxWidth: .infinity)
-            }.background(DayTheme.canvas(scheme)).navigationTitle("Habits").navigationBarTitleDisplayMode(.inline)
+            }.captureDock(scheme) { InlineCapture(habitsOnly: true) }.background(DayTheme.canvas(scheme)).navigationTitle("Habits").navigationBarTitleDisplayMode(.inline)
                 .toolbar(.hidden, for: .navigationBar)
                 .sheet(isPresented: $adding) { HabitEditor() }.sheet(item: $editing) { HabitEditor(habit: $0) }
         }

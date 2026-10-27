@@ -31,6 +31,9 @@ extension View {
 /// With `notesOnly` (on Notes) everything typed becomes a note.
 struct InlineCapture: View {
     var notesOnly = false
+    var habitsOnly = false
+    var defaultDay: DefaultDay = .today
+    var listID: UUID? = nil
     @Environment(\.modelContext) private var context
     @Environment(\.orbitAccent) private var accent
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -41,14 +44,18 @@ struct InlineCapture: View {
     @State private var error: String?
     @State private var conflicts: [String] = []
     @State private var confirmConflict = false
-    private var result: QuickAddResult { QuickAdd.parse(text) }
-    private var isNote: Bool { notesOnly || NoteRules.isNote(text) }
+    private var result: QuickAddResult {
+        var parsed = QuickAdd.parse(text, defaultDay: defaultDay)
+        if habitsOnly { parsed.kind = .habit; parsed.schedule = parsed.schedule ?? "DAILY" }
+        return parsed
+    }
+    private var isNote: Bool { notesOnly || (!habitsOnly && NoteRules.isNote(text)) }
     private var preview: String { isNote ? "Note · Unsorted" : QuickAdd.describe(result) }
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // The chip belongs to the keyboard: it leaves when the keyboard is swiped away.
             if focused && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                PreviewChip(text: preview)
+                Button { options = true } label: { PreviewChip(text: preview) }.buttonStyle(.plain).accessibilityLabel("Change date and time")
                     .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
             }
             HStack(alignment: .top, spacing: 8) {
@@ -59,7 +66,7 @@ struct InlineCapture: View {
                 } label: {
                     Image(systemName: focused ? "chevron.down" : "plus").font(.system(size: 20)).frame(width: 44, height: 44)
                 }.accessibilityLabel(focused ? "Dismiss keyboard" : notesOnly ? "Add a note" : "Add a task").disabled(saving)
-                CaptureTextField(text: $text, focused: $focused, identifier: notesOnly ? "note-capture-input" : "inline-task-input", placeholder: notesOnly ? "Write a note" : "Add a task · gym tomorrow 6pm", minimumHeight: 44) { save() }
+                CaptureTextField(text: $text, focused: $focused, identifier: notesOnly ? "note-capture-input" : "inline-task-input", placeholder: notesOnly ? "Write a note" : habitsOnly ? "Add a habit" : "Add a task · gym tomorrow 6pm", minimumHeight: 44) { save() }
                 DictationButton(text: $text)
                 if !notesOnly {
                     Button { options = true } label: { Image(systemName: "calendar.badge.clock").font(.system(size: 20)).frame(width: 44, height: 44) }
@@ -71,7 +78,7 @@ struct InlineCapture: View {
             .animation(reduceMotion ? .easeOut(duration: 0.15) : .orbit, value: focused)
             .animation(reduceMotion ? nil : .orbit, value: isNote)
             .onDisappear { dismissKeyboard() }
-            .sheet(isPresented: $options) { QuickCapture(initialText: text, onSaved: { text = "" }) }
+            .sheet(isPresented: $options) { QuickCapture(listID: listID, fromList: listID != nil || defaultDay == .undated, initialText: text, habitsOnly: habitsOnly, onSaved: { text = "" }) }
             .confirmationDialog("This time overlaps another plan", isPresented: $confirmConflict, titleVisibility: .visible) {
                 Button("Add anyway") { save(allowConflict: true) }
                 Button("Change time", role: .cancel) {}
@@ -96,7 +103,7 @@ struct InlineCapture: View {
                 if !conflicts.isEmpty { confirmConflict = true; return }
             }
             saving = true
-            try QuickAddSaver.save(draft, in: context)
+            try QuickAddSaver.save(draft, listID: listID, in: context)
             text = ""; focused = true
             saving = false
             Task {

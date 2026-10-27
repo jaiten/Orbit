@@ -24,7 +24,7 @@ struct CalendarView: View {
         return result
     }
     private var selectedTasks: [PlannerTask] {
-        tasks.filter { $0.day == PlannerLogic.dayKey(selected) }
+        tasks.filter { !$0.note && $0.day == PlannerLogic.dayKey(selected) }
             .sorted { ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture) }
     }
     var body: some View {
@@ -32,19 +32,16 @@ struct CalendarView: View {
             ScrollView {
                 let visibleEvents = calendars.events(from: days[0], to: calendar.date(byAdding: .day, value: 1, to: days.last!)!)
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
-                    PageHeader(eyebrow: "Plan ahead", title: "Calendar") {
-                        Button { overview = true } label: { Image(systemName: "list.bullet.rectangle").font(.system(size: 19)).frame(width: 44, height: 44) }
-                            .accessibilityLabel("Overview").accessibilityHint("Every task and habit this week, this month or overall")
-                        Button { selected = .now } label: { Text("Today").padding(.horizontal, 14).frame(minHeight: 44) }
-                        Button { adding = true } label: { Image(systemName: "plus").font(.system(size: 20)).frame(width: 44, height: 44) }.accessibilityLabel("New task")
+                    PageHeader(eyebrow: "", title: "Calendar") {
+                        Button { selected = .now } label: { Text("Today").font(.subheadline).foregroundStyle(.secondary).frame(minHeight: 44) }
                     }
                     Picker("Calendar view", selection: $mode) { Text("Week").tag("Week"); Text("Month").tag("Month") }.pickerStyle(.segmented)
                     HStack {
-                        Button { move(-1) } label: { Image(systemName: "chevron.left").font(.system(size: 18)).frame(width: 44, height: 44) }.accessibilityLabel("Previous \(mode.lowercased())")
+                        Button { move(-1) } label: { Image(systemName: "chevron.up").font(.system(size: 18)).frame(width: 44, height: 44) }.accessibilityLabel("Previous \(mode.lowercased())")
                         Spacer()
                         Text(selected.formatted(.dateTime.month(.wide).year())).font(.title2)
                         Spacer()
-                        Button { move(1) } label: { Image(systemName: "chevron.right").font(.system(size: 18)).frame(width: 44, height: 44) }.accessibilityLabel("Next \(mode.lowercased())")
+                        Button { move(1) } label: { Image(systemName: "chevron.down").font(.system(size: 18)).frame(width: 44, height: 44) }.accessibilityLabel("Next \(mode.lowercased())")
                     }
                     if typeSize.isAccessibilitySize {
                         DatePicker("Selected day", selection: $selected, displayedComponents: .date)

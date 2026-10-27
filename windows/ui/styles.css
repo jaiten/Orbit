@@ -2697,3 +2697,73 @@ body[data-view="lists"] .page {
 .notes-overview .capture-dock [data-quick-add] {
   display: none;
 }
+
+/* Quiet pane transitions and controls, preserving Orbit's palette. */
+.inline-capture .add-field .capture-tools {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+.inline-capture textarea {
+  width: 0;
+}
+.month-heading,
+.month-arrows {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.today-button {
+  background: transparent;
+  color: var(--muted);
+  border-radius: 6px;
+}
+.today-side .plan-card,
+.today-main .empty-state {
+  border-radius: 8px;
+  min-height: 160px;
+  padding: 24px;
+  box-shadow: none;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.tasks-controls {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.tasks-controls select {
+  width: auto;
+}
+.notes-nav-group[draggable="true"] {
+  cursor: grab;
+}
+#list-form footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+dialog[open] {
+  animation: dialog-appear 140ms ease-out;
+}
+@keyframes dialog-appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  dialog[open] {
+    animation: none;
+  }
+}
+
+.habits-page {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 100px);
+}

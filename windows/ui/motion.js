@@ -1,12 +1,8 @@
 // Motion, the same physics as the website: springs from tokens.css (generated from
 // shared/design-tokens.json), transform and opacity only. With reduced motion, movement becomes a fade.
 const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-function spring(name = "ui") {
-  const css = getComputedStyle(document.documentElement);
-  return {
-    easing: css.getPropertyValue(`--spring-${name}`).trim() || "ease-out",
-    duration: parseFloat(css.getPropertyValue(`--spring-${name}-duration`)) || 300,
-  };
+function spring() {
+  return { easing: "cubic-bezier(0.2, 0.8, 0.2, 1)", duration: 160 };
 }
 const tokenNumber = (name, fallback) =>
   parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || fallback;
@@ -52,15 +48,7 @@ function settleRows(before) {
 function enterPage() {
   const content = $("#content");
   content.getAnimations().forEach((a) => a.cancel());
-  content.animate(
-    reducedMotion()
-      ? [{ opacity: 0 }, { opacity: 1 }]
-      : [
-          { opacity: 0, transform: "translateY(4px) scale(0.995)", filter: "blur(2px)" },
-          { opacity: 1, transform: "none", filter: "blur(0)" },
-        ],
-    { duration: reducedMotion() ? 120 : 180, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
-  );
+  content.animate([{ opacity: 0.6 }, { opacity: 1 }], { duration: reducedMotion() ? 0 : 140, easing: "ease-out" });
 }
 /** A row leaving (an overdue item moved to Later or Someday). Resolves when it has gone. */
 function leave(row) {

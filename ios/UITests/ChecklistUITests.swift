@@ -1,6 +1,21 @@
 import XCTest
 
 final class ChecklistUITests: XCTestCase {
+    private func selectTab(_ name: String, in app: XCUIApplication) {
+        let done = app.navigationBars["Settings"].buttons["Done"]
+        if done.exists { done.tap() }
+        let tab = app.tabBars.buttons[name]
+        XCTAssertTrue(tab.waitForExistence(timeout: 15)); tab.tap()
+    }
+
+    private func openSettings(_ app: XCUIApplication) {
+        if app.navigationBars["Settings"].exists { return }
+        selectTab("Today", in: app)
+        let gear = app.buttons["Settings"]
+        XCTAssertTrue(gear.waitForExistence(timeout: 5)); gear.tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+    }
+
     func testSuggestedStartAndFinishForLaundry() {
         continueAfterFailure = false
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
@@ -55,7 +70,7 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(keyboard.waitForNonExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["quick-add-preview"].waitForNonExistence(timeout: 5))
         XCTAssertEqual(input.value as? String, "Call mum")
-        app.tabBars.buttons["Notes"].tap(); app.tabBars.buttons["Today"].tap()
+        selectTab("Notes", in: app); selectTab("Today", in: app)
         XCTAssertEqual(input.value as? String, "Call mum")
         app.buttons["Add a task"].tap()
         XCTAssertTrue(app.buttons["Complete Call mum"].waitForExistence(timeout: 5))
@@ -106,7 +121,7 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertEqual(input.value as? String, "")
         XCTAssertFalse(app.buttons["Complete Garden ideas"].waitForExistence(timeout: 2))
         app.buttons["Dismiss keyboard"].tap()
-        app.tabBars.buttons["Notes"].tap()
+        selectTab("Notes", in: app)
         let note = app.buttons["Garden ideas"]
         XCTAssertTrue(note.waitForExistence(timeout: 5), app.debugDescription)
         note.tap()
@@ -212,7 +227,7 @@ final class ChecklistUITests: XCTestCase {
         let undo = app.buttons["Undo Stretch"]
         XCTAssertTrue(undo.waitForExistence(timeout: 5)); reveal(undo, in: app); undo.tap()
         XCTAssertTrue(log.waitForExistence(timeout: 5))
-        app.tabBars.buttons["Habits"].tap()
+        selectTab("Habits", in: app)
         app.buttons["Edit Stretch"].tap()
         XCTAssertTrue(app.navigationBars["Edit Habit"].waitForExistence(timeout: 5))
         app.navigationBars.buttons["Cancel"].tap()
@@ -247,7 +262,7 @@ final class ChecklistUITests: XCTestCase {
     func testNotesHaveSectionsAndPages() {
         continueAfterFailure = false
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
-        XCTAssertTrue(app.tabBars.buttons["Notes"].waitForExistence(timeout: 15)); app.tabBars.buttons["Notes"].tap()
+        XCTAssertTrue(app.tabBars.buttons["Notes"].waitForExistence(timeout: 15)); selectTab("Notes", in: app)
         let sections = app.buttons["edit-sections"]
         XCTAssertTrue(sections.waitForExistence(timeout: 5))
         XCTAssertGreaterThanOrEqual(sections.frame.height, 44)
@@ -275,27 +290,28 @@ final class ChecklistUITests: XCTestCase {
         page.name = "New note page"; page.lifetime = .keepAlways; add(page)
         let back = app.navigationBars.buttons["Notes"]
         if back.exists { back.tap() } else { app.navigationBars.buttons.element(boundBy: 0).tap() }
-        let row = app.buttons["Trail options"]
+        let row = app.buttons["Trail options"].firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5), app.debugDescription)
         let list = XCTAttachment(screenshot: app.screenshot())
         list.name = "Notes with sections"; list.lifetime = .keepAlways; add(list)
-        app.buttons["More for Trail options"].tap()
+        app.buttons["More for Trail options"].firstMatch.tap()
         XCTAssertTrue(app.buttons["Copy text"].waitForExistence(timeout: 5), app.debugDescription)
         app.buttons["Copy text"].tap()
-        // The Notes bottom bar adds a note.
-        let noteInput = app.textViews["note-capture-input"]
-        XCTAssertTrue(noteInput.waitForExistence(timeout: 5))
-        noteInput.tap(); noteInput.typeText("Packing list\n")
-        XCTAssertTrue(app.buttons["Packing list"].waitForExistence(timeout: 5))
+        // The Notes dock opens the full editor, starting with the title.
+        app.buttons["Write a note"].tap()
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        title.typeText("Packing list")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.buttons["Packing list"].firstMatch.waitForExistence(timeout: 5))
         // Notes never appear as to-dos.
-        app.tabBars.buttons["Today"].tap()
+        selectTab("Today", in: app)
         XCTAssertFalse(app.buttons["Complete Trail options"].exists)
     }
 
     func testCalendarMakesAddingToAnotherDayExplicit() {
         continueAfterFailure = false
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
-        XCTAssertTrue(app.tabBars.buttons["Calendar"].waitForExistence(timeout: 15)); app.tabBars.buttons["Calendar"].tap()
+        XCTAssertTrue(app.tabBars.buttons["Calendar"].waitForExistence(timeout: 15)); selectTab("Calendar", in: app)
         app.buttons["Next week"].tap()
         let add = app.buttons["calendar-add-task"]
         reveal(add, in: app); add.tap()
@@ -303,17 +319,13 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(input.waitForExistence(timeout: 5)); input.tap(); input.typeText("Pick up a parcel")
         app.navigationBars.buttons["Save"].tap()
         XCTAssertTrue(app.buttons["Complete Pick up a parcel"].waitForExistence(timeout: 5))
-        app.tabBars.buttons["Today"].tap()
+        selectTab("Today", in: app)
         XCTAssertFalse(app.buttons["Complete Pick up a parcel"].exists)
-        // Calendar's Overview shows it: everything, grouped by when.
-        app.tabBars.buttons["Calendar"].tap()
-        app.buttons["Overview"].tap()
-        let all = app.buttons["All"]
-        XCTAssertTrue(all.waitForExistence(timeout: 5)); all.tap()
+        // Tasks now holds the all-tasks overview, including future plans.
+        selectTab("Tasks", in: app)
         XCTAssertTrue(app.buttons["Complete Pick up a parcel"].waitForExistence(timeout: 5))
         let everything = XCTAttachment(screenshot: app.screenshot())
-        everything.name = "Calendar overview"; everything.lifetime = .keepAlways; self.add(everything)
-        app.navigationBars.buttons["Done"].tap()
+        everything.name = "Tasks overview"; everything.lifetime = .keepAlways; self.add(everything)
     }
 
     func testLargeTextAndCompactRowsKeepReadableControls() {
@@ -321,19 +333,19 @@ final class ChecklistUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-testing", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
         app.launch()
-        XCTAssertTrue(app.tabBars.buttons["Settings"].waitForExistence(timeout: 15)); app.tabBars.buttons["Settings"].tap()
+        XCTAssertTrue(app.tabBars.buttons["Today"].waitForExistence(timeout: 15)); openSettings(app)
         XCTAssertGreaterThan(app.staticTexts["Preferences"].frame.minX, 0)
         let settingsImage = XCTAttachment(screenshot: app.screenshot())
         settingsImage.name = "Settings at largest text size"; settingsImage.lifetime = .keepAlways; add(settingsImage)
-        app.tabBars.buttons["Notes"].tap()
+        selectTab("Notes", in: app)
         XCTAssertTrue(app.buttons["edit-sections"].isHittable)
         let listsImage = XCTAttachment(screenshot: app.screenshot())
         listsImage.name = "Notes at largest text size"; listsImage.lifetime = .keepAlways; add(listsImage)
-        app.tabBars.buttons["Settings"].tap()
+        openSettings(app)
         let compact = app.switches["Compact habits and tasks"]
         reveal(compact, in: app); XCTAssertTrue(compact.exists)
         if compact.value as? String == "0" { compact.tap() }
-        app.tabBars.buttons["Today"].tap()
+        selectTab("Today", in: app)
         app.buttons["Add a habit"].tap()
         let title = app.textFields["habit-title-input"]
         XCTAssertTrue(title.waitForExistence(timeout: 5)); title.tap(); title.typeText("Take a walk outside and get some fresh air")
@@ -346,12 +358,12 @@ final class ChecklistUITests: XCTestCase {
         screenshot.name = "Today at largest text size"; screenshot.lifetime = .keepAlways; add(screenshot)
         check.tap()
         XCTAssertTrue(app.buttons["Completed (1)"].waitForExistence(timeout: 5))
-        app.tabBars.buttons["Habits"].tap()
+        selectTab("Habits", in: app)
         let history = app.buttons["History"]; reveal(history, in: app); history.tap()
         let historyImage = XCTAttachment(screenshot: app.screenshot())
         historyImage.name = "Habit history at largest text size"; historyImage.lifetime = .keepAlways; add(historyImage)
         // Leave the user's default row density for following tests.
-        app.tabBars.buttons["Settings"].tap(); reveal(compact, in: app)
+        openSettings(app); reveal(compact, in: app)
         if compact.value as? String == "1" { compact.tap() }
     }
 
@@ -387,14 +399,18 @@ final class ChecklistUITests: XCTestCase {
     func testNativeThemeMenusAndHabitHistory() {
         continueAfterFailure = false
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
-        XCTAssertTrue(app.tabBars.buttons["Settings"].waitForExistence(timeout: 15)); app.tabBars.buttons["Settings"].tap()
+        XCTAssertTrue(app.tabBars.buttons["Today"].waitForExistence(timeout: 15)); openSettings(app)
         reveal(app.buttons["Sage"], in: app); app.buttons["Sage"].tap()
         XCTAssertTrue(app.buttons["Sage, selected"].waitForExistence(timeout: 5))
         reveal(app.buttons["Appearance"], in: app); app.buttons["Appearance"].tap(); app.buttons["Light"].tap()
         XCTAssertEqual(app.buttons["Appearance"].value as? String, "Light")
         let image = XCTAttachment(screenshot: app.screenshot()); image.name = "Sage appearance controls"; image.lifetime = .keepAlways; add(image)
-        app.tabBars.buttons["Habits"].tap(); app.buttons["New habit"].tap()
-        let title = app.textFields["habit-title-input"]; XCTAssertTrue(title.waitForExistence(timeout: 5)); title.tap(); title.typeText("A small routine")
+        selectTab("Habits", in: app)
+        let capture = app.textViews["inline-task-input"]
+        XCTAssertTrue(capture.waitForExistence(timeout: 5))
+        capture.tap(); capture.typeText("A small routine")
+        app.buttons["Task options"].tap()
+        XCTAssertTrue(app.navigationBars["New habit"].waitForExistence(timeout: 5))
         app.navigationBars.buttons["Save"].tap()
         XCTAssertTrue(app.buttons["History"].waitForExistence(timeout: 5)); app.buttons["History"].tap()
         // Every habit's history is on one screen; Check-ins opens the full list for one.
@@ -404,7 +420,7 @@ final class ChecklistUITests: XCTestCase {
         historyImage.name = "Rounded habit history"; historyImage.lifetime = .keepAlways; add(historyImage)
         app.buttons["Check-ins"].firstMatch.tap()
         XCTAssertTrue(app.navigationBars["A small routine"].waitForExistence(timeout: 5))
-        app.tabBars.buttons["Settings"].tap(); reveal(app.buttons["Coral"], in: app); app.buttons["Coral"].tap()
+        openSettings(app); reveal(app.buttons["Coral"], in: app); app.buttons["Coral"].tap()
         app.buttons["Appearance"].tap(); app.buttons["System"].tap()
         // Account has its own screen.
         app.swipeDown(); app.swipeDown()
@@ -441,10 +457,10 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Add a task"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Complete Morning walk")).firstMatch.waitForExistence(timeout: 5))
         let image = XCTAttachment(screenshot: app.screenshot()); image.name = "Orbit Today screenshot"; image.lifetime = .keepAlways; add(image)
-        app.tabBars.buttons["Settings"].tap()
+        openSettings(app)
         let remove = app.buttons["Remove Examples"]
         reveal(remove, in: app); remove.tap()
-        app.tabBars.buttons["Today"].tap()
+        selectTab("Today", in: app)
         XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Complete Morning walk")).firstMatch.waitForExistence(timeout: 2))
     }
 
