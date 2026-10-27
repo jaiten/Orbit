@@ -15,6 +15,7 @@ struct CalendarView: View {
     @State private var adding = false
     @State private var overview = false
     @State private var error: String?
+    @State private var showCompleted = false
     private var calendar: Calendar { .current }
     private var days: [Date] {
         let interval = calendar.dateInterval(of: mode == "Week" ? .weekOfYear : .month, for: selected)!
@@ -37,11 +38,11 @@ struct CalendarView: View {
                     }
                     Picker("Calendar view", selection: $mode) { Text("Week").tag("Week"); Text("Month").tag("Month") }.pickerStyle(.segmented)
                     HStack {
-                        Button { move(-1) } label: { Image(systemName: "chevron.up").font(.system(size: 18)).frame(width: 44, height: 44) }.accessibilityLabel("Previous \(mode.lowercased())")
+                        Button { move(-1) } label: { Image(systemName: "chevron.left").font(.system(size: 18)).frame(width: 44, height: 44) }.accessibilityLabel("Previous \(mode.lowercased())")
                         Spacer()
                         Text(selected.formatted(.dateTime.month(.wide).year())).font(.title2)
                         Spacer()
-                        Button { move(1) } label: { Image(systemName: "chevron.down").font(.system(size: 18)).frame(width: 44, height: 44) }.accessibilityLabel("Next \(mode.lowercased())")
+                        Button { move(1) } label: { Image(systemName: "chevron.right").font(.system(size: 18)).frame(width: 44, height: 44) }.accessibilityLabel("Next \(mode.lowercased())")
                     }
                     if typeSize.isAccessibilitySize {
                         DatePicker("Selected day", selection: $selected, displayedComponents: .date)
@@ -58,8 +59,8 @@ struct CalendarView: View {
                                         Circle().fill(busy ? (isSelected ? Color.white : accent.fill) : .clear).frame(width: 4, height: 4)
                                     }.frame(maxWidth: .infinity).padding(.vertical, 10)
                                         .foregroundStyle(isSelected ? Color.white : .primary)
-                                        .background(isSelected ? accent.text : Color.orbitSurface, in: RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusRow), style: .continuous))
-                                        .overlay(RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusRow), style: .continuous).strokeBorder(isSelected ? .clear : Color.orbitLine))
+                                        .background(isSelected ? accent.text : Color.orbitSurface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(isSelected ? .clear : Color.orbitLine))
                                         .animation(.orbit, value: isSelected)
                                 }.buttonStyle(.plain).accessibilityLabel(day.formatted(date: .complete, time: .omitted))
                                     .dropDestination(for: String.self) { ids, _ in reschedule(ids, to: day) }
@@ -77,16 +78,23 @@ struct CalendarView: View {
                     if selectedTasks.isEmpty && events.isEmpty { ContentUnavailableView("Nothing Planned", systemImage: "sun.horizon") }
                     VStack(spacing: CGFloat(DesignTokens.spaceS)) {
                         ForEach(events.filter(\.isAllDay), id: \.calendarItemIdentifier) { event in CalendarEventRow(event: event) }
-                        ForEach(selectedTasks.filter { !$0.hasTime }) { task in TaskRow(task: task) { editing = task }.draggable(task.id.uuidString) }
+                        ForEach(selectedTasks.filter { !$0.hasTime && $0.completedAt == nil }) { task in TaskRow(task: task) { editing = task }.draggable(task.id.uuidString) }
                         ForEach(timeline(events), id: \.id) { entry in
                             if let task = entry.task { TaskRow(task: task) { editing = task }.draggable(task.id.uuidString) }
                             if let event = entry.event { CalendarEventRow(event: event) }
                         }
                     }
+                    let completed = selectedTasks.filter { $0.completedAt != nil }
+                    if !completed.isEmpty {
+                        DisclosureGroup(isExpanded: $showCompleted) {
+                            VStack(spacing: 8) { ForEach(completed) { task in TaskRow(task: task) { editing = task } } }.padding(.top, 8)
+                        } label: { Text("Completed (\(completed.count))").font(.subheadline).foregroundStyle(.secondary) }
+                    }
                     Text("Choose a day, then tap Add task. You can also drag a task onto another day.").font(.caption).foregroundStyle(.secondary)
                 }.padding(.horizontal, CGFloat(DesignTokens.screenPadding)).padding(.vertical, CGFloat(DesignTokens.spaceS)).frame(maxWidth: 760).frame(maxWidth: .infinity)
             }.background(DayTheme.canvas(scheme)).tint(accent.fill).navigationTitle("Calendar").navigationBarTitleDisplayMode(.inline)
                 .toolbar(.hidden, for: .navigationBar)
+                .onChange(of: selected) { _, _ in showCompleted = false }
                 .sheet(item: $editing) { TaskEditor(task: $0) }
                 .sheet(isPresented: $adding) { QuickCapture(initialDate: selected) }
                 .sheet(isPresented: $overview) { AgendaSheet(day: selected) }
@@ -100,7 +108,7 @@ struct CalendarView: View {
         var event: EKEvent? = nil
     }
     private func timeline(_ events: [EKEvent]) -> [Entry] {
-        (selectedTasks.filter(\.hasTime).map { Entry(id: $0.id.uuidString, date: $0.dueDate ?? selected, task: $0) } + events.filter { !$0.isAllDay }.map { Entry(id: $0.calendarItemIdentifier, date: $0.startDate, event: $0) }).sorted { $0.date < $1.date }
+        (selectedTasks.filter { $0.hasTime && $0.completedAt == nil }.map { Entry(id: $0.id.uuidString, date: $0.dueDate ?? selected, task: $0) } + events.filter { !$0.isAllDay }.map { Entry(id: $0.calendarItemIdentifier, date: $0.startDate, event: $0) }).sorted { $0.date < $1.date }
     }
     private func move(_ amount: Int) { selected = calendar.date(byAdding: mode == "Week" ? .weekOfYear : .month, value: amount, to: selected)! }
     private func reschedule(_ ids: [String], to day: Date) -> Bool {

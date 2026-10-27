@@ -5,8 +5,8 @@ import SwiftData
 struct HomeLayoutEditor: View {
     @Environment(\.orbitAccent) private var accent
     /// The plan card, then the day's tasks and habits; history follows the actionable lists.
-    static let defaultSections = "progress,today,routine,completed,calendar,consistency"
-    static let defaultHidden = "consistency"
+    static let defaultSections = "consistency,today,routine,completed,calendar,progress"
+    static let defaultHidden = "progress"
 
     /// Upgrade only the previous default profile. Preserve customized orders, pins and visibility.
     static func upgradedLayout(sections: String, hidden: String) -> (sections: String, hidden: String) {

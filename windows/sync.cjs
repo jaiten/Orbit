@@ -26,6 +26,7 @@ class Sync {
         return;
       }
       this.store.bind(session.user.id);
+      if (this.beforeUpload) await this.beforeUpload(session.user.id);
       this.status = "Syncing…";
       this.notify("status");
       for (const r of this.store.rows().filter((r) => r.conflict)) this.store.accept(r.conflict);

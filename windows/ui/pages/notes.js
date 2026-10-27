@@ -7,7 +7,9 @@ const collapsedNoteSections = new Set(JSON.parse(localStorage.getItem("collapsed
 let searchQuery = "",
   noteFilter = "",
   noteID = null,
-  noteSection = null;
+  noteSection = null,
+  notePhotoDraft = [],
+  notePageToken = 0;
 const docIcon =
   '<svg class="doc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>';
 const icon = (d) => `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
@@ -220,6 +222,8 @@ function renderNotes() {
 
 /** Opens a page (or a new one in a section). */
 function openNote(id, section = null, title = "") {
+  notePageToken++;
+  notePhotoDraft = [...(notes().find((n) => n.id === id)?.photos || pendingNotes.get(id)?.photos || [])];
   noteID = id;
   if (id) {
     lastNoteID = id;
@@ -269,8 +273,9 @@ function renderNoteEditor() {
     ${notesNav()}
     <section class="notes-pane note-pane" aria-label="Note">
       <div class="note-toolbar">
-        <nav class="crumbs" aria-label="Location"><button data-back-notes>← Back to notes</button><span>/</span><button data-notes-home="${esc(section)}">${esc(section ? sectionName(section) : "All")}</button></nav>
+        <nav class="crumbs" aria-label="Location"><button data-back-notes>Back to notes</button><span>/</span><button data-notes-home="${esc(section)}">${esc(section ? sectionName(section) : "All")}</button></nav>
         <span id="note-status" class="note-status">${note ? "Saved" : ""}</span>
+        <button class="icon-button" id="add-note-photo" aria-label="Add photo" title="Add photo">${icon("M3 3h18v18H3zM3 17l6-6 4 4 3-3 5 5M8 7h.01")}</button><input id="note-photo-file" type="file" accept="image/*" multiple hidden />
         <button class="icon-button" data-copy-note aria-label="Copy text" title="Copy text">${icon(ICONS.copy)}</button>
         ${note ? `<button class="icon-button" data-note-to-task aria-label="Make it a Task" title="Make it a Task">${icon(ICONS.task)}</button><button class="icon-button danger" data-delete-note aria-label="Delete note" title="Delete note">${icon(ICONS.trash)}</button>` : ""}
       </div>
@@ -282,6 +287,7 @@ function renderNoteEditor() {
           <div><dt>${icon("M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0")}Edited</dt><dd id="note-edited">${esc(when)}</dd></div>
         </dl>
         <textarea id="note-body" class="note-body" placeholder="Start writing, or press Esc to go back…" aria-label="Note text" spellcheck="true">${esc(note?.notes || "")}</textarea>
+        <div id="note-photos" class="note-photos">${notePhotoMarkup()}</div>
       </article>
     </section>
   </div>`;
@@ -294,7 +300,7 @@ function saveNote(rethrow = false) {
   if (page !== "note" || !$("#note-title") || !$("#note-body")) return noteSaveQueue;
   const title = $("#note-title").value.trim(),
     text = $("#note-body").value;
-  if (!noteID && !title && !text.trim()) return noteSaveQueue;
+  if (!noteID && !title && !text.trim() && !notePhotoDraft.length) return noteSaveQueue;
   const existing = notes().find((note) => note.id === noteID) || pendingNotes.get(noteID);
   const record = existing || { ...newTask("", null), isNote: true };
   noteID = record.id;
@@ -302,8 +308,9 @@ function saveNote(rethrow = false) {
   localStorage.setItem("lastNoteID", noteID);
   const snapshot = {
     ...record,
-    title: title || (text.trim() ? OrbitNotes.split(text).title : "Untitled"),
+    title,
     notes: text,
+    photos: [...notePhotoDraft],
     listID: $("#note-section").value || null,
     updatedAt: Date.now(),
   };
@@ -316,6 +323,7 @@ function saveNote(rethrow = false) {
         current &&
         current.title === snapshot.title &&
         current.notes === snapshot.notes &&
+        JSON.stringify(current.photos || []) === JSON.stringify(snapshot.photos || []) &&
         (current.listID || null) === snapshot.listID
       )
         return;
@@ -341,6 +349,7 @@ function leaveNote(section) {
 function bindNoteEditor() {
   if (!$("#note-title")) return;
   resizeNoteFields();
+  bindNotePhotos();
   const later = () => {
     resizeNoteFields();
     clearTimeout(noteSaveTimer);
@@ -385,7 +394,7 @@ function bindNoteEditor() {
   $("[data-copy-note]").onclick = () => {
     const title = $("#note-title").value.trim(),
       text = $("#note-body").value.trim();
-    void api.copy(text ? `${title}\n\n${text}` : title).then(() => showNotice("Copied"));
+    void api.copy([title, text].filter(Boolean).join("\n\n"));
   };
   if ($("[data-note-to-task]"))
     $("[data-note-to-task]").onclick = () =>
@@ -393,7 +402,12 @@ function bindNoteEditor() {
         await saveNote();
         const n = notes().find((item) => item.id === noteID) || rows("tasks").find((item) => item.id === noteID);
         if (!n) return;
-        await put("tasks", { ...n, isNote: false, updatedAt: Date.now() });
+        await put("tasks", {
+          ...n,
+          title: n.title || OrbitNotes.split(n.notes).title || "Photo note",
+          isNote: false,
+          updatedAt: Date.now(),
+        });
         pendingNotes.delete(n.id);
         lastNoteID = null;
         localStorage.removeItem("lastNoteID");
@@ -531,3 +545,54 @@ function moveList(delta) {
 }
 $("#list-move-up").onclick = () => moveList(-1);
 $("#list-move-down").onclick = () => moveList(1);
+
+function notePhotoMarkup() {
+  return notePhotoDraft
+    .map(
+      (photo) =>
+        `<figure><img src="orbit://app/photos/${esc(photo.id)}.jpg" alt="Note photo" loading="lazy" /><button class="icon-button" data-remove-note-photo="${esc(photo.id)}" aria-label="Remove photo">${icon(ICONS.trash)}</button></figure>`,
+    )
+    .join("");
+}
+function bindPhotoRemoval() {
+  document.querySelectorAll("[data-remove-note-photo]").forEach(
+    (button) =>
+      (button.onclick = async () => {
+        notePhotoDraft = notePhotoDraft.filter((photo) => photo.id !== button.dataset.removeNotePhoto);
+        $("#note-photos").innerHTML = notePhotoMarkup();
+        bindPhotoRemoval();
+        await saveNote();
+      }),
+  );
+}
+function bindNotePhotos() {
+  bindPhotoRemoval();
+  const attach = async (files) => {
+    const token = notePageToken;
+    try {
+      for (const file of files) {
+        if (!file.type.startsWith("image/")) continue;
+        if (notePhotoDraft.length >= 12) throw Error("A note can hold up to 12 photos.");
+        if (file.size > 25000000) throw Error("Choose a photo smaller than 25 MB.");
+        const photo = await api.addNotePhoto(new Uint8Array(await file.arrayBuffer()));
+        if (token !== notePageToken || page !== "note") return;
+        notePhotoDraft.push(photo);
+        await saveNote(true);
+        $("#note-photos").innerHTML = notePhotoMarkup();
+        bindPhotoRemoval();
+      }
+    } catch (error) {
+      showNotice(error.message);
+    }
+  };
+  $("#add-note-photo").onclick = () => $("#note-photo-file").click();
+  $("#note-photo-file").onchange = (event) => void attach([...event.target.files]);
+  for (const field of [$("#note-title"), $("#note-body")])
+    field.onpaste = (event) => {
+      const photos = [...(event.clipboardData?.files || [])].filter((file) => file.type.startsWith("image/"));
+      if (photos.length) {
+        event.preventDefault();
+        void attach(photos);
+      }
+    };
+}

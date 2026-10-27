@@ -10,6 +10,7 @@ const {
   powerMonitor,
   clipboard,
   Notification,
+  nativeImage,
 } = require("electron");
 const { confirmationNotice } = require("./auth-links.cjs");
 const { PlannerTools, encodeBackup, decodeBackup, planImport, encodeTasksCSV } = require("./planner-tools.cjs");
@@ -23,6 +24,7 @@ const { Sync } = require("./sync.cjs");
 const { runMigrations } = require("./migrations.cjs");
 const { setupDesktop } = require("./desktop.cjs");
 const { UpdateManager, supportsUpdates } = require("./updates.cjs");
+const { NotePhotos } = require("./note-photos.cjs");
 const { createClient } = require("@supabase/supabase-js");
 const config = require("./config.json");
 protocol.registerSchemesAsPrivileged([
@@ -131,6 +133,8 @@ app.whenReady().then(async () => {
       auth: { storage, autoRefreshToken: true, persistSession: true, detectSessionInUrl: false },
     });
   sync = new Sync(store, client, notify);
+  const notePhotos = new NotePhotos(path.join(app.getPath("userData"), "note-photos"));
+  sync.beforeUpload = (uid) => notePhotos.uploadPending(store.rows(), client, uid);
   plannerTools = new PlannerTools(store);
   recoveryHandler = async () => {
     const raw = pendingRecoveryURL;
@@ -186,6 +190,15 @@ app.whenReady().then(async () => {
   };
   protocol.handle("orbit", (request) => {
     const url = new URL(request.url);
+    if (url.host === "app" && /^\/photos\/[0-9a-f-]+\.jpg$/.test(url.pathname)) {
+      return notePhotos
+        .read(url.pathname.split("/").pop().slice(0, -4), client)
+        .then(
+          (data) =>
+            new Response(data, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "private, max-age=3600" } }),
+        )
+        .catch(() => new Response("Photo unavailable", { status: 404 }));
+    }
     const ui = path.join(__dirname, "ui");
     const file = path.join(ui, url.pathname === "/" ? "index.html" : decodeURIComponent(url.pathname));
     if (
@@ -277,6 +290,16 @@ app.whenReady().then(async () => {
   handle("copy", async (text) => {
     if (typeof text !== "string" || text.length > 200000) throw Error("Invalid text");
     clipboard.writeText(text);
+  });
+  handle("add-note-photo", (data) => {
+    const bytes = Buffer.from(data);
+    if (bytes.length > 25000000) throw Error("Choose a photo smaller than 25 MB.");
+    let image = nativeImage.createFromBuffer(bytes);
+    if (image.isEmpty()) throw Error("Choose a supported image.");
+    const size = image.getSize();
+    if (Math.max(size.width, size.height) > 1600)
+      image = image.resize(size.width >= size.height ? { width: 1600 } : { height: 1600 });
+    return notePhotos.save(image.toJPEG(80));
   });
   // A focus timer finished: a Windows notification, like reminders.
   handle("timer-done", async (title) => {
@@ -436,6 +459,7 @@ app.whenReady().then(async () => {
       if (sync.busy) throw Error("Sync is finishing. Please try again.");
       sync.busy = true;
       try {
+        await notePhotos.eraseRemote(client);
         const { error } = await client.rpc("orbit_delete_account");
         if (error) throw error;
         try {
@@ -445,6 +469,7 @@ app.whenReady().then(async () => {
         }
         storage.removeItem(authKey);
         store.clearPlanner();
+        notePhotos.eraseLocal();
         sync.status = "Account and synced data deleted";
         notify();
         return "Your account and synced data were deleted.";

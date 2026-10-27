@@ -24,6 +24,7 @@ struct CheckTile: View {
     /// The detail is a habit count that has met its target (shown in the accent text colour).
     var met = false
     var icon: String? = nil
+    var bodyText = ""
     var progress = 0 // 0: ordinary, 1: ready, 2: in progress
     var progressOptions: [TileMove] = []
     @Environment(\.orbitAccent) private var accent
@@ -120,8 +121,12 @@ struct CheckTile: View {
 
     private var line: some View {
         Group {
-            if typeSize.isAccessibilitySize {
-                VStack(alignment: .leading, spacing: 4) { titleText; detailText }
+            if typeSize.isAccessibilitySize || !bodyText.isEmpty || title.split(whereSeparator: \.isWhitespace).count > 10 {
+                VStack(alignment: .leading, spacing: 7) {
+                    titleText
+                    if !bodyText.isEmpty { Text(bodyText).font(.subheadline).foregroundStyle(.secondary).lineLimit(5) }
+                    detailText
+                }
             } else {
                 HStack(spacing: 12) { titleText; Spacer(minLength: 8); detailText }
             }
@@ -131,7 +136,7 @@ struct CheckTile: View {
     private var titleText: some View {
         Text(title).font(.body).foregroundStyle(done ? .secondary : .primary)
             .strikethrough(done, color: .secondary)
-            .lineLimit(typeSize.isAccessibilitySize ? nil : 2).fixedSize(horizontal: false, vertical: true)
+            .lineLimit(typeSize.isAccessibilitySize || title.split(whereSeparator: \.isWhitespace).count > 10 ? nil : 2).fixedSize(horizontal: false, vertical: true)
     }
     @ViewBuilder private var detailText: some View {
         if !subtitle.isEmpty {
@@ -239,7 +244,7 @@ struct TaskRow: View {
     var body: some View {
         CheckTile(title: task.title, subtitle: subtitle, done: task.completedAt != nil, color: accent.fill,
                   completionLabel: completionLabel,
-                  toggle: toggle, edit: edit, remove: { change { context.delete(task); try Mutations.save(context) } }, moves: moves, icon: ItemIcons.suggested(for: task.title), progress: progress, progressOptions: progressOptions)
+                  toggle: toggle, edit: edit, remove: { change { context.delete(task); try Mutations.save(context) } }, moves: moves, icon: ItemIcons.suggested(for: task.title), bodyText: task.notes, progress: progress, progressOptions: progressOptions)
             .modifier(TaskActions(task: task)).modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
             .sensoryFeedback(.impact(weight: .medium), trigger: startedFeedback)
     }

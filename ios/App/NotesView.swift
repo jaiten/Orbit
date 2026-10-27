@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import PhotosUI
 
 /// Where a note opens: an existing page, or a fresh one in a section. `token` makes each new page distinct.
 enum NoteRoute: Hashable {
@@ -43,7 +44,7 @@ struct NotesView: View {
                             Label("New section", systemImage: "folder.badge.plus").frame(minHeight: 44).contentShape(Rectangle())
                         }.accessibilityIdentifier("edit-sections")
                         Spacer()
-                        Button { path.append(.new(section: nil, token: UUID())) } label: { Image(systemName: "square.and.pencil") }.accessibilityLabel("New note")
+                        Button { withAnimation(.orbit) { path.append(.new(section: nil, token: UUID())) } } label: { Image(systemName: "square.and.pencil") }.accessibilityLabel("New note")
                     }.frame(minHeight: 44)
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
@@ -70,7 +71,7 @@ struct NotesView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             // The same bottom bar as Today; what you type here becomes a note.
-            .captureDock(scheme) { Button { path.append(.new(section: nil, token: UUID())) } label: { Label("Write a note", systemImage: "square.and.pencil").frame(maxWidth: .infinity, minHeight: 48) }.orbitSurface(radius: CGFloat(DesignTokens.radiusInput)) }
+            .captureDock(scheme) { Button { withAnimation(.orbit) { path.append(.new(section: nil, token: UUID())) } } label: { Label("Write a note", systemImage: "square.and.pencil").frame(maxWidth: .infinity, minHeight: 48) }.orbitSurface(radius: CGFloat(DesignTokens.radiusInput)) }
             .background(DayTheme.canvas(scheme)).tint(accent.fill)
             .navigationTitle("Notes").navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
@@ -100,7 +101,7 @@ struct NotesView: View {
                     }.frame(minHeight: 44).contentShape(Rectangle())
                 }.buttonStyle(.plain)
                     .accessibilityLabel("\(name), \(pages.count) notes").accessibilityValue(open ? "Expanded" : "Collapsed")
-                Button { if listID == nil { managing = true } else { path.append(.new(section: listID, token: UUID())) } } label: {
+                Button { if listID == nil { managing = true } else { withAnimation(.orbit) { path.append(.new(section: listID, token: UUID())) } } } label: {
                     Image(systemName: "plus").font(.system(size: 16, weight: .medium)).frame(width: 44, height: 44)
                 }.foregroundStyle(.secondary).accessibilityLabel("New note in \(name)")
             }.padding(.horizontal, 4)
@@ -115,13 +116,13 @@ struct NotesView: View {
                             HStack(spacing: 0) {
                                 NoteRow(note: note)
                                     .contentShape(Rectangle())
-                                    .onTapGesture { path.append(.open(note.id)) }
+                                    .onTapGesture { withAnimation(.orbit) { path.append(.open(note.id)) } }
                                     .accessibilityElement(children: .ignore)
                                     .accessibilityAddTraits(.isButton)
                                     .accessibilityLabel(note.title.isEmpty ? "Untitled" : note.title)
                                     .accessibilityValue(NoteRules.snippet(note.notes))
                                     .accessibilityIdentifier("note-row")
-                                    .accessibilityAction { path.append(.open(note.id)) }
+                                    .accessibilityAction { withAnimation(.orbit) { path.append(.open(note.id)) } }
                                 NoteMenu(note: note)
                             }
                             .contentShape(Rectangle())
@@ -148,9 +149,9 @@ struct NoteRow: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "doc.text").font(.system(size: 17)).foregroundStyle(.secondary).frame(width: 24).padding(.top, 2)
             VStack(alignment: .leading, spacing: 3) {
-                Text(note.title.isEmpty ? "Untitled" : note.title).font(.body.weight(.medium)).foregroundStyle(.primary).lineLimit(2)
+                Text(note.title.isEmpty ? NoteRules.snippet(note.notes) : note.title).font(.body.weight(.medium)).foregroundStyle(.primary).lineLimit(2)
                 let snippet = NoteRules.snippet(note.notes)
-                if !snippet.isEmpty { Text(snippet).font(.subheadline).foregroundStyle(.secondary).lineLimit(2) }
+                if !snippet.isEmpty && !note.title.isEmpty { Text(snippet).font(.subheadline).foregroundStyle(.secondary).lineLimit(2) }
             }
             Spacer(minLength: 8)
             Text(note.updatedAt.formatted(.relative(presentation: .named, unitsStyle: .abbreviated)))
@@ -176,7 +177,7 @@ struct NoteMenuItems: View {
             ForEach(lists.filter { $0.id != TodayRules.somedayID }) { list in Button(list.name) { move(list.id) } }
             Button("Someday") { move(TodayRules.somedayID) }
         }
-        Button("Make It a Task", systemImage: "checklist") { change { note.isNote = nil; note.updatedAt = .now; try Mutations.save(context) } }
+        Button("Make It a Task", systemImage: "checklist") { change { note.isNote = nil; if note.title.isEmpty { note.title = NoteRules.split(note.notes).title.isEmpty ? "Photo note" : NoteRules.split(note.notes).title }; note.updatedAt = .now; try Mutations.save(context) } }
         Button("Delete", systemImage: "trash", role: .destructive) { change { context.delete(note); try Mutations.save(context) } }
     }
     private func move(_ id: UUID?) {
@@ -259,12 +260,15 @@ struct NoteEditor: View {
     @State private var loaded = false
     @State private var error: String?
     @State private var confirmDelete = false
+    @State private var photos: [NotePhoto] = []
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var importingPhoto = false
     @FocusState private var focus: Field?
     private enum Field { case title, body }
 
     private var sectionName: String {
         if section == TodayRules.somedayID { return "Someday" }
-        return lists.first { $0.id == section }?.name ?? "No section"
+        return lists.first { $0.id == section }?.name ?? "All"
     }
 
     var body: some View {
@@ -281,7 +285,7 @@ struct NoteEditor: View {
                     property("Section", icon: "folder") {
                         Menu {
                             Picker("Section", selection: $section) {
-                                Text("No section").tag(nil as UUID?)
+                                Text("All").tag(nil as UUID?)
                                 ForEach(lists.filter { $0.id != TodayRules.somedayID }) { Text($0.name).tag(Optional($0.id)) }
                                 Text("Someday").tag(Optional(TodayRules.somedayID))
                             }
@@ -294,31 +298,54 @@ struct NoteEditor: View {
                     }
                 }.font(.subheadline)
                 Divider().padding(.vertical, 4)
-                TextField("Start writing…", text: $text, axis: .vertical)
-                    .font(.body).lineSpacing(5)
-                    .focused($focus, equals: .body)
-                    .frame(maxWidth: .infinity, minHeight: 240, alignment: .topLeading)
-                    .accessibilityIdentifier("note-body")
+                CaptureTextField(text: $text, focused: Binding(get: { focus == .body }, set: { editing in
+                    if editing { focus = .body } else if focus == .body { focus = nil }
+                }), identifier: "note-body", placeholder: "Start writing…", minimumHeight: 240, maximumLines: 24,
+                   allowsNewlines: true, onPasteImage: addPhoto, textStyle: .body) {}
+                ForEach(photos) { photo in
+                    NotePhotoView(photo: photo) {
+                        photos.removeAll { $0.id == photo.id }; save()
+                    }
+                }
+
             }
-            .padding(.horizontal, 24).padding(.bottom, 80)
+            .padding(.horizontal, 24).padding(.bottom, 24)
             .frame(maxWidth: 720, alignment: .leading).frame(maxWidth: .infinity)
         }
         .scrollDismissesKeyboard(.interactively)
         .background(DayTheme.canvas(scheme)).tint(accent.fill)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            HStack(spacing: 18) {
+                PhotosPicker(selection: $selectedPhoto, matching: .images) { Image(systemName: "photo.badge.plus").frame(width: 44, height: 44) }.accessibilityLabel("Add photo")
+                Button { if let image = UIPasteboard.general.image { addPhoto(image) } } label: { Image(systemName: "doc.on.clipboard").frame(width: 44, height: 44) }.accessibilityLabel("Paste photo")
+                if importingPhoto { ProgressView() }
+                Spacer()
+                if focus != nil { Button("Done") { focus = nil; save() }.frame(minHeight: 44) }
+            }.padding(.horizontal, 24).padding(.top, 4).padding(.bottom, 12).background(DayTheme.canvas(scheme))
+        }
+        .onChange(of: selectedPhoto) { _, item in
+            guard let item else { return }
+            importingPhoto = true
+            Task {
+                defer { importingPhoto = false; selectedPhoto = nil }
+                do {
+                    guard let data = try await item.loadTransferable(type: Data.self), let image = UIImage(data: data) else { throw CocoaError(.fileReadCorruptFile) }
+                    addPhoto(image)
+                } catch { self.error = error.localizedDescription }
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
-                    Button("Copy text", systemImage: "doc.on.doc") { UIPasteboard.general.string = text.isEmpty ? title : title + "\n\n" + text }
+                    Button("Copy text", systemImage: "doc.on.doc") { UIPasteboard.general.string = [title, text].filter { !$0.isEmpty }.joined(separator: "\n\n") }
                     if note != nil {
                         Button("Make It a Task", systemImage: "checklist") { makeTask() }
                         Button("Delete", systemImage: "trash", role: .destructive) { confirmDelete = true }
                     }
                 } label: { Image(systemName: "ellipsis.circle") }.accessibilityLabel("Note options")
-            }
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("Done") { focus = nil; save() }
             }
         }
         .onAppear(perform: load)
@@ -357,8 +384,8 @@ struct NoteEditor: View {
 
     private func load() {
         guard !loaded else { return }
-        if let note { title = note.title; text = note.notes; section = note.listID }
-        else { section = sectionID; focus = .title }
+        if let note { title = note.title; text = note.notes; section = note.listID; photos = note.photos }
+        else { section = sectionID; Task { try? await Task.sleep(for: .milliseconds(250)); focus = .title } }
         loaded = true
     }
 
@@ -369,14 +396,14 @@ struct NoteEditor: View {
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         do {
             if let note {
-                let newTitle = trimmedTitle.isEmpty ? (trimmedText.isEmpty ? "Untitled" : NoteRules.split(trimmedText).title) : trimmedTitle
-                guard note.title != newTitle || note.notes != text || note.listID != section else { return }
+                let newTitle = trimmedTitle
+                guard note.title != newTitle || note.notes != text || note.listID != section || note.photos != photos else { return }
                 if section == TodayRules.somedayID { try TodayRules.ensureSomeday(context) }
-                note.title = newTitle; note.notes = text; note.listID = section; note.updatedAt = .now
+                note.title = newTitle; note.notes = text; note.listID = section; note.photos = photos; note.updatedAt = .now
                 try Mutations.save(context)
-            } else if !trimmedTitle.isEmpty || !trimmedText.isEmpty {
-                let created = PlannerTask(title: trimmedTitle.isEmpty ? NoteRules.split(trimmedText).title : trimmedTitle, listID: section)
-                created.isNote = true; created.notes = text
+            } else if !trimmedTitle.isEmpty || !trimmedText.isEmpty || !photos.isEmpty {
+                let created = PlannerTask(title: trimmedTitle, listID: section)
+                created.isNote = true; created.notes = text; created.photos = photos
                 if section == TodayRules.somedayID { try TodayRules.ensureSomeday(context) }
                 context.insert(created)
                 try Mutations.save(context)
@@ -385,10 +412,41 @@ struct NoteEditor: View {
         } catch { context.rollback(); self.error = error.localizedDescription }
     }
 
+    private func addPhoto(_ image: UIImage) {
+        guard photos.count < 12 else { error = "A note can hold up to 12 photos."; return }
+        do { photos.append(try NotePhotos.save(image)); save() }
+        catch { self.error = error.localizedDescription }
+    }
+
     private func makeTask() {
         save()
         guard let note else { return }
-        do { note.isNote = nil; note.updatedAt = .now; try Mutations.save(context); dismiss() }
+        do { note.isNote = nil; if note.title.isEmpty { note.title = NoteRules.split(note.notes).title.isEmpty ? "Photo note" : NoteRules.split(note.notes).title }; note.updatedAt = .now; try Mutations.save(context); dismiss() }
         catch { context.rollback(); self.error = error.localizedDescription }
+    }
+}
+
+private struct NotePhotoView: View {
+    let photo: NotePhoto
+    let remove: () -> Void
+    @State private var image: UIImage?
+    @State private var failed = false
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 500).clipShape(RoundedRectangle(cornerRadius: 10))
+                    .contextMenu {
+                        Button("Copy photo", systemImage: "doc.on.doc") { UIPasteboard.general.image = image }
+                        Button("Remove photo", systemImage: "trash", role: .destructive, action: remove)
+                    }
+                    .overlay(alignment: .topTrailing) { Button(role: .destructive, action: remove) { Image(systemName: "trash").padding(12).background(.regularMaterial, in: Circle()) }.accessibilityLabel("Remove photo").padding(8) }
+            } else {
+                Button { Task { await load() } } label: { Label(failed ? "Photo unavailable — tap to retry" : "Loading photo…", systemImage: "photo").frame(maxWidth: .infinity, minHeight: 100) }
+            }
+        }.task(id: photo.id) { await load() }
+    }
+    private func load() async {
+        do { image = try await SyncService.shared.loadPhoto(photo.id); failed = false }
+        catch { failed = true }
     }
 }

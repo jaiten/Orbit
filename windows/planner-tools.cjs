@@ -33,7 +33,8 @@ function decodeBackup(data) {
         !["tasks", "habits", "lists", "idea_prompts"].includes(entity) ||
         r.key !== `${entity}/${p.id.toLowerCase()}` ||
         typeof p[entity === "lists" ? "name" : entity === "idea_prompts" ? "text" : "title"] !== "string" ||
-        !p[entity === "lists" ? "name" : entity === "idea_prompts" ? "text" : "title"].trim()
+        (!p[entity === "lists" ? "name" : entity === "idea_prompts" ? "text" : "title"].trim() &&
+          !(entity === "tasks" && p.isNote === true && (p.notes?.trim() || p.photos?.length)))
       )
         throw Error("Invalid planner item");
     }

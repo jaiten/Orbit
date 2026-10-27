@@ -50,7 +50,7 @@ struct InlineCapture: View {
         return parsed
     }
     private var isNote: Bool { notesOnly || (!habitsOnly && NoteRules.isNote(text)) }
-    private var preview: String { isNote ? "Note · Unsorted" : QuickAdd.describe(result) }
+    private var preview: String { isNote ? "Note · All notes" : QuickAdd.describe(result) }
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // The chip belongs to the keyboard: it leaves when the keyboard is swiped away.
@@ -76,7 +76,6 @@ struct InlineCapture: View {
                 .shadow(color: .black.opacity(0.06), radius: 12, y: 3)
         }.tint(accent.text)
             .animation(reduceMotion ? .easeOut(duration: 0.15) : .orbit, value: focused)
-            .animation(reduceMotion ? nil : .orbit, value: isNote)
             .onDisappear { dismissKeyboard() }
             .sheet(isPresented: $options) { QuickCapture(listID: listID, fromList: listID != nil || defaultDay == .undated, initialText: text, habitsOnly: habitsOnly, onSaved: { text = "" }) }
             .confirmationDialog("This time overlaps another plan", isPresented: $confirmConflict, titleVisibility: .visible) {

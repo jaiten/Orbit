@@ -27,7 +27,10 @@ struct SettingsView: View {
                             }
                         }
                     }
-                    Section("Today") { NavigationLink("Arrange Today") { HomeLayoutEditor() } }
+                    Section("Layout") {
+                        NavigationLink("Arrange Today") { HomeLayoutEditor() }
+                        NavigationLink("Tab order") { NavigationLayoutEditor() }
+                    }
                     Section("Sync") {
                         Text(sync.status == "All changes synced" ? "Synced" : sync.status)
                             .foregroundStyle(sync.status == "All changes synced" ? Color.green : Color.orange)

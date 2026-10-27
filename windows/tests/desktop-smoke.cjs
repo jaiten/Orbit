@@ -368,7 +368,9 @@ const remove = (folder) => {
     if ((await capture.boundingBox()).height <= shortHeight + 10) throw Error("Add field did not grow");
     await capture.press("Enter");
     await p.waitForFunction(async () =>
-      (await window.orbit.read()).records.some((r) => r.payload.isNote && r.payload.title === "Garden ideas"),
+      (await window.orbit.read()).records.some(
+        (r) => r.payload.isNote && r.payload.title === "" && r.payload.notes.startsWith("Garden ideas"),
+      ),
     );
     if (await p.getByRole("checkbox", { name: /Garden ideas/ }).count()) throw Error("A note showed as a to-do");
     // Return on an empty field leaves it.

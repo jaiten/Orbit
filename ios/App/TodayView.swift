@@ -139,7 +139,7 @@ struct TodayView: View {
                 return a.hasTime ? (a.dueDate ?? .distantFuture) < (b.dueDate ?? .distantFuture) : a.sortOrder < b.sortOrder
             }
             VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
-                checklistSection("Your day", note: "Today", items: planned.map { TodayItem(task: $0) }, empty: relevant.isEmpty ? "Nothing planned. Add a task to get started." : "No more tasks scheduled for today.")
+                checklistSection("Your day", note: "", items: planned.map { TodayItem(task: $0) }, empty: relevant.isEmpty ? "Nothing planned. Add a task to get started." : "No more tasks scheduled for today.")
                 if !overdue.isEmpty { checklistSection("Overdue", note: "\(overdue.count) to review", items: overdue.map { TodayItem(task: $0) }, empty: "") }
             }
         case "routine":
@@ -153,7 +153,7 @@ struct TodayView: View {
                         .font(.subheadline.weight(.medium)).frame(minHeight: 44)
                 }
             } else {
-                checklistSection("Habits", note: "Repeats", items: open.map { TodayItem(habit: $0) }, empty: "All habits checked for today.")
+                checklistSection("Habits", note: "", items: open.map { TodayItem(habit: $0) }, empty: "All habits checked for today.")
             }
         case "completed":
             if !completedItems.isEmpty {

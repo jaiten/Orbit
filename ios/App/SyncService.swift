@@ -109,9 +109,11 @@ import OSLog
         busy = true; syncing = true; again = false
         realtime.stop()
         defer { busy = false; syncing = false }
+        try await eraseRemotePhotos()
         _ = try await request("/rest/v1/rpc/orbit_delete_account", body: [:])
         try saveSession(nil)
         try SyncRecords.erasePlanner(context)
+        NotePhotos.eraseLocal()
         lastDeviceCheck = .distantPast
         status = "Account and synced data deleted"
         WidgetCenter.shared.reloadAllTimelines()
@@ -137,6 +139,7 @@ import OSLog
                 Task { await self?.run(context) }
             } }
             try SyncRecords.bind(uid, context: context); try SyncRecords.capture(context); try context.save(); status = "Syncing…"
+            try await uploadPhotos(context, uid: uid)
             for entry in try context.fetch(FetchDescriptor<SyncEntry>()) where entry.conflict != nil {
                 try receive(try SyncRecords.object(entry.conflict!), context: context)
             }
@@ -168,6 +171,49 @@ import OSLog
             again = false; status = "Saved locally · " + error.localizedDescription
             let value = error as NSError
             logger.error("failed duration_ms=\(Int(Date.now.timeIntervalSince(started) * 1000), privacy: .public) domain=\(value.domain, privacy: .public) code=\(value.code, privacy: .public)")
+        }
+    }
+    private func photoRequest(_ path: String, bytes: Data? = nil) async throws -> Data {
+        guard let token = session?["access_token"] as? String else { throw CocoaError(.fileReadNoPermission) }
+        var request = URLRequest(url: URL(string: base + "/storage/v1/object/" + (bytes == nil ? "authenticated/" : "") + NotePhotos.bucket + "/" + path)! )
+        request.timeoutInterval = 30
+        request.setValue(key, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer " + token, forHTTPHeaderField: "Authorization")
+        if let bytes {
+            request.httpMethod = "POST"; request.httpBody = bytes
+            request.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
+            request.setValue("true", forHTTPHeaderField: "x-upsert")
+        }
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else { throw CocoaError(.fileReadNoPermission) }
+        return data
+    }
+    private func uploadPhotos(_ context: ModelContext, uid: String) async throws {
+        for task in try context.fetch(FetchDescriptor<PlannerTask>()) {
+            for photo in task.photos {
+                let file = try NotePhotos.file(photo.id)
+                let marker = file.appendingPathExtension("uploaded")
+                guard FileManager.default.fileExists(atPath: file.path), (try? String(contentsOf: marker, encoding: .utf8)) != uid else { continue }
+                _ = try await photoRequest(uid + "/" + photo.id + ".jpg", bytes: Data(contentsOf: file))
+                try uid.write(to: marker, atomically: true, encoding: .utf8)
+            }
+        }
+    }
+    func loadPhoto(_ id: String) async throws -> UIImage {
+        if let image = NotePhotos.local(id) { return image }
+        guard let uid = (session?["user"] as? [String: Any])?["id"] as? String else { throw CocoaError(.fileReadNoPermission) }
+        let data = try await photoRequest(uid + "/" + id + ".jpg")
+        try NotePhotos.cache(data, id: id)
+        guard let image = NotePhotos.local(id) else { throw CocoaError(.fileReadCorruptFile) }
+        return image
+    }
+    private func eraseRemotePhotos() async throws {
+        guard let uid = (session?["user"] as? [String: Any])?["id"] as? String else { throw CocoaError(.fileReadNoPermission) }
+        while true {
+            guard let files = try await request("/storage/v1/object/list/" + NotePhotos.bucket, body: ["prefix": uid, "limit": 1000]) as? [[String: Any]] else { throw CocoaError(.coderReadCorrupt) }
+            if files.isEmpty { break }
+            let paths = files.compactMap { $0["name"] as? String }.map { uid + "/" + $0 }
+            _ = try await request("/storage/v1/object/" + NotePhotos.bucket, body: ["prefixes": paths], method: "DELETE")
         }
     }
     private func receive(_ record: [String: Any], context: ModelContext) throws {

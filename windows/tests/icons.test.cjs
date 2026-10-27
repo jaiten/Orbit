@@ -16,7 +16,7 @@ test("date groups keep completed and Someday tasks out of overdue", () => {
     [{ day: "2026-10-20" }, "Overdue"],
     [{ day: today }, "Today"],
     [{ day: "2026-10-24" }, "Upcoming"],
-    [{ day: null }, "No date"],
+    [{ day: null }, "Someday"],
     [{ day: "2026-10-20", someday: true }, "Someday"],
     [{ day: "2026-10-20", completedDay: today, someday: true }, "Completed"],
   ])

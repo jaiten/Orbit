@@ -159,7 +159,7 @@ function renderAgenda(tasks, allHabits, head = "") {
     !!a.completedAt - !!b.completedAt || (a.hasTime ? a.dueDate : Infinity) - (b.hasTime ? b.dueDate : Infinity);
   let body = "";
   if (todayScope === "all") {
-    body = ["Today", "Overdue", "Upcoming", "No date", "Someday", "Completed"]
+    body = ["Today", "Overdue", "Upcoming", "Someday", "Completed"]
       .map((group) => {
         const items = tasks.filter((task) => OrbitPlanner.dateGroup(planItem(task), t) === group).sort(order);
         if (!items.length) return "";

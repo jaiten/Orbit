@@ -1,7 +1,8 @@
 // Calendar: the month as a grid (like macOS Calendar), each day showing its first few items, and the
 // chosen day's plan beside it with its own add field.
 let calendarStart = null,
-  calendarDay = null;
+  calendarDay = null,
+  calendarCompletedOpen = false;
 const chevron = (d) => `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
 
 /** The first day of the month containing `key`. */
@@ -60,11 +61,13 @@ function renderCalendar(tasks) {
   const heading = calendarDay === t ? "Today" : chosen.toLocaleDateString([], { weekday: "long" });
   const date = chosen.toLocaleDateString([], { month: "long", day: "numeric" });
   const items = on(calendarDay);
+  const openItems = items.filter((task) => !task.completedAt);
+  const completed = items.filter((task) => task.completedAt);
   const count = tasks.filter((task) => monthOf(taskDate(task) || "") === calendarStart).length;
   return `<div class="calendar-page">
     <header class="page-head">
-      <div><div class="month-heading"><h1>${weekly ? "This week" : month}</h1><div class="month-arrows"><button class="icon-button" data-month="-1" aria-label="Previous ${weekly ? "week" : "month"}">${chevron("m6 15 6-6 6 6")}</button><button class="icon-button" data-month="1" aria-label="Next ${weekly ? "week" : "month"}">${chevron("m6 9 6 6 6-6")}</button></div></div><p class="subtitle">${weekly ? `${localDay(days[0]).toLocaleDateString([], { month: "short", day: "numeric" })} – ${localDay(days[6]).toLocaleDateString([], { month: "short", day: "numeric" })}` : count ? `${count} ${count === 1 ? "item" : "items"} this month` : "Nothing planned this month yet"}</p></div>
-      <div class="head-tools">
+      <div><div class="month-heading"><h1>${weekly ? "This week" : month}</h1></div><p class="subtitle">${weekly ? `${localDay(days[0]).toLocaleDateString([], { month: "short", day: "numeric" })} – ${localDay(days[6]).toLocaleDateString([], { month: "short", day: "numeric" })}` : count ? `${count} ${count === 1 ? "item" : "items"} this month` : "Nothing planned this month yet"}</p></div>
+      <div class="head-tools"><div class="month-arrows"><button class="icon-button" data-month="-1" aria-label="Previous ${weekly ? "week" : "month"}">${chevron("m15 6-6 6 6 6")}</button><button class="icon-button" data-month="1" aria-label="Next ${weekly ? "week" : "month"}">${chevron("m9 6 6 6-6 6")}</button></div>
       <button class="today-button" data-month="0">Today</button>
       ${scopeTabs()}
       </div>
@@ -77,7 +80,8 @@ function renderCalendar(tasks) {
       <aside class="cal-day card" aria-label="${heading}">
         <div class="cal-day-head"><h2>${heading}</h2><span>${date}</span></div>
 
-        <div class="check-list">${items.map(taskRow).join("") || `<p class="empty">Nothing planned. Type to add something for ${calendarDay === t ? "today" : heading}.</p>`}</div>
+        <div class="check-list">${openItems.map(taskRow).join("") || `<p class="empty">Nothing planned. Type to add something for ${calendarDay === t ? "today" : heading}.</p>`}</div>
+        ${completed.length ? `<details id="calendar-completed" ${calendarCompletedOpen ? "open" : ""}><summary>Completed (${completed.length})</summary><div class="check-list">${completed.map(taskRow).join("")}</div></details>` : ""}
       </aside>
     </div>
     <div class="capture-dock">${addField(calendarDay === t ? "Add to today" : "Add to " + heading)}</div>
@@ -85,6 +89,10 @@ function renderCalendar(tasks) {
 }
 
 function bindCalendar() {
+  if ($("#calendar-completed"))
+    $("#calendar-completed").ontoggle = (event) => {
+      calendarCompletedOpen = event.target.open;
+    };
   document.querySelectorAll("[data-scope]").forEach(
     (b) =>
       (b.onclick = () => {
@@ -122,7 +130,7 @@ function bindCalendar() {
         if (step && !reducedMotion())
           $(".cal-grid")?.animate(
             [
-              { opacity: 0.5, transform: `translateY(${step * 6}px)` },
+              { opacity: 0.5, transform: `translateX(${step * 6}px)` },
               { opacity: 1, transform: "none" },
             ],
             { duration: 160, easing: "ease-out" },

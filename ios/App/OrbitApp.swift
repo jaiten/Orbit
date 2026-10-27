@@ -37,7 +37,9 @@ struct RootView: View {
     @AppStorage("consistencyRange") private var consistencyRange = 7
     @ObservedObject private var undo = UndoJournal.shared
     @ObservedObject private var sync = SyncService.shared
-    @State private var selectedTab = 0
+    @State private var selectedTab = OrbitTab.today
+    @AppStorage("tabOrder") private var tabOrder = OrbitTab.defaultOrder
+    @GestureState private var undoDrag: CGSize = .zero
     @State private var captureDockHeight: CGFloat = 0
     @State private var errorMessage: String?
     @AppStorage("onboarded") private var onboarded = false
@@ -48,12 +50,11 @@ struct RootView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         TabView(selection: $selectedTab) {
-            // Line icons, as on the website; the selected tab takes the accent.
-            TodayView().tabItem { Label("Today", systemImage: "sun.max").environment(\.symbolVariants, .none) }.tag(0)
-            CalendarView().tabItem { Label("Calendar", systemImage: "calendar").environment(\.symbolVariants, .none) }.tag(1)
-            NotesView().tabItem { Label("Notes", systemImage: "note.text").environment(\.symbolVariants, .none) }.tag(2)
-            HabitsView().tabItem { Label("Habits", systemImage: "repeat").environment(\.symbolVariants, .none) }.tag(3)
-            TasksView().tabItem { Label("Tasks", systemImage: "checklist").environment(\.symbolVariants, .none) }.tag(4)
+            ForEach(OrbitTab.ordered(tabOrder)) { tab in
+                tabPage(tab)
+                    .tabItem { Label(tab.title, systemImage: tab.symbol).environment(\.symbolVariants, .none) }
+                    .tag(tab)
+            }
         }
         .onPreferenceChange(CaptureDockHeight.self) { captureDockHeight = $0 }
         // The toast stays quiet for routine edits; shake can undo the latest local mutation.
@@ -70,7 +71,12 @@ struct RootView: View {
                     .padding(.leading, 18).padding(.trailing, 14).padding(.vertical, 12)
                     .background(Color.orbitSurface, in: Capsule()).overlay(Capsule().strokeBorder(Color.orbitLine))
                     .shadow(color: .black.opacity(0.12), radius: 18, y: 8)
-                    .padding(.bottom, 75 + (selectedTab == 0 || selectedTab == 3 || selectedTab == 4 ? captureDockHeight : 0))
+                    .offset(x: undoDrag.width, y: max(0, undoDrag.height))
+                    .opacity(max(0.25, 1 - abs(undoDrag.width) / 180))
+                    .gesture(DragGesture(minimumDistance: 12).updating($undoDrag) { value, state, _ in state = value.translation }.onEnded { value in
+                        if abs(value.translation.width) > 45 || value.translation.height > 30 { undo.dismiss() }
+                    })
+                    .padding(.bottom, ([OrbitTab.today, .habits, .tasks].contains(selectedTab) ? captureDockHeight : 0) + 8)
                     .transition(.opacity)
                     .task(id: change.created) { try? await Task.sleep(for: .seconds(8)); if undo.change?.created == change.created { undo.dismiss() } }
                 }
@@ -97,7 +103,7 @@ struct RootView: View {
                 Task { do { try await sync.acceptRecovery(code: code, context: context) } catch { errorMessage = error.localizedDescription } }
             }
             else if let notice = AuthConfirmation.notice(for: url) { showAccount = true; errorMessage = notice }
-            else { selectedTab = 0 }
+            else { selectedTab = .today }
         }
         .sheet(isPresented: $sync.recoveryReady) { NavigationStack { PasswordChangeView() } }
         .fullScreenCover(isPresented: $showOnboarding, onDismiss: { if openAccountAfterOnboarding { showAccount = true } }) {
@@ -135,6 +141,15 @@ struct RootView: View {
         .alert("Orbit", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("OK") { errorMessage = nil }
         } message: { Text(errorMessage ?? "") }
+    }
+    @ViewBuilder private func tabPage(_ tab: OrbitTab) -> some View {
+        switch tab {
+        case .today: TodayView()
+        case .tasks: TasksView()
+        case .notes: NotesView()
+        case .habits: HabitsView()
+        case .calendar: CalendarView()
+        }
     }
     /// First launch only. People who already have plans skip it; UI tests skip it unless they pass --onboarding.
     private func decideOnboarding() {

@@ -113,7 +113,7 @@ const OrbitPlanning = (() => {
     const labels = { DAILY: "Daily", WEEKDAYS: "Weekdays", WEEKENDS: "Weekends", WEEKLY: "Weekly" };
     if (result.kind === "habit") return ["Habit", labels[result.schedule], clock].filter(Boolean).join(" · ");
     if (result.someday) return ["Someday", result.list ? "#" + result.list : ""].filter(Boolean).join(" · ");
-    if (!result.date) return ["Task", "No date", result.list ? "#" + result.list : ""].filter(Boolean).join(" · ");
+    if (!result.date) return ["Task", "Someday", result.list ? "#" + result.list : ""].filter(Boolean).join(" · ");
     const today = key(now),
       tomorrow = key(addDays(now, 1));
     const day =

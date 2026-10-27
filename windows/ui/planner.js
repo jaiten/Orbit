@@ -58,7 +58,7 @@
   function dateGroup(item, today) {
     if (item.completedDay) return "Completed";
     if (item.someday) return "Someday";
-    if (!item.day) return "No date";
+    if (!item.day) return "Someday";
     if (item.day === today) return "Today";
     return item.day < today ? "Overdue" : "Upcoming";
   }

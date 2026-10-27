@@ -73,6 +73,8 @@ function bind() {
   bindHabits();
   bindSettings();
   bindUpdates();
+  refreshSelection();
+  flushSyncStatus();
   bindAccount();
   bindReview();
   bindLists();

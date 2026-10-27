@@ -118,7 +118,7 @@ enum QuickAdd {
         let list = result.list.map { "List: " + $0 }
         if result.kind == .habit { return (["Habit", HabitRules.label(result.schedule ?? "DAILY")] + [clock].compactMap { $0 }).joined(separator: " · ") }
         if result.someday { return (["Someday"] + [list].compactMap { $0 }).joined(separator: " · ") }
-        guard let day = result.date else { return (["Task", "No date"] + [list].compactMap { $0 }).joined(separator: " · ") }
+        guard let day = result.date else { return (["Task", "Someday"] + [list].compactMap { $0 }).joined(separator: " · ") }
         let today = PlannerLogic.dayKey(now, calendar: calendar)
         let tomorrow = PlannerLogic.dayKey(calendar.date(byAdding: .day, value: 1, to: now)!, calendar: calendar)
         let label = day == today ? "Today" : day == tomorrow ? "Tomorrow"

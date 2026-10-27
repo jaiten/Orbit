@@ -67,7 +67,7 @@ function conflictBanner() {
   const count = state.records.filter((r) => r.conflict).length;
   if (!count) return "";
   const what = count === 1 ? "1 item has" : `${count} items have`;
-  return `<button class="banner" data-review-conflicts>${what} two versions to review →</button>`;
+  return `<button class="banner" data-review-conflicts>${what} two versions to review</button>`;
 }
 function clean({ _key, ...payload }) {
   return payload;
@@ -140,7 +140,24 @@ function interacting() {
     ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)
   );
 }
+let pendingSyncStatus = null;
+let syncStatusTimer;
 function updateSync(value) {
+  pendingSyncStatus = value;
+  clearTimeout(syncStatusTimer);
+  // Let a short sync cycle finish before changing the visible status. Keep typing quiet.
+  syncStatusTimer = setTimeout(flushSyncStatus, value.syncing ? 1200 : 350);
+}
+function flushSyncStatus() {
+  if (!pendingSyncStatus) return;
+  if (
+    page === "note" ||
+    document.querySelector("dialog[open]") ||
+    ["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)
+  )
+    return;
+  const value = pendingSyncStatus;
+  pendingSyncStatus = null;
   const icon = $("#sync-status");
   const status = value.status || "Saved on this PC";
   icon.dataset.state = value.syncing
@@ -151,11 +168,16 @@ function updateSync(value) {
         ? "synced"
         : "local";
   if ($("#sync-details")) $("#sync-details").textContent = status;
-  // The sidebar shows the short form ("Saved locally"); the full message is in the tooltip and Account.
-  $("#sync-text").textContent = status.split(" · ")[0];
+  $("#sync-text").textContent = value.syncing
+    ? "Syncing…"
+    : status === "All changes synced"
+      ? "Synced"
+      : status.split(" · ")[0];
   icon.title = status;
   icon.setAttribute("aria-label", "Sync: " + status);
 }
+document.addEventListener("focusout", () => setTimeout(flushSyncStatus, 400));
+document.addEventListener("close", () => setTimeout(flushSyncStatus, 400), true);
 async function load(force = false) {
   const sequence = ++loadSequence;
   const revision = renderRevision;
@@ -551,8 +573,9 @@ function openRowMenu(e) {
   const [kind, id] = (e.currentTarget.dataset.rowMenu || "note:" + e.currentTarget.dataset.noteMenu).split(":");
   const item = rows(kind === "habit" ? "habits" : "tasks").find((r) => r.id === id);
   if (!item) return;
-  const text = item.notes?.trim() ? `${item.title}\n\n${item.notes.trim()}` : item.title;
-  const entries = [["Copy text", () => api.copy(text).then(() => showNotice("Copied"))]];
+  const text = [item.title, item.notes?.trim()].filter(Boolean).join("\n\n");
+  const entries = [["Copy text", () => api.copy(text)]];
+  if (kind !== "habit") entries.push(["Select item", () => selectRow(kind, id)]);
   if (kind === "habit") entries.push(["Edit…", () => openHabit(id)]);
   if (kind === "note") entries.push(["Open", () => openNote(id)]);
   if (kind === "task") {

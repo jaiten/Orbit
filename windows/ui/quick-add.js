@@ -209,7 +209,8 @@ function bindInlineCapture() {
     event.preventDefault();
     if (!input.value.trim()) return input.blur();
     if (page === "lists" || (page !== "habits" && OrbitNotes.isNote(input.value))) {
-      const { title, body } = OrbitNotes.split(input.value);
+      const title = "",
+        body = input.value.trim();
       const note = { ...newTask(title, null), isNote: true, notes: body };
       note.listID = quickAddContext().listID;
       void action(async () => {

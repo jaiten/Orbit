@@ -166,6 +166,9 @@ struct CaptureTextField: UIViewRepresentable {
     var minimumHeight: CGFloat = 0
     /// Grows up to this many lines, then scrolls.
     var maximumLines = 6
+    var allowsNewlines = false
+    var onPasteImage: ((UIImage) -> Void)? = nil
+    var textStyle: UIFont.TextStyle = .title3
     var onSubmit: () -> Void
 
     func makeUIView(context: Context) -> Input {
@@ -173,7 +176,7 @@ struct CaptureTextField: UIViewRepresentable {
         field.placeholder = placeholder
         field.accessibilityIdentifier = identifier
         field.accessibilityLabel = placeholder
-        field.font = .preferredFont(forTextStyle: .title3)
+        field.font = .preferredFont(forTextStyle: textStyle)
         field.adjustsFontForContentSizeCategory = true
         field.backgroundColor = .clear
         field.autocapitalizationType = .sentences
@@ -184,6 +187,7 @@ struct CaptureTextField: UIViewRepresentable {
         field.textContainerInset = UIEdgeInsets(top: 11, left: 0, bottom: 11, right: 0)
         field.textContainer.lineFragmentPadding = 0
         field.delegate = context.coordinator
+        field.textChanged()
         field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         field.setContentHuggingPriority(.defaultLow, for: .horizontal)
         return field
@@ -191,7 +195,16 @@ struct CaptureTextField: UIViewRepresentable {
 
     func updateUIView(_ field: Input, context: Context) {
         context.coordinator.parent = self
-        if field.text != text { field.text = text; field.textChanged() }
+        field.onPasteImage = onPasteImage
+        // SwiftUI can echo an older binding while UIKit is still processing typing or autocorrect.
+        // Accept deliberate external edits, but never replace an active composition or recent UIKit edit.
+        if field.text != text, field.markedTextRange == nil,
+           text.isEmpty || !field.isFirstResponder || !context.coordinator.recentEdits.contains(text) {
+            let selection = field.selectedRange
+            field.text = text
+            field.selectedRange = NSRange(location: min(selection.location, (text as NSString).length), length: 0)
+            field.textChanged()
+        }
         field.wantsFocus = focused
         field.scheduleFocusUpdate()
     }
@@ -202,7 +215,7 @@ struct CaptureTextField: UIViewRepresentable {
         let lineHeight = uiView.font?.lineHeight ?? 24
         let limit = lineHeight * CGFloat(maximumLines) + uiView.textContainerInset.top + uiView.textContainerInset.bottom
         let scrolls = fitting > limit
-        if uiView.isScrollEnabled != scrolls { DispatchQueue.main.async { uiView.isScrollEnabled = scrolls } }
+        if uiView.isScrollEnabled != scrolls { uiView.isScrollEnabled = scrolls }
         return CGSize(width: width, height: max(minimumHeight, min(fitting, limit)))
     }
 
@@ -210,6 +223,11 @@ struct CaptureTextField: UIViewRepresentable {
 
     final class Input: UITextView {
         var wantsFocus = false
+        var onPasteImage: ((UIImage) -> Void)?
+        override func paste(_ sender: Any?) {
+            if let onPasteImage, let image = UIPasteboard.general.image { onPasteImage(image) }
+            else { super.paste(sender) }
+        }
         private var focusUpdateScheduled = false
         private let placeholderLabel = UILabel()
         var placeholder = "" {
@@ -234,6 +252,7 @@ struct CaptureTextField: UIViewRepresentable {
         }
 
         func textChanged() {
+            placeholderLabel.font = font
             placeholderLabel.isHidden = !text.isEmpty
             invalidateIntrinsicContentSize()
         }
@@ -260,10 +279,14 @@ struct CaptureTextField: UIViewRepresentable {
 
     final class Coordinator: NSObject, UITextViewDelegate {
         var parent: CaptureTextField
+        var recentEdits: [String] = []
         init(parent: CaptureTextField) { self.parent = parent }
         func textViewDidChange(_ textView: UITextView) {
             (textView as? Input)?.textChanged()
-            parent.text = textView.text ?? ""
+            let value = textView.text ?? ""
+            recentEdits.append(value)
+            if recentEdits.count > 24 { recentEdits.removeFirst() }
+            parent.text = value
         }
         func textViewDidBeginEditing(_ textView: UITextView) {
             if !parent.focused { parent.focused = true }
@@ -273,7 +296,7 @@ struct CaptureTextField: UIViewRepresentable {
         }
         func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
             // Return submits; the save routine validates the draft (an empty one closes the keyboard).
-            guard text == "\n" else { return true }
+            guard text == "\n", !parent.allowsNewlines else { return true }
             parent.onSubmit()
             return false
         }

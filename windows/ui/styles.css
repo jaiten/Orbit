@@ -1971,8 +1971,30 @@ dialog footer .danger {
 }
 .row-menu button:hover,
 .row-menu button:focus-visible {
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  background: #0a84ff;
+  color: white;
   outline: none;
+}
+.row-menu button {
+  color: var(--ink);
+}
+.month-heading {
+  display: flex;
+}
+.month-arrows {
+  display: flex;
+  flex: none;
+}
+.completed-tasks summary,
+#calendar-completed summary {
+  cursor: pointer;
+  color: var(--muted);
+  padding: 10px 0;
+}
+@media (min-width: 1101px) {
+  .calendar-page > .capture-dock {
+    width: calc(min(1120px, 100vw - var(--sidebar-width) - 2 * var(--content-inset)) - 340px - var(--space-xl));
+  }
 }
 
 /* Notes: Notion's layout with macOS materials. A notes sidebar beside one page that fills the window. */
@@ -3045,4 +3067,52 @@ dialog {
 .undo-toast {
   z-index: 30;
   bottom: 88px;
+}
+
+.selection-bar {
+  position: fixed;
+  z-index: 20;
+  bottom: 100px;
+  right: 28px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 4px 18px rgb(0 0 0 / 0.12);
+  font-size: 13px;
+}
+.selection-bar[hidden] {
+  display: none;
+}
+.is-selected {
+  box-shadow: inset 0 0 0 2px var(--accent-text);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+}
+.month-heading {
+  display: flex;
+}
+.note-photos {
+  display: grid;
+  gap: 16px;
+  margin-top: 24px;
+}
+.note-photos figure {
+  position: relative;
+  margin: 0;
+}
+.note-photos img {
+  display: block;
+  max-width: 100%;
+  max-height: 600px;
+  border-radius: 10px;
+  object-fit: contain;
+}
+.note-photos figure button {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  background: var(--surface);
 }

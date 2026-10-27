@@ -214,36 +214,31 @@ struct AgendaSheet: View {
     }
 }
 
-/// Every task remains reachable here after scheduling, conversion or a move to Someday.
+/// Tasks are grouped by category. Both categories and completed items can stay folded away.
 struct TasksView: View {
     @Environment(\.colorScheme) private var scheme
     @Query(sort: \PlannerTask.sortOrder) private var tasks: [PlannerTask]
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
     @State private var scope = "All tasks"
-    @State private var category: UUID?
-    @State private var sort = "Date"
     @State private var search = ""
     @State private var editing: PlannerTask?
     @State private var managing = false
-    @State private var showSettings = false
+    @State private var showCompleted = false
+    @State private var collapsedCategories: Set<String> = []
     private var visible: [PlannerTask] {
         let today = PlannerLogic.dayKey(.now)
         let interval = Calendar.current.dateInterval(of: .weekOfYear, for: .now)!
         let start = PlannerLogic.dayKey(interval.start), end = PlannerLogic.dayKey(interval.end)
         return tasks.filter { task in
-            guard !task.note, category == nil || task.listID == category,
-                  search.isEmpty || task.title.localizedCaseInsensitiveContains(search) || task.notes.localizedCaseInsensitiveContains(search) else { return false }
+            guard !task.note, search.isEmpty || task.title.localizedCaseInsensitiveContains(search) || task.notes.localizedCaseInsensitiveContains(search) else { return false }
             switch scope {
+            case "Today": return task.listID != TodayRules.somedayID && task.day == today
             case "This week": return task.listID != TodayRules.somedayID && (task.day ?? "") >= start && (task.day ?? "9999") < end
-            case "Future": return task.listID != TodayRules.somedayID && (task.day ?? "") > today && task.completedAt == nil
-            case "Someday": return task.listID == TodayRules.somedayID
-            case "No date": return task.day == nil && task.listID != TodayRules.somedayID
+            case "Future": return task.listID != TodayRules.somedayID && (task.day ?? "") > today
+            case "Someday": return task.day == nil || task.listID == TodayRules.somedayID
             default: return true
             }
         }.sorted { a, b in
-            if (a.completedAt == nil) != (b.completedAt == nil) { return a.completedAt == nil }
-            if sort == "Title" { return a.title.localizedStandardCompare(b.title) == .orderedAscending }
-            if sort == "As arranged" { return a.sortOrder < b.sortOrder }
             if a.day != b.day { return (a.day ?? "9999") < (b.day ?? "9999") }
             return a.sortOrder < b.sortOrder
         }
@@ -253,32 +248,39 @@ struct TasksView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     PageHeader(eyebrow: "", title: "Tasks") {
-                        Button { showSettings = true } label: { Image(systemName: "gearshape").frame(width: 44, height: 44) }.accessibilityLabel("Settings")
+                        Button { managing = true } label: { Label("Categories", systemImage: "plus").font(.subheadline).frame(minHeight: 44) }
                     }
                     TextField("Search tasks", text: $search).textFieldStyle(.roundedBorder)
-                    HStack {
-                        Picker("Show tasks", selection: $scope) { ForEach(["All tasks", "This week", "Future", "No date", "Someday"], id: \.self) { Text($0) } }
-                        Spacer()
-                        Picker("Sort tasks", selection: $sort) { ForEach(["Date", "Title", "As arranged"], id: \.self) { Text($0) } }
-                    }
-                    HStack {
-                        Picker("Category", selection: $category) {
-                            Text("All categories").tag(nil as UUID?)
-                            ForEach(lists) { Text($0.name).tag(Optional($0.id)) }
-                        }
-                        Spacer()
-                        Button("Categories", systemImage: "folder.badge.plus") { managing = true }
-                    }
+                    Picker("Show tasks", selection: $scope) {
+                        ForEach(["All tasks", "Today", "This week", "Future", "Someday"], id: \.self) { Text($0) }
+                    }.pickerStyle(.menu)
                     if visible.isEmpty { ContentUnavailableView("No tasks in this view", systemImage: "checklist") }
-                    ForEach(visible) { task in TaskRow(task: task) { editing = task } }
+                    category("Uncategorized", id: "none", items: visible.filter { $0.completedAt == nil && ($0.listID == nil || $0.listID == TodayRules.somedayID) })
+                    ForEach(lists.filter { $0.id != TodayRules.somedayID }) { list in
+                        category(list.name, id: list.id.uuidString, items: visible.filter { $0.completedAt == nil && $0.listID == list.id })
+                    }
+                    let completed = visible.filter { $0.completedAt != nil }
+                    if !completed.isEmpty {
+                        DisclosureGroup(isExpanded: $showCompleted) {
+                            VStack(spacing: 8) { ForEach(completed) { task in TaskRow(task: task) { editing = task } } }.padding(.top, 8)
+                        } label: { Text("Completed (\(completed.count))").font(.subheadline).foregroundStyle(.secondary) }
+                    }
                 }.padding(20).frame(maxWidth: 760).frame(maxWidth: .infinity)
             }
-            .captureDock(scheme) { InlineCapture(defaultDay: scope == "No date" || scope == "Someday" ? .undated : scope == "Future" ? .day(HabitRules.addDays(PlannerLogic.dayKey(.now), 1)) : .today, listID: scope == "Someday" ? TodayRules.somedayID : category) }
+            .captureDock(scheme) { InlineCapture(defaultDay: scope == "Someday" || scope == "All tasks" ? .undated : scope == "Future" ? .day(HabitRules.addDays(PlannerLogic.dayKey(.now), 1)) : .today) }
             .background(DayTheme.canvas(scheme))
             .navigationTitle("Tasks").toolbar(.hidden, for: .navigationBar)
             .sheet(item: $editing) { TaskEditor(task: $0) }
             .sheet(isPresented: $managing) { ListsView() }
-            .sheet(isPresented: $showSettings) { SettingsView() }
+        }
+    }
+    @ViewBuilder private func category(_ name: String, id: String, items: [PlannerTask]) -> some View {
+        if !items.isEmpty {
+            DisclosureGroup(isExpanded: Binding(get: { !collapsedCategories.contains(id) || !search.isEmpty }, set: { expanded in
+                if expanded { collapsedCategories.remove(id) } else { collapsedCategories.insert(id) }
+            })) {
+                VStack(spacing: 8) { ForEach(items) { task in TaskRow(task: task) { editing = task } } }.padding(.top, 8)
+            } label: { Text("\(name) (\(items.count))").font(.subheadline.weight(.medium)) }
         }
     }
 }

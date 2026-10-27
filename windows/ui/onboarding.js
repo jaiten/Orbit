@@ -136,7 +136,7 @@ const onboardingScreens = [
       art: "sync",
       title: "Stay in sync",
       text: "Sign in to keep your iPhone and this PC in step. Everything stays on this PC until you do.",
-      body: `<ul class="onboarding-points"><li>Works offline; nothing leaves this PC without an account</li><li>Free, and no account needed to use Orbit</li><li>Turn it on any time in Settings → Account</li></ul>`,
+      body: `<ul class="onboarding-points"><li>Works offline; nothing leaves this PC without an account</li><li>Free, and no account needed to use Orbit</li><li>Turn it on any time in Settings / Account</li></ul>`,
       secondary: `<button type="button" class="onboarding-secondary" data-onboarding-next>Not Now</button>`,
       primary: `<button class="primary onboarding-primary" id="onboarding-sync">Set Up Sync</button>`,
     }),

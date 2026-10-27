@@ -122,7 +122,7 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Complete Garden ideas"].waitForExistence(timeout: 2))
         app.buttons["Dismiss keyboard"].tap()
         selectTab("Notes", in: app)
-        let note = app.buttons["Garden ideas"]
+        let note = app.buttons.matching(identifier: "note-row").firstMatch
         XCTAssertTrue(note.waitForExistence(timeout: 5), app.debugDescription)
         note.tap()
         XCTAssertTrue(app.textViews["note-body"].waitForExistence(timeout: 5) || app.textFields["note-body"].waitForExistence(timeout: 2))
