@@ -31,7 +31,7 @@ function updateControls(value = updateStatus) {
 
 async function restartToUpdate() {
   try {
-    if (document.querySelector("dialog[open]") || $("#inline-task-input")?.value.trim()) {
+    if (document.querySelector("dialog[open]") || inlineDraft.trim() || $("#inline-task-input")?.value.trim()) {
       showNotice("Finish or clear your draft before restarting to update.");
       return;
     }
