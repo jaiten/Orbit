@@ -280,6 +280,7 @@ struct NoteEditor: View {
                     .font(.largeTitle.bold()).tracking(-0.8)
                     .focused($focus, equals: .title)
                     .submitLabel(.next)
+                    .onSubmit { focus = .body }
                     .accessibilityIdentifier("note-title")
                 VStack(alignment: .leading, spacing: 2) {
                     property("Section", icon: "folder") {
