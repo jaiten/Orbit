@@ -169,6 +169,7 @@ struct CaptureTextField: UIViewRepresentable {
     var allowsNewlines = false
     var onPasteImage: ((UIImage) -> Void)? = nil
     var textStyle: UIFont.TextStyle = .title3
+    var bold = false
     var onSubmit: () -> Void
 
     func makeUIView(context: Context) -> Input {
@@ -176,7 +177,8 @@ struct CaptureTextField: UIViewRepresentable {
         field.placeholder = placeholder
         field.accessibilityIdentifier = identifier
         field.accessibilityLabel = placeholder
-        field.font = .preferredFont(forTextStyle: textStyle)
+        let font = UIFont.preferredFont(forTextStyle: textStyle)
+        field.font = bold ? UIFont(descriptor: font.fontDescriptor.withSymbolicTraits(.traitBold) ?? font.fontDescriptor, size: 0) : font
         field.adjustsFontForContentSizeCategory = true
         field.backgroundColor = .clear
         field.autocapitalizationType = .sentences

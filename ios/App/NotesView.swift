@@ -263,7 +263,7 @@ struct NoteEditor: View {
     @State private var photos: [NotePhoto] = []
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var importingPhoto = false
-    @FocusState private var focus: Field?
+    @State private var focus: Field?
     private enum Field { case title, body }
 
     private var sectionName: String {
@@ -276,12 +276,10 @@ struct NoteEditor: View {
             VStack(alignment: .leading, spacing: 14) {
                 Image(systemName: "doc.text").font(.system(size: 34, weight: .light)).foregroundStyle(accent.fill)
                     .padding(.top, 8).accessibilityHidden(true)
-                TextField("Untitled", text: $title, axis: .vertical)
-                    .font(.largeTitle.bold()).tracking(-0.8)
-                    .focused($focus, equals: .title)
-                    .submitLabel(.next)
-                    .onSubmit { focus = .body }
-                    .accessibilityIdentifier("note-title")
+                CaptureTextField(text: $title, focused: Binding(get: { focus == .title }, set: { editing in
+                    if editing { focus = .title } else if focus == .title { focus = nil }
+                }), identifier: "note-title", placeholder: "Untitled", minimumHeight: 56, maximumLines: 6,
+                   onPasteImage: addPhoto, textStyle: .largeTitle, bold: true) { focus = .body }
                 VStack(alignment: .leading, spacing: 2) {
                     property("Section", icon: "folder") {
                         Menu {
