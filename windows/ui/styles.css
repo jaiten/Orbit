@@ -3417,19 +3417,21 @@ dialog {
   text-align: left;
   height: 100%;
   width: 100%;
-  padding: 4px 4px 4px 22px;
+  padding: 2px 4px 2px 22px;
   overflow: hidden;
   border-radius: 3px;
 }
 .schedule-event-body strong {
   display: block;
   font-size: 11px;
-  line-height: 14px;
+  line-height: 12px;
   font-weight: 500;
   overflow: hidden;
 }
 .schedule-event-body span {
+  display: block;
   font-size: 10px;
+  line-height: 11px;
   color: var(--muted);
 }
 .schedule-check {

@@ -42,3 +42,20 @@ test("recent progress includes all scheduled habits and tasks, giving partial ha
   assert.equal(result.habitCount, 1);
   assert.equal(progress.day([], [], [], "2026-10-27").total, 0);
 });
+
+test("adjacent short events keep their minimum clickable cards from hiding one another", () => {
+  const blocks = place(
+    [0, 5, 10].map((minute) => ({
+      dueDate: new Date(2026, 9, 27, 9, minute).getTime(),
+      durationMinutes: 5,
+    })),
+  );
+  assert.deepEqual(
+    blocks.map(({ lane, lanes }) => [lane, lanes]),
+    [
+      [0, 3],
+      [1, 3],
+      [2, 3],
+    ],
+  );
+});

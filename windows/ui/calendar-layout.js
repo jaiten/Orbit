@@ -5,7 +5,15 @@
       .map((task) => {
         const date = new Date(task.dueDate),
           start = date.getHours() * 60 + date.getMinutes();
-        return { task, start, end: Math.min(1440, start + Math.max(5, task.durationMinutes || 30)), lane: 0, lanes: 1 };
+        const duration = Math.max(5, task.durationMinutes || 30);
+        return {
+          task,
+          start,
+          end: Math.min(1440, start + duration),
+          visualEnd: Math.min(1440, start + Math.max(19, duration)),
+          lane: 0,
+          lanes: 1,
+        };
       })
       .filter((item) => Number.isFinite(item.start))
       .sort((a, b) => a.start - b.start || b.end - a.end);
@@ -21,10 +29,11 @@
       if (item.start >= end) finish();
       let lane = laneEnds.findIndex((last) => last <= item.start);
       if (lane < 0) lane = laneEnds.length;
-      laneEnds[lane] = item.end;
+      // A short event still needs a clickable 20px card. Keep adjacent short cards in separate lanes.
+      laneEnds[lane] = item.visualEnd;
       item.lane = lane;
       group.push(item);
-      end = Math.max(end, item.end);
+      end = Math.max(end, item.visualEnd);
     }
     finish();
     return items;

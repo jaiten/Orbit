@@ -397,6 +397,17 @@ const remove = (folder) => {
     await p.getByRole("button", { name: "Copy photo", exact: true }).click();
     if (!(await app.evaluate(({ clipboard }) => clipboard.has("image/png"))))
       throw Error("Photo was not copied to the native clipboard");
+    await p.getByRole("textbox", { name: "Note text" }).focus();
+    await p.keyboard.press("Control+v");
+    await p.waitForFunction(async () =>
+      (await window.orbit.read()).records.some(
+        (r) => r.payload.title === "Garden plan" && r.payload.photos?.length === 2,
+      ),
+    );
+    if (
+      (await p.getByRole("textbox", { name: "Note text" }).inputValue()) !== "Tomatoes by the fence. Herbs by the door."
+    )
+      throw Error("Pasting a photo changed the note text");
     // Esc saves and returns to the overview; the page is in the notes sidebar too.
     await p.getByRole("textbox", { name: "Note title" }).press("Escape");
     await p.locator(".notes-nav-page", { hasText: "Garden plan" }).waitFor();
