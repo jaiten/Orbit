@@ -3,7 +3,7 @@ function renderHabits(habits) {
   if (!habits.length)
     return `<div class="narrow habits-page">${head}<div class="empty-state"><svg class="doc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m17 2 4 4-4 4M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3"/></svg><p><strong>No habits yet</strong><br />Add one, or type “read every day” anywhere.</p></div><div class="capture-dock">${addField("Add a habit")}</div></div>`;
   return `<div class="narrow habits-page">${head}
-    <div class="check-list">${habits.map((h) => habitCard(h, { editable: true })).join("")}</div>
+    <div class="check-list">${habitCards(habits, true)}</div>
     <div class="capture-dock">${addField("Add a habit")}</div>
   </div>`;
 }

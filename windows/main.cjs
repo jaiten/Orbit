@@ -9,6 +9,7 @@ const {
   dialog,
   powerMonitor,
   clipboard,
+  ClipboardItem,
   Notification,
   nativeImage,
 } = require("electron");
@@ -289,7 +290,7 @@ app.whenReady().then(async () => {
   // Copy text from a row's menu or a note; plain text only.
   handle("copy", async (text) => {
     if (typeof text !== "string" || text.length > 200000) throw Error("Invalid text");
-    clipboard.writeText(text);
+    await clipboard.writeText(text);
   });
   handle("add-note-photo", (data) => {
     const bytes = Buffer.from(data);
@@ -301,9 +302,10 @@ app.whenReady().then(async () => {
       image = image.resize(size.width >= size.height ? { width: 1600 } : { height: 1600 });
     return notePhotos.save(image.toJPEG(80));
   });
-  handle("copy-note-photo", async (id) =>
-    clipboard.writeImage(nativeImage.createFromBuffer(await notePhotos.read(id, client))),
-  );
+  handle("copy-note-photo", async (id) => {
+    const png = nativeImage.createFromBuffer(await notePhotos.read(id, client)).toPNG();
+    await clipboard.write([new ClipboardItem({ "image/png": new Blob([png], { type: "image/png" }) })]);
+  });
   // A focus timer finished: a Windows notification, like reminders.
   handle("timer-done", async (title) => {
     if (typeof title !== "string") throw Error("Invalid timer");

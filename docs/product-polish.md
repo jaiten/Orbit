@@ -207,3 +207,22 @@ task template and cooldown separately; produce one dated occurrence per matching
 event/visit without reopening previously completed occurrences. Windows can show
 calendar-triggered occurrences and sync those generated on iPhone. Event matching
 should be user-confirmed rather than guessing a sensitive place from task text.
+
+### Windows panes, progress and hourly planning
+
+The main sidebar and note list have independent drag handles and show/hide buttons.
+Widths and visibility persist on this PC; dragging changes layout without replacing
+the active editor. The handles also support arrow keys and Home to reset width.
+Today uses tighter header spacing and a Past week / Past month progress card that
+combines all scheduled habits with task completions. Short habits pair into two
+columns when there is enough width; long titles and unmatched rows use full width.
+
+Calendar now has Day, Week and Month views. Day/Week display all untimed tasks and
+a scrollable 24-hour schedule; clicking a half-hour slot opens a task with that
+date and time filled in. Overlapping timed tasks use separate lanes. Completed
+tasks stay in a closed disclosure. Ctrl+Shift+V switches Week/Month. This edits
+Orbit tasks; it does not add a connection to Google Calendar or Windows calendars.
+
+Edit/delete controls fade over trailing row text, leaving titles and progress
+counts in their original positions, including in Calendar. Reminder and global
+capture-shortcut selectors use the same custom keyboard-accessible menus.

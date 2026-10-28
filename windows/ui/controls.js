@@ -1,7 +1,7 @@
 // Compact, keyboard-accessible pickers with the same quiet menu surface as row actions.
 function macPicker(id, label, options, value) {
   const selected = options.find(([key]) => key === value)?.[1] || label;
-  return `<details class="mac-picker" data-picker="${id}"><summary id="${id}" role="combobox" aria-label="${esc(label)}" aria-haspopup="listbox" aria-controls="${id}-options" aria-expanded="false"><span>${esc(selected)}</span><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></summary><div class="picker-menu" id="${id}-options" role="listbox" aria-label="${esc(label)}">${options.map(([key, name]) => `<button type="button" role="option" aria-selected="${key === value}" data-value="${esc(key)}"><span>${key === value ? "✓" : ""}</span>${esc(name)}</button>`).join("")}</div></details>`;
+  return `<details class="mac-picker" data-picker="${id}"><summary id="${id}" role="combobox" aria-label="${esc(label)}" aria-haspopup="listbox" aria-controls="${id}-options" aria-expanded="false"><span>${esc(selected)}</span><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></summary><div class="picker-menu" id="${id}-options" role="listbox" aria-label="${esc(label)}">${options.map(([key, name]) => `<button type="button" role="option" aria-label="${esc(name)}" aria-selected="${key === value}" data-value="${esc(key)}"><span aria-hidden="true">${key === value ? "✓" : ""}</span>${esc(name)}</button>`).join("")}</div></details>`;
 }
 function bindPickers(handlers) {
   document.querySelectorAll("[data-picker]").forEach((picker) => {

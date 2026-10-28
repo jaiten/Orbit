@@ -74,6 +74,7 @@ function bind() {
   bindSettings();
   bindUpdates();
   refreshSelection();
+  bindPaneLayout();
   flushSyncStatus();
   bindAccount();
   bindReview();

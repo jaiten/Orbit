@@ -166,6 +166,14 @@ $("#quick-add-details").onclick = () => {
 
 // Preserve the current inline draft across sync renders and page changes.
 let inlineDraft = "";
+let inlineFocusGeneration = 0;
+document.addEventListener(
+  "pointerdown",
+  (event) => {
+    if (!event.target.closest("#inline-add-form")) inlineFocusGeneration++;
+  },
+  true,
+);
 function bindInlineCapture() {
   const form = $("#inline-add-form");
   if (!form) return;
@@ -191,6 +199,7 @@ function bindInlineCapture() {
   input.onkeydown = (event) => {
     if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
     event.preventDefault();
+    inlineFocusGeneration++;
     if (!input.value.trim()) input.blur();
     else form.requestSubmit();
   };
@@ -210,16 +219,36 @@ function bindInlineCapture() {
   };
   form.onsubmit = (event) => {
     event.preventDefault();
+    const focusRequest = ++inlineFocusGeneration,
+      capturePage = page;
     if (!input.value.trim()) return input.blur();
     if (page === "lists" || (page !== "habits" && OrbitNotes.isNote(input.value))) {
+      const captured = input.value;
       const title = "",
-        body = input.value.trim();
+        body = captured.trim();
       const note = { ...newTask(title, null), isNote: true, notes: body };
       note.listID = quickAddContext().listID;
-      void action(async () => {
-        await saveTasks([note]);
-        inlineDraft = "";
-      }).then(() => $("#inline-task-input")?.focus());
+      // Clear immediately, keeping a snapshot until local persistence acknowledges it.
+      // A second Return can dismiss capture while the first save is still finishing.
+      input.value = "";
+      inlineDraft = "";
+      preview();
+      void (async () => {
+        try {
+          await saveTasks([note]);
+          await load(true);
+        } catch (error) {
+          const current = $("#inline-task-input");
+          inlineDraft = [captured, current?.value].filter(Boolean).join("\n");
+          if (current) {
+            current.value = inlineDraft;
+            current.dispatchEvent(new Event("input", { bubbles: true }));
+          }
+          showNotice(error.message);
+        } finally {
+          if (focusRequest === inlineFocusGeneration && capturePage === page) $("#inline-task-input")?.focus();
+        }
+      })();
       return;
     }
     const result = parseCapture(input.value, quickAddContext().defaultDate);
@@ -251,7 +280,7 @@ function bindInlineCapture() {
     }).then(() => {
       const current = $("#inline-task-input");
       if (current) {
-        current.focus();
+        if (focusRequest === inlineFocusGeneration && capturePage === page) current.focus();
         // No success message: the cleared field is the confirmation. Only failures are reported.
         $("#inline-receipt").textContent = inlineDraft ? "Could not add this item. Your draft is still here." : "";
       }

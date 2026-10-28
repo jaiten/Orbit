@@ -41,6 +41,7 @@ function missedYesterdayPrompt(allHabits) {
 let todayScope = "week",
   calendarView = "month";
 const SCOPES = [
+  ["day", "Day"],
   ["week", "Week"],
   ["month", "Month"],
 ];
@@ -69,9 +70,6 @@ function renderToday(tasks, allHabits) {
   const isToday = selected === today();
   const heading = isToday ? "Today" : date.toLocaleDateString([], { weekday: "long" });
   const eyebrow = date.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
-  // The history card follows one habit, as on the website: the one with the most recent check-ins.
-  const recent = (h) => consistencyLevels([h]).filter((level) => level > 0).length;
-  const featured = [...allHabits].sort((a, b) => recent(b) - recent(a))[0];
   return `<div class="today-layout">
     <header class="page-head">
         <div><div class="eyebrow">${eyebrow}</div><h1>${heading}</h1></div>
@@ -103,16 +101,12 @@ function renderToday(tasks, allHabits) {
             </details>`
           : ""
       }
+      ${habits.length ? sectionLabel("Habits", `${habitsDone} of ${habits.length}`) + `<div class="check-list">${habitCards(habits)}</div>` : ""}
       <div class="capture-dock">${addField()}</div>
     </section>
-    <aside class="today-side" aria-label="Plan and habits">
+    <aside class="today-side" aria-label="Plan and progress">
+      ${recentProgressCard(tasks, allHabits)}
       ${planCard(done, total)}
-      ${habits.length ? sectionLabel("Habits", `${habitsDone} of ${habits.length}`) + checklist(habits, habitCard) : ""}
-      ${
-        featured
-          ? `<div class="card grid-card"><div class="eyebrow">${esc(featured.title)} · Last 12 weeks</div>${boxGrid(consistencyLevels([featured]), colorName(featured.color), featured.title)}</div>`
-          : ""
-      }
     </aside>
   </div>`;
 }
@@ -201,6 +195,13 @@ function renderAgenda(tasks, allHabits, head = "") {
 }
 
 function bindToday() {
+  bindPickers({
+    "progress-range": (value) => {
+      progressRange = Number(value);
+      localStorage.setItem("progressRange", value);
+      render();
+    },
+  });
   if ($("#dismiss-missed"))
     $("#dismiss-missed").onclick = () => {
       localStorage.setItem("dismissedMissedHabitPromptDay", today());
@@ -226,4 +227,37 @@ function bindToday() {
       selected = dayKey(new Date());
       render();
     };
+}
+
+let progressRange = Number(localStorage.getItem("progressRange")) === 30 ? 30 : 7;
+function recentProgressCard(tasks, habits) {
+  const normalized = tasks.map((task) => ({
+    day: taskDate(task),
+    completedDay: task.completedAt ? dayKey(new Date(task.completedAt)) : null,
+    isNote: task.isNote,
+  }));
+  const entries = habits.map((habit) => ({
+    ...habit,
+    createdDay: habit.createdAt ? dayKey(new Date(habit.createdAt)) : null,
+  }));
+  const days = Array.from({ length: progressRange }, (_, index) =>
+    OrbitHabits.addDays(selected, index - progressRange + 1),
+  );
+  return `<section class="card recent-progress"><div class="recent-progress-head"><h2>Recent progress</h2>${macPicker(
+    "progress-range",
+    "Progress range",
+    [
+      ["7", "Past week"],
+      ["30", "Past month"],
+    ],
+    String(progressRange),
+  )}</div><div class="progress-days ${progressRange === 30 ? "month" : "week"}">${days
+    .map((key) => {
+      const progress = OrbitRecentProgress.day(normalized, entries, habitLogs(), key);
+      const date = localDay(key),
+        ratio = key > today() ? 0 : progress.ratio;
+      const label = `${date.toLocaleDateString([], { month: "short", day: "numeric" })}: ${progress.total ? `${Math.round(ratio * 100)}% complete, ${progress.taskCount} tasks and ${progress.habitCount} habits` : "No scheduled items"}`;
+      return `<div class="progress-day" role="img" aria-label="${esc(label)}" title="${esc(label)}"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="12" class="progress-track"/><circle cx="16" cy="16" r="12" pathLength="100" stroke-dasharray="${ratio * 100} 100" class="progress-value"/></svg><small>${progressRange === 7 ? date.toLocaleDateString([], { weekday: "narrow" }) : date.getDate()}</small></div>`;
+    })
+    .join("")}</div></section>`;
 }

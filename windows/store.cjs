@@ -56,7 +56,8 @@ class Store {
     if (
       !deleted &&
       ["tasks", "habits", "lists"].includes(key.split("/")[0]) &&
-      !(payload.title || payload.name)?.trim()
+      !(payload.title || payload.name)?.trim() &&
+      !(key.startsWith("tasks/") && payload.isNote === true)
     )
       throw Error("A name is required");
     this.db

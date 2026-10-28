@@ -377,24 +377,38 @@ function taskRow(t) {
   return `<div class="row task-row check-tile ${t.completedAt ? "complete" : ""} ${overdue ? "overdue" : ""} ${started ? "in-progress" : ""}" data-flip="task-${id}" data-search="${esc(search)}" data-row-menu="task:${id}">
     <div class="row-line">
       <button class="row-tick" role="checkbox" aria-label="${controlLabel} ${title}" aria-checked="${!!t.completedAt}" data-toggle="${id}">${control}</button
-      ><button class="row-body" aria-label="Edit ${title}" data-edit="${id}"><span class="row-title">${title}</span>${detail ? `<span class="row-detail">${detail}</span>` : ""}</button
-      >${timer}${addToToday}${rowActions(id, title)}${options}
+      ><div class="row-main"><button class="row-body" aria-label="Edit ${title}" data-edit="${id}"><span class="row-title">${title}</span>${detail ? `<span class="row-detail">${detail}</span>` : ""}</button
+      >${rowActions(id, title)}</div>${timer}${addToToday}${options}
     </div>
     ${moves}
   </div>`;
 }
 /** A habit: colour dot, title and count. Tapping logs one check-in; right-click (or E) edits. */
-function habitCard(h, { editable = false } = {}) {
+function habitCard(h, { editable = false, fullWidth = false } = {}) {
   const done = checked(h);
   const id = esc(h.id),
     title = esc(h.title);
-  return `<div class="row habit-row check-tile ${done ? "complete" : ""}" data-flip="habit-${id}" data-row-menu="habit:${id}">
+  return `<div class="row habit-row check-tile ${done ? "complete" : ""} ${fullWidth ? "wide-habit" : ""}" data-flip="habit-${id}" data-row-menu="habit:${id}">
     <div class="row-line">
       <button class="row-tick" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-menu="${id}" ${selected > today() ? "disabled" : ""}>${tick(done, poppedID === h.id)}</button>
-      <button class="row-body" aria-label="Edit ${title}" data-habit-edit="${id}"><span class="row-title">${title}</span>${editable ? `<span class="dot ${colorName(h.color)}" aria-hidden="true"></span>` : ""}<span class="row-detail ${done ? "met" : ""}">${habitDetail(h)}</span></button>
-      ${rowActions(id, title, true)}
+      <div class="row-main"><button class="row-body" aria-label="Edit ${title}" data-habit-edit="${id}"><span class="row-title">${title}</span>${editable ? `<span class="dot ${colorName(h.color)}" aria-hidden="true"></span>` : ""}<span class="row-detail ${done ? "met" : ""}">${habitDetail(h)}</span></button>
+      ${rowActions(id, title, true)}</div>
     </div>
   </div>`;
+}
+function habitCards(habits, editable = false) {
+  const compact = (habit) => habit.title.length <= 22 && habit.title.split(/\s+/).length <= 4;
+  let result = "";
+  for (let index = 0; index < habits.length; ) {
+    if (compact(habits[index]) && habits[index + 1] && compact(habits[index + 1])) {
+      result += habitCard(habits[index], { editable }) + habitCard(habits[index + 1], { editable });
+      index += 2;
+    } else {
+      result += habitCard(habits[index], { editable, fullWidth: true });
+      index++;
+    }
+  }
+  return result;
 }
 
 function newTask(title, date) {

@@ -41,7 +41,11 @@ const fs = require("node:fs");
       },
       onChange: (cb) => (changed = cb),
       onSyncStatus(cb) {
-        window.emitSync = cb;
+        window.emitSync = (value) => {
+          data.status = value.status;
+          data.syncing = value.syncing;
+          cb(value);
+        };
       },
       copy: async (text) => {
         window.copiedTexts.push(text);
@@ -176,12 +180,18 @@ const fs = require("node:fs");
   await p.mouse.move(0, 0);
   const habitRow = p.locator(".habit-row").filter({ hasText: "Drink water" });
   assert.equal((await habitRow.innerText()).includes("💧"), false);
-  await p.waitForFunction(() => getComputedStyle(document.querySelector(".habit-row .row-actions")).width === "0px");
+  await p.waitForFunction(() => getComputedStyle(document.querySelector(".habit-row .row-actions")).opacity === "0");
   const countBounds = await habitRow.locator(".row-detail").boundingBox();
   const rowBounds = await habitRow.boundingBox();
   assert.ok(rowBounds.x + rowBounds.width - countBounds.x - countBounds.width <= 16, "Count hugs the right edge");
+  const titleBeforeHover = await habitRow.locator(".row-title").boundingBox();
   await habitRow.hover();
-  await p.waitForFunction(() => getComputedStyle(document.querySelector(".habit-row .row-actions")).width === "70px");
+  await p.waitForFunction(() => getComputedStyle(document.querySelector(".habit-row .row-actions")).opacity === "1");
+  assert.deepEqual(
+    await habitRow.locator(".row-title").boundingBox(),
+    titleBeforeHover,
+    "Hover must not move or resize the text",
+  );
   if (process.env.ORBIT_SCREENSHOT)
     await p.screenshot({ path: process.env.ORBIT_SCREENSHOT.replace(".png", "-hover.png") });
   await habitRow.getByRole("button", { name: "Edit habit: Drink water", exact: true }).click();
@@ -341,7 +351,89 @@ const fs = require("node:fs");
   const dock = await p.locator(".calendar-page > .capture-dock").boundingBox();
   const panel = await p.locator(".cal-day").boundingBox();
   assert.ok(dock.x + dock.width < panel.x, "Calendar capture overlaps the day panel");
+  // Calendar uses the same overlay controls, without moving text in its day panel.
+  const calendarRow = p.locator(".cal-day .task-row").filter({ hasText: "Second selection" });
+  await p.mouse.move(0, 0);
+  await p.waitForTimeout(160);
+  const calendarTitle = await calendarRow.locator(".row-title").boundingBox();
+  await calendarRow.hover();
+  await p.waitForTimeout(160);
+  assert.deepEqual(await calendarRow.locator(".row-title").boundingBox(), calendarTitle);
+  await calendarRow.getByRole("button", { name: "Edit task: Second selection", exact: true }).click();
+  assert.equal(await p.locator('#task-form input[name="title"]').inputValue(), "Second selection");
+  await p.locator("#editor").getByRole("button", { name: "Close", exact: true }).click();
   if (process.env.ORBIT_SCREENSHOT) await p.screenshot({ path: process.env.ORBIT_SCREENSHOT });
+  await p.locator('[data-page="today"]').click();
+  assert.equal(await p.locator(".progress-day").count(), 7);
+  await p.getByRole("combobox", { name: "Progress range" }).click();
+  await p.getByRole("option", { name: "Past month", exact: true }).click();
+  assert.equal(await p.locator(".progress-day").count(), 30);
+  await p.locator('[data-page="habits"]').click();
+  for (const title of ["Gym", "Read", "A longer habit title which needs the whole row"]) {
+    await p.locator("#inline-task-input").fill(title);
+    await p.locator("#inline-task-input").press("Enter");
+    await p.getByRole("checkbox", { name: `Log ${title}`, exact: true }).waitFor();
+  }
+  const habitRects = await p.locator(".habit-row").evaluateAll((rows) =>
+    rows.map((row) => ({
+      x: row.getBoundingClientRect().x,
+      y: row.getBoundingClientRect().y,
+      width: row.getBoundingClientRect().width,
+    })),
+  );
+  assert.equal(habitRects[0].y, habitRects[1].y, "Short habits should share two columns");
+  assert.ok(habitRects.at(-1).width > habitRects[0].width * 1.8, "A long habit gets a full row");
+  await p.locator('[data-page="calendar"]').click();
+  await p.locator('[data-month="0"]').click();
+  await p.getByRole("tab", { name: "Week", exact: true }).click();
+  assert.equal(await p.locator(".time-slot").count(), 7 * 48);
+  const slot = p.locator('[data-time-slot$="T09:30"]').first();
+  const slotDate = (await slot.getAttribute("data-time-slot")).split("T")[0];
+  await slot.click();
+  assert.equal(await p.locator('#task-form input[name="time"]').inputValue(), "09:30");
+  assert.equal(await p.locator('#task-form input[name="date"]').inputValue(), slotDate);
+  await p.locator('#task-form input[name="title"]').fill("Timeline sample");
+  await p.locator("#task-form").getByRole("button", { name: "Save", exact: true }).click();
+  await p.locator(".schedule-event", { hasText: "Timeline sample" }).waitFor();
+  if (process.env.ORBIT_SCREENSHOT)
+    await p.screenshot({ path: process.env.ORBIT_SCREENSHOT.replace(".png", "-week.png") });
+  await p.getByRole("tab", { name: "Day", exact: true }).click();
+  assert.equal(await p.locator(".time-slot").count(), 48);
+  assert.equal(await p.locator(".schedule-event").count(), 1);
+  await p.locator('[data-time-slot$="T15:00"]').click();
+  assert.equal(await p.locator('#task-form input[name="time"]').inputValue(), "15:00");
+  await p.locator("#editor").getByRole("button", { name: "Close", exact: true }).click();
+  await p.keyboard.press("Control+6");
+  await p.getByRole("combobox", { name: "Quick add shortcut" }).click();
+  await p.getByRole("option", { name: "Off", exact: true }).click();
+  await p.waitForFunction(async () => (await window.orbit.desktopSettings()).shortcut === "");
+  await p.locator('[data-page="lists"]').click();
+  const noteBody = await p.locator("#note-body").inputValue();
+  await p.evaluate(() => (window.noteFieldBeforeResize = document.querySelector("#note-body")));
+  for (const [selector, amount] of [
+    ["#main-pane-grip", 42],
+    ["#notes-pane-grip", 48],
+  ]) {
+    const grip = await p.locator(selector).boundingBox();
+    await p.mouse.move(grip.x + grip.width / 2, grip.y + 80);
+    await p.mouse.down();
+    await p.mouse.move(grip.x + grip.width / 2 + amount, grip.y + 80);
+    await p.mouse.up();
+  }
+  assert.equal(await p.locator("#main-pane-grip").getAttribute("aria-valuenow"), "258");
+  assert.equal(await p.locator("#notes-pane-grip").getAttribute("aria-valuenow"), "296");
+  assert.equal(await p.evaluate(() => window.noteFieldBeforeResize === document.querySelector("#note-body")), true);
+  await p.getByRole("button", { name: "Hide note list", exact: true }).click();
+  assert.equal(await p.locator(".notes-nav").isVisible(), false);
+  await p.getByRole("button", { name: "Show note list", exact: true }).click();
+  assert.equal(await p.locator("#note-body").inputValue(), noteBody);
+  await p.getByRole("button", { name: "Hide main sidebar", exact: true }).click();
+  assert.equal(await p.locator(".sidebar").isVisible(), false);
+  await p.getByRole("button", { name: "Show main sidebar", exact: true }).click();
+  await p.reload();
+  await p.locator("h1").filter({ hasText: "Today" }).waitFor();
+  assert.equal(await p.locator("#main-pane-grip").getAttribute("aria-valuenow"), "258");
+  assert.equal(await p.evaluate(() => localStorage.getItem("notesSidebarWidth")), "296");
   assert.deepEqual(errors, []);
   console.log(
     "PASS: account keyboard/back, note sizing/scrolling, row actions/icons, settings races and planner flows",

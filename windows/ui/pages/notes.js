@@ -164,7 +164,7 @@ function notesNav() {
       </div>`;
     })
     .join("");
-  return `<aside class="notes-nav" aria-label="Notes">
+  return `<aside class="notes-nav" aria-label="Notes"><div id="notes-pane-grip" class="pane-grip" role="separator" aria-label="Note list width" aria-orientation="vertical" aria-valuemin="180" aria-valuemax="400" tabindex="0"></div>
     <div class="notes-nav-head">
       <span>Notes</span>
       <button class="icon-button" data-new-note="${esc(selectedList || "")}" aria-label="New note" title="New note (Ctrl+N)">${icon(ICONS.compose)}</button>
@@ -206,7 +206,7 @@ function renderNotes() {
     <section class="notes-pane notes-overview">
       <header class="page-head">
         <div><h1>${esc(title)}</h1><p class="subtitle">${pages.length} ${pages.length === 1 ? "page" : "pages"}</p></div>
-        <div class="head-tools">
+        <div class="head-tools"><button class="icon-button" data-toggle-notes aria-label="Hide note list"></button>
           <input id="search" type="search" placeholder="Search" aria-label="Search notes" value="${esc(searchQuery)}" />
 
         </div>
@@ -274,7 +274,7 @@ function renderNoteEditor() {
   return `<div class="notes-app">
     ${notesNav()}
     <section class="notes-pane note-pane" aria-label="Note">
-      <div class="note-toolbar">
+      <div class="note-toolbar"><button class="icon-button" data-toggle-notes aria-label="Hide note list"></button>
         <nav class="crumbs" aria-label="Location"><button data-back-notes>Back to notes</button><span>/</span><button data-notes-home="${esc(section)}">${esc(section ? sectionName(section) : "All")}</button></nav>
         <span id="note-status" class="note-status">${note ? "Saved" : ""}</span>
         <button class="icon-button" id="add-note-photo" aria-label="Add photo" title="Add photo">${icon("M3 3h18v18H3zM3 17l6-6 4 4 3-3 5 5M8 7h.01")}</button><input id="note-photo-file" type="file" accept="image/*" multiple hidden />

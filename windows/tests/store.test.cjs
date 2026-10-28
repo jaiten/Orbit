@@ -88,3 +88,16 @@ test("sync retries pending records after network failure", async () => {
   assert.equal(sync.busy, false);
   s.close();
 });
+
+test("notes preserve a blank title while tasks and habits still require a name", () => {
+  const store = new Store(":memory:");
+  store.batch([
+    { key: "tasks/body-note", payload: { title: "", notes: "The entire capture", isNote: true } },
+    { key: "tasks/photo-note", payload: { title: "", notes: "", photos: [{ id: randomUUID() }], isNote: true } },
+  ]);
+  assert.equal(store.rows().length, 2);
+  assert.equal(store.rows()[0].payload.title, "");
+  assert.throws(() => store.put("tasks/empty", { title: "" }), /name is required/);
+  assert.throws(() => store.put("habits/empty", { title: "", isNote: true }), /name is required/);
+  store.close();
+});

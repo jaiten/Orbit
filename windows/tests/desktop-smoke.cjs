@@ -266,11 +266,13 @@ const remove = (folder) => {
     if (!(await app.evaluate(({ globalShortcut }) => globalShortcut.isRegistered("CommandOrControl+Shift+Space"))))
       throw Error("Global shortcut not registered");
     await p.getByRole("button", { name: "Settings", exact: true }).click();
-    await p.getByLabel("Quick add shortcut").selectOption({ label: "Off" });
+    await p.getByRole("combobox", { name: "Quick add shortcut" }).click();
+    await p.getByRole("option", { name: "Off", exact: true }).click();
     await p.waitForFunction(async () => (await window.orbit.desktopSettings()).shortcut === "");
     if (await app.evaluate(({ globalShortcut }) => globalShortcut.isRegistered("CommandOrControl+Shift+Space")))
       throw Error("Global shortcut still registered when off");
-    await p.getByLabel("Quick add shortcut").selectOption({ label: "Ctrl + Shift + Space" });
+    await p.getByRole("combobox", { name: "Quick add shortcut" }).click();
+    await p.getByRole("option", { name: "Ctrl + Shift + Space", exact: true }).click();
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.send("quick-add"));
     await p.getByRole("textbox", { name: "Quick add" }).waitFor();
     await p.keyboard.press("Escape");
@@ -393,7 +395,7 @@ const remove = (folder) => {
     );
     await p.waitForFunction(() => document.querySelector("#note-photos img")?.naturalWidth > 0);
     await p.getByRole("button", { name: "Copy photo", exact: true }).click();
-    if (await app.evaluate(({ clipboard }) => clipboard.readImage().isEmpty()))
+    if (!(await app.evaluate(({ clipboard }) => clipboard.has("image/png"))))
       throw Error("Photo was not copied to the native clipboard");
     // Esc saves and returns to the overview; the page is in the notes sidebar too.
     await p.getByRole("textbox", { name: "Note title" }).press("Escape");
@@ -436,7 +438,8 @@ const remove = (folder) => {
     await p.getByRole("checkbox", { name: "Complete Learn the cello", exact: true }).waitFor();
     await p.locator('[data-page="calendar"]').click();
     await p.getByRole("tab", { name: "Week", exact: true }).click();
-    await p.getByRole("heading", { name: "This week", exact: true }).waitFor();
+    await p.locator('[data-scope="week"][aria-selected="true"]').waitFor();
+    if ((await p.locator(".time-slot").count()) !== 336) throw Error("Week must show seven hourly columns");
     await p.getByRole("tab", { name: "Month", exact: true }).click();
     await p.getByRole("group", { name: "Days" }).waitFor();
     await p.locator('[data-page="today"]').click();

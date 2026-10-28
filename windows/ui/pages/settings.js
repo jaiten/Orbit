@@ -42,9 +42,7 @@ function renderSettings() {
     <section class="settings-block" id="desktop-settings">
       <h2>Reminders & Shortcuts</h2>
       <label class="toggle"><input type="checkbox" id="notifications-toggle" /> Show reminders for tasks and habits</label>
-      <label>Quick add from anywhere
-        <select id="global-shortcut" aria-label="Quick add shortcut"></select>
-      </label>
+      <div class="settings-field"><span>Quick add from anywhere</span><div id="global-shortcut-wrap"></div></div>
       <button id="show-shortcuts">Keyboard Shortcuts</button>
     </section>
     <section class="settings-block">
@@ -114,18 +112,31 @@ const shortcutLabel = (accelerator) =>
 async function loadDesktopSettings() {
   const show = (settings) => {
     const toggle = $("#notifications-toggle"),
-      select = $("#global-shortcut");
-    if (!toggle || !select) return;
+      wrap = $("#global-shortcut-wrap");
+    if (!toggle || !wrap) return;
     toggle.checked = settings.notifications;
-    select.innerHTML = settings.shortcuts
-      .map((s) => `<option value="${esc(s)}" ${s === settings.shortcut ? "selected" : ""}>${shortcutLabel(s)}</option>`)
-      .join("");
+    wrap.innerHTML = macPicker(
+      "global-shortcut",
+      "Quick add shortcut",
+      settings.shortcuts.map((shortcut) => [shortcut, shortcutLabel(shortcut)]),
+      settings.shortcut,
+    );
+    const change = async (values) => {
+      try {
+        show(await api.desktopSettings(values));
+      } catch (error) {
+        showNotice(error.message);
+      }
+    };
+    toggle.onchange = (event) => void change({ notifications: event.target.checked });
+    bindPickers({ "global-shortcut": (value) => void change({ shortcut: value }) });
     if (settings.message) showNotice(settings.message);
   };
-  show(await api.desktopSettings());
-  $("#notifications-toggle").onchange = async (e) =>
-    show(await api.desktopSettings({ notifications: e.target.checked }));
-  $("#global-shortcut").onchange = async (e) => show(await api.desktopSettings({ shortcut: e.target.value }));
+  try {
+    show(await api.desktopSettings());
+  } catch (error) {
+    showNotice(error.message);
+  }
 }
 
 /** Shows what an import would do before anything changes; differing items need an explicit choice. */

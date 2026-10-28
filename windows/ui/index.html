@@ -12,7 +12,23 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <button
+      id="toggle-sidebar"
+      class="icon-button sidebar-toggle"
+      aria-label="Hide main sidebar"
+      title="Hide main sidebar"
+    ></button>
     <aside class="sidebar">
+      <div
+        id="main-pane-grip"
+        class="pane-grip"
+        role="separator"
+        aria-label="Main sidebar width"
+        aria-orientation="vertical"
+        aria-valuemin="180"
+        aria-valuemax="360"
+        tabindex="0"
+      ></div>
       <button
         id="sidebar-search"
         class="search-field"
@@ -244,6 +260,8 @@
     <script src="planning.js"></script>
     <script src="notes.js"></script>
     <script src="habits.js"></script>
+    <script src="recent-progress.js"></script>
+    <script src="calendar-layout.js"></script>
     <script src="planner.js"></script>
     <script src="conversions.js"></script>
     <script src="onboarding-data.js"></script>
@@ -265,6 +283,7 @@
     <script src="shortcuts.js"></script>
     <script src="updates.js"></script>
     <script src="selection.js"></script>
+    <script src="sidebars.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
