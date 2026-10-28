@@ -143,7 +143,7 @@ struct RootView: View {
                     .background(Color.orbitSurface, in: Capsule()).overlay(Capsule().strokeBorder(Color.orbitLine))
                     .shadow(color: .black.opacity(0.12), radius: 18, y: 8)
                     .offset(x: undoDrag.width, y: max(0, undoDrag.height))
-                    .opacity(max(0.25, 1 - abs(undoDrag.width) / 180))
+                    .opacity(max(0.25, 1 - Double(abs(undoDrag.width)) / 180))
                     .gesture(DragGesture(minimumDistance: 12).updating($undoDrag) { value, state, _ in state = value.translation }.onEnded { value in
                         if abs(value.translation.width) > 45 || value.translation.height > 30 { undo.dismiss() }
                     })

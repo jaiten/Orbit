@@ -149,7 +149,7 @@ struct NoteRow: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "doc.text").font(.system(size: 17)).foregroundStyle(.secondary).frame(width: 24).padding(.top, 2)
             VStack(alignment: .leading, spacing: 3) {
-                Text(note.title.isEmpty ? NoteRules.snippet(note.notes) : note.title).font(.body.weight(.medium)).foregroundStyle(.primary).lineLimit(2)
+                Text(note.title.isEmpty ? (note.notes.isEmpty ? "Photo note" : NoteRules.snippet(note.notes)) : note.title).font(.body.weight(.medium)).foregroundStyle(.primary).lineLimit(2)
                 let snippet = NoteRules.snippet(note.notes)
                 if !snippet.isEmpty && !note.title.isEmpty { Text(snippet).font(.subheadline).foregroundStyle(.secondary).lineLimit(2) }
             }
