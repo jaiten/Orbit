@@ -28,6 +28,13 @@ const OrbitNoteDocument = (() => {
       for (const child of node.childNodes) visit(child);
     }
     visit(root);
+    // Chromium uses a final <div><br></div> as an empty paragraph/caret holder.
+    // Its BR is a filler, so Return stores one newline rather than two.
+    const last = root.lastChild;
+    const emptyParagraph =
+      ["DIV", "P"].includes(last?.nodeName) && last.childNodes.length === 1 && last.firstChild.nodeName === "BR";
+    if ((emptyParagraph || (root.childNodes.length === 1 && last?.nodeName === "BR")) && text.endsWith("\n"))
+      text = text.slice(0, -1);
     return { text, photos };
   }
   function figure(photo) {
@@ -53,7 +60,8 @@ const OrbitNoteDocument = (() => {
     if (!selection.rangeCount || !root.contains(selection.anchorNode)) return read(root).text.length;
     const range = selection.getRangeAt(0).cloneRange();
     range.selectNodeContents(root);
-    range.setEnd(selection.anchorNode, selection.anchorOffset);
+    const current = selection.getRangeAt(0);
+    range.setEnd(current.startContainer, current.startOffset);
     return read(range.cloneContents()).text.length;
   }
   function select(root, start, end = start) {
@@ -99,16 +107,30 @@ const OrbitNoteDocument = (() => {
       if (event.key === "Tab") {
         event.preventDefault();
         const selection = getSelection();
-        const end = offset + selection.toString().length;
+        const end = offset + read(selection.getRangeAt(0).cloneContents()).text.length;
         const last = value.indexOf("\n", Math.max(offset, end - 1));
         const stop = last < 0 ? value.length : last;
-        const lines = value.slice(start, stop);
-        const replacement = lines
+        let position = start;
+        const changes = value
+          .slice(start, stop)
           .split("\n")
-          .map((line) => (event.shiftKey ? line.replace(/^( {1,4}|\t)/, "") : "    " + line))
-          .join("\n");
-        select(root, start, stop);
-        document.execCommand("insertText", false, replacement);
+          .map((line) => {
+            const size = event.shiftKey ? line.match(/^( {1,4}|\t)/)?.[0].length || 0 : 0;
+            const change = { position, size, text: event.shiftKey ? "" : "    " };
+            position += line.length + 1;
+            return change;
+          });
+        // Change prefixes individually so indenting a line never replaces its inline photos.
+        for (const change of [...changes].reverse()) {
+          select(root, change.position, change.position + change.size);
+          document.execCommand("insertText", false, change.text);
+        }
+        const shifted = (point) =>
+          point +
+          changes
+            .filter((change) => change.position <= point)
+            .reduce((sum, change) => sum + change.text.length - change.size, 0);
+        select(root, Math.max(start, shifted(offset)), Math.max(start, shifted(end)));
       } else {
         event.preventDefault();
         const match = prefix.match(/^([ \t]*)([•-]|\d+\.) /);
