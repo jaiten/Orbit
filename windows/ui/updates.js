@@ -7,6 +7,21 @@ function updateControls(value = updateStatus) {
   const restart = $("#restart-update");
   restart.hidden = !ready;
   restart.title = ready ? `Install Orbit ${value.version} and reopen` : "";
+  const home = $("#home-update");
+  if (home) {
+    home.hidden = !value.version || !["downloading", "downloaded", "error"].includes(value.status);
+    const label = ready
+      ? `Orbit ${value.version} is ready — restart to update`
+      : value.status === "error"
+        ? `Orbit ${value.version} is available — retry update`
+        : `Downloading Orbit ${value.version}: ${value.percent}%`;
+    home.title = label;
+    home.setAttribute("aria-label", label);
+    home.onclick = () => {
+      if (ready) void restartToUpdate();
+      else void goTo("settings").then(() => $("#update-status")?.scrollIntoView({ block: "center" }));
+    };
+  }
   const status = $("#update-status");
   const check = $("#check-updates");
   const install = $("#install-update");
@@ -27,6 +42,15 @@ function updateControls(value = updateStatus) {
     check.textContent = value.status === "error" ? "Try again" : "Check for updates";
   }
   if (install) install.hidden = !ready;
+}
+
+async function checkForUpdates() {
+  if (!api.updates) return;
+  try {
+    updateControls(await api.updates("check"));
+  } catch {
+    updateControls({ ...updateStatus, status: "error" });
+  }
 }
 
 async function restartToUpdate() {

@@ -4224,3 +4224,235 @@ body[data-view="settings"] .settings-block {
   white-space: nowrap;
   font-size: 11px;
 }
+
+/* Locked Windows content geometry. Sidebar pills, progress rings and colour dots
+   retain their circular shapes; every content box uses this single radius. */
+:root {
+  --content-radius: 12px;
+  --radius-card: var(--content-radius);
+  --radius-row: var(--content-radius);
+  --radius-input: var(--content-radius);
+}
+main
+  :is(
+    .card,
+    .task-row,
+    .habit-row,
+    .row-line,
+    .empty-state,
+    .plan-card,
+    .settings-block,
+    .selection-bar,
+    .add-field,
+    .capture-chip,
+    .check-tile,
+    .completed-items,
+    .past-edit-banner,
+    .progress-day,
+    .overall-day
+  ),
+main button,
+dialog,
+dialog button,
+input:not([type="checkbox"]):not([type="radio"]),
+textarea,
+select,
+.mac-picker > summary,
+.picker-menu,
+.picker-menu button,
+.tasks-controls .mac-picker > summary,
+.tasks-controls .picker-menu,
+.tasks-controls .picker-menu button,
+.today-board .task-row,
+.today-board .task-row .row-line,
+.compact-habits .habit-row {
+  border-radius: var(--content-radius);
+}
+select {
+  appearance: none;
+  padding-right: 34px;
+  background-image: url("chevron-down.svg");
+  background-repeat: no-repeat;
+  background-size: 18px;
+  background-position: right 10px center;
+}
+.today-layout-options select,
+.settings-field select {
+  padding: 7px 34px 7px 12px;
+  background-color: var(--surface);
+}
+.mac-picker > summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.mac-picker > summary > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mac-picker > summary > .ui-icon {
+  flex: 0 0 16px;
+  margin-left: auto;
+}
+.picker-menu button[aria-selected="true"] {
+  color: var(--accent-text);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  font-weight: 600;
+}
+#habit-editor {
+  width: min(440px, calc(100vw - 48px));
+  padding: 22px;
+  overflow: visible;
+}
+#habit-editor .dialog-head {
+  margin-bottom: 12px;
+}
+#habit-editor :is(label, .habit-field) {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+#habit-editor .fields {
+  gap: 12px;
+}
+#habit-editor :is(input:not([type="hidden"]), .mac-picker > summary) {
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  background: var(--canvas);
+  color: var(--ink);
+  font-size: 13px;
+}
+#habit-editor .mac-picker > summary {
+  padding-right: 12px;
+}
+#habit-editor .picker-menu {
+  min-width: 100%;
+  padding: 5px;
+}
+#habit-editor footer {
+  margin-top: 18px;
+  gap: 8px;
+}
+#habit-editor footer button {
+  padding: 8px 10px;
+  font-size: 12px;
+}
+.colour-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px #0001;
+}
+.swatch-sage {
+  background: var(--sage);
+}
+.swatch-lavender {
+  background: var(--lavender);
+}
+.swatch-clay {
+  background: var(--clay);
+}
+.swatch-honey {
+  background: var(--honey);
+}
+.overall-day {
+  background: color-mix(in srgb, var(--accent) calc(var(--o) * 100%), var(--surface));
+}
+.today-board {
+  position: relative;
+}
+#today-column-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  z-index: 5;
+  cursor: col-resize;
+  touch-action: none;
+  border-radius: 12px;
+}
+#today-column-resizer::after {
+  content: "";
+  position: absolute;
+  width: 3px;
+  top: 16px;
+  bottom: 16px;
+  left: 4px;
+  border-radius: 12px;
+  background: var(--line);
+}
+#today-column-resizer:hover::after,
+#today-column-resizer:focus-visible::after {
+  background: var(--accent-text);
+}
+.today-board .today-panel[hidden] {
+  display: none;
+}
+.schedule-anytime .task-row,
+.schedule-anytime .row-line {
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+}
+.schedule-anytime .row-line {
+  height: 23px;
+}
+.schedule-anytime :is(.row-main, .row-body, .row-tick) {
+  min-height: 0;
+}
+.schedule-anytime .row-body {
+  height: 23px;
+  padding: 2px 14px 2px 2px;
+  font-size: 10px;
+  line-height: 1.2;
+}
+.schedule-anytime .row-tick {
+  height: 23px;
+  width: 23px;
+  padding: 3px;
+}
+.schedule-anytime .row-pills,
+.schedule-anytime .progress-options,
+.schedule-anytime .timer-action {
+  display: none;
+}
+.anytime-resizer.collapsed {
+  height: 8px;
+}
+.home-update {
+  position: relative;
+  color: var(--accent-text);
+}
+.home-update i {
+  position: absolute;
+  right: 5px;
+  top: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-text);
+}
+@media (max-width: 1000px) {
+  .today-board {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  #today-column-resizer {
+    display: none;
+  }
+}
+
+#habit-editor .mac-picker > summary {
+  width: 100%;
+  max-width: none;
+  height: 36px;
+}

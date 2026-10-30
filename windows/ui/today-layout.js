@@ -1,6 +1,62 @@
+let todayBoardObserver;
 function bindTodayBoard() {
+  todayBoardObserver?.disconnect();
   const panels = [...document.querySelectorAll("[data-today-panel]")];
   if (!panels.length) return;
+  const board = document.querySelector(".today-board");
+  const divider = document.querySelector("#today-column-resizer");
+  const storedShare = Number(localStorage.getItem("todayColumnShare"));
+  const applyShare = (share, save = false) => {
+    const value = Math.max(35, Math.min(75, share));
+    board.style.gridTemplateColumns = `${value}fr ${100 - value}fr`;
+    divider?.setAttribute("aria-valuenow", String(Math.round(value)));
+    if (save) localStorage.setItem("todayColumnShare", String(value));
+    return value;
+  };
+  if (storedShare >= 35 && storedShare <= 75) applyShare(storedShare);
+  if (divider) {
+    const main = board.querySelector('[data-panel-drop="main"]');
+    const align = () => {
+      divider.style.left = `${main.getBoundingClientRect().right - board.getBoundingClientRect().left + 6}px`;
+      divider.setAttribute("aria-valuenow", String(Math.round((main.clientWidth / (board.clientWidth - 24)) * 100)));
+    };
+    todayBoardObserver = new ResizeObserver(align);
+    todayBoardObserver.observe(board);
+    align();
+    divider.onkeydown = (event) => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      applyShare(
+        event.key === "Home"
+          ? 35
+          : event.key === "End"
+            ? 75
+            : Number(divider.getAttribute("aria-valuenow")) + (event.key === "ArrowRight" ? 2 : -2),
+        true,
+      );
+      align();
+    };
+    divider.onpointerdown = (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      const original = board.style.gridTemplateColumns;
+      let share = Number(divider.getAttribute("aria-valuenow"));
+      divider.setPointerCapture(event.pointerId);
+      divider.onpointermove = (move) => {
+        share = applyShare(((move.clientX - board.getBoundingClientRect().left - 12) / (board.clientWidth - 24)) * 100);
+        align();
+      };
+      const finish = (cancel) => {
+        divider.onpointermove = divider.onpointerup = divider.onpointercancel = divider.onlostpointercapture = null;
+        if (cancel) board.style.gridTemplateColumns = original;
+        else applyShare(share, true);
+        align();
+      };
+      divider.onpointerup = () => finish(false);
+      divider.onpointercancel = divider.onlostpointercapture = () => finish(true);
+    };
+  }
   const layout = JSON.parse(localStorage.getItem("todayPanelLayout") || "{}");
   const fallback = new Map(panels.map((panel, index) => [panel, index]));
   panels.sort(
@@ -75,9 +131,10 @@ function bindTodayBoard() {
         offsetY = event.clientY - box.top;
       let finished = false;
       grip.onpointermove = (move) => {
-        ghost.style.left = `${move.clientX - offsetX}px`;
-        ghost.style.top = `${move.clientY - offsetY}px`;
         place(placeholder, move.clientX, move.clientY);
+        ghost.style.width = `${placeholder.getBoundingClientRect().width}px`;
+        ghost.style.left = `${move.clientX - Math.min(offsetX, ghost.clientWidth - 20)}px`;
+        ghost.style.top = `${move.clientY - offsetY}px`;
         if (move.clientY < 80) window.scrollBy(0, -18);
         else if (move.clientY > innerHeight - 80) window.scrollBy(0, 18);
       };
@@ -152,8 +209,8 @@ function bindTodayBoard() {
     const main = document.querySelector('[data-panel-drop="main"]'),
       side = document.querySelector('[data-panel-drop="side"]');
     if (
-      main?.firstElementChild?.dataset.todayPanel === "tasks" &&
-      side?.firstElementChild?.dataset.todayPanel === "recent"
+      [...(main?.children || [])].find((panel) => !panel.hidden)?.dataset.todayPanel === "tasks" &&
+      [...(side?.children || [])].find((panel) => !panel.hidden)?.dataset.todayPanel === "recent"
     ) {
       const first = main.querySelector(".task-row, .empty-state");
       if (first && innerWidth > 1000)

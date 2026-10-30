@@ -55,6 +55,7 @@ function render() {
   if (changedPage) {
     window.scrollTo(0, 0);
     showShortcutHint();
+    if (page === "settings") void checkForUpdates();
   }
   applyFills();
   if (before) settleRows(before);

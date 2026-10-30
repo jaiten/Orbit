@@ -16,6 +16,7 @@ const fs = require("node:fs");
     window.copiedTexts = [];
     let updateState = { status: "idle", currentVersion: "0.3.4", version: null, percent: 0 };
     window.updateInstalls = 0;
+    window.updateChecks = 0;
     let changed = () => {};
     let settings = { notifications: true, shortcut: "", shortcuts: ["", "Control+Space"] };
     const batch = async (changes) => {
@@ -61,7 +62,11 @@ const fs = require("node:fs");
         };
       },
       updates: async (command) => {
-        if (command === "check") window.emitUpdate({ status: "current" });
+        if (command === "check") {
+          window.updateChecks++;
+          if (["idle", "current", "error"].includes(updateState.status))
+            window.emitUpdate({ status: "current", version: null });
+        }
         if (command === "install") {
           window.updateInstalls++;
           window.emitUpdate({ status: "installing" });
@@ -118,6 +123,8 @@ const fs = require("node:fs");
   await p.locator('[data-page="tasks"]').click();
   await p.getByRole("button", { name: "Edit Visit Japan", exact: true }).waitFor();
   await p.getByRole("combobox", { name: "Show tasks" }).click();
+  assert.equal((await p.locator("#task-scope-options").innerText()).includes("✓"), false);
+  assert.equal(await p.locator("#task-scope-options [aria-selected=true]").innerText(), "All tasks");
   await p.getByRole("option", { name: "Someday", exact: true }).click();
   await p.getByRole("button", { name: "Edit Visit Japan", exact: true }).waitFor();
   const taskRow = p.locator(".task-row").filter({ hasText: "Visit Japan" });
@@ -197,6 +204,18 @@ const fs = require("node:fs");
   await habitRow.getByRole("button", { name: "Edit habit: Drink water", exact: true }).click();
   assert.equal(await p.locator('#habit-form input[name="icon"]').inputValue(), "drop");
   assert.equal(await p.getByRole("combobox", { name: "Habit icon" }).count(), 0);
+  await p.getByRole("combobox", { name: "Colour", exact: true }).click();
+  assert.equal(await p.locator("#habit-colour-options .colour-swatch").count(), 4);
+  await p.getByRole("option", { name: "Lavender", exact: true }).click();
+  assert.equal(await p.locator("#habit-colour .swatch-lavender").count(), 1);
+  await p.getByRole("combobox", { name: "Repeats", exact: true }).click();
+  await p.getByRole("option", { name: "Weekly", exact: true }).click();
+  assert.equal(await p.locator("#habit-target-label").innerText(), "Times a week");
+  await p.getByRole("combobox", { name: "Repeats", exact: true }).click();
+  await p.getByRole("option", { name: "Daily", exact: true }).click();
+  if (process.env.ORBIT_SCREENSHOT)
+    await p.screenshot({ path: process.env.ORBIT_SCREENSHOT.replace(".png", "-habit-editor.png") });
+
   await p.locator("#habit-form").getByRole("button", { name: "Save", exact: true }).click();
   await p.waitForFunction(() => {
     // eslint-disable-next-line no-undef
@@ -274,7 +293,8 @@ const fs = require("node:fs");
   await p.locator('[data-page="today"]').click();
   await p.locator("#inline-task-input").fill("Unfinished draft");
   await p.evaluate(() => window.emitUpdate({ status: "downloaded", version: "0.3.5", percent: 100 }));
-  await p.locator("#restart-update").click();
+  assert.equal(await p.locator("#home-update").isVisible(), true);
+  await p.locator("#home-update").click();
   assert.equal(await p.evaluate(() => window.updateInstalls), 0, "Restart discarded an unfinished task draft");
   await p.keyboard.press("Control+6");
   await p.getByRole("button", { name: "Restart to update", exact: true }).click();
@@ -302,7 +322,9 @@ const fs = require("node:fs");
     true,
     "Restart ran before the latest note edit was saved",
   );
+  const previousChecks = await p.evaluate(() => window.updateChecks);
   await p.keyboard.press("Control+6");
+  assert.ok((await p.evaluate(() => window.updateChecks)) > previousChecks, "Entering Settings checks for updates");
   await p.evaluate(() => window.emitUpdate({ status: "error" }));
   await p.getByRole("button", { name: "Try again", exact: true }).click();
   assert.equal(await p.locator("#update-status").innerText(), "You’re up to date.");
@@ -502,7 +524,22 @@ const fs = require("node:fs");
   assert.equal(await p.locator(".today-panel[draggable=true]").count(), 0);
   assert.equal(await p.locator('[data-today-panel="heatmap"]').isVisible(), false);
   await p.getByRole("button", { name: "Edit layout", exact: true }).click();
+  assert.equal(await p.locator('[data-today-panel="heatmap"]').isVisible(), false);
+  await p.locator('[data-panel-visible="plan"]').uncheck();
+  assert.equal(await p.locator('[data-today-panel="plan"]').isVisible(), false);
+  await p.locator('[data-panel-visible="plan"]').check();
   await p.locator('[data-panel-visible="heatmap"]').check();
+  const divider = p.getByRole("separator", { name: "Today column widths", exact: true });
+  const initialMainWidth = await p.locator('[data-panel-drop="main"]').evaluate((column) => column.clientWidth);
+  const dividerBox = await divider.boundingBox();
+  await p.mouse.move(dividerBox.x + dividerBox.width / 2, dividerBox.y + 30);
+  await p.mouse.down();
+  await p.mouse.move(dividerBox.x - 60, dividerBox.y + 30, { steps: 8 });
+  await p.mouse.up();
+  const resizedMainWidth = await p.locator('[data-panel-drop="main"]').evaluate((column) => column.clientWidth);
+  assert.ok(resizedMainWidth < initialMainWidth - 30, "Divider resizes both columns");
+  assert.ok(Number(await p.evaluate(() => localStorage.getItem("todayColumnShare"))) >= 35);
+
   assert.equal(await p.locator("[data-panel-column-toggle]").count(), 0);
   const gripBox = await p.getByRole("button", { name: "Move Habits", exact: true }).boundingBox();
   const taskPanelBox = await p.locator('[data-today-panel="tasks"]').boundingBox();
@@ -510,6 +547,8 @@ const fs = require("node:fs");
   await p.mouse.down();
   await p.mouse.move(taskPanelBox.x + 50, taskPanelBox.y + 2, { steps: 12 });
   assert.equal(await p.locator(".layout-placeholder").count(), 1);
+  const ghostWidth = await p.locator(".layout-ghost").evaluate((ghost) => ghost.clientWidth);
+  assert.ok(Math.abs(ghostWidth - resizedMainWidth + 20) < 45, "Dragging across columns adapts the preview width");
   await p.mouse.up();
   assert.equal(
     await p.locator('[data-panel-drop="main"]').evaluate((column) => column.firstElementChild.dataset.todayPanel),
@@ -522,6 +561,29 @@ const fs = require("node:fs");
   await p.getByRole("button", { name: "Finish editing layout", exact: true }).click();
   assert.equal(await p.locator(".today-panel[draggable=true]").count(), 0);
   assert.equal(await p.locator('[data-today-panel="heatmap"]').isVisible(), true);
+  assert.ok(
+    Math.abs(
+      (await p.locator('[data-panel-drop="main"]').evaluate((column) => column.clientWidth)) - resizedMainWidth,
+    ) <= 4,
+    "Column width persists when edit borders are removed",
+  );
+  const contentRadii = await p
+    .locator(".today-panel:not([hidden]) .card, .today-board .task-row, .compact-habits .habit-row")
+    .evaluateAll((boxes) => boxes.map((box) => getComputedStyle(box).borderTopLeftRadius));
+  assert.ok(contentRadii.length > 3 && contentRadii.every((radius) => radius === "12px"));
+  const filledDay = p.locator(".overall-day").last();
+  const previousColour = await filledDay.evaluate((day) => {
+    day.style.setProperty("--o", "1");
+    return getComputedStyle(day).backgroundColor;
+  });
+  await p.evaluate(() => (document.documentElement.dataset.accent = "lavender"));
+  assert.notEqual(
+    await filledDay.evaluate((day) => getComputedStyle(day).backgroundColor),
+    previousColour,
+    "Overall progress follows the chosen accent",
+  );
+  await p.evaluate(() => (document.documentElement.dataset.accent = localStorage.getItem("accent") || "coral"));
+
   // A real drop reschedules a task to a quarter-hour and retains reminder offsets.
   await p.locator("#inline-task-input").fill("Drag calendar task");
   await p.locator("#inline-task-input").press("Enter");
@@ -529,6 +591,15 @@ const fs = require("node:fs");
   await p.keyboard.press("Control+2");
   await p.getByRole("tab", { name: "Week", exact: true }).click();
   const dragSource = p.locator(".schedule-anytime", { hasText: "Drag calendar task" });
+  assert.equal(await p.locator("#toggle-anytime").count(), 0);
+  assert.ok((await dragSource.boundingBox()).height <= 25, "Anytime rows stay one compact line");
+  const anytimeDivider = p.getByRole("separator", { name: "Anytime section height", exact: true });
+  await anytimeDivider.focus();
+  await p.keyboard.press("Home");
+  assert.equal(await anytimeDivider.getAttribute("aria-valuenow"), "0");
+  await p.keyboard.press("ArrowDown");
+  await p.keyboard.press("ArrowDown");
+
   const targetSlot = p.locator('[data-time-slot$="T10:15"]').first();
   const expectedDay = (await targetSlot.getAttribute("data-time-slot")).slice(0, 10);
   await targetSlot.scrollIntoViewIfNeeded();
@@ -642,9 +713,6 @@ const fs = require("node:fs");
     taskID,
   );
   await p.keyboard.press("Control+2");
-  await p.getByRole("button", { name: "Hide anytime tasks", exact: true }).click();
-  assert.equal(await p.locator(".schedule-all-day").evaluate((element) => element.getBoundingClientRect().height), 0);
-  await p.getByRole("button", { name: "Show anytime tasks", exact: true }).click();
   await p.getByRole("separator", { name: "Anytime section height", exact: true }).focus();
   await p.keyboard.press("Home");
   assert.equal(await p.locator(".schedule-all-day").evaluate((element) => element.getBoundingClientRect().height), 0);

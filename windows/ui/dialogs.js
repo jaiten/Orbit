@@ -40,6 +40,47 @@ function updateTargetLabel() {
 }
 $("#habit-form").elements.frequency.onchange = updateTargetLabel;
 
+function habitPickers() {
+  const form = $("#habit-form");
+  $("#habit-frequency-picker").innerHTML = macPicker(
+    "habit-frequency",
+    "Repeats",
+    [
+      ["DAILY", "Daily"],
+      ["WEEKDAYS", "Weekdays"],
+      ["WEEKENDS", "Weekends"],
+      ["WEEKLY", "Weekly"],
+    ],
+    form.elements.frequency.value,
+  );
+  $("#habit-colour-picker").innerHTML = macPicker(
+    "habit-colour",
+    "Colour",
+    [
+      ["sage", "Sage"],
+      ["lavender", "Lavender"],
+      ["clay", "Coral"],
+      ["honey", "Honey"],
+    ],
+    form.elements.color.value,
+    true,
+  );
+  bindPickers(
+    {
+      "habit-frequency": (value) => {
+        form.elements.frequency.value = value;
+        updateTargetLabel();
+        habitPickers();
+      },
+      "habit-colour": (value) => {
+        form.elements.color.value = value;
+        habitPickers();
+      },
+    },
+    form,
+  );
+}
+
 function openHabit(id, draft = null) {
   afterCaptureSave = () => {};
   editingHabit = rows("habits").find((h) => h.id === id) || null;
@@ -54,6 +95,7 @@ function openHabit(id, draft = null) {
   // Keep the iPhone's icon choice when editing; Windows uses text-only rows.
   f.elements.icon.value = source?.icon || "automatic";
   updateTargetLabel();
+  habitPickers();
   $("#habit-editor-title").textContent = editingHabit ? "Edit Habit" : "New Habit";
   $("#delete-habit").hidden = !editingHabit;
   $("#move-habit").hidden = !editingHabit;

@@ -78,6 +78,7 @@ const shared = Object.fromEntries(
     "renderSettings",
     "bindSettings",
     "bindUpdates",
+    "checkForUpdates",
     "confirmAccount",
     "showDevices",
     "versionSummary",

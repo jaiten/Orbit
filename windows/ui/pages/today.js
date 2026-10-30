@@ -40,7 +40,7 @@ function todayPanel(id, content, defaultColumn = "side") {
   const column = stored[id]?.column || defaultColumn;
   const visibility = { heatmap: false, ...JSON.parse(localStorage.getItem("todayPanelVisibility") || "{}") };
   const visible = id === "tasks" || visibility[id] !== false;
-  return `<section class="today-panel" data-today-panel="${id}" data-panel-column="${column}" ${!visible && !editingTodayLayout ? "hidden" : ""} ${editingTodayLayout ? 'draggable="true"' : ""}>${editingTodayLayout ? `<div class="panel-tools"><button class="panel-grip" data-move-panel="${id}" aria-label="Move ${todayPanelNames[id]}" title="Drag to move; arrow keys also move panels">⠿ <span>${todayPanelNames[id]}</span></button></div>` : ""}${content}</section>`;
+  return `<section class="today-panel" data-today-panel="${id}" data-panel-column="${column}" ${!visible ? "hidden" : ""} ${editingTodayLayout ? 'draggable="true"' : ""}>${editingTodayLayout ? `<div class="panel-tools"><button class="panel-grip" data-move-panel="${id}" aria-label="Move ${todayPanelNames[id]}" title="Drag to move; arrow keys also move panels">⠿ <span>${todayPanelNames[id]}</span></button></div>` : ""}${content}</section>`;
 }
 function todayLayoutOptions() {
   const visibility = { heatmap: false, ...JSON.parse(localStorage.getItem("todayPanelVisibility") || "{}") };
@@ -112,12 +112,14 @@ function renderToday(tasks, allHabits) {
 `;
   return `<div class="today-layout">
     <header class="page-head"><div><div class="eyebrow">${eyebrow}</div><h1>${heading}</h1></div><div class="head-tools">
+      <button id="home-update" class="icon-button home-update" hidden aria-label="Update available" title="Update available"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg><i aria-hidden="true"></i></button>
       <button id="edit-today-layout" class="icon-button" aria-label="${editingTodayLayout ? "Finish editing layout" : "Edit layout"}" title="${editingTodayLayout ? "Finish editing layout" : "Edit layout"}" aria-pressed="${editingTodayLayout}"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${editingTodayLayout ? "m5 12 4 4L19 6" : "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"}"/></svg></button>
       <div class="day-nav" role="group" aria-label="Day"><button class="icon-button" data-day-step="-1" aria-label="Previous day" ${selected <= OrbitHabits.addDays(today(), -6) ? "disabled" : ""}>‹</button><button id="go-today" class="today-button" ${isToday ? "disabled" : ""}>Today</button><button class="icon-button" data-day-step="1" aria-label="Next day">›</button></div>
     </div></header>
     ${!isToday ? `<div class="past-edit-banner" role="status"><span>Editing ${date.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" })}</span><button id="back-to-today">Back to Today</button></div>` : ""}
     ${editingTodayLayout ? todayLayoutOptions() : ""}
     <div class="today-board ${editingTodayLayout ? "editing" : ""}">
+      ${editingTodayLayout ? `<div id="today-column-resizer" role="separator" tabindex="0" aria-label="Today column widths" aria-orientation="vertical" aria-valuemin="35" aria-valuemax="75" title="Drag to resize columns; arrow keys also adjust"></div>` : ""}
       <section class="today-main today-panel-column" data-panel-drop="main">${todayPanel("tasks", agenda, "main")}</section>
       <aside class="today-side today-panel-column" data-panel-drop="side" aria-label="Plan and progress">
         ${todayPanel("recent", recentProgressCard(tasks, allHabits))}

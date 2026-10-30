@@ -43,7 +43,7 @@ function renderSettings() {
     </section>
     <section class="settings-block" id="calendar-preferences"><h2>Calendar</h2>
       <div class="settings-field"><label for="calendar-clock">Clock format</label><select id="calendar-clock"><option value="12" ${localStorage.getItem("calendarClock") !== "24" ? "selected" : ""}>12 hour (AM / PM)</option><option value="24" ${localStorage.getItem("calendarClock") === "24" ? "selected" : ""}>24 hour</option></select></div>
-      <p class="secondary">Drag the anytime section boundary to resize it, or use its toolbar icon to hide it.</p>
+      <p class="secondary">Drag the anytime section boundary to resize it or collapse it completely.</p>
     </section>
     <section class="settings-block" id="desktop-settings">
       <h2>Notifications & Keyboard</h2>

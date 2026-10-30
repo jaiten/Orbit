@@ -18,7 +18,7 @@ function shiftMonth(key, delta) {
 }
 function calendarHeader(title, subtitle) {
   const unit = calendarView === "month" ? "month" : calendarView === "week" ? "week" : "day";
-  return `<header class="page-head"><div><div class="month-heading"><h1>${title}</h1></div><p class="subtitle">${subtitle}</p></div><div class="head-tools"><div class="month-arrows"><button class="icon-button" data-month="-1" aria-label="Previous ${unit}">${chevron("m15 6-6 6 6 6")}</button><button class="icon-button" data-month="1" aria-label="Next ${unit}">${chevron("m9 6 6 6-6 6")}</button></div><button class="today-button" data-month="0">Today</button><button id="toggle-anytime" class="icon-button" aria-label="${Number(localStorage.getItem("anytimeHeight") ?? 74) === 0 ? "Show anytime tasks" : "Hide anytime tasks"}" title="Show or hide anytime tasks"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v5H3zM3 15h18M3 20h18"/></svg></button>${scopeTabs()}</div></header>`;
+  return `<header class="page-head"><div><div class="month-heading"><h1>${title}</h1></div><p class="subtitle">${subtitle}</p></div><div class="head-tools"><div class="month-arrows"><button class="icon-button" data-month="-1" aria-label="Previous ${unit}">${chevron("m15 6-6 6 6 6")}</button><button class="icon-button" data-month="1" aria-label="Next ${unit}">${chevron("m9 6 6 6-6 6")}</button></div><button class="today-button" data-month="0">Today</button>${scopeTabs()}</div></header>`;
 }
 function calendarCompleted(items) {
   if (!items.length) return "";
@@ -259,15 +259,9 @@ function bindCalendar() {
     const resizer = $("#anytime-resizer");
     resizer?.setAttribute("aria-valuenow", String(value));
     resizer?.classList.toggle("collapsed", value === 0);
-    const toggle = $("#toggle-anytime");
-    toggle?.setAttribute("aria-label", value === 0 ? "Show anytime tasks" : "Hide anytime tasks");
     return value;
   };
   let anytimeHeight = applyAnytime(Number(localStorage.getItem("anytimeHeight") ?? 74), false);
-  if ($("#toggle-anytime"))
-    $("#toggle-anytime").onclick = () => {
-      anytimeHeight = applyAnytime(anytimeHeight ? 0 : 74);
-    };
   const resizer = $("#anytime-resizer");
   if (resizer) {
     resizer.onkeydown = (event) => {
