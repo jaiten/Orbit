@@ -481,7 +481,7 @@ function renderLists() {
   const someday = `<div class="sidebar-list"><button data-list="${SOMEDAY}" class="${selectedList === SOMEDAY ? "selected" : ""}"><span class="list-dot lavender"></span>Someday</button></div>`;
   const own = orderedLists("notes");
   $("#sidebar-lists").innerHTML =
-    `<div class="list-heading">Note sections</div>` +
+    (own.length ? `<div class="list-heading" data-sidebar-note-heading>Note sections</div>` : "") +
     own
       .map(
         (l) =>

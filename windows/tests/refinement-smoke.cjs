@@ -99,7 +99,26 @@ const fs = require("node:fs");
   assert.equal(await p.locator("#home-update").isVisible(), false);
   await p.evaluate(() => window.emitUpdate({ status: "idle", version: null }));
 
+  assert.equal(await p.locator("[data-sidebar-note-heading]").count(), 0);
+  assert.equal(await p.locator('nav [data-page="settings"]').count(), 0);
+  const settingsGear = p.locator('.sidebar-footer [data-page="settings"]');
+  const gearBox = await settingsGear.boundingBox();
+  const syncBox = await p.locator("#sync-status").boundingBox();
+  assert.ok(gearBox.x >= syncBox.x + syncBox.width && Math.abs(gearBox.y - syncBox.y) < 8);
   await p.locator('[data-page="settings"]').click();
+  for (const accent of ["teal", "blue"]) {
+    await p.locator(`button[data-accent="${accent}"]`).click();
+    assert.equal(await p.locator("html").getAttribute("data-accent"), accent);
+    assert.equal(await p.locator(`button[data-accent="${accent}"]`).getAttribute("aria-pressed"), "true");
+  }
+  await p.locator('button[data-accent="coral"]').click();
+  await p.getByRole("combobox", { name: "Overall progress range", exact: true }).click();
+  await p.getByRole("option", { name: "Past week", exact: true }).click();
+  assert.equal(await p.evaluate(() => localStorage.getItem("overallProgressRange")), "7");
+  await p.getByRole("combobox", { name: "Overall progress range", exact: true }).click();
+  await p.getByRole("option", { name: "Past month", exact: true }).click();
+  assert.equal(await p.evaluate(() => localStorage.getItem("overallProgressRange")), "30");
+
   await p.locator("#compact-rows").check();
   assert.equal(await p.locator("html").getAttribute("data-compact"), "true");
   await p.locator("#notifications-toggle").uncheck();
@@ -301,6 +320,7 @@ const fs = require("node:fs");
   await p.locator("#inline-task-input").fill("Unfinished draft");
   await p.evaluate(() => window.emitUpdate({ status: "downloaded", version: "0.3.5", percent: 100 }));
   assert.equal(await p.locator("#home-update").isVisible(), true);
+  assert.match(await p.locator("#restart-update").innerText(), /Click to restart/);
   await p.locator("#home-update").click();
   assert.equal(await p.evaluate(() => window.updateInstalls), 0, "Restart discarded an unfinished task draft");
   await p.keyboard.press("Control+6");
@@ -650,7 +670,8 @@ const fs = require("node:fs");
   if (process.env.ORBIT_SCREENSHOT)
     await p.screenshot({ path: process.env.ORBIT_SCREENSHOT.replace(".png", "-calendar.png") });
   await p.keyboard.press("Control+6");
-  await p.locator("#calendar-clock").selectOption("24");
+  await p.getByRole("combobox", { name: "Calendar clock format", exact: true }).click();
+  await p.getByRole("option", { name: "24 hour", exact: true }).click();
   await p.locator("#progress-tasks").uncheck();
   await p.keyboard.press("Control+2");
   assert.doesNotMatch(await p.locator(".time-axis").innerText(), /AM|PM/);

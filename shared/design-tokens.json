@@ -28,6 +28,20 @@
         "light": "#926826",
         "dark": "#D19E4D"
       }
+    },
+    "teal": {
+      "fill": "#53AAA4",
+      "text": {
+        "light": "#236F6B",
+        "dark": "#6CBDB8"
+      }
+    },
+    "blue": {
+      "fill": "#729ED2",
+      "text": {
+        "light": "#315F96",
+        "dark": "#8DB3E2"
+      }
     }
   },
   "accentNotes": "Fill colours are used for ticks, progress, selection and buttons. Text colours meet WCAG AA (4.5:1) on the canvas and surface of each appearance: coral text is #B74F38 in light mode (5.0:1 on white, 4.6:1 on canvas) and #E87359 in dark mode (6.2:1). White text on a coral fill is only 3:1, so filled light-mode buttons use the text colour as their fill.",

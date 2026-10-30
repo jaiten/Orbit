@@ -476,6 +476,10 @@ final class ChecklistUITests: XCTestCase {
         continueAfterFailure = false
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
         XCTAssertTrue(app.tabBars.buttons["Today"].waitForExistence(timeout: 15)); openSettings(app)
+        for name in ["Teal", "Blue"] {
+            reveal(app.buttons[name], in: app); app.buttons[name].tap()
+            XCTAssertTrue(app.buttons[name + ", selected"].waitForExistence(timeout: 5))
+        }
         reveal(app.buttons["Sage"], in: app); app.buttons["Sage"].tap()
         XCTAssertTrue(app.buttons["Sage, selected"].waitForExistence(timeout: 5))
         reveal(app.buttons["Appearance"], in: app); app.buttons["Appearance"].tap(); app.buttons["Light"].tap()

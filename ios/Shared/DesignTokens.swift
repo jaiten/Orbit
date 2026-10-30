@@ -3,8 +3,8 @@ import Foundation
 
 enum DesignTokens {
     typealias Pair = (light: Int, dark: Int)
-    static let accentFill: [String: Int] = ["coral": 0xE87359, "sage": 0x6E8C78, "lavender": 0x8C85BF, "honey": 0xD19E4D]
-    static let accentText: [String: Pair] = ["coral": (light: 0xB74F38, dark: 0xE87359), "sage": (light: 0x5C7564, dark: 0x6F8D79), "lavender": (light: 0x7067AF, dark: 0x8C85BF), "honey": (light: 0x926826, dark: 0xD19E4D)]
+    static let accentFill: [String: Int] = ["coral": 0xE87359, "sage": 0x6E8C78, "lavender": 0x8C85BF, "honey": 0xD19E4D, "teal": 0x53AAA4, "blue": 0x729ED2]
+    static let accentText: [String: Pair] = ["coral": (light: 0xB74F38, dark: 0xE87359), "sage": (light: 0x5C7564, dark: 0x6F8D79), "lavender": (light: 0x7067AF, dark: 0x8C85BF), "honey": (light: 0x926826, dark: 0xD19E4D), "teal": (light: 0x236F6B, dark: 0x6CBDB8), "blue": (light: 0x315F96, dark: 0x8DB3E2)]
     static let palette: [String: Int] = ["sage": 0x6E8C78, "clay": 0xD97A66, "lavender": 0x8C85BF, "honey": 0xD19E4D]
     static let canvas: Pair = (light: 0xF5F5F7, dark: 0x141416)
     static let sidebar: Pair = (light: 0xEBEBEE, dark: 0x1B1B1D)

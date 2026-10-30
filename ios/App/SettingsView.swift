@@ -62,7 +62,7 @@ private struct AppearanceSection: View {
     var body: some View {
         Section("Appearance") {
             AccentPicker(title: "Appearance", selection: $appearance, choices: [("system", "System"), ("light", "Light"), ("dark", "Dark")])
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: typeSize.isAccessibilitySize ? 2 : 4), spacing: 12) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: typeSize.isAccessibilitySize ? 2 : 3), spacing: 12) {
                 ForEach(DayTheme.accents, id: \.self) { name in
                     Button { accentTheme = name } label: {
                         VStack(spacing: 8) {

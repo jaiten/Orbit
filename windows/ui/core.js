@@ -1,6 +1,6 @@
 // Shared renderer state and helpers. Loaded first; page scripts build on these globals.
 // Accent colours live in tokens.css, generated from shared/design-tokens.json.
-const accents = ["coral", "sage", "lavender", "honey"];
+const accents = ["coral", "sage", "lavender", "honey", "teal", "blue"];
 function applyAccent(name) {
   if (!accents.includes(name)) name = "coral";
   document.documentElement.dataset.accent = name;

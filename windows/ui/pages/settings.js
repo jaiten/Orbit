@@ -38,11 +38,27 @@ function renderSettings() {
     </section>
     <section class="settings-block" id="today-preferences"><h2>Today & Progress</h2>
       <label class="toggle"><input type="checkbox" id="progress-tasks" ${localStorage.getItem("progressIncludesTasks") !== "false" ? "checked" : ""} /> Include tasks in daily progress</label>
-      <div class="settings-field"><label for="overall-range">Overall progress</label><select id="overall-range"><option value="7" ${localStorage.getItem("overallProgressRange") === "7" ? "selected" : ""}>Past week</option><option value="30" ${localStorage.getItem("overallProgressRange") !== "7" ? "selected" : ""}>Past month</option></select></div>
+      <div class="settings-field"><span>Overall progress</span>${macPicker(
+        "overall-range",
+        "Overall progress range",
+        [
+          ["7", "Past week"],
+          ["30", "Past month"],
+        ],
+        localStorage.getItem("overallProgressRange") === "7" ? "7" : "30",
+      )}</div>
       <p class="secondary">Recent progress always shows the last seven days. Select a date to correct it. Use the layout icon on Today to arrange or hide panels.</p>
     </section>
     <section class="settings-block" id="calendar-preferences"><h2>Calendar</h2>
-      <div class="settings-field"><label for="calendar-clock">Clock format</label><select id="calendar-clock"><option value="12" ${localStorage.getItem("calendarClock") !== "24" ? "selected" : ""}>12 hour (AM / PM)</option><option value="24" ${localStorage.getItem("calendarClock") === "24" ? "selected" : ""}>24 hour</option></select></div>
+      <div class="settings-field"><span>Clock format</span>${macPicker(
+        "calendar-clock",
+        "Calendar clock format",
+        [
+          ["12", "12 hour (AM / PM)"],
+          ["24", "24 hour"],
+        ],
+        localStorage.getItem("calendarClock") === "24" ? "24" : "12",
+      )}</div>
       <p class="secondary">Drag the anytime section boundary to resize it or collapse it completely.</p>
     </section>
     <section class="settings-block" id="desktop-settings">
@@ -78,12 +94,28 @@ function renderSettings() {
 
 function bindSettings() {
   if ($("#overall-range"))
-    $("#overall-range").onchange = (event) => localStorage.setItem("overallProgressRange", event.target.value);
+    bindPickers(
+      {
+        "overall-range": (value) => {
+          localStorage.setItem("overallProgressRange", value);
+          render();
+        },
+      },
+      $("#today-preferences"),
+    );
   if ($("#progress-tasks"))
     $("#progress-tasks").onchange = (event) =>
       localStorage.setItem("progressIncludesTasks", String(event.target.checked));
   if ($("#calendar-clock"))
-    $("#calendar-clock").onchange = (event) => localStorage.setItem("calendarClock", event.target.value);
+    bindPickers(
+      {
+        "calendar-clock": (value) => {
+          localStorage.setItem("calendarClock", value);
+          render();
+        },
+      },
+      $("#calendar-preferences"),
+    );
   if ($("#compact-rows")) $("#compact-rows").onchange = (event) => applyCompact(event.target.checked);
   document.querySelectorAll("button[data-accent]").forEach(
     (b) =>
@@ -142,7 +174,7 @@ async function loadDesktopSettings() {
       }
     };
     toggle.onchange = (event) => void change({ notifications: event.target.checked });
-    bindPickers({ "global-shortcut": (value) => void change({ shortcut: value }) });
+    bindPickers({ "global-shortcut": (value) => void change({ shortcut: value }) }, wrap);
     if (settings.message) showNotice(settings.message);
   };
   try {

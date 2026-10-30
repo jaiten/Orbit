@@ -65,23 +65,35 @@
         ><button data-page="habits" aria-keyshortcuts="Control+5">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="m17 2 4 4-4 4M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3" /></svg
-          ><span>Habits</span><kbd aria-hidden="true">Ctrl+5</kbd></button
-        ><button data-page="settings" aria-keyshortcuts="Control+6">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7v.2a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2Z"
-            />
-            <circle cx="12" cy="12" r="3" /></svg
-          ><span>Settings</span><kbd aria-hidden="true">Ctrl+6</kbd>
+          ><span>Habits</span><kbd aria-hidden="true">Ctrl+5</kbd>
         </button>
       </nav>
 
       <div id="sidebar-lists" class="sidebar-lists"></div>
       <button id="new-list" class="quiet-add">+ New section</button>
-      <button id="sync-status" class="sync-status" aria-label="Sync status" title="Saved locally">
-        <span id="sync-dot" aria-hidden="true"></span><span id="sync-text">Saved locally</span>
+      <div class="sidebar-footer">
+        <button id="sync-status" class="sync-status" aria-label="Sync status" title="Saved locally">
+          <span id="sync-dot" aria-hidden="true"></span><span id="sync-text">Saved locally</span></button
+        ><button
+          data-page="settings"
+          class="icon-button sidebar-settings"
+          aria-label="Settings"
+          title="Settings (Ctrl+6)"
+          aria-keyshortcuts="Control+6"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7v.2a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2Z"
+            />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </button>
+      </div>
+      <button id="restart-update" class="restart-update" hidden aria-label="Update ready — click to restart">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1" /></svg
+        ><span><strong>Update ready</strong><small>Click to restart</small></span>
       </button>
-      <button id="restart-update" class="restart-update" hidden>Update ready — restart</button>
     </aside>
     <main>
       <div class="page">

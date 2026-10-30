@@ -61,10 +61,10 @@ class UpdateManager {
 
   start() {
     if (this.state.status === "unsupported" || this.timers.length) return;
-    const first = setTimeout(() => void this.check(), 15000);
     const repeat = setInterval(() => void this.check(), 4 * 60 * 60 * 1000);
-    this.timers = [first, repeat];
+    this.timers = [repeat];
     this.timers.forEach((timer) => timer.unref());
+    void this.check();
   }
 
   stop() {

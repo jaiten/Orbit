@@ -25,7 +25,7 @@ enum DayTheme {
         UserDefaults.standard.string(forKey: "accentTheme") ?? sharedDefaults?.string(forKey: "accentTheme") ?? "coral"
     }
     static var accent: Color { accentColor(storedAccentName) }
-    static let accents = ["coral", "sage", "lavender", "honey"]
+    static let accents = ["coral", "sage", "lavender", "honey", "teal", "blue"]
     /// Fills: ticks, progress, selection.
     static func accentColor(_ name: String) -> Color { Color(hex: DesignTokens.accentFill[name] ?? DesignTokens.accentFill["coral"]!) }
     /// Text and links in the accent colour, at 4.5:1 contrast in both appearances.

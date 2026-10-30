@@ -96,7 +96,10 @@ test("update events emit independent snapshots and installation failures remain 
   assert.throws(() => f.manager.install(), /could not restart/);
   assert.equal(f.manager.snapshot().status, "error");
   f.manager.start();
-  assert.equal(f.manager.timers.length, 2);
+  assert.equal(f.manager.timers.length, 1);
+  assert.equal(f.checks(), 1, "App startup checks immediately");
+  f.manager.start();
+  assert.equal(f.checks(), 1, "Starting twice does not repeat the check");
   f.manager.stop();
   assert.equal(f.manager.timers.length, 0);
 });

@@ -89,3 +89,15 @@
   --accent-button: light-dark(#926826, #D19E4D);
   --on-accent: light-dark(#ffffff, #141416);
 }
+:root[data-accent="teal"] {
+  --accent: #53AAA4;
+  --accent-text: light-dark(#236F6B, #6CBDB8);
+  --accent-button: light-dark(#236F6B, #53AAA4);
+  --on-accent: light-dark(#ffffff, #141416);
+}
+:root[data-accent="blue"] {
+  --accent: #729ED2;
+  --accent-text: light-dark(#315F96, #8DB3E2);
+  --accent-button: light-dark(#315F96, #729ED2);
+  --on-accent: light-dark(#ffffff, #141416);
+}

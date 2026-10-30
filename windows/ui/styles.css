@@ -4609,3 +4609,90 @@ body:is([data-view="history"], [data-view="habit-history"]) .page-head {
   height: 5px;
   margin: 0;
 }
+
+.sidebar-footer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: auto;
+  padding: 0 6px;
+}
+.sidebar-footer .sync-status {
+  margin-top: 0;
+  flex: 1;
+  min-width: 0;
+  padding: 8px 6px;
+}
+.sidebar-settings {
+  flex: 0 0 34px;
+}
+.sidebar-settings svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+.sidebar-settings.selected {
+  color: var(--accent-text);
+  background: var(--surface);
+}
+.restart-update {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 6px 6px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
+  border-radius: var(--content-radius);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+}
+.restart-update svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.restart-update > span {
+  display: grid;
+  gap: 2px;
+}
+.restart-update strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+.restart-update small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.restart-update:hover {
+  background: color-mix(in srgb, var(--accent) 17%, var(--surface));
+  border-color: var(--accent-text);
+}
+.settings-field .mac-picker {
+  width: min(240px, 100%);
+}
+.settings-field .mac-picker > summary {
+  min-width: 0;
+  max-width: none;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 12px;
+  background: var(--canvas);
+  border-radius: var(--content-radius);
+}
+.settings-field .picker-menu {
+  min-width: 100%;
+  padding: 5px;
+}
+.settings-field .picker-menu button {
+  min-height: 34px;
+  padding: 8px 10px;
+}
+.accent-options {
+  flex-wrap: wrap;
+}
