@@ -37,12 +37,27 @@ retain the Windows sidebar, compact habits, optional progress panels with Overal
 progress off by default, per-task anytime rows and hover-only calendar drag grips.
 The iOS note toolbar uses monochrome list, indent, undo/redo and Done controls.
 The subsequent implementation uses a single 12px radius for Windows content
-cards, task rows, fields, menus and compact habit rows with colour dots. The sidebar retains its existing shape. Panels move
+cards, task rows, fields, menus and compact habit rows with colour dots. The
+sidebar retains its existing shape. Panels move
 between columns or above the task list in Edit layout; drag the divider to resize
 columns. Unchecked panels stay hidden while arranging. Overall progress follows
 the selected accent. Recent progress always shows seven days; selecting one opens
-that day in the page for corrections, and returning to Today restores the current day.
-Overall progress uses horizontal weeks and is hidden by default.
+that day to review or correct tasks, and returning to Today restores the current day.
+Past habit check-ins are corrected in History; the Today screen only logs the
+current day. Progress rings have no selection checkmarks or letter underlines.
+Overall progress uses compact, unnumbered cells and is hidden by default.
 
 This board is a design reference; device validation and release evidence are
 described in the beta checklist.
+
+## Latest surface refinements (30 October 2026)
+
+Windows uses a lighter charcoal canvas, subtle card borders and compact plan
+spacing. Overall progress has small, unnumbered cells in the selected accent,
+with its range aligned to the right. The update icon stays hidden until a newer
+version is available. Habit history uses compact horizontal twelve-week grids.
+
+iOS note icons can be chosen from twenty symbols; the choice is included in sync
+and portable backups. Tasks uses the shared search surface. Note cards clip the
+swipe background to their rounded edges, including short title-only pages, and
+the note background fills the keyboard safe area.

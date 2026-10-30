@@ -7,29 +7,30 @@ item has an owner and evidence link.
 ## Readiness review — 30 October 2026
 
 The repository has automated distribution, local persistence, conflict handling,
-account deletion and regression coverage. Windows 0.3.10 passed
-[unit, browser, native app and installer checks](https://github.com/jaiten/Orbit/actions/runs/41130279959)
-and is [published with installer, portable app and update feed](https://github.com/jaiten/Orbit/releases/tag/v0.3.10).
+account deletion and regression coverage. Windows 0.3.12 passed
+[unit, browser, native app and installer checks](https://github.com/jaiten/Orbit/actions/runs/41136364741)
+and is [published with installer, portable app and update feed](https://github.com/jaiten/Orbit/releases/tag/v0.3.12).
 Those results do not establish physical-device acceptance or operational readiness.
 
 Local checks passed 125 Windows unit tests, Chromium interaction checks and the
-native Electron smoke test. The regression coverage includes past-day corrections,
+native Electron smoke test. The regression coverage includes past task corrections and History-based habit corrections,
 fully closed completion rings, bulk overdue moves, independent note sections and
 task categories, note image placement/deletion/undo, drag layouts, quarter-hour
 rescheduling and calendar preferences. All 76 Swift source files passed syntax
 validation, and 10 CI-helper tests passed. The final iOS source passed Xcode builds
-and [52 unit tests plus four UI tests](https://github.com/jaiten/Orbit/actions/runs/41128489744),
-including selecting a past day and resetting to Today on return.
-The signed [iOS 0.2.0 (8001) release](https://github.com/jaiten/Orbit/actions/runs/41131092543)
+and [53 unit tests plus four UI tests](https://github.com/jaiten/Orbit/actions/runs/41135439400),
+including note icon persistence, a title-only note swipe, and compact horizontal
+habit history. The dark-mode note and swipe screenshots were visually reviewed.
+The signed [iOS 0.2.0 (8201) release](https://github.com/jaiten/Orbit/actions/runs/41136982103)
 was uploaded to TestFlight. App Store Connect confirmed **VALID** processing and
-**IN_BETA_TESTING** at 21:37 UTC on 30 October 2026.
+**IN_BETA_TESTING** at 15:20 PDT (22:20 UTC) on 30 October 2026.
 The website passed its type check and production static build; the download link
-points to the published 0.3.10 installer.
+points to the published 0.3.12 installer.
 
 Before inviting external testers, record evidence for these five gates:
 
-1. **Release artifacts:** install Windows 0.3.10 and TestFlight 0.2.0 (8001) on
-   clean devices and verify automatic upgrading from 0.3.9. The downloaded 0.3.10
+1. **Release artifacts:** install Windows 0.3.12 and TestFlight 0.2.0 (8201) on
+   clean devices and verify automatic upgrading from 0.3.10. The previously downloaded 0.3.10
    installer is **unsigned**: its PE Authenticode certificate table is absent. Its
    SHA-256 matches the published GitHub asset digest. Configure a publisher
    certificate, then verify its signature and timestamp on the next signed release.
@@ -48,7 +49,7 @@ Before inviting external testers, record evidence for these five gates:
    App Store privacy answers and the deployed TestFlight join URL. The live site
    still links to `https://testflight.apple.com/join/REPLACE_ME` (verified 30 October).
    Set `NEXT_PUBLIC_TESTFLIGHT_URL` to the real public beta URL before invitations.
-   The live Windows link points to the verified 0.3.10 installer.
+   The live Windows link points to the verified 0.3.12 installer.
 
 The unchecked items below remain open until there is evidence, even when the
 corresponding implementation exists.
