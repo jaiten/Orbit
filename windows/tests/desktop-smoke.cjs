@@ -135,9 +135,15 @@ const remove = (folder) => {
     await p.locator("#quick-add-preview").getByText("Habit · Daily", { exact: true }).waitFor();
     await p.getByRole("button", { name: "Add", exact: true }).click();
     await p.getByRole("checkbox", { name: "Log Morning walk", exact: true }).click();
-    await p.getByText("1 of 1", { exact: true }).waitFor();
+    await p
+      .getByRole("button", { name: "Edit Morning walk", exact: true })
+      .getByText("1 of 1", { exact: true })
+      .waitFor();
     await p.getByRole("checkbox", { name: "Undo Morning walk", exact: true }).click();
-    await p.getByText("0 of 1", { exact: true }).waitFor();
+    await p
+      .getByRole("button", { name: "Edit Morning walk", exact: true })
+      .getByText("0 of 1", { exact: true })
+      .waitFor();
     await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).click();
     await p.getByRole("button", { name: "Make it a Habit", exact: true }).click();
     // A queued scroll from layout must not close the newly opened context menu.
@@ -519,7 +525,10 @@ const remove = (folder) => {
     await q.locator(".completed-items").waitFor();
     if (!(await q.locator(".completed-items").evaluate((details) => details.open)))
       throw Error("Completed did not remember expanded state after reload");
-    await q.getByText("0 of 1", { exact: true }).waitFor();
+    await q
+      .getByRole("button", { name: "Edit Morning walk", exact: true })
+      .getByText("0 of 1", { exact: true })
+      .waitFor();
     const late = new Date();
     late.setHours(23, 59, 0, 0);
     await q.clock.install({ time: late });

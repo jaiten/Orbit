@@ -44,6 +44,10 @@ const OrbitNoteDocument = (() => {
     return `<figure contenteditable="false" tabindex="0" data-photo-id="${photo.id}" data-wrap="${wrap}" aria-label="Note photo. Backspace to remove."><img src="orbit://app/photos/${photo.id}.jpg" alt="Note photo" draggable="false" /><figcaption><button type="button" data-photo-action="copy" aria-label="Copy photo">Copy</button><button type="button" data-photo-action="inline" aria-label="Photo on its own line">Inline</button><button type="button" data-photo-action="left" aria-label="Wrap text to the right">Left</button><button type="button" data-photo-action="right" aria-label="Wrap text to the left">Right</button><button type="button" data-photo-action="delete" class="danger" aria-label="Remove photo">Remove</button></figcaption></figure>`;
   }
   function markup(text, photos) {
+    text = text.replace(/^([ \t]*)([•◦▪]) /gm, (_, indentation) => {
+      const depth = Math.floor(indentation.replace(/\t/g, "    ").length / 4);
+      return indentation + (depth === 0 ? "•" : depth === 1 ? "◦" : "▪") + " ";
+    });
     let result = "",
       offset = 0;
     [...photos]

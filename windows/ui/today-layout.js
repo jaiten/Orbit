@@ -81,9 +81,22 @@ function bindTodayBoard() {
         if (move.clientY < 80) window.scrollBy(0, -18);
         else if (move.clientY > innerHeight - 80) window.scrollBy(0, 18);
       };
+      const onCancelKey = (key) => {
+        if (key.key === "Escape") {
+          key.preventDefault();
+          key.stopPropagation();
+          finish(true);
+        }
+      };
+      const onBlur = () => finish(true);
+      window.addEventListener("keydown", onCancelKey, true);
+      window.addEventListener("blur", onBlur);
       const finish = (cancel) => {
         if (finished) return;
         finished = true;
+        window.removeEventListener("keydown", onCancelKey, true);
+        window.removeEventListener("blur", onBlur);
+        grip.onlostpointercapture = null;
         grip.onpointermove = null;
         grip.onpointerup = null;
         grip.onpointercancel = null;
@@ -99,6 +112,7 @@ function bindTodayBoard() {
       };
       grip.onpointerup = () => finish(false);
       grip.onpointercancel = () => finish(true);
+      grip.onlostpointercapture = () => finish(true);
     };
     grip.onkeydown = (event) => {
       if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) return;
