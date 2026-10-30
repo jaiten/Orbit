@@ -9,7 +9,10 @@ function updateControls(value = updateStatus) {
   restart.title = ready ? `Install Orbit ${value.version} and reopen` : "";
   const home = $("#home-update");
   if (home) {
-    home.hidden = !value.version || !["downloading", "downloaded", "error"].includes(value.status);
+    home.hidden =
+      !value.version ||
+      value.version === value.currentVersion ||
+      !["downloading", "downloaded", "error"].includes(value.status);
     const label = ready
       ? `Orbit ${value.version} is ready — restart to update`
       : value.status === "error"

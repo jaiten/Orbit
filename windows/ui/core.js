@@ -386,13 +386,14 @@ function taskRow(t) {
 }
 /** A habit: colour dot, title and count. Tapping logs one check-in; right-click (or E) edits. */
 function habitCard(h, { editable = false, fullWidth = false } = {}) {
-  const done = checked(h);
+  const date = page === "today" ? selected : today();
+  const done = checked(h, date);
   const id = esc(h.id),
     title = esc(h.title);
   return `<div class="row habit-row habit-${colorName(h.color)} check-tile ${done ? "complete" : ""} ${fullWidth ? "wide-habit" : ""}" data-flip="habit-${id}" data-row-menu="habit:${id}">
     <div class="row-line">
-      <button class="row-tick" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-menu="${id}" ${selected > today() ? "disabled" : ""}>${tick(done, poppedID === h.id)}</button>
-      <div class="row-main"><button class="row-body" aria-label="Edit ${title}" data-habit-edit="${id}"><span class="row-title">${title}</span>${editable ? `<span class="dot ${colorName(h.color)}" aria-hidden="true"></span>` : ""}<span class="row-detail ${done ? "met" : ""}">${page === "today" ? `${progress(h)} of ${h.target}` : habitDetail(h)}</span></button>
+      <button class="row-tick" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-day="${date}" data-habit-menu="${id}" ${date !== today() ? "disabled" : ""}>${tick(done, poppedID === h.id)}</button>
+      <div class="row-main"><button class="row-body" aria-label="Edit ${title}" data-habit-edit="${id}"><span class="row-title">${title}</span>${editable ? `<span class="dot ${colorName(h.color)}" aria-hidden="true"></span>` : ""}<span class="row-detail ${done ? "met" : ""}">${page === "today" ? `${progress(h, date)} of ${h.target}` : habitDetail(h, date)}</span></button>
       ${rowActions(id, title, true)}</div>
     </div>
   </div>`;
@@ -458,6 +459,7 @@ async function log(id, undo, date = selected) {
   const h = rows("habits").find((h) => h.id === id);
   const current = dayKey(new Date());
   if (date > current || date < OrbitHabits.addDays(current, -6) || !h) return;
+  if (date !== current && !["history", "habit-history"].includes(page)) return;
   const old = rows("habit_logs").find((l) => l.habitID === id && l.dayKey === date);
   if (!undo && checked(h, date)) return;
   const data = old || { id: crypto.randomUUID(), habitID: id, dayKey: date, count: 0 };
@@ -509,15 +511,20 @@ function bindTiles() {
   );
   document.querySelectorAll("[data-edit]").forEach((b) => (b.onclick = () => openTask(b.dataset.edit)));
   document.querySelectorAll("[data-toggle]").forEach((b) => (b.onclick = () => action(() => toggle(b.dataset.toggle))));
-  document
-    .querySelectorAll("[data-habit-toggle]")
-    .forEach(
-      (b) =>
-        (b.onclick = () =>
-          action(() =>
-            log(b.dataset.habitToggle, checked(rows("habits").find((h) => h.id === b.dataset.habitToggle))),
-          )),
-    );
+  document.querySelectorAll("[data-habit-toggle]").forEach(
+    (b) =>
+      (b.onclick = () =>
+        action(() =>
+          log(
+            b.dataset.habitToggle,
+            checked(
+              rows("habits").find((h) => h.id === b.dataset.habitToggle),
+              b.dataset.habitDay,
+            ),
+            b.dataset.habitDay,
+          ),
+        )),
+  );
   document.querySelectorAll("[data-habit-edit]").forEach((b) => (b.onclick = () => openHabit(b.dataset.habitEdit)));
   document.querySelectorAll("[data-new-habit]").forEach((b) => (b.onclick = () => openHabit(null)));
   document.querySelectorAll("[data-start-timer]").forEach((b) => (b.onclick = () => startTimer(b.dataset.startTimer)));

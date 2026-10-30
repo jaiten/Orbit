@@ -45,11 +45,11 @@ function habitHistoryCharts(h) {
 function renderHistoryIndex(habits) {
   const t = today();
   return `<div class="narrow wide">
-    <header class="page-head"><div><div class="eyebrow">Habits</div><h1>History</h1><p class="subtitle">The last 7 days and 12 weeks, for every habit. Select any of the last seven days to correct it.</p></div></header>
+    <header class="page-head"><button class="icon-button" data-history-back="habits" aria-label="Back to Habits"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button><div><div class="eyebrow">Habits</div><h1>History</h1><p class="subtitle">Select any of the last seven days to correct a check-in.</p></div></header>
     <div class="history-list">${habits
       .map(
         (h) => `<section class="card habit-history" data-flip="history-${esc(h.id)}">
-      <button class="history-head" data-history="${esc(h.id)}"><span class="dot ${colorName(h.color)}" aria-hidden="true"></span><strong>${esc(h.title)}</strong><span>${OrbitHabits.checkedDays(h, habitLogs(), t, 7)} of the last 7 days <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4m8-4v4M3 10h18M8 14h1m6 0h1"/></svg></span></button>
+      <button class="history-head" data-history="${esc(h.id)}"><span class="dot ${colorName(h.color)}" aria-hidden="true"></span><strong>${esc(h.title)}</strong><span>${OrbitHabits.checkedDays(h, habitLogs(), t, 7)} of the last 7 days <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span></button>
       <p class="history-schedule">${OrbitHabits.label(h)} · ${habitDetail(h, t)}</p>
       ${habitHistoryCharts(h)}
     </section>`,
@@ -70,7 +70,7 @@ function renderHabitHistory(habits) {
     .map((l) => `<li>${esc(l.dayKey)} <span>${l.count} check-in${l.count === 1 ? "" : "s"}</span></li>`)
     .join("");
   return `<div class="narrow wide">
-    <header class="page-head"><div><div class="eyebrow">History</div><h1>${esc(h.title)}</h1><p class="subtitle">${OrbitHabits.label(h)} · ${habitDetail(h, t)}. Select any of the last seven days to add or remove a check-in.</p></div></header>
+    <header class="page-head"><button class="icon-button" data-history-back="history" aria-label="Back to History"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button><div><div class="eyebrow">History</div><h1>${esc(h.title)}</h1><p class="subtitle">${OrbitHabits.label(h)} · ${habitDetail(h, t)}. Select any of the last seven days to add or remove a check-in.</p></div></header>
     <section class="card habit-history">
       <div class="history-head static"><span class="dot ${colorName(h.color)}" aria-hidden="true"></span><strong>${lastSeven} of the last 7 days</strong></div>
       ${habitHistoryCharts(h)}
@@ -81,6 +81,13 @@ function renderHabitHistory(habits) {
 }
 
 function bindHabits() {
+  document.querySelectorAll("[data-history-back]").forEach(
+    (button) =>
+      (button.onclick = () => {
+        page = button.dataset.historyBack;
+        render();
+      }),
+  );
   if ($("#habit-history"))
     $("#habit-history").onclick = () => {
       page = "history";

@@ -67,10 +67,10 @@ function overallProgressCard(tasks, habits) {
         key,
         localStorage.getItem("progressIncludesTasks") !== "false",
       );
-      return `<div class="overall-day" data-o="${result.ratio ? (0.25 + result.ratio * 0.75).toFixed(2) : "0"}" title="${key}: ${Math.round(result.ratio * 100)}% complete">${localDay(key).getDate()}</div>`;
+      return `<div class="overall-day" data-o="${result.ratio ? (0.25 + result.ratio * 0.75).toFixed(2) : "0"}" role="img" aria-label="${key}: ${Math.round(result.ratio * 100)}% complete" title="${key}: ${Math.round(result.ratio * 100)}% complete"></div>`;
     })
     .join("");
-  return `<section class="card overall-progress"><h2>Overall progress <small>${count === 7 ? "Past week" : "Past month"}</small></h2><div class="overall-days" role="group" aria-label="Daily progress, oldest first">${cells}</div></section>`;
+  return `<section class="card overall-progress"><div class="recent-progress-head"><h2>Overall progress</h2><span class="secondary">${count === 7 ? "Past week" : "Past month"}</span></div><div class="overall-days ${count === 7 ? "week" : "month"}" role="group" aria-label="Daily progress, oldest first">${cells}</div></section>`;
 }
 function renderToday(tasks, allHabits) {
   // Today: dated today or earlier and still open, or finished today. Undated and Someday items stay in Notes.

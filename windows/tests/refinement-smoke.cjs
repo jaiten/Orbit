@@ -92,6 +92,13 @@ const fs = require("node:fs");
   });
   await p.goto("http://localhost:8123/index.html");
   await p.locator("h1").filter({ hasText: "Today" }).waitFor();
+  assert.equal(await p.locator("#home-update").isVisible(), false);
+  await p.evaluate(() => window.emitUpdate({ status: "downloading", version: "0.3.5", percent: 12 }));
+  assert.equal(await p.locator("#home-update").isVisible(), true);
+  await p.evaluate(() => window.emitUpdate({ status: "current", version: "0.3.5" }));
+  assert.equal(await p.locator("#home-update").isVisible(), false);
+  await p.evaluate(() => window.emitUpdate({ status: "idle", version: null }));
+
   await p.locator('[data-page="settings"]').click();
   await p.locator("#compact-rows").check();
   assert.equal(await p.locator("html").getAttribute("data-compact"), "true");
@@ -571,6 +578,18 @@ const fs = require("node:fs");
     .locator(".today-panel:not([hidden]) .card, .today-board .task-row, .compact-habits .habit-row")
     .evaluateAll((boxes) => boxes.map((box) => getComputedStyle(box).borderTopLeftRadius));
   assert.ok(contentRadii.length > 3 && contentRadii.every((radius) => radius === "12px"));
+  assert.equal(
+    await p
+      .locator(".overall-day")
+      .allTextContents()
+      .then((values) => values.join("")),
+    "",
+  );
+  const progressHeading = await p.locator(".overall-progress h2").boundingBox();
+  const progressRange = await p.locator(".overall-progress .recent-progress-head > span").boundingBox();
+  assert.ok(progressRange.x > progressHeading.x + progressHeading.width);
+  assert.ok(Math.abs(progressRange.y - progressHeading.y) < 5);
+  assert.equal(await p.locator("[data-progress-day] svg path").count(), 0);
   const filledDay = p.locator(".overall-day").last();
   const previousColour = await filledDay.evaluate((day) => {
     day.style.setProperty("--o", "1");
@@ -678,7 +697,35 @@ const fs = require("node:fs");
   await p.locator(`[data-progress-day="${pastKey}"]`).click();
   assert.equal(await p.getByRole("button", { name: "Back to Today", exact: true }).isVisible(), true);
   await p.getByRole("checkbox", { name: "Complete Past task", exact: true }).click();
-  await p.getByRole("checkbox", { name: "Log Past habit", exact: true }).click();
+  assert.equal(await p.getByRole("checkbox", { name: "Log Past habit", exact: true }).isDisabled(), true);
+  assert.equal(await p.locator(`[data-progress-day="${pastKey}"]`).getAttribute("aria-pressed"), "true");
+  assert.equal(await p.locator("[data-progress-day] svg path").count(), 0);
+  await p.locator('[data-page="habits"]').click();
+  assert.equal(
+    await p.getByRole("checkbox", { name: "Log Past habit", exact: true }).isEnabled(),
+    true,
+    "Habits always checks in for today",
+  );
+  await p.locator("#habit-history").click();
+  const historicalToggle = p.locator(`[data-history-toggle="${habitID}"][data-day="${pastKey}"]`);
+  await historicalToggle.click();
+  await p.waitForFunction(
+    async (id) =>
+      (await window.orbit.read()).records.some((record) => record.payload.habitID === id && record.payload.count === 1),
+    habitID,
+  );
+  const historyGrid = await p.locator(".habit-history .box-grid").first().boundingBox();
+  assert.ok(historyGrid.width > historyGrid.height, "History uses compact horizontal weeks");
+  if (process.env.ORBIT_SCREENSHOT)
+    await p.screenshot({ path: process.env.ORBIT_SCREENSHOT.replace(".png", "-history.png") });
+  await p.locator(`[data-history="${habitID}"]`).click();
+  assert.equal(await p.getByRole("button", { name: "Back to History", exact: true }).isVisible(), true);
+  if (process.env.ORBIT_SCREENSHOT)
+    await p.screenshot({ path: process.env.ORBIT_SCREENSHOT.replace(".png", "-history-detail.png") });
+  await p.getByRole("button", { name: "Back to History", exact: true }).click();
+  await p.getByRole("button", { name: "Back to Habits", exact: true }).click();
+  await p.locator('[data-page="today"]').click();
+  await p.locator(`[data-progress-day="${pastKey}"]`).click();
   // Restore tasks in progress for this assertion, which was switched off earlier in Settings.
   await p.evaluate(() => localStorage.setItem("progressIncludesTasks", "true"));
   await p.locator(`[data-progress-day="${pastKey}"]`).click();
