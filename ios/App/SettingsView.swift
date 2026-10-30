@@ -133,7 +133,7 @@ private struct ProgressSection: View {
             Toggle("Show overall progress", isOn: $showOverall)
             Picker("Overall progress", selection: $range) { Text("Past week").tag(7); Text("Past month").tag(30) }
             Picker("Widget history", selection: $widgetRange) { Text("Past week").tag(7); Text("Past month").tag(30) }
-            Text("Recent progress always shows the last seven days. Select a day to correct it; Today reopens on the current day.").font(.footnote).foregroundStyle(.secondary)
+            Text("Recent progress shows the last seven days. To correct a habit check-in, open Habits → History.").font(.footnote).foregroundStyle(.secondary)
         }
     }
 }

@@ -34,7 +34,6 @@ struct TodayView: View {
     @AppStorage("todayCompletedExpanded") private var showingCompleted = false
     @State private var error: String?
     @AppStorage("showOverallProgress") private var showOverall = false
-    @State private var viewingPast = false
     @State private var day = Calendar.current.startOfDay(for: .now)
     @ObservedObject private var calendars = CalendarBridge.shared
 
@@ -65,10 +64,10 @@ struct TodayView: View {
     private var page: some View {
         ScrollView { content }
             .scrollDismissesKeyboard(.interactively)
-            .captureDock(scheme) { InlineCapture(defaultDay: viewingPast ? .day(PlannerLogic.dayKey(day)) : .today) }
+            .captureDock(scheme) { InlineCapture() }
             .background(DayTheme.canvas(scheme)).tint(accent.fill)
             .onAppear {
-                viewingPast = false; day = Calendar.current.startOfDay(for: .now)
+                day = Calendar.current.startOfDay(for: .now)
                 let layout = HomeLayoutEditor.upgradedLayout(sections: homeSections, hidden: hiddenSections)
                 homeSections = layout.sections
                 hiddenSections = layout.hidden
@@ -85,9 +84,6 @@ struct TodayView: View {
             ConflictBanner()
             // The plan, then the day's sections; capture is docked at the bottom.
             if sections.contains("progress") { PlanCard(done: planDone, total: (includeTasks ? relevant.count : 0) + dueHabits.count, accent: accent.fill) }
-            if viewingPast {
-                HStack { Label("Editing " + day.formatted(date: .abbreviated, time: .omitted), systemImage: "clock.arrow.circlepath").font(.subheadline.weight(.medium)); Spacer(); Button("Back to Today") { viewingPast = false; refresh() }.frame(minHeight: 44) }.padding(12).orbitSurface()
-            }
             ForEach(sections.filter { $0 != "progress" }, id: \.self) { section in
                 homeSection(section)
             }
@@ -115,12 +111,12 @@ struct TodayView: View {
     @ViewBuilder private func homeSection(_ id: String) -> some View {
         switch id {
         case "consistency":
-            if !habits.isEmpty || tasks.contains(where: { !$0.note }) { ConsistencyStrip(habits: habits, logs: logs, selectedDate: day) { selected in day = Calendar.current.startOfDay(for: selected); viewingPast = !Calendar.current.isDateInToday(selected) }.orbitCard() }
+            if !habits.isEmpty || tasks.contains(where: { !$0.note }) { ConsistencyStrip(habits: habits, logs: logs).orbitCard() }
         case "overall": OverallProgressCard(habits: habits, logs: logs, tasks: tasks)
         case "today":
             let today = PlannerLogic.dayKey(.now)
             let open = relevant.filter { $0.completedAt == nil }
-            let overdue = open.filter { !viewingPast && TodayRules.isOverdue(TodayRules.item($0), today: today) }
+            let overdue = open.filter { TodayRules.isOverdue(TodayRules.item($0), today: today) }
             let planned = open.filter { !overdue.contains($0) }.sorted { a, b in
                 if a.hasTime != b.hasTime { return a.hasTime }
                 return a.hasTime ? (a.dueDate ?? .distantFuture) < (b.dueDate ?? .distantFuture) : a.sortOrder < b.sortOrder
@@ -191,7 +187,7 @@ struct TodayView: View {
 
     @ViewBuilder private func itemView(_ item: TodayItem) -> some View {
         if let task = item.task {
-            TaskRow(task: task, showMoves: !viewingPast, completionDate: viewingPast ? day.addingTimeInterval(12 * 3600) : .now) { editing = task }
+            TaskRow(task: task) { editing = task }
         }
         if let habit = item.habit {
             HabitRow(habit: habit, logs: logs, date: day, edit: { editingHabit = habit })
@@ -199,7 +195,7 @@ struct TodayView: View {
     }
 
     private func refresh() {
-        if !viewingPast { day = Calendar.current.startOfDay(for: .now) }
+        day = Calendar.current.startOfDay(for: .now)
         calendars.reload(); FocusSession.shared.restore()
     }
     private func moveOverdue(_ tasks: [PlannerTask], destination: String) {

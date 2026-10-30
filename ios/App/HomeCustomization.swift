@@ -64,8 +64,6 @@ struct ConsistencyStrip: View {
     @Environment(\.orbitAccent) private var accent
     let habits: [Habit]
     let logs: [HabitLog]
-    var selectedDate: Date = .now
-    var selectDay: (Date) -> Void = { _ in }
     private let range = 7
     @AppStorage("progressIncludesTasks") private var includeTasks = true
     @Query private var tasks: [PlannerTask]
@@ -81,7 +79,7 @@ struct ConsistencyStrip: View {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 5), count: range == 7 ? 7 : 10), spacing: 6) {
                 ForEach(Array(days.enumerated()), id: \.offset) { index, day in
                     let ratio = fractions[index]
-                    Button { selectDay(day) } label: { VStack(spacing: 4) {
+                    VStack(spacing: 4) {
                         Circle().fill(accent.fill.opacity(0.08))
                             .overlay {
                                 if ratio >= 1 { Circle().stroke(accent.fill, lineWidth: 3) }
@@ -89,11 +87,10 @@ struct ConsistencyStrip: View {
                             }.frame(width: range == 7 ? 30 : 20, height: range == 7 ? 30 : 20)
                         if range == 7 { Text(day.formatted(.dateTime.weekday(.narrow))).font(.caption2).foregroundStyle(.secondary) }
                     }.frame(maxWidth: .infinity, minHeight: 48).contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("\(day.formatted(date: .abbreviated, time: .omitted)), \(Int(ratio * 100)) percent complete. Edit this day")
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(day.formatted(date: .abbreviated, time: .omitted)), \(Int(ratio * 100)) percent complete")
                     .accessibilityIdentifier("progress-day-" + PlannerLogic.dayKey(day))
-                    .accessibilityAddTraits(Calendar.current.isDate(day, inSameDayAs: selectedDate) ? .isSelected : [])
+                    .accessibilityAddTraits(.isImage)
                 }
             }
         }

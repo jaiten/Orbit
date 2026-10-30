@@ -106,10 +106,12 @@ final class ChecklistUITests: XCTestCase {
         let past = Calendar.current.date(byAdding: .day, value: -2, to: .now)!
         let pieces = Calendar.current.dateComponents([.year, .month, .day], from: past)
         let key = String(format: "%04d-%02d-%02d", pieces.year!, pieces.month!, pieces.day!)
-        let progress = app.buttons["progress-day-" + key]
-        XCTAssertTrue(progress.waitForExistence(timeout: 5)); progress.tap()
-        XCTAssertTrue(progress.isSelected)
-        XCTAssertTrue(app.buttons["Back to Today"].waitForExistence(timeout: 5))
+        let progress = app.descendants(matching: .any).matching(identifier: "progress-day-" + key).firstMatch
+        XCTAssertTrue(progress.waitForExistence(timeout: 5))
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "progress-day-")).count, 0)
+        progress.tap()
+        XCTAssertFalse(app.buttons["Back to Today"].exists)
+        XCTAssertTrue(app.buttons["Complete Pay bill"].waitForExistence(timeout: 5), "Tapping recent progress must leave Today on the current date")
         selectTab("Notes", in: app); selectTab("Today", in: app)
         XCTAssertFalse(app.buttons["Back to Today"].exists)
     }
