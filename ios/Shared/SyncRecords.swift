@@ -36,6 +36,7 @@ import SwiftData
             if let tracking = t.progressTracking { payload["progressTracking"] = tracking }
             if let started = t.startedAt { payload["startedAt"] = stamp(started) }
             if t.isNote == true { payload["isNote"] = true }
+            if let icon = t.noteIcon { payload["noteIcon"] = icon }
             if !t.photos.isEmpty { payload["photos"] = t.photos.map { photo -> [String: String] in
                 var value = ["id": photo.id, "contentType": photo.contentType]
                 if let position = photo.position { value["position"] = position }
@@ -102,6 +103,7 @@ import SwiftData
             t.durationMinutes = p["durationMinutes"] as? Int ?? 30; t.reminders = (p["reminders"] as? [Double] ?? []).map { Date(timeIntervalSince1970: $0 / 1000) }; t.recurrenceRule = p["recurrenceRule"] as? String ?? ""; t.priority = p["priority"] as? Int ?? 0; t.tags = p["tags"] as? [String] ?? []
             t.subtasks = (p["subtasks"] as? [[String: Any]] ?? []).compactMap { s in guard let id = (s["id"] as? String).flatMap(UUID.init(uuidString:)), let title = s["title"] as? String else { return nil }; return Subtask(id: id, title: title, completed: s["completed"] as? Bool ?? false) }
             t.progressTracking = p["progressTracking"] as? Bool; t.startedAt = date("startedAt"); t.isNote = (p["isNote"] as? Bool) == true ? true : nil
+            t.noteIcon = p["noteIcon"] as? String
             t.photos = (p["photos"] as? [[String: String]] ?? []).compactMap { value in
                 guard let id = value["id"], UUID(uuidString: id) != nil else { return nil }
                 return NotePhoto(id: id.lowercased(), position: value["position"], wrap: value["wrap"])

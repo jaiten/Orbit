@@ -54,6 +54,7 @@ import UIKit
         let note = try QuickAddSaver.saveNote(text, in: context)
         XCTAssertEqual(note.title, "")
         XCTAssertEqual(note.notes, text)
+        note.noteIcon = "book.closed"
         let image = UIGraphicsImageRenderer(size: CGSize(width: 20, height: 20)).image { renderer in
             UIColor.orange.setFill(); renderer.fill(CGRect(x: 0, y: 0, width: 20, height: 20))
         }
@@ -73,10 +74,19 @@ import UIKit
         let restored = try XCTUnwrap(other.fetch(FetchDescriptor<PlannerTask>()).first)
         XCTAssertEqual(restored.title, "")
         XCTAssertEqual(restored.photos, [photo])
+        XCTAssertEqual(restored.noteIcon, "book.closed")
         try FileManager.default.removeItem(at: NotePhotos.file(photo.id))
         try NotePhotos.restoreFiles(files, records: records)
         XCTAssertNotNil(NotePhotos.local(photo.id))
         XCTAssertThrowsError(try NotePhotos.file("../session"))
+    }
+
+    func testNoteIconChoicesAreDistinctSupportedAndHaveASafeDefault() {
+        XCTAssertEqual(NoteIcons.choices.count, 20)
+        XCTAssertEqual(Set(NoteIcons.choices.map(\.symbol)).count, 20)
+        for choice in NoteIcons.choices { XCTAssertNotNil(UIImage(systemName: choice.symbol), choice.name) }
+        XCTAssertEqual(NoteIcons.symbol(nil), "doc.text")
+        XCTAssertEqual(NoteIcons.symbol("unknown-icon"), "doc.text")
     }
     func testShakeTracksRoutineEditsWithoutShowingToast() {
         let journal = UndoJournal()

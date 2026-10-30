@@ -1,5 +1,28 @@
 import Foundation
 
+enum NoteIcons {
+    struct Choice: Identifiable {
+        let symbol: String
+        let name: String
+        var id: String { symbol }
+    }
+    static let defaultSymbol = "doc.text"
+    static let choices: [Choice] = [
+        .init(symbol: "doc.text", name: "Document"), .init(symbol: "book.closed", name: "Book"),
+        .init(symbol: "pencil", name: "Pencil"), .init(symbol: "lightbulb", name: "Idea"),
+        .init(symbol: "star", name: "Star"), .init(symbol: "heart", name: "Heart"),
+        .init(symbol: "bookmark", name: "Bookmark"), .init(symbol: "flag", name: "Flag"),
+        .init(symbol: "calendar", name: "Calendar"), .init(symbol: "checklist", name: "Checklist"),
+        .init(symbol: "briefcase", name: "Work"), .init(symbol: "house", name: "Home"),
+        .init(symbol: "leaf", name: "Leaf"), .init(symbol: "sun.max", name: "Sun"),
+        .init(symbol: "moon", name: "Moon"), .init(symbol: "cup.and.saucer", name: "Coffee"),
+        .init(symbol: "airplane", name: "Travel"), .init(symbol: "map", name: "Map"),
+        .init(symbol: "music.note", name: "Music"), .init(symbol: "gift", name: "Gift")
+    ]
+    static func symbol(_ value: String?) -> String { choices.first { $0.symbol == value }?.symbol ?? defaultSymbol }
+    static func name(_ value: String) -> String { choices.first { $0.symbol == value }?.name ?? "Document" }
+}
+
 /// Long captures become a titled note instead of a to-do.
 /// Mirrors windows/ui/notes.js; cases in shared/test-cases/notes.json.
 enum NoteRules {

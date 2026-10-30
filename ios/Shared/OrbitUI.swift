@@ -183,22 +183,25 @@ struct BoxGrid: View {
     var gap = CGFloat(DesignTokens.gridGap)
     /// History stays compact; widgets pass nil to expand into their available space.
     var maximumCell: CGFloat? = 14
+    var horizontal = false
+    private var columns: Int { horizontal ? weeks : 7 }
+    private var rows: Int { horizontal ? 7 : weeks }
     @ViewBuilder var body: some View {
         if let maximumCell {
-            grid.frame(width: maximumCell * 7 + gap * 6,
-                       height: maximumCell * CGFloat(weeks) + gap * CGFloat(weeks - 1))
+            grid.frame(width: maximumCell * CGFloat(columns) + gap * CGFloat(columns - 1),
+                       height: maximumCell * CGFloat(rows) + gap * CGFloat(rows - 1))
         } else {
-            grid.aspectRatio(7 / CGFloat(weeks), contentMode: .fit)
+            grid.aspectRatio(CGFloat(columns) / CGFloat(rows), contentMode: .fit)
         }
     }
     private var grid: some View {
         GeometryReader { proxy in
-            let side = max(2, min((proxy.size.width - gap * 6) / 7, (proxy.size.height - gap * CGFloat(weeks - 1)) / CGFloat(weeks)))
+            let side = max(2, min((proxy.size.width - gap * CGFloat(columns - 1)) / CGFloat(columns), (proxy.size.height - gap * CGFloat(rows - 1)) / CGFloat(rows)))
             VStack(alignment: .leading, spacing: gap) {
-                ForEach(0..<weeks, id: \.self) { week in
+                ForEach(0..<rows, id: \.self) { row in
                     HStack(spacing: gap) {
-                        ForEach(0..<7, id: \.self) { day in
-                            let index = week * 7 + day
+                        ForEach(0..<columns, id: \.self) { column in
+                            let index = horizontal ? column * 7 + row : row * 7 + column
                             let level = index < levels.count ? levels[index] : nil
                             RoundedRectangle(cornerRadius: min(CGFloat(DesignTokens.gridRadius), side / 3), style: .continuous)
                                 .fill(level == nil ? Color.clear : Color.orbitTrack(DesignTokens.tintGridTrack))

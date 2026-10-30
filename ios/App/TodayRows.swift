@@ -27,6 +27,7 @@ struct CheckTile: View {
     var bodyText = ""
     var progress = 0 // 0: ordinary, 1: ready, 2: in progress
     var progressOptions: [TileMove] = []
+    var allowsToggle = true
     @Environment(\.orbitAccent) private var accent
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("compactRows") private var compactRows = false
@@ -80,7 +81,7 @@ struct CheckTile: View {
                         }
                     }.frame(width: CGFloat(DesignTokens.rowTickLarge), height: CGFloat(DesignTokens.rowTickLarge))
                         .frame(width: 46, height: rowHeight).contentShape(Rectangle())
-                }.buttonStyle(.plain).accessibilityLabel(completionLabel)
+                }.buttonStyle(.plain).disabled(!allowsToggle).accessibilityLabel(completionLabel)
                     .accessibilityValue(progress == 2 ? "In progress" : "")
                 Button(action: tapEdit) {
                     HStack(spacing: 8) {
@@ -281,14 +282,16 @@ struct HabitRow: View {
     @State private var error: String?
     @State private var feedback = 0
     private var checked: Bool { PlannerLogic.checkedToday(habit, logs: logs, at: date) }
+    private var canLog: Bool { Calendar.current.isDateInToday(date) }
     var body: some View {
         CheckTile(title: habit.title, subtitle: PlannerLogic.detail(habit, logs: logs, at: date), done: checked, color: DayTheme.color(habit.color),
                   completionLabel: (checked ? "Undo " : "Log ") + habit.title,
-                  toggle: toggle, edit: edit, remove: { change { try Conversions.remove(habit, in: context) } }, met: checked, icon: ItemIcons.symbol(habit.icon, title: habit.title))
+                  toggle: toggle, edit: edit, remove: { change { try Conversions.remove(habit, in: context) } }, met: checked, icon: ItemIcons.symbol(habit.icon, title: habit.title), allowsToggle: canLog)
             .modifier(HabitActions(habit: habit))
             .modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
     }
     private func toggle() {
+        guard canLog else { return }
         change {
             if checked { try Mutations.undoLog(habit, at: date, in: context) } else { try Mutations.log(habit, at: date, in: context) }
             feedback += 1

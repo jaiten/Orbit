@@ -127,6 +127,7 @@ struct NotesView: View {
                             .modifier(NoteActions(note: note))
                         }
                     }.orbitSurface(radius: CGFloat(DesignTokens.radiusCard))
+                        .clipShape(RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusCard), style: .continuous))
                 }
             }
         }
@@ -145,7 +146,7 @@ struct NoteRow: View {
     let note: PlannerTask
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "doc.text").font(.system(size: 17)).foregroundStyle(.secondary).frame(width: 24).padding(.top, 2)
+            Image(systemName: NoteIcons.symbol(note.noteIcon)).font(.system(size: 17)).foregroundStyle(.secondary).frame(width: 24).padding(.top, 2)
             VStack(alignment: .leading, spacing: 3) {
                 Text(note.title.isEmpty ? (note.notes.isEmpty ? "Photo note" : NoteRules.snippet(note.notes)) : note.title).font(.body.weight(.medium)).foregroundStyle(.primary).lineLimit(2)
                 let snippet = NoteRules.snippet(note.notes)
@@ -218,7 +219,8 @@ struct NoteActions: ViewModifier {
                     Button(role: .destructive) {
                         do { context.delete(note); try Mutations.save(context) }
                         catch { context.rollback(); self.error = error.localizedDescription }
-                    } label: { Image(systemName: "trash").frame(width: 70, height: 56).foregroundStyle(.white).background(Color.red) }
+                    } label: { Image(systemName: "trash").frame(width: 76).frame(maxHeight: .infinity).foregroundStyle(.white).background(Color.red) }
+                        .buttonStyle(.plain)
                         .accessibilityLabel("Delete note")
                 }
             }
@@ -237,6 +239,32 @@ struct NoteActions: ViewModifier {
     }
     static func text(of note: PlannerTask) -> String {
         [note.title, note.notes].filter { !$0.isEmpty }.joined(separator: "\n\n")
+    }
+}
+
+private struct NoteIconPicker: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.orbitAccent) private var accent
+    @Binding var selection: String
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 5), spacing: 12) {
+                    ForEach(NoteIcons.choices) { choice in
+                        Button {
+                            selection = choice.symbol; dismiss()
+                        } label: {
+                            Image(systemName: choice.symbol).font(.system(size: 24))
+                                .frame(maxWidth: .infinity, minHeight: 48)
+                                .background(selection == choice.symbol ? accent.fill.opacity(0.15) : .clear, in: RoundedRectangle(cornerRadius: 12))
+                        }.buttonStyle(.plain).foregroundStyle(accent.text)
+                            .accessibilityLabel(choice.name).accessibilityIdentifier("note-icon-" + choice.symbol)
+                            .accessibilityAddTraits(selection == choice.symbol ? .isSelected : [])
+                    }
+                }.padding(20)
+            }.navigationTitle("Note icon").navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        }
     }
 }
 
@@ -259,6 +287,8 @@ struct NoteEditor: View {
     @State private var displayedEdited: Date?
     @State private var error: String?
     @State private var confirmDelete = false
+    @State private var icon = NoteIcons.defaultSymbol
+    @State private var choosingIcon = false
     @State private var photos: [NotePhoto] = []
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var focus: Field?
@@ -272,8 +302,11 @@ struct NoteEditor: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Image(systemName: "doc.text").font(.system(size: 34, weight: .light)).foregroundStyle(accent.fill)
-                    .padding(.top, 8).accessibilityHidden(true)
+                Button { focus = nil; choosingIcon = true } label: {
+                    Image(systemName: icon).font(.system(size: 34, weight: .light)).foregroundStyle(accent.fill)
+                        .frame(width: 48, height: 48)
+                }.buttonStyle(.plain).padding(.top, 8).accessibilityLabel("Change note icon")
+                    .accessibilityValue(NoteIcons.name(icon))
                 CaptureTextField(text: $title, focused: Binding(get: { focus == .title }, set: { editing in
                     if editing { focus = .title } else if focus == .title { focus = nil }
                 }), identifier: "note-title", placeholder: "Untitled", minimumHeight: 56, maximumLines: 6,
@@ -310,7 +343,7 @@ struct NoteEditor: View {
             .frame(maxWidth: 720, alignment: .leading).frame(maxWidth: .infinity)
         }
         .scrollDismissesKeyboard(.interactively)
-        .background(DayTheme.canvas(scheme)).tint(accent.fill)
+        .background(DayTheme.canvas(scheme).ignoresSafeArea()).tint(accent.fill)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
@@ -340,6 +373,10 @@ struct NoteEditor: View {
         .onDisappear { save() }
         .onChange(of: phase) { _, value in if value != .active { save() } }
         .onChange(of: section) { _, _ in if loaded { save() } }
+        .onChange(of: icon) { _, _ in if loaded { save() } }
+        .sheet(isPresented: $choosingIcon) {
+            NoteIconPicker(selection: $icon).presentationDetents([.height(380), .medium]).presentationDragIndicator(.visible)
+        }
         .onChange(of: text) { old, new in if loaded { photos = NotePhotos.reanchor(photos, from: old, to: new) } }
         // Return in the title moves to the text, as in Notion.
         .onChange(of: title) { _, value in
@@ -373,7 +410,7 @@ struct NoteEditor: View {
 
     private func load() {
         guard !loaded else { return }
-        if let note { displayedEdited = note.updatedAt; title = note.title; text = note.notes; section = note.listID; photos = note.photos }
+        if let note { displayedEdited = note.updatedAt; title = note.title; text = note.notes; section = note.listID; photos = note.photos; icon = NoteIcons.symbol(note.noteIcon) }
         else { section = sectionID; Task { try? await Task.sleep(for: .milliseconds(250)); focus = .title } }
         loaded = true
     }
@@ -383,16 +420,17 @@ struct NoteEditor: View {
         guard loaded else { return }
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let savedIcon = icon == NoteIcons.defaultSymbol ? nil : icon
         do {
             if let note {
                 let newTitle = trimmedTitle
-                guard note.title != newTitle || note.notes != text || note.listID != section || note.photos != photos else { return }
+                guard note.title != newTitle || note.notes != text || note.listID != section || note.photos != photos || note.noteIcon != savedIcon else { return }
                 if section == TodayRules.somedayID { try TodayRules.ensureSomeday(context) }
-                note.title = newTitle; note.notes = text; note.listID = section; note.photos = photos; note.updatedAt = .now
+                note.title = newTitle; note.notes = text; note.listID = section; note.photos = photos; note.noteIcon = savedIcon; note.updatedAt = .now
                 try Mutations.save(context)
             } else if !trimmedTitle.isEmpty || !trimmedText.isEmpty || !photos.isEmpty {
                 let created = PlannerTask(title: trimmedTitle, listID: section)
-                created.isNote = true; created.notes = text; created.photos = photos
+                created.isNote = true; created.notes = text; created.photos = photos; created.noteIcon = savedIcon
                 if section == TodayRules.somedayID { try TodayRules.ensureSomeday(context) }
                 context.insert(created)
                 try Mutations.save(context)

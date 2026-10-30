@@ -108,6 +108,7 @@ final class ChecklistUITests: XCTestCase {
         let key = String(format: "%04d-%02d-%02d", pieces.year!, pieces.month!, pieces.day!)
         let progress = app.buttons["progress-day-" + key]
         XCTAssertTrue(progress.waitForExistence(timeout: 5)); progress.tap()
+        XCTAssertTrue(progress.isSelected)
         XCTAssertTrue(app.buttons["Back to Today"].waitForExistence(timeout: 5))
         selectTab("Notes", in: app); selectTab("Today", in: app)
         XCTAssertFalse(app.buttons["Back to Today"].exists)
@@ -288,7 +289,7 @@ final class ChecklistUITests: XCTestCase {
 
     func testNotesHaveSectionsAndPages() {
         continueAfterFailure = false
-        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
+        let app = XCUIApplication(); app.launchArguments = ["--ui-testing", "-appearance", "dark"]; app.launch()
         XCTAssertTrue(app.tabBars.buttons["Notes"].waitForExistence(timeout: 15)); selectTab("Notes", in: app)
         let sections = app.buttons["edit-sections"]
         XCTAssertTrue(sections.waitForExistence(timeout: 5))
@@ -330,12 +331,22 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue((body.value as? String ?? "").contains("    • two"))
         app.buttons["Outdent"].tap()
         XCTAssertTrue((body.value as? String ?? "").contains("\n• two"))
+        app.buttons["Done"].firstMatch.tap()
+        app.buttons["Change note icon"].tap()
+        XCTAssertTrue(app.navigationBars["Note icon"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "note-icon-")).count, 20)
+        app.buttons["note-icon-book.closed"].tap()
+        XCTAssertEqual(app.buttons["Change note icon"].value as? String, "Book")
+        body.tap()
         let page = XCTAttachment(screenshot: app.screenshot())
         page.name = "New note page"; page.lifetime = .keepAlways; add(page)
         let back = app.navigationBars.buttons["Notes"]
         if back.exists { back.tap() } else { app.navigationBars.buttons.element(boundBy: 0).tap() }
         let row = app.buttons["Trail options"].firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5), app.debugDescription)
+        row.tap()
+        XCTAssertEqual(app.buttons["Change note icon"].value as? String, "Book")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
         let list = XCTAttachment(screenshot: app.screenshot())
         list.name = "Notes with sections"; list.lifetime = .keepAlways; add(list)
         app.buttons["More for Trail options"].firstMatch.tap()
@@ -347,6 +358,15 @@ final class ChecklistUITests: XCTestCase {
         title.typeText("Packing list")
         app.navigationBars.buttons.element(boundBy: 0).tap()
         XCTAssertTrue(app.buttons["Packing list"].firstMatch.waitForExistence(timeout: 5))
+        let titleOnly = app.buttons["Packing list"].firstMatch
+        titleOnly.swipeLeft()
+        let deleteNote = app.buttons["Delete note"].firstMatch
+        XCTAssertTrue(deleteNote.waitForExistence(timeout: 5))
+        XCTAssertLessThanOrEqual(deleteNote.frame.height, titleOnly.frame.height + 2)
+        let swipeImage = XCTAttachment(screenshot: app.screenshot())
+        swipeImage.name = "Title-only note swipe"; swipeImage.lifetime = .keepAlways; add(swipeImage)
+        deleteNote.tap()
+        XCTAssertTrue(titleOnly.waitForNonExistence(timeout: 5))
         // Notes never appear as to-dos.
         selectTab("Today", in: app)
         XCTAssertFalse(app.buttons["Complete Trail options"].exists)
@@ -474,6 +494,10 @@ final class ChecklistUITests: XCTestCase {
         historyImage.name = "Rounded habit history"; historyImage.lifetime = .keepAlways; add(historyImage)
         app.buttons["Check-ins"].firstMatch.tap()
         XCTAssertTrue(app.navigationBars["A small routine"].waitForExistence(timeout: 5))
+        let grid = app.descendants(matching: .any).matching(identifier: "habit-history-grid").firstMatch
+        XCTAssertTrue(grid.waitForExistence(timeout: 5))
+        XCTAssertGreaterThan(grid.frame.width, grid.frame.height)
+        XCTAssertLessThan(grid.frame.height, 160)
         openSettings(app); reveal(app.buttons["Coral"], in: app); app.buttons["Coral"].tap()
         app.buttons["Appearance"].tap(); app.buttons["System"].tap()
         // Account has its own screen.

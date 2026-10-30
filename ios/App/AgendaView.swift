@@ -250,7 +250,10 @@ struct TasksView: View {
                     PageHeader(eyebrow: "", title: "Tasks") {
                         Button { managing = true } label: { Label("Categories", systemImage: "plus").font(.subheadline).padding(.horizontal, 14).frame(minHeight: 44).fixedSize(horizontal: true, vertical: false) }
                     }
-                    TextField("Search tasks", text: $search).textFieldStyle(.roundedBorder)
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                        TextField("Search tasks", text: $search).textInputAutocapitalization(.never)
+                    }.padding(.horizontal, 14).frame(minHeight: 44).orbitSurface(radius: CGFloat(DesignTokens.radiusInput))
                     Picker("Show tasks", selection: $scope) {
                         ForEach(["All tasks", "Today", "This week", "Future", "Someday"], id: \.self) { Text($0) }
                     }.pickerStyle(.menu)

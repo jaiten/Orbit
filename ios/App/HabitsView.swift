@@ -138,8 +138,8 @@ struct HabitHistoryCharts: View {
             if !compact { BoxGrid(levels: BoxGrid.days().map { day -> Double? in
                 let key = PlannerLogic.dayKey(day)
                 return key > today ? nil : Double(counts[key] ?? 0) / target
-            }, color: color)
-            .accessibilityLabel("\(habit.title), last 12 weeks") }
+            }, color: color, horizontal: true)
+            .accessibilityLabel("\(habit.title), last 12 weeks").accessibilityIdentifier("habit-history-grid") }
         }
         .modifier(MutationErrorModifier(error: $error))
         .sensoryFeedback(.success, trigger: feedback)

@@ -25,6 +25,7 @@ import SwiftData
     var startedAt: Date? = nil
     /// A note: a titled page of text in Notes, never a to-do. Nil on older records means a task.
     var isNote: Bool? = nil
+    var noteIcon: String? = nil
     var photoData: String? = nil
     @Attribute(.unique) var id: UUID
     var title: String

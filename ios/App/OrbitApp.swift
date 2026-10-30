@@ -182,7 +182,10 @@ struct RootView: View {
         let color = UIColor(DayTheme.accentColor(accentTheme))
         UIView.appearance().tintColor = color
         for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
-            for window in scene.windows { window.tintColor = color }
+            for window in scene.windows {
+                window.tintColor = color
+                window.backgroundColor = UIColor { traits in UIColor(DayTheme.canvas(traits.userInterfaceStyle == .dark ? .dark : .light)) }
+            }
         }
     }
     private func refreshNotifications() async {
