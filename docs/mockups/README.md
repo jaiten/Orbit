@@ -36,5 +36,13 @@ toggles with pages in quiet cards, and a page with an icon, large title and prop
 retain the Windows sidebar, compact habits, optional progress panels with Overall
 progress off by default, per-task anytime rows and hover-only calendar drag grips.
 The iOS note toolbar uses monochrome list, indent, undo/redo and Done controls.
-This board is a design reference; the native implementation and device validation
-are described in the beta checklist.
+The subsequent implementation uses a single 12px radius for Windows content
+cards, task rows, fields, menus and compact habit rows with colour dots. The sidebar retains its existing shape. Panels move
+between columns or above the task list in Edit layout; drag the divider to resize
+columns. Unchecked panels stay hidden while arranging. Overall progress follows
+the selected accent. Recent progress always shows seven days; selecting one opens
+that day in the page for corrections, and returning to Today restores the current day.
+Overall progress uses horizontal weeks and is hidden by default.
+
+This board is a design reference; device validation and release evidence are
+described in the beta checklist.

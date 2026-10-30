@@ -7,24 +7,32 @@ item has an owner and evidence link.
 ## Readiness review — 30 October 2026
 
 The repository has automated distribution, local persistence, conflict handling,
-account deletion and regression coverage. Earlier main builds passed
-[iOS smoke checks](https://github.com/jaiten/Orbit/actions/runs/40609646021),
-[TestFlight upload](https://github.com/jaiten/Orbit/actions/runs/40610552420), and
-[Windows packaging](https://github.com/jaiten/Orbit/actions/runs/40608963497).
+account deletion and regression coverage. Windows 0.3.10 passed
+[unit, browser, native app and installer checks](https://github.com/jaiten/Orbit/actions/runs/41130279959)
+and is [published with installer, portable app and update feed](https://github.com/jaiten/Orbit/releases/tag/v0.3.10).
 Those results do not establish physical-device acceptance or operational readiness.
 
-For this UI release, local checks passed 124 Windows unit tests, Chromium interaction
-checks (lists, photo placement/delete/undo, saved layouts, quarter-hour rescheduling,
-clock preferences and selection), the native Electron smoke test, Swift syntax
-validation and CI-helper tests. Xcode type checking and simulator tests run in CI.
-The website passed its type check, 34 parser cases and production static build.
+Local checks passed 125 Windows unit tests, Chromium interaction checks and the
+native Electron smoke test. The regression coverage includes past-day corrections,
+fully closed completion rings, bulk overdue moves, independent note sections and
+task categories, note image placement/deletion/undo, drag layouts, quarter-hour
+rescheduling and calendar preferences. All 76 Swift source files passed syntax
+validation, and 10 CI-helper tests passed. The final iOS source passed Xcode builds
+and [52 unit tests plus four UI tests](https://github.com/jaiten/Orbit/actions/runs/41128489744),
+including selecting a past day and resetting to Today on return.
+The signed [iOS 0.2.0 (8001) release](https://github.com/jaiten/Orbit/actions/runs/41131092543)
+was uploaded to TestFlight. App Store Connect confirmed **VALID** processing and
+**IN_BETA_TESTING** at 21:37 UTC on 30 October 2026.
+The website passed its type check and production static build; the download link
+points to the published 0.3.10 installer.
 
 Before inviting external testers, record evidence for these five gates:
 
-1. **Release artifacts:** install the exact Windows 0.3.6 and TestFlight builds on
-   clean devices. Verify Windows signature/timestamp and automatic upgrading from
-   0.3.5. Signing-secret names could not be inspected with this session's GitHub
-   integration; their presence and the executable's signature remain unverified.
+1. **Release artifacts:** install Windows 0.3.10 and TestFlight 0.2.0 (8001) on
+   clean devices and verify automatic upgrading from 0.3.9. The downloaded 0.3.10
+   installer is **unsigned**: its PE Authenticode certificate table is absent. Its
+   SHA-256 matches the published GitHub asset digest. Configure a publisher
+   certificate, then verify its signature and timestamp on the next signed release.
 2. **Device acceptance:** use iPhone + Windows with one account; test offline edits,
    reconnect, concurrent notes/photos, conflict resolution, removal of a device,
    account deletion, daylight-saving/timezone changes and widget completion.
@@ -37,9 +45,10 @@ Before inviting external testers, record evidence for these five gates:
    email failures without planner content; assign incident/support ownership and
    a small invitation cap.
 5. **Public information:** verify the real support contact and privacy notice,
-   App Store privacy answers and the deployed TestFlight join URL. The website's
-   source fallback still contains `REPLACE_ME`; a deployment override must supply
-   the real link. Its Windows installer link is now concrete.
+   App Store privacy answers and the deployed TestFlight join URL. The live site
+   still links to `https://testflight.apple.com/join/REPLACE_ME` (verified 30 October).
+   Set `NEXT_PUBLIC_TESTFLIGHT_URL` to the real public beta URL before invitations.
+   The live Windows link points to the verified 0.3.10 installer.
 
 The unchecked items below remain open until there is evidence, even when the
 corresponding implementation exists.
