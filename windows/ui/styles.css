@@ -4696,3 +4696,7 @@ body:is([data-view="history"], [data-view="habit-history"]) .page-head {
 .accent-options {
   flex-wrap: wrap;
 }
+.mac-picker.opens-up .picker-menu {
+  top: auto;
+  bottom: calc(100% + 5px);
+}

@@ -670,7 +670,14 @@ const fs = require("node:fs");
   if (process.env.ORBIT_SCREENSHOT)
     await p.screenshot({ path: process.env.ORBIT_SCREENSHOT.replace(".png", "-calendar.png") });
   await p.keyboard.press("Control+6");
+  await p.locator("#calendar-clock").evaluate((picker) => picker.scrollIntoView({ block: "end" }));
   await p.getByRole("combobox", { name: "Calendar clock format", exact: true }).click();
+  await p.waitForFunction(() =>
+    document.querySelector('[data-picker="calendar-clock"]').classList.contains("opens-up"),
+  );
+  const clockMenu = await p.locator("#calendar-clock-options").boundingBox();
+  assert.ok(clockMenu.y >= 0 && clockMenu.y + clockMenu.height <= 720, "Calendar menu stays inside the window");
+
   await p.getByRole("option", { name: "24 hour", exact: true }).click();
   await p.locator("#progress-tasks").uncheck();
   await p.keyboard.press("Control+2");

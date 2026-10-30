@@ -13,10 +13,20 @@ function bindPickers(handlers, root = document) {
     const buttons = [...picker.querySelectorAll("[role=option]")];
     picker.ontoggle = () => {
       summary.setAttribute("aria-expanded", String(picker.open));
-      if (picker.open)
+      if (picker.open) {
+        const menu = picker.querySelector(".picker-menu");
+        picker.classList.remove("opens-up");
+        menu.style.maxHeight = "";
+        const box = summary.getBoundingClientRect();
+        const below = Math.max(0, innerHeight - box.bottom - 12);
+        const above = Math.max(0, box.top - 12);
+        const upward = menu.scrollHeight > below && above > below;
+        picker.classList.toggle("opens-up", upward);
+        menu.style.maxHeight = `${Math.min(280, Math.max(80, upward ? above : below))}px`;
         document.querySelectorAll(".mac-picker[open]").forEach((other) => {
           if (other !== picker) other.open = false;
         });
+      }
     };
     summary.onkeydown = (event) => {
       if (["ArrowDown", "ArrowUp"].includes(event.key)) {
