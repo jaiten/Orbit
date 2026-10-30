@@ -7,12 +7,13 @@
   /**
    * `item` is { day, completedDay, someday }: local calendar days ("YYYY-MM-DD") or null.
    * Today shows items dated today or earlier that are still open, plus anything finished today.
-   * Another day shows only items dated that day. Undated and Someday items never appear.
+   * Another day shows open items dated that day and items completed that day.
+   * Undated and Someday items never appear.
    */
   function onDay(item, day, today = day) {
     if (item.someday || !item.day) return false;
-    if (day === today ? item.day > day : item.day !== day) return false;
-    return !item.completedDay || item.completedDay === day;
+    if (item.completedDay) return item.completedDay === day;
+    return day === today ? item.day <= day : item.day === day;
   }
   function isOverdue(item, today) {
     return !item.someday && !item.completedDay && !!item.day && item.day < today;

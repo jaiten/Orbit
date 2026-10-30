@@ -30,6 +30,21 @@
       "overdue": ["Overdue"]
     },
     {
+      "name": "past corrections include tasks finished that day even when planned earlier",
+      "today": "2026-10-20",
+      "day": "2026-10-18",
+      "items": [
+        { "title": "Still planned Sunday", "day": "2026-10-18" },
+        { "title": "Finished Sunday, planned Friday", "day": "2026-10-16", "completedDay": "2026-10-18" },
+        { "title": "Planned Sunday, finished Monday", "day": "2026-10-18", "completedDay": "2026-10-19" },
+        { "title": "Still overdue", "day": "2026-10-16" },
+        { "title": "Undated completion", "completedDay": "2026-10-18" },
+        { "title": "Someday completion", "day": "2026-10-18", "completedDay": "2026-10-18", "someday": true }
+      ],
+      "expect": ["Still planned Sunday", "Finished Sunday, planned Friday"],
+      "overdue": ["Still planned Sunday", "Still overdue"]
+    },
+    {
       "name": "an empty day stays empty",
       "today": "2026-10-20",
       "items": [{ "title": "Undated" }, { "title": "Later", "day": "2026-11-01" }],

@@ -10,11 +10,12 @@ enum TodayRules {
     struct Item { var day: String?; var completedDay: String?; var someday: Bool }
 
     /// Today shows items dated today or earlier that are still open, plus anything finished today.
-    /// Another day shows only items dated that day. Undated and Someday items never appear.
+    /// Another day shows open items dated that day and items completed that day.
+    /// Undated and Someday items never appear.
     static func onDay(_ item: Item, day: String, today: String) -> Bool {
         guard !item.someday, let date = item.day else { return false }
-        if day == today ? date > day : date != day { return false }
-        return item.completedDay == nil || item.completedDay == day
+        if let completed = item.completedDay { return completed == day }
+        return day == today ? date <= day : date == day
     }
     static func isOverdue(_ item: Item, today: String) -> Bool {
         !item.someday && item.completedDay == nil && (item.day.map { $0 < today } ?? false)
