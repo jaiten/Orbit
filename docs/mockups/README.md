@@ -41,10 +41,11 @@ cards, task rows, fields, menus and compact habit rows with colour dots. The
 sidebar retains its existing shape. Panels move
 between columns or above the task list in Edit layout; drag the divider to resize
 columns. Unchecked panels stay hidden while arranging. Overall progress follows
-the selected accent. Recent progress always shows seven days; selecting one opens
-that day to review or correct tasks, and returning to Today restores the current day.
-Past habit check-ins are corrected in History; the Today screen only logs the
-current day. Progress rings have no selection checkmarks or letter underlines.
+the selected accent. Recent progress always shows seven days. On iOS it is
+strictly display-only: Today cannot switch dates or edit past-day records.
+Windows can still open a date to review or correct tasks. Past habit check-ins
+are corrected in History; the Today screen only logs the current day. Progress
+rings have no selection checkmarks or letter underlines.
 Overall progress uses compact, unnumbered cells and is hidden by default.
 
 This board is a design reference; device validation and release evidence are
@@ -52,7 +53,7 @@ described in the beta checklist.
 
 ## Latest surface refinements (30 October 2026)
 
-Windows uses a lighter charcoal canvas, subtle card borders and compact plan
+Windows uses a charcoal canvas, subtle card borders and compact plan
 spacing. Overall progress has small, unnumbered cells in the selected accent,
 with its range aligned to the right. The update icon stays hidden until a newer
 version is available. Habit history uses compact horizontal twelve-week grids.
@@ -61,3 +62,10 @@ iOS note icons can be chosen from twenty symbols; the choice is included in sync
 and portable backups. Tasks uses the shared search surface. Note cards clip the
 swipe background to their rounded edges, including short title-only pages, and
 the note background fills the keyboard safe area.
+
+Windows Settings is an icon next to sync status at the bottom of the sidebar.
+The app checks for updates at startup; the update-ready card explicitly says
+"Click to restart". Empty Note sections headings stay hidden. Today & Progress
+and Calendar use keyboard-accessible menus that open within the visible window.
+Teal and Blue are available alongside the four existing accents on both platforms;
+iOS lays out the six choices in two rows of three.
