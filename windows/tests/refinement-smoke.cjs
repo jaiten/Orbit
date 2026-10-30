@@ -679,6 +679,7 @@ const fs = require("node:fs");
   assert.equal(await p.locator("#note-filter").inputValue(), "Retain");
   assert.equal(await p.locator(".notes-nav-page", { hasText: "Retain this page" }).isVisible(), true);
   await p.locator("#note-filter").fill("");
+  await p.locator("#note-filter").blur();
   // Deleting a section and its contents leaves a similarly named task category intact.
   await p.evaluate(async () => {
     await window.orbit.batch([
