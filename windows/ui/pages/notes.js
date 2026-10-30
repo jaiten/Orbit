@@ -74,7 +74,9 @@ function bindLists() {
       if (wasEmpty !== !noteFilter) {
         if (page === "note") await saveNote();
         render();
-        $("#note-filter")?.focus();
+        const field = $("#note-filter");
+        field?.focus();
+        field?.setSelectionRange(field.value.length, field.value.length);
       }
       applyNoteFilter();
     };

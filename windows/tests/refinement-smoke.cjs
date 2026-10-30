@@ -674,6 +674,11 @@ const fs = require("node:fs");
   assert.equal(await p.getByRole("button", { name: "Collapse All notes", exact: true }).count(), 1);
   await p.getByRole("button", { name: "Collapse All notes", exact: true }).click();
   assert.equal(await p.getByRole("button", { name: "Expand All notes", exact: true }).count(), 1);
+  // Expanding collapsed groups for search must keep sequential typing in the right order.
+  await p.locator("#note-filter").pressSequentially("Retain");
+  assert.equal(await p.locator("#note-filter").inputValue(), "Retain");
+  assert.equal(await p.locator(".notes-nav-page", { hasText: "Retain this page" }).isVisible(), true);
+  await p.locator("#note-filter").fill("");
   // Deleting a section and its contents leaves a similarly named task category intact.
   await p.evaluate(async () => {
     await window.orbit.batch([
