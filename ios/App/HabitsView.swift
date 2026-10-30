@@ -89,7 +89,7 @@ struct HabitHistoryDetail: View {
             VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceM)) {
                     Eyebrow(text: "\(PlannerLogic.checkedDays(habit, logs: logs, ending: .now)) of the last 7 days")
-                    Text("Tap yesterday to add or remove a check-in.").font(.footnote).foregroundStyle(.secondary)
+                    Text("Tap any of the last seven days to add or remove a check-in.").font(.footnote).foregroundStyle(.secondary)
                     HabitHistoryCharts(habit: habit, logs: logs)
                 }.orbitCard()
                 VStack(alignment: .leading, spacing: 0) {
@@ -147,7 +147,6 @@ struct HabitHistoryCharts: View {
     private func toggle(_ day: Date) {
         do {
             if PlannerLogic.checkedToday(habit, logs: logs, at: day) { try Mutations.undoLog(habit, at: day, in: context) }
-            else if PlannerLogic.dayKey(day) == HabitRules.addDays(PlannerLogic.dayKey(.now), -1) { try Mutations.backfillYesterday(habit, in: context) }
             else { try Mutations.log(habit, at: day, in: context) }
             feedback += 1
             Task { do { try await refreshReminders(context) } catch { self.error = error.localizedDescription } }

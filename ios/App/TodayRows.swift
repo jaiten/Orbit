@@ -200,6 +200,7 @@ struct TaskRow: View {
     let task: PlannerTask
     /// Overdue tasks on Today offer Today / Later / Someday.
     var showMoves = false
+    var completionDate: Date = .now
     var edit: () -> Void
     @State private var error: String?
     @State private var feedback = 0
@@ -220,7 +221,7 @@ struct TaskRow: View {
                 TileMove(title: "Later") { change { TodayRules.moveLater(task); try Mutations.save(context) } },
                 TileMove(title: "Someday") { change { try TodayRules.moveToSomeday(task, in: context); try Mutations.save(context) } }]
     }
-    private var progress: Int { task.completedAt == nil && task.progressTracking == true ? (task.startedAt == nil ? 1 : 2) : 0 }
+    private var progress: Int { Calendar.current.isDateInToday(completionDate) && task.completedAt == nil && task.progressTracking == true ? (task.startedAt == nil ? 1 : 2) : 0 }
     private var progressOptions: [TileMove] {
         guard task.completedAt == nil else { return [] }
         if task.progressTracking == true {
@@ -257,7 +258,7 @@ struct TaskRow: View {
             return
         }
         change {
-            try Mutations.toggle(task, in: context); feedback += 1
+            try Mutations.toggle(task, at: completionDate, in: context); feedback += 1
             if task.completedAt != nil { Task { await FocusSession.shared.stopIfMatching(task.id) } }
         }
     }

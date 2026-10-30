@@ -35,7 +35,7 @@ struct TaskEditor: View {
                     Picker("List", selection: $listID) {
                         Text("Inbox").tag(nil as UUID?)
                         Text("Someday").tag(Optional(TodayRules.somedayID))
-                        ForEach(lists.filter { $0.id != TodayRules.somedayID }) { Text($0.name).tag(Optional($0.id)) }
+                        ForEach(lists.filter { $0.isTaskCategory && $0.id != TodayRules.somedayID }) { Text($0.name).tag(Optional($0.id)) }
                     }
                 }
                 if listID != TodayRules.somedayID { Section { DisclosureGroup("Date & Time") {

@@ -32,9 +32,10 @@ struct SettingsView: View {
                         NavigationLink("Tab order") { NavigationLayoutEditor() }
                     }
                     AppearanceSection()
+                    ProgressSection()
                     RemindersSection(message: $message)
                     CalendarsSection(message: $message)
-                    WidgetsSection()
+
                     DataSection(message: $message)
                     Section("About") {
                         Text("Works offline. Sync runs while Orbit is open; widget changes sync the next time you open it.")
@@ -58,8 +59,6 @@ private struct AppearanceSection: View {
     @AppStorage("appearance") private var appearance = "system"
     @AppStorage("accentTheme") private var accentTheme = "coral"
     @AppStorage("compactRows") private var compactRows = false
-    @AppStorage("progressIncludesTasks") private var includeTasks = true
-    @AppStorage("calendarFirstWeekday") private var firstWeekday = Calendar.current.firstWeekday
     var body: some View {
         Section("Appearance") {
             AccentPicker(title: "Appearance", selection: $appearance, choices: [("system", "System"), ("light", "Light"), ("dark", "Dark")])
@@ -74,8 +73,6 @@ private struct AppearanceSection: View {
                     }.buttonStyle(.plain).accessibilityLabel(name.capitalized + (accentTheme == name ? ", selected" : ""))
                 }
             }.padding(.vertical, 6)
-            Toggle("Include tasks in daily progress", isOn: $includeTasks)
-            Picker("Start week on", selection: $firstWeekday) { Text("Sunday").tag(1); Text("Monday").tag(2) }
             Toggle("Compact habits and tasks", isOn: $compactRows)
             Text("Fits more items by reducing spacing. Larger accessibility text keeps the room it needs.")
                 .font(.footnote).foregroundStyle(.secondary)
@@ -108,9 +105,11 @@ private struct RemindersSection: View {
 private struct CalendarsSection: View {
     @Environment(\.orbitAccent) private var accent
     @ObservedObject private var calendars = CalendarBridge.shared
+    @AppStorage("calendarFirstWeekday") private var firstWeekday = Calendar.current.firstWeekday
     @Binding var message: String?
     var body: some View {
         Section {
+            Picker("Start week on", selection: $firstWeekday) { Text("Sunday").tag(1); Text("Monday").tag(2) }
             if calendars.connected {
                 Label("Calendars connected", systemImage: "checkmark.circle")
                 Button("Disconnect Calendars") { calendars.disconnect() }
@@ -123,12 +122,19 @@ private struct CalendarsSection: View {
     }
 }
 
-private struct WidgetsSection: View {
-    @AppStorage("consistencyRange") private var consistencyRange = 7
+private struct ProgressSection: View {
+    @AppStorage("progressIncludesTasks") private var includeTasks = true
+    @AppStorage("showOverallProgress") private var showOverall = false
+    @AppStorage("overallProgressRange") private var range = 30
+    @AppStorage("consistencyRange") private var widgetRange = 7
     var body: some View {
-        Section {
-            AccentPicker(title: "History range", selection: $consistencyRange, choices: [(7, "Past week"), (30, "Past month")])
-        } header: { Text("Widgets") } footer: { Text("Also used on Today. Each widget can override it with Edit Widget.") }
+        Section("Today & Progress") {
+            Toggle("Include tasks in daily progress", isOn: $includeTasks)
+            Toggle("Show overall progress", isOn: $showOverall)
+            Picker("Overall progress", selection: $range) { Text("Past week").tag(7); Text("Past month").tag(30) }
+            Picker("Widget history", selection: $widgetRange) { Text("Past week").tag(7); Text("Past month").tag(30) }
+            Text("Recent progress always shows the last seven days. Select a day to correct it; Today reopens on the current day.").font(.footnote).foregroundStyle(.secondary)
+        }
     }
 }
 

@@ -51,7 +51,11 @@ import SwiftData
             // The stable key makes independent check-ins on two devices conflict safely.
             try add("habit_logs", l.habitID.uuidString.lowercased() + "-" + l.dayKey, ["id": id(l.id), "habitID": id(l.habitID), "dayKey": l.dayKey, "count": l.count, "updatedAt": stamp(l.updatedAt)])
         }
-        for l in try context.fetch(FetchDescriptor<TaskList>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) { try add("lists", l.id.uuidString.lowercased(), ["id": id(l.id), "name": l.name, "color": l.color, "sortOrder": l.sortOrder, "updatedAt": stamp(l.updatedAt)]) }
+        for l in try context.fetch(FetchDescriptor<TaskList>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) {
+            var payload: [String: Any] = ["id": id(l.id), "name": l.name, "color": l.color, "sortOrder": l.sortOrder, "updatedAt": stamp(l.updatedAt)]
+            if let kind = l.kind { payload["kind"] = kind }
+            try add("lists", l.id.uuidString.lowercased(), payload)
+        }
         for i in try context.fetch(FetchDescriptor<IdeaPrompt>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) { try add("idea_prompts", i.id.uuidString.lowercased(), ["id": id(i.id), "text": i.text, "shownAt": stamp(i.shownAt), "dismissed": i.dismissed, "updatedAt": stamp(i.updatedAt)]) }
         return result
     }
@@ -115,7 +119,7 @@ import SwiftData
             let l = old ?? HabitLog(habitID: habitID, dayKey: day); if old == nil { context.insert(l) }; l.id = uuid; l.count = max(0, p["count"] as? Int ?? 0); l.updatedAt = date("updatedAt") ?? .now
         case "lists":
             let old = try context.fetch(FetchDescriptor<TaskList>()).first { $0.id == uuid }; if deleted { if let old { context.delete(old) }; return }
-            let l = old ?? TaskList(name: p["name"] as? String ?? "List"); if old == nil { l.id = uuid; context.insert(l) }; l.name = p["name"] as? String ?? l.name; l.color = p["color"] as? String ?? "sage"; l.sortOrder = p["sortOrder"] as? Int ?? 0; l.updatedAt = date("updatedAt") ?? .now
+            let l = old ?? TaskList(name: p["name"] as? String ?? "List"); if old == nil { l.id = uuid; context.insert(l) }; l.kind = p["kind"] as? String; l.name = p["name"] as? String ?? l.name; l.color = p["color"] as? String ?? "sage"; l.sortOrder = p["sortOrder"] as? Int ?? 0; l.updatedAt = date("updatedAt") ?? .now
         case "idea_prompts":
             let old = try context.fetch(FetchDescriptor<IdeaPrompt>()).first { $0.id == uuid }; if deleted { if let old { context.delete(old) }; return }
             let i = old ?? IdeaPrompt(text: p["text"] as? String ?? ""); if old == nil { i.id = uuid; context.insert(i) }; i.text = p["text"] as? String ?? ""; i.shownAt = date("shownAt"); i.dismissed = p["dismissed"] as? Bool ?? false; i.updatedAt = date("updatedAt") ?? .now

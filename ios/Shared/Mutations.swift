@@ -16,9 +16,9 @@ import WidgetKit
     }
 
     /// Tasks are one-off; only habits repeat.
-    static func toggle(_ task: PlannerTask, in context: ModelContext) throws {
+    static func toggle(_ task: PlannerTask, at date: Date = .now, in context: ModelContext) throws {
         if task.completedAt != nil { task.startedAt = nil }
-        task.completedAt = task.completedAt == nil ? .now : nil
+        task.completedAt = task.completedAt == nil ? date : nil
         task.updatedAt = .now
         try save(context)
     }

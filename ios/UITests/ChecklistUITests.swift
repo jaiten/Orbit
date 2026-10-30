@@ -287,12 +287,18 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(sections.frame.height + 0.001, 44)
         sections.tap()
         XCTAssertTrue(app.textFields["new-list-name"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Edit"].exists)
+        XCTAssertTrue(app.buttons["Hide keyboard"].exists)
         for name in ["Weekend", "Errands"] {
             app.textFields["new-list-name"].tap(); app.textFields["new-list-name"].typeText(name)
             app.buttons["Add Section"].tap()
         }
-        app.buttons["Reorder Errands"].tap(); app.buttons["Move up"].tap()
+        app.buttons["Hide keyboard"].tap()
+        let errands = app.textFields.matching(NSPredicate(format: "value == %@", "Errands")).firstMatch
+        let weekend = app.textFields.matching(NSPredicate(format: "value == %@", "Weekend")).firstMatch
+        let origin = app.coordinate(withNormalizedOffset: .zero)
+        let dragStart = origin.withOffset(CGVector(dx: app.frame.width - 40, dy: errands.frame.midY))
+        let dragEnd = origin.withOffset(CGVector(dx: app.frame.width - 40, dy: weekend.frame.midY - 8))
+        dragStart.press(forDuration: 0.8, thenDragTo: dragEnd)
         let names = app.textFields.allElementsBoundByIndex.compactMap { $0.value as? String }
         XCTAssertLessThan(try! XCTUnwrap(names.firstIndex(of: "Errands")), try! XCTUnwrap(names.firstIndex(of: "Weekend")))
         app.navigationBars.buttons["Done"].tap()
@@ -332,6 +338,16 @@ final class ChecklistUITests: XCTestCase {
         // Notes never appear as to-dos.
         selectTab("Today", in: app)
         XCTAssertFalse(app.buttons["Complete Trail options"].exists)
+        selectTab("Tasks", in: app)
+        app.buttons["Categories"].tap()
+        XCTAssertTrue(app.textFields["new-list-name"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.textFields.matching(NSPredicate(format: "value == %@", "Weekend")).firstMatch.exists)
+        app.textFields["new-list-name"].tap(); app.textFields["new-list-name"].typeText("Home category")
+        app.buttons["Add category"].tap()
+        app.navigationBars.buttons["Done"].tap()
+        selectTab("Notes", in: app)
+        XCTAssertFalse(app.buttons["New note in Home category"].exists)
+
     }
 
     func testCalendarMakesAddingToAnotherDayExplicit() {

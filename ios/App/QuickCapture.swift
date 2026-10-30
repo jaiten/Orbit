@@ -82,7 +82,7 @@ struct QuickCapture: View {
                     Picker("Category", selection: $selectedListID) {
                         Text("No category").tag(nil as UUID?)
                         Text("Someday").tag(Optional(TodayRules.somedayID))
-                        ForEach(lists.filter { $0.id != TodayRules.somedayID }) { list in
+                        ForEach(lists.filter { $0.isTaskCategory && $0.id != TodayRules.somedayID }) { list in
                             Text(list.name).tag(Optional(list.id))
                         }
                     }
@@ -229,20 +229,14 @@ struct CaptureTextField: UIViewRepresentable {
         var noteLists = false
         func configureNoteToolbar() {
             noteLists = true
-            let bar = UIToolbar(); bar.sizeToFit(); bar.tintColor = .label
-            let outdent = UIBarButtonItem(image: UIImage(systemName: "decrease.indent"), style: .plain, target: self, action: #selector(outdentNote))
-            outdent.accessibilityLabel = "Outdent"
-            let indent = UIBarButtonItem(image: UIImage(systemName: "increase.indent"), style: .plain, target: self, action: #selector(indentNote))
-            indent.accessibilityLabel = "Indent"
-            let bullets = UIBarButtonItem(image: UIImage(systemName: "list.bullet"), style: .plain, target: self, action: #selector(bulletNote))
-            bullets.accessibilityLabel = "Bullet list"
-            let numbers = UIBarButtonItem(image: UIImage(systemName: "list.number"), style: .plain, target: self, action: #selector(numberNote))
-            numbers.accessibilityLabel = "Numbered list"
-            bar.items = [bullets, numbers, outdent, indent, UIBarButtonItem(systemItem: .flexibleSpace),
-                         UIBarButtonItem(barButtonSystemItem: .undo, target: self, action: #selector(undoNote)),
-                         UIBarButtonItem(barButtonSystemItem: .redo, target: self, action: #selector(redoNote)),
-                         UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(doneNote))]
-            inputAccessoryView = bar
+            inputAccessoryView = NoteKeyboardBar(target: self, actions: [
+                ("Bullet list", "list.bullet", #selector(bulletNote)),
+                ("Numbered list", "list.number", #selector(numberNote)),
+                ("Outdent", "decrease.indent", #selector(outdentNote)),
+                ("Indent", "increase.indent", #selector(indentNote)),
+                ("Undo", "arrow.uturn.backward", #selector(undoNote)),
+                ("Redo", "arrow.uturn.forward", #selector(redoNote))
+            ], done: #selector(doneNote))
         }
         override var keyCommands: [UIKeyCommand]? {
             guard noteLists else { return super.keyCommands }

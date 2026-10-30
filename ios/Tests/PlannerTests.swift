@@ -19,6 +19,35 @@ import UIKit
         XCTAssertEqual(PlannerLogic.consistencySeries(habits: [], logs: [], ending: day, days: 1, calendar: calendar, tasks: [task], includeTasks: false), [0])
     }
 
+    func testGroupsKeepTheirScopeThroughSyncAndLegacyGroupsRemainReadable() throws {
+        let context = ModelContext(try Persistence.makeContainer(inMemory: true))
+        let section = TaskList(name: "Work", kind: "notes")
+        let category = TaskList(name: "Work", kind: "tasks")
+        let legacy = TaskList(name: "Existing group")
+        context.insert(section); context.insert(category); context.insert(legacy)
+        XCTAssertTrue(section.isNoteSection); XCTAssertFalse(section.isTaskCategory)
+        XCTAssertTrue(category.isTaskCategory); XCTAssertFalse(category.isNoteSection)
+        XCTAssertTrue(legacy.isNoteSection); XCTAssertTrue(legacy.isTaskCategory)
+        let result = try QuickAddSaver.list(for: QuickAdd.parse("Call dentist #Work"), viewing: nil, in: context)
+        XCTAssertEqual(result, category.id)
+        let snapshots = try SyncRecords.snapshots(context)
+        let other = ModelContext(try Persistence.makeContainer(inMemory: true))
+        for (key, value) in snapshots { try SyncRecords.apply(["key": key, "payload": try SyncRecords.object(value), "deleted": false], context: other) }
+        let restored = try other.fetch(FetchDescriptor<TaskList>())
+        XCTAssertEqual(restored.first { $0.id == section.id }?.kind, "notes")
+        XCTAssertEqual(restored.first { $0.id == category.id }?.kind, "tasks")
+    }
+
+    func testPastCompletionBelongsToTheEditedDay() throws {
+        let context = ModelContext(try Persistence.makeContainer(inMemory: true))
+        let task = PlannerTask(title: "Missed task"); context.insert(task)
+        let day = Calendar.current.date(byAdding: .day, value: -3, to: .now)!
+        task.schedule(day: PlannerLogic.dayKey(day))
+        try Mutations.toggle(task, at: day, in: context)
+        XCTAssertEqual(task.completedAt.map { PlannerLogic.dayKey($0) }, PlannerLogic.dayKey(day))
+        XCTAssertEqual(PlannerLogic.consistencySeries(habits: [], logs: [], ending: day, days: 1, tasks: [task]), [1])
+    }
+
     func testCapturedNotesKeepBodyAndPhotosSurviveSyncAndBackup() throws {
         let context = ModelContext(try Persistence.makeContainer(inMemory: true))
         let text = "A note whose entire capture belongs in the body, even if the first sentence sounds like a title."

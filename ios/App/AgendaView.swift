@@ -255,8 +255,8 @@ struct TasksView: View {
                         ForEach(["All tasks", "Today", "This week", "Future", "Someday"], id: \.self) { Text($0) }
                     }.pickerStyle(.menu)
                     if visible.isEmpty { ContentUnavailableView("No tasks in this view", systemImage: "checklist") }
-                    category("Uncategorized", id: "none", items: visible.filter { $0.completedAt == nil && ($0.listID == nil || $0.listID == TodayRules.somedayID) })
-                    ForEach(lists.filter { $0.id != TodayRules.somedayID }) { list in
+                    category("Uncategorized", id: "none", items: visible.filter { $0.completedAt == nil && $0.listID == nil })
+                    ForEach(lists.filter(\.isTaskCategory)) { list in
                         category(list.name, id: list.id.uuidString, items: visible.filter { $0.completedAt == nil && $0.listID == list.id })
                     }
                     let completed = visible.filter { $0.completedAt != nil }

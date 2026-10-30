@@ -2,12 +2,18 @@ import Foundation
 import SwiftData
 
 @Model final class TaskList {
+    /// Nil keeps legacy shared groups readable; new groups belong to one feature.
+    var kind: String? = nil
+    var isNoteSection: Bool { kind != "tasks" && id != TodayRules.somedayID }
+    var isTaskCategory: Bool { kind != "notes" }
+
     @Attribute(.unique) var id: UUID
     var name: String
     var color: String
     var sortOrder: Int
     var updatedAt: Date
-    init(name: String, color: String = "sage", sortOrder: Int = 0) {
+    init(name: String, color: String = "sage", sortOrder: Int = 0, kind: String? = nil) {
+        self.kind = kind
         id = UUID(); self.name = name; self.color = color
         self.sortOrder = sortOrder; updatedAt = .now
     }

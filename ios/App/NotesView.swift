@@ -30,7 +30,7 @@ struct NotesView: View {
     /// Your sections in order, then notes without one, then Someday.
     private struct NoteSection: Identifiable { let id: String; let name: String; let color: String; let listID: UUID? }
     private var sections: [NoteSection] {
-        lists.filter { $0.id != TodayRules.somedayID }.map { NoteSection(id: $0.id.uuidString, name: $0.name, color: $0.color, listID: $0.id) }
+        lists.filter(\.isNoteSection).map { NoteSection(id: $0.id.uuidString, name: $0.name, color: $0.color, listID: $0.id) }
             + [NoteSection(id: "none", name: "All notes", color: "clay", listID: nil)]
     }
 
@@ -172,7 +172,7 @@ struct NoteMenuItems: View {
         Button("Copy text", systemImage: "doc.on.doc") { UIPasteboard.general.string = NoteActions.text(of: note) }
         Menu("Move to section", systemImage: "folder") {
             Button("No section") { move(nil) }
-            ForEach(lists.filter { $0.id != TodayRules.somedayID }) { list in Button(list.name) { move(list.id) } }
+            ForEach(lists.filter(\.isNoteSection)) { list in Button(list.name) { move(list.id) } }
             Button("Someday") { move(TodayRules.somedayID) }
         }
         Button("Make It a Task", systemImage: "checklist") { change { note.isNote = nil; if note.title.isEmpty { note.title = NoteRules.split(note.notes).title.isEmpty ? "Photo note" : NoteRules.split(note.notes).title }; note.updatedAt = .now; try Mutations.save(context) } }
@@ -283,7 +283,7 @@ struct NoteEditor: View {
                         Menu {
                             Picker("Section", selection: $section) {
                                 Text("All").tag(nil as UUID?)
-                                ForEach(lists.filter { $0.id != TodayRules.somedayID }) { Text($0.name).tag(Optional($0.id)) }
+                                ForEach(lists.filter(\.isNoteSection)) { Text($0.name).tag(Optional($0.id)) }
                                 Text("Someday").tag(Optional(TodayRules.somedayID))
                             }
                         } label: { Text(sectionName).foregroundStyle(.primary) }

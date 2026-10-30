@@ -12,36 +12,37 @@ struct ListsView: View {
     @FocusState private var naming: Bool
     @State private var error: String?
     @State private var pendingDelete: TaskList?
-    private var editable: [TaskList] { lists.filter { $0.id != TodayRules.somedayID } }
+    private var editable: [TaskList] { lists.filter { categoryMode ? $0.isTaskCategory : $0.isNoteSection } }
     var body: some View {
         NavigationStack {
             List {
                 Section {
-                    // Someday is built in: always first, never renamed or deleted.
-                    Label("Someday", systemImage: "moon.zzz").foregroundStyle(.secondary)
                     ForEach(editable) { list in
-                        HStack {
-                            ListNameRow(list: list)
-                            Menu {
-                                Button("Move up") { shift(list, by: -1) }.disabled(editable.first?.id == list.id)
-                                Button("Move down") { shift(list, by: 1) }.disabled(editable.last?.id == list.id)
-                            } label: { Image(systemName: "arrow.up.arrow.down").font(.system(size: 18)).frame(width: 44, height: 44) }
-                                .accessibilityLabel("Reorder " + list.name)
+                        if list.id == TodayRules.somedayID {
+                            Label("Someday", systemImage: "moon.zzz").frame(minHeight: 44).deleteDisabled(true)
+                        } else {
+                            ListNameRow(list: list).frame(minHeight: 44)
                         }
                     }
                         .onMove(perform: moveLists)
-                        .onDelete { indices in pendingDelete = indices.first.map { editable[$0] } }
+                        .onDelete { indices in pendingDelete = indices.first.map { editable[$0] }; if pendingDelete?.id == TodayRules.somedayID { pendingDelete = nil } }
                 } header: { Text(categoryMode ? "Categories" : "Sections") }
                 Section {
-                    TextField(categoryMode ? "New category name" : "New section name", text: $name).focused($naming).accessibilityIdentifier("new-list-name")
-                    Button(categoryMode ? "Add category" : "Add Section") {
-                        context.insert(TaskList(name: name.trimmingCharacters(in: .whitespacesAndNewlines), sortOrder: lists.count))
-                        do { try Mutations.save(context); name = "" } catch { context.rollback(); self.error = error.localizedDescription }
-                    }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    HStack(spacing: 12) {
+                        TextField(categoryMode ? "New category name" : "New section name", text: $name)
+                            .focused($naming).accessibilityIdentifier("new-list-name").onSubmit(addGroup)
+                        Button(action: addGroup) { Image(systemName: "plus").font(.body.weight(.semibold)).frame(width: 44, height: 44).contentShape(Rectangle()) }
+                            .buttonStyle(.plain).foregroundStyle(.white).background(accent.fill, in: Circle())
+                            .accessibilityLabel(categoryMode ? "Add category" : "Add Section")
+                            .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+
                 }
-            }.onAppear { naming = true }.tint(accent.fill).navigationTitle(categoryMode ? "Categories" : "Edit Sections")
+            }.environment(\.editMode, .constant(.active))
+                .scrollDismissesKeyboard(.interactively)
+                .onAppear { if categoryMode { do { try TodayRules.ensureSomeday(context) } catch { self.error = error.localizedDescription } } }.tint(accent.fill).navigationTitle(categoryMode ? "Categories" : "Edit Sections")
                 .toolbar {
-                    ToolbarItem(placement: .topBarLeading) { EditButton() }
+                    ToolbarItem(placement: .topBarLeading) { Button("Hide keyboard", systemImage: "keyboard.chevron.compact.down") { naming = false } }
                     ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
                 }
                 .modifier(MutationErrorModifier(error: $error))
@@ -51,18 +52,18 @@ struct ListsView: View {
                         do {
                             let id = list.id
                             let tasks = try context.fetch(FetchDescriptor<PlannerTask>(predicate: #Predicate { $0.listID == id }))
-                            for task in tasks { task.listID = nil; task.updatedAt = .now }
-                            context.delete(list); try Mutations.save(context); pendingDelete = nil
+                            for task in tasks where task.note != categoryMode { task.listID = nil; task.updatedAt = .now }
+                            if list.kind == nil { list.kind = categoryMode ? "notes" : "tasks"; list.updatedAt = .now } else { context.delete(list) }; try Mutations.save(context); pendingDelete = nil
                         } catch { context.rollback(); self.error = error.localizedDescription }
                     }
                 }
         }
     }
-    private func shift(_ list: TaskList, by delta: Int) {
-        guard let index = editable.firstIndex(where: { $0.id == list.id }) else { return }
-        let next = index + delta
-        guard editable.indices.contains(next) else { return }
-        moveLists(from: IndexSet(integer: index), to: delta > 0 ? next + 1 : next)
+    private func addGroup() {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        context.insert(TaskList(name: trimmed, sortOrder: (editable.map(\.sortOrder).max() ?? -1) + 1, kind: categoryMode ? "tasks" : "notes"))
+        do { try Mutations.save(context); name = "" } catch { context.rollback(); self.error = error.localizedDescription }
     }
     private func moveLists(from source: IndexSet, to destination: Int) {
         var ordered = editable

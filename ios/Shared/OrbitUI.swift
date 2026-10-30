@@ -253,7 +253,7 @@ struct WeekSegments: View {
                     .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), \(status)")
                 let calendar = Calendar.current
                 let today = calendar.startOfDay(for: .now)
-                let earliest = calendar.date(byAdding: .day, value: -1, to: today) ?? today
+                let earliest = calendar.date(byAdding: .day, value: -6, to: today) ?? today
                 if let toggle, existed, calendar.startOfDay(for: day) >= earliest, calendar.startOfDay(for: day) <= today {
                     Button { toggle(day) } label: { cell }
                         .buttonStyle(.plain)

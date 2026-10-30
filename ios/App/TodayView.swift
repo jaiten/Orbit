@@ -32,23 +32,23 @@ struct TodayView: View {
     @State private var customizing = false
     @State private var showSettings = false
     @AppStorage("todayCompletedExpanded") private var showingCompleted = false
-    @AppStorage("lastMissedHabitPromptDay") private var lastMissedPromptDay = ""
     @State private var error: String?
-    @State private var missedYesterdayHabits: [Habit] = []
+    @AppStorage("showOverallProgress") private var showOverall = false
+    @State private var viewingPast = false
     @State private var day = Calendar.current.startOfDay(for: .now)
     @ObservedObject private var calendars = CalendarBridge.shared
 
     /// Dated today or earlier and still open, or finished today. Undated and Someday items stay in Lists.
     private var relevant: [PlannerTask] {
         let today = PlannerLogic.dayKey(day)
-        return tasks.filter { !$0.note && TodayRules.onDay(TodayRules.item($0), day: today, today: today) }
+        return tasks.filter { !$0.note && TodayRules.onDay(TodayRules.item($0), day: today, today: PlannerLogic.dayKey(.now)) }
     }
     /// Habits scheduled for the day; a weekly habit drops off once its week is done.
-    private var dueHabits: [Habit] { habits.filter { PlannerLogic.isDue($0, logs: logs, at: day) } }
+    private var dueHabits: [Habit] { habits.filter { PlannerLogic.dayKey($0.createdAt) <= PlannerLogic.dayKey(day) && PlannerLogic.isDue($0, logs: logs, at: day) } }
     private var checkedHabits: [Habit] { dueHabits.filter { PlannerLogic.checkedToday($0, logs: logs, at: day) } }
     private var sections: [String] {
         let hidden = Set(hiddenSections.split(separator: ",").map(String.init))
-        return homeSections.split(separator: ",").map(String.init).filter { !hidden.contains($0) }
+        var values = homeSections.split(separator: ",").map(String.init).filter { !hidden.contains($0) && ($0 != "overall" || showOverall) }; if showOverall && !values.contains("overall") { values.append("overall") }; return values
     }
 
     var body: some View {
@@ -68,6 +68,7 @@ struct TodayView: View {
             .captureDock(scheme) { InlineCapture() }
             .background(DayTheme.canvas(scheme)).tint(accent.fill)
             .onAppear {
+                viewingPast = false; day = Calendar.current.startOfDay(for: .now)
                 let layout = HomeLayoutEditor.upgradedLayout(sections: homeSections, hidden: hiddenSections)
                 homeSections = layout.sections
                 hiddenSections = layout.hidden
@@ -84,7 +85,9 @@ struct TodayView: View {
             ConflictBanner()
             // The plan, then the day's sections; capture is docked at the bottom.
             if sections.contains("progress") { PlanCard(done: planDone, total: (includeTasks ? relevant.count : 0) + dueHabits.count, accent: accent.fill) }
-            missedYesterdayBanner
+            if viewingPast {
+                HStack { Label("Editing " + day.formatted(date: .abbreviated, time: .omitted), systemImage: "clock.arrow.circlepath").font(.subheadline.weight(.medium)); Spacer(); Button("Back to Today") { viewingPast = false; refresh() }.frame(minHeight: 44) }.padding(12).orbitSurface()
+            }
             ForEach(sections.filter { $0 != "progress" }, id: \.self) { section in
                 homeSection(section)
             }
@@ -109,39 +112,29 @@ struct TodayView: View {
         (sections.contains("routine") ? checkedHabits.map { TodayItem(habit: $0) } : [])
     }
 
-    @ViewBuilder private var missedYesterdayBanner: some View {
-        if !missedYesterdayHabits.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Label("Missed yesterday?", systemImage: "clock.arrow.circlepath").font(.subheadline.weight(.semibold))
-                    Spacer()
-                    Button { missedYesterdayHabits = [] } label: { Image(systemName: "xmark").frame(width: 32, height: 32) }
-                        .accessibilityLabel("Dismiss missed habit reminder")
-                }
-                Text("Only yesterday can be corrected.").font(.footnote).foregroundStyle(.secondary)
-                ForEach(missedYesterdayHabits) { habit in
-                    Button("Mark \(habit.title) done", systemImage: "checkmark.circle") { backfill(habit) }
-                        .font(.subheadline.weight(.medium))
-                }
-            }.padding(16).orbitSurface(radius: CGFloat(DesignTokens.radiusCard))
-        }
-    }
-
     @ViewBuilder private func homeSection(_ id: String) -> some View {
         switch id {
         case "consistency":
-            if !habits.isEmpty || tasks.contains(where: { !$0.note }) { ConsistencyStrip(habits: habits, logs: logs).orbitCard() }
+            if !habits.isEmpty || tasks.contains(where: { !$0.note }) { ConsistencyStrip(habits: habits, logs: logs, selectedDate: day) { selected in day = Calendar.current.startOfDay(for: selected); viewingPast = !Calendar.current.isDateInToday(selected) }.orbitCard() }
+        case "overall": OverallProgressCard(habits: habits, logs: logs, tasks: tasks)
         case "today":
             let today = PlannerLogic.dayKey(.now)
             let open = relevant.filter { $0.completedAt == nil }
-            let overdue = open.filter { TodayRules.isOverdue(TodayRules.item($0), today: today) }
+            let overdue = open.filter { !viewingPast && TodayRules.isOverdue(TodayRules.item($0), today: today) }
             let planned = open.filter { !overdue.contains($0) }.sorted { a, b in
                 if a.hasTime != b.hasTime { return a.hasTime }
                 return a.hasTime ? (a.dueDate ?? .distantFuture) < (b.dueDate ?? .distantFuture) : a.sortOrder < b.sortOrder
             }
             VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
                 checklistSection("Your day", note: "", items: planned.map { TodayItem(task: $0) }, empty: relevant.isEmpty ? "Nothing planned. Add a task to get started." : "No more tasks scheduled for today.")
-                if !overdue.isEmpty { checklistSection("Overdue", note: "\(overdue.count) to review", items: overdue.map { TodayItem(task: $0) }, empty: "") }
+                if !overdue.isEmpty {
+                    HStack { SectionLabel(title: "Overdue", note: "\(overdue.count) to review"); Menu("Move all", systemImage: "arrow.turn.down.right") {
+                        Button("Move all to Today") { moveOverdue(overdue, destination: "today") }
+                        Button("Move all to Later") { moveOverdue(overdue, destination: "later") }
+                        Button("Move all to Someday") { moveOverdue(overdue, destination: "someday") }
+                    }.frame(minHeight: 44) }
+                    checklist(overdue.map { TodayItem(task: $0) })
+                }
             }
         case "routine":
             let open = dueHabits.filter { !PlannerLogic.checkedToday($0, logs: logs, at: day) }
@@ -198,7 +191,7 @@ struct TodayView: View {
 
     @ViewBuilder private func itemView(_ item: TodayItem) -> some View {
         if let task = item.task {
-            TaskRow(task: task, showMoves: true) { editing = task }
+            TaskRow(task: task, showMoves: !viewingPast, completionDate: viewingPast ? day.addingTimeInterval(12 * 3600) : .now) { editing = task }
         }
         if let habit = item.habit {
             HabitRow(habit: habit, logs: logs, date: day, edit: { editingHabit = habit })
@@ -206,37 +199,20 @@ struct TodayView: View {
     }
 
     private func refresh() {
-        day = Calendar.current.startOfDay(for: .now); calendars.reload(); FocusSession.shared.restore()
-        refreshMissedYesterday()
+        if !viewingPast { day = Calendar.current.startOfDay(for: .now) }
+        calendars.reload(); FocusSession.shared.restore()
     }
-    private func refreshMissedYesterday() {
-        guard missedYesterdayHabits.isEmpty, Calendar.current.component(.hour, from: .now) < 12 else { return }
-        let today = PlannerLogic.dayKey(.now)
-        guard lastMissedPromptDay.isEmpty || today >= HabitRules.addDays(lastMissedPromptDay, 7) else { return }
-        let yesterday = HabitRules.addDays(today, -1)
-        let candidates = habits.filter { habit in
-            guard HabitRules.schedule(habit.frequencyRule) != "WEEKLY",
-                  PlannerLogic.dayKey(habit.createdAt) <= yesterday,
-                  HabitRules.scheduledOn(rule: habit.frequencyRule, day: yesterday),
-                  !HabitRules.checked(rule: habit.frequencyRule, target: habit.target, counts: PlannerLogic.counts(habit, logs: logs), day: yesterday) else { return false }
-            let prior = (2...14).map { HabitRules.addDays(today, -$0) }
-                .filter { $0 >= PlannerLogic.dayKey(habit.createdAt) && HabitRules.scheduledOn(rule: habit.frequencyRule, day: $0) }
-                .prefix(5)
-            guard prior.count == 5 else { return false }
-            let counts = PlannerLogic.counts(habit, logs: logs)
-            return prior.filter { HabitRules.checked(rule: habit.frequencyRule, target: habit.target, counts: counts, day: $0) }.count >= 3
-        }
-        guard !candidates.isEmpty else { return }
-        missedYesterdayHabits = candidates
-        lastMissedPromptDay = today
-    }
-    private func backfill(_ habit: Habit) {
+    private func moveOverdue(_ tasks: [PlannerTask], destination: String) {
         do {
-            try Mutations.backfillYesterday(habit, in: context)
-            missedYesterdayHabits.removeAll { $0.id == habit.id }
-            Task { try? await refreshReminders(context) }
+            for task in tasks {
+                if destination == "today" { TodayRules.moveToDay(task, day: .now) }
+                else if destination == "someday" { try TodayRules.moveToSomeday(task, in: context) }
+                else { TodayRules.moveLater(task) }
+            }
+            try Mutations.save(context); Task { try? await refreshReminders(context) }
         } catch { self.error = error.localizedDescription }
     }
+
 }
 
 private struct TodaySheets: ViewModifier {
