@@ -13,7 +13,7 @@ struct SyncIndicator: View {
                 else if sync.syncing { ProgressView().controlSize(.small) }
                 else { Image(systemName: sync.status.contains("Saved locally") || sync.status.contains("review") ? "exclamationmark.icloud" : sync.email == nil ? "icloud" : "checkmark.icloud").font(.system(size: 17)) }
             }.frame(minWidth: 44, minHeight: 44).foregroundStyle(.secondary)
-        }.accessibilityLabel("Sync status").sheet(isPresented: $details) {
+        }.buttonStyle(.plain).accessibilityLabel("Sync status").sheet(isPresented: $details) {
             NavigationStack {
                 Form {
                     Text(sync.status)

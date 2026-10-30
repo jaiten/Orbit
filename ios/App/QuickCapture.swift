@@ -246,9 +246,10 @@ struct CaptureTextField: UIViewRepresentable {
         }
         override var keyCommands: [UIKeyCommand]? {
             guard noteLists else { return super.keyCommands }
-            return (super.keyCommands ?? []) + [
-                UIKeyCommand(input: "\t", modifierFlags: [], action: #selector(indentNote)),
-                UIKeyCommand(input: "\t", modifierFlags: [.shift], action: #selector(outdentNote))]
+            let commands = [UIKeyCommand(input: "\t", modifierFlags: [], action: #selector(indentNote)),
+                            UIKeyCommand(input: "\t", modifierFlags: [.shift], action: #selector(outdentNote))]
+            commands.forEach { $0.wantsPriorityOverSystemBehavior = true }
+            return (super.keyCommands ?? []) + commands
         }
         @objc private func bulletNote() { changeList(false) }
         @objc private func numberNote() { changeList(true) }
