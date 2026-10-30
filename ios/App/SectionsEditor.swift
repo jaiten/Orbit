@@ -40,7 +40,7 @@ struct ListsView: View {
                 }
             }.environment(\.editMode, .constant(.active))
                 .scrollDismissesKeyboard(.interactively)
-                .onAppear { if categoryMode { do { try TodayRules.ensureSomeday(context) } catch { self.error = error.localizedDescription } } }.tint(accent.fill).navigationTitle(categoryMode ? "Categories" : "Edit Sections")
+                .onAppear { if categoryMode { do { try TodayRules.ensureSomeday(context); try Mutations.save(context, undoable: false) } catch { self.error = error.localizedDescription } } }.tint(accent.fill).navigationTitle(categoryMode ? "Categories" : "Edit Sections")
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) { Button("Hide keyboard", systemImage: "keyboard.chevron.compact.down") { naming = false } }
                     ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }

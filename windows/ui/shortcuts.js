@@ -29,6 +29,7 @@ async function goTo(name) {
     return;
   }
   closeRowMenu();
+  if (name === "today") selected = today();
   page = name;
   selectedList = null;
   render();

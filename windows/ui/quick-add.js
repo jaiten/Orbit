@@ -25,6 +25,7 @@ function openQuickAdd(context = quickAddContext()) {
   f.elements.text.value = inlineDraft;
   updateQuickPreview();
   openDialog($("#quick-add-dialog"));
+  if (page === "calendar") f.querySelector("details.capture-options")?.setAttribute("open", "");
   f.elements.text.focus();
 }
 
@@ -92,9 +93,18 @@ function showChip(chip, text) {
 
 /** Finds a list by name (ignoring case) or prepares a new one. */
 function listNamed(name) {
-  const existing = rows("lists").find((l) => l.id !== SOMEDAY && l.name.toLowerCase() === name.toLowerCase());
+  const existing = rows("lists").find(
+    (l) => l.id !== SOMEDAY && l.kind !== "notes" && l.name.toLowerCase() === name.toLowerCase(),
+  );
   if (existing) return { id: existing.id, change: null };
-  const list = { id: crypto.randomUUID(), name, color: "sage", sortOrder: rows("lists").length, updatedAt: Date.now() };
+  const list = {
+    id: crypto.randomUUID(),
+    name,
+    kind: "tasks",
+    color: "sage",
+    sortOrder: rows("lists").length,
+    updatedAt: Date.now(),
+  };
   return { id: list.id, change: { key: "lists/" + list.id, payload: list } };
 }
 

@@ -3742,3 +3742,485 @@ body[data-view="calendar"] .calendar-page {
 .schedule-event:focus-within .calendar-resize {
   opacity: 0.55;
 }
+
+/* Compact surfaces with clear, consistent interaction feedback. */
+button,
+summary,
+select {
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+button:active:not(:disabled):not(.time-slot):not(.panel-grip) {
+  filter: brightness(0.95);
+}
+button:focus-visible,
+summary:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 3px;
+}
+body[data-view="today"] .today-layout {
+  display: block;
+  max-width: 1180px;
+}
+.today-layout > .page-head {
+  margin-bottom: 20px;
+}
+.today-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 24px;
+  align-items: start;
+}
+.today-board .today-panel-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 80px;
+  gap: 16px;
+}
+.today-board .today-main {
+  min-width: 0;
+}
+.today-board .today-side {
+  margin-top: 0;
+}
+.today-board .today-panel {
+  width: 100%;
+  min-width: 0;
+}
+.today-board .today-panel > .card,
+.today-board .plan-card,
+.today-board .empty-state {
+  border-radius: 12px;
+}
+.today-board .task-row,
+.today-board .task-row .row-line {
+  border-radius: 8px;
+}
+.today-board .task-row {
+  margin-bottom: 2px;
+}
+.today-board .section-label {
+  margin-top: 0;
+}
+.today-board .check-list + .section-label {
+  margin-top: 18px;
+}
+.today-board .completed-items {
+  margin-top: 18px;
+}
+.today-board.editing .today-panel {
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  outline: none;
+  cursor: default;
+}
+.today-board.editing .today-panel-column {
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  min-height: 140px;
+}
+.panel-tools {
+  margin: 0 0 10px;
+}
+.panel-grip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 4px;
+  color: var(--muted);
+  cursor: grab;
+  touch-action: none;
+  text-align: left;
+}
+.panel-grip span {
+  margin: 0;
+  font-size: 12px;
+}
+.today-board .drag-source {
+  display: none !important;
+}
+.layout-placeholder {
+  border: 2px dashed var(--accent-text);
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  border-radius: 12px;
+  width: 100%;
+  flex-shrink: 0;
+}
+.layout-ghost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 100;
+  opacity: 0.92;
+  border: 1px solid var(--accent-text);
+  border-radius: 12px;
+  background: var(--canvas);
+  padding: 10px;
+  box-shadow: 0 12px 32px #0003;
+  max-height: 70vh;
+  overflow: hidden;
+}
+.today-layout-options {
+  padding: 12px 0 20px;
+  gap: 12px 20px;
+}
+.today-layout-options select {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.past-edit-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  margin-bottom: 18px;
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--line));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+  font-size: 13px;
+}
+.overdue-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 8px;
+}
+.overdue-heading .section-label {
+  margin: 0 auto 0 0;
+}
+.overdue-bulk {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.overdue-bulk button {
+  padding: 5px 8px;
+  font-size: 11px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.habits-compact-card {
+  padding: 12px;
+  background: color-mix(in srgb, var(--sage) 4%, var(--surface));
+}
+.habits-compact-card .section-label {
+  margin: 0 0 8px;
+}
+.habits-compact-card h2 {
+  font-size: 12px;
+}
+.habits-compact-card .section-label > span {
+  font-size: 10px;
+}
+.habits-compact-card .compact-habits {
+  gap: 5px;
+  display: flex;
+  flex-direction: column;
+}
+.compact-habits .habit-row {
+  --habit-color: var(--sage);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--habit-color) 5%, var(--surface));
+  border: 1px solid var(--line);
+}
+.compact-habits .habit-lavender {
+  --habit-color: var(--lavender);
+}
+.compact-habits .habit-honey {
+  --habit-color: var(--honey);
+}
+.compact-habits .habit-clay {
+  --habit-color: var(--clay);
+}
+.today-side .compact-habits .row-line,
+.compact-habits .row-line {
+  min-height: 28px;
+}
+.today-side .compact-habits .row-body,
+.compact-habits .row-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px 4px 0;
+  font-size: 12px;
+}
+.compact-habits .row-detail {
+  margin: 0 0 0 auto;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.compact-habits .row-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.compact-habits .row-tick {
+  padding: 5px 9px;
+}
+.compact-habits .tick {
+  width: 10px;
+  height: 10px;
+  border: 0;
+  background: var(--habit-color);
+  box-shadow: none;
+}
+.compact-habits .tick i {
+  background: var(--habit-color);
+}
+.compact-habits .tick svg {
+  width: 7px;
+  height: 7px;
+}
+.recent-progress-head .secondary {
+  font-size: 11px;
+}
+.progress-day {
+  padding: 4px 0 5px;
+  border-radius: 8px;
+  min-width: 0;
+}
+.progress-day.chosen {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  box-shadow: inset 0 -2px var(--accent-text);
+}
+.progress-day:hover {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+.overall-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+}
+.overall-day {
+  aspect-ratio: 1.15;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--sage) calc(var(--o) * 100%), var(--surface));
+  color: var(--ink);
+}
+body[data-view="settings"] .settings-block {
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  margin: 16px 0;
+  background: var(--surface);
+}
+.settings-block h2 {
+  margin: 0 0 14px;
+  font-size: 15px;
+}
+.settings-block h3 {
+  margin: 18px 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.settings-field select {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--canvas);
+  color: var(--ink);
+  padding: 5px 10px;
+  width: fit-content;
+}
+.tasks-controls .mac-picker > summary {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 8px 12px;
+  background: var(--surface);
+}
+.tasks-controls .picker-menu {
+  border-radius: 14px;
+  padding: 6px;
+}
+.tasks-controls .picker-menu button {
+  border-radius: 9px;
+}
+.notes-nav-toggle {
+  width: 26px;
+  min-width: 26px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  align-self: center;
+}
+.notes-nav-toggle .chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+}
+.notes-nav-toggle svg {
+  display: block;
+  width: 12px;
+  height: 12px;
+}
+.notes-nav-row .notes-nav-all {
+  padding: 4px 8px 4px 0;
+  min-height: 30px;
+  margin: 0;
+  border-radius: 6px;
+}
+.notes-nav-row {
+  align-items: center;
+}
+#section-delete {
+  width: min(440px, calc(100vw - 48px));
+}
+#section-delete footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.schedule-all-day {
+  height: var(--anytime-height, 74px);
+  max-height: var(--anytime-height, 74px);
+  min-height: 0;
+  border-bottom: 0;
+}
+.schedule-all-day-column {
+  position: relative;
+  padding: 2px;
+}
+.schedule-all-day-add {
+  position: absolute;
+  top: 0;
+  right: 2px;
+  opacity: 0;
+  z-index: 2;
+}
+.schedule-all-day-column:hover .schedule-all-day-add,
+.schedule-all-day-add:focus-visible {
+  opacity: 1;
+}
+.schedule-anytime .task-row,
+.schedule-anytime .row-line {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.schedule-anytime .row-body {
+  font-size: 10px;
+  font-weight: 400;
+  padding: 2px 14px 2px 1px;
+}
+.schedule-anytime .row-line {
+  min-height: 20px;
+}
+.schedule-anytime .row-tick {
+  padding: 3px;
+}
+.schedule-anytime .tick {
+  width: 10px;
+  height: 10px;
+}
+.calendar-resize,
+.schedule-event:hover .calendar-resize,
+.schedule-event:focus-within .calendar-resize {
+  background: transparent;
+  opacity: 1;
+}
+.anytime-resizer {
+  position: sticky;
+  top: calc(52px + var(--anytime-height, 74px));
+  z-index: 4;
+  height: 8px;
+  cursor: ns-resize;
+  touch-action: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--canvas);
+  border-bottom: 1px solid var(--line);
+}
+.anytime-resizer span {
+  width: 32px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--muted);
+  opacity: 0.35;
+}
+.anytime-resizer:hover span {
+  opacity: 0.8;
+}
+.anytime-resizer.collapsed {
+  height: 2px;
+}
+@media (max-width: 1000px) {
+  .today-board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .today-board .today-side {
+    padding-top: 0 !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  button,
+  summary,
+  select {
+    transition: none;
+  }
+}
+.habits-compact-card .compact-habits {
+  align-items: stretch;
+}
+.compact-habits .habit-row {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.compact-habits .row-main {
+  min-width: 0;
+  flex: 1;
+}
+.compact-habits .row-body {
+  min-width: 0;
+  flex: 1;
+}
+.today-board .task-row .row-line {
+  min-height: 38px;
+}
+.today-board .task-row .row-tick {
+  min-height: 38px;
+  padding: 8px 10px;
+}
+.today-board .task-row .tick {
+  width: 19px;
+  height: 19px;
+}
+.today-board .task-row .row-body {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 12px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.today-board .task-row .row-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.today-board .task-row .row-detail {
+  margin: 0 0 0 auto;
+  white-space: nowrap;
+  font-size: 11px;
+}

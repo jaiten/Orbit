@@ -116,7 +116,7 @@ const OrbitNoteDocument = (() => {
           .split("\n")
           .map((line) => {
             const size = event.shiftKey ? line.match(/^( {1,4}|\t)/)?.[0].length || 0 : 0;
-            const change = { position, size, text: event.shiftKey ? "" : "    " };
+            const change = { position, size, text: event.shiftKey ? "" : "    ", line };
             position += line.length + 1;
             return change;
           });
@@ -124,6 +124,15 @@ const OrbitNoteDocument = (() => {
         for (const change of [...changes].reverse()) {
           select(root, change.position, change.position + change.size);
           document.execCommand("insertText", false, change.text);
+          const prefix = change.line.match(/^([ \t]*)([•◦▪-]) /);
+          if (prefix) {
+            const indentation = event.shiftKey ? prefix[1].slice(change.size) : "    " + prefix[1];
+            const depth = Math.floor(indentation.replace(/\t/g, "    ").length / 4);
+            const marker = depth === 0 ? "•" : depth === 1 ? "◦" : "▪";
+            const offset = change.position + indentation.length;
+            select(root, offset, offset + 1);
+            document.execCommand("insertText", false, marker);
+          }
         }
         const shifted = (point) =>
           point +
@@ -133,7 +142,7 @@ const OrbitNoteDocument = (() => {
         select(root, Math.max(start, shifted(offset)), Math.max(start, shifted(end)));
       } else {
         event.preventDefault();
-        const match = prefix.match(/^([ \t]*)([•-]|\d+\.) /);
+        const match = prefix.match(/^([ \t]*)([•◦▪-]|\d+\.) /);
         if (match && prefix === match[0]) {
           select(root, start, offset);
           document.execCommand("insertText", false, "");

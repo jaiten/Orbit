@@ -368,9 +368,7 @@ const fs = require("node:fs");
   if (process.env.ORBIT_SCREENSHOT) await p.screenshot({ path: process.env.ORBIT_SCREENSHOT });
   await p.locator('[data-page="today"]').click();
   assert.equal(await p.locator(".progress-day").count(), 7);
-  await p.getByRole("combobox", { name: "Progress range" }).click();
-  await p.getByRole("option", { name: "Past month", exact: true }).click();
-  assert.equal(await p.locator(".progress-day").count(), 30);
+  assert.equal(await p.getByRole("combobox", { name: "Progress range" }).count(), 0);
   await p.locator('[data-page="habits"]').click();
   for (const title of ["Gym", "Read", "A longer habit title which needs the whole row"]) {
     await p.locator("#inline-task-input").fill(title);
@@ -386,6 +384,12 @@ const fs = require("node:fs");
   );
   assert.equal(habitRects[0].y, habitRects[1].y, "Short habits should share two columns");
   assert.ok(habitRects.at(-1).width > habitRects[0].width * 1.8, "A long habit gets a full row");
+  if (process.env.ORBIT_SCREENSHOT) {
+    await p.locator('[data-page="today"]').click();
+    await p.waitForTimeout(220);
+    await p.screenshot({ path: process.env.ORBIT_SCREENSHOT.replace(".png", "-today.png") });
+  }
+
   await p.locator('[data-page="calendar"]').click();
   await p.locator('[data-month="0"]').click();
   await p.getByRole("tab", { name: "Week", exact: true }).click();
@@ -488,7 +492,7 @@ const fs = require("node:fs");
   await p.keyboard.type("two");
   assert.equal(await p.locator("#note-body").evaluate((field) => field.value), "• one\n• two");
   await p.keyboard.press("Tab");
-  assert.equal(await p.locator("#note-body").evaluate((field) => field.value), "• one\n    • two");
+  assert.equal(await p.locator("#note-body").evaluate((field) => field.value), "• one\n    ◦ two");
   await p.keyboard.press("Shift+Tab");
   assert.equal(await p.locator("#note-body").evaluate((field) => field.value), "• one\n• two");
   await p.waitForTimeout(750);
@@ -499,12 +503,23 @@ const fs = require("node:fs");
   assert.equal(await p.locator('[data-today-panel="heatmap"]').isVisible(), false);
   await p.getByRole("button", { name: "Edit layout", exact: true }).click();
   await p.locator('[data-panel-visible="heatmap"]').check();
-  await p.locator('[data-panel-column-toggle="habits"]').click();
+  assert.equal(await p.locator("[data-panel-column-toggle]").count(), 0);
+  const gripBox = await p.getByRole("button", { name: "Move Habits", exact: true }).boundingBox();
+  const taskPanelBox = await p.locator('[data-today-panel="tasks"]').boundingBox();
+  await p.mouse.move(gripBox.x + 12, gripBox.y + gripBox.height / 2);
+  await p.mouse.down();
+  await p.mouse.move(taskPanelBox.x + 50, taskPanelBox.y + 2, { steps: 12 });
+  assert.equal(await p.locator(".layout-placeholder").count(), 1);
+  await p.mouse.up();
+  assert.equal(
+    await p.locator('[data-panel-drop="main"]').evaluate((column) => column.firstElementChild.dataset.todayPanel),
+    "habits",
+  );
   assert.equal(
     await p.locator('[data-today-panel="habits"]').evaluate((panel) => panel.parentElement.dataset.panelDrop),
     "main",
   );
-  await p.getByRole("button", { name: "Done", exact: true }).click();
+  await p.getByRole("button", { name: "Finish editing layout", exact: true }).click();
   assert.equal(await p.locator(".today-panel[draggable=true]").count(), 0);
   assert.equal(await p.locator('[data-today-panel="heatmap"]').isVisible(), true);
   // A real drop reschedules a task to a quarter-hour and retains reminder offsets.
@@ -561,6 +576,141 @@ const fs = require("node:fs");
   await p.locator("#row-menu .danger").click();
   await p.waitForFunction(async () =>
     (await window.orbit.read()).records.some((r) => r.payload.title === "Drag calendar task" && r.deleted),
+  );
+  // Past corrections keep their own completion date, fill the ring, and reset on navigation.
+  const pastKey = await p.locator("[data-progress-day]").nth(2).getAttribute("data-progress-day");
+  const taskID = "a1111111-1111-4111-8111-111111111111",
+    habitID = "b1111111-1111-4111-8111-111111111111";
+  await p.evaluate(
+    async ({ pastKey, taskID, habitID }) => {
+      await window.orbit.batch([
+        {
+          key: "tasks/" + taskID,
+          payload: { id: taskID, title: "Past task", localDate: pastKey, hasTime: false, updatedAt: Date.now() },
+        },
+        {
+          key: "habits/" + habitID,
+          payload: {
+            id: habitID,
+            title: "Past habit",
+            target: 1,
+            frequencyRule: "DAILY",
+            color: "sage",
+            createdAt: new Date(pastKey + "T00:00:00").getTime(),
+            updatedAt: Date.now(),
+          },
+        },
+      ]);
+    },
+    { pastKey, taskID, habitID },
+  );
+  await p.locator(`[data-progress-day="${pastKey}"]`).click();
+  assert.equal(await p.getByRole("button", { name: "Back to Today", exact: true }).isVisible(), true);
+  await p.getByRole("checkbox", { name: "Complete Past task", exact: true }).click();
+  await p.getByRole("checkbox", { name: "Log Past habit", exact: true }).click();
+  // Restore tasks in progress for this assertion, which was switched off earlier in Settings.
+  await p.evaluate(() => localStorage.setItem("progressIncludesTasks", "true"));
+  await p.locator(`[data-progress-day="${pastKey}"]`).click();
+  assert.equal(
+    await p.locator(`[data-progress-day="${pastKey}"] .progress-value`).getAttribute("stroke-dasharray"),
+    "none",
+  );
+  assert.equal(
+    await p.evaluate(
+      async (id) =>
+        new Date(
+          (await window.orbit.read()).records.find((record) => record.payload.id === id).payload.completedAt,
+        ).getDate(),
+      taskID,
+    ),
+    Number(pastKey.slice(-2)),
+  );
+  await p.keyboard.press("Control+4");
+  await p.keyboard.press("Control+1");
+  assert.equal(await p.locator(".past-edit-banner").count(), 0);
+  // Bulk moves replace repeated per-row overdue handling.
+  await p.evaluate(async (id) => {
+    const record = (await window.orbit.read()).records.find((record) => record.payload.id === id);
+    await window.orbit.put(record.key, { ...record.payload, completedAt: null, updatedAt: Date.now() });
+  }, taskID);
+  await p.waitForFunction(() => !!document.querySelector('[data-overdue-all="someday"]'));
+  await p.getByRole("button", { name: "All to Someday", exact: true }).click();
+  await p.waitForFunction(
+    async (id) =>
+      (await window.orbit.read()).records.find((record) => record.payload.id === id).payload.listID ===
+      "00000000-0000-4000-8000-000000000001",
+    taskID,
+  );
+  await p.keyboard.press("Control+2");
+  await p.getByRole("button", { name: "Hide anytime tasks", exact: true }).click();
+  assert.equal(await p.locator(".schedule-all-day").evaluate((element) => element.getBoundingClientRect().height), 0);
+  await p.getByRole("button", { name: "Show anytime tasks", exact: true }).click();
+  await p.getByRole("separator", { name: "Anytime section height", exact: true }).focus();
+  await p.keyboard.press("Home");
+  assert.equal(await p.locator(".schedule-all-day").evaluate((element) => element.getBoundingClientRect().height), 0);
+  await p.keyboard.press("End");
+  assert.equal(await p.locator(".schedule-all-day").evaluate((element) => element.getBoundingClientRect().height), 240);
+  // New note groups stay out of task categories; nonempty deletion offers explicit outcomes.
+  await p.keyboard.press("Control+4");
+  await p.getByRole("button", { name: "New section", exact: true }).click();
+  await p.locator('#list-form input[name="name"]').fill("Notes only");
+  await p.locator("#list-form").getByRole("button", { name: "Save", exact: true }).click();
+  const sectionID = await p.evaluate(
+    async () => (await window.orbit.read()).records.find((record) => record.payload.name === "Notes only").payload.id,
+  );
+  assert.equal(await p.locator(`[data-list="${sectionID}"]`).count(), 0);
+  await p.getByRole("button", { name: "New note in Notes only", exact: true }).click();
+  await p.locator("#note-title").fill("Retain this page");
+  await p.locator("#note-body").fill("Keep this content");
+  await p.keyboard.press("Escape");
+  await p.locator(`.notes-nav [data-section-menu="${sectionID}"]`).click({ button: "right" });
+  await p.getByRole("menuitem", { name: "Delete section", exact: true }).click();
+  await p.getByRole("button", { name: "Move notes to All", exact: true }).click();
+  await p.waitForFunction(async () =>
+    (await window.orbit.read()).records.some(
+      (record) => !record.deleted && record.payload.title === "Retain this page" && record.payload.listID == null,
+    ),
+  );
+  assert.equal(await p.getByRole("button", { name: "Collapse All notes", exact: true }).count(), 1);
+  await p.getByRole("button", { name: "Collapse All notes", exact: true }).click();
+  assert.equal(await p.getByRole("button", { name: "Expand All notes", exact: true }).count(), 1);
+  // Deleting a section and its contents leaves a similarly named task category intact.
+  await p.evaluate(async () => {
+    await window.orbit.batch([
+      {
+        key: "lists/delete-notes",
+        payload: { id: "delete-notes", name: "Remove these", kind: "notes", sortOrder: 2, updatedAt: Date.now() },
+      },
+      {
+        key: "lists/keep-category",
+        payload: { id: "keep-category", name: "Remove these", kind: "tasks", sortOrder: 2, updatedAt: Date.now() },
+      },
+      {
+        key: "tasks/remove-page",
+        payload: {
+          id: "remove-page",
+          title: "Delete this page",
+          isNote: true,
+          notes: "Old content",
+          listID: "delete-notes",
+          updatedAt: Date.now(),
+        },
+      },
+    ]);
+  });
+  await p.locator('.notes-nav [data-section-menu="delete-notes"]').waitFor();
+  await p.locator('.notes-nav [data-section-menu="delete-notes"]').click({ button: "right" });
+  await p.getByRole("menuitem", { name: "Delete section", exact: true }).click();
+  await p.getByRole("button", { name: "Delete section and notes", exact: true }).click();
+  await p.waitForFunction(async () =>
+    (await window.orbit.read()).records.some((record) => record.key === "tasks/remove-page" && record.deleted),
+  );
+  assert.equal(
+    await p.evaluate(
+      async () =>
+        (await window.orbit.read()).records.find((record) => record.key === "lists/keep-category").deleted || false,
+    ),
+    false,
   );
   assert.deepEqual(errors, []);
   console.log(

@@ -101,7 +101,16 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertEqual(input.value as? String, longText + " More text")
         input.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 10))
         XCTAssertEqual(input.value as? String, longText)
-
+        app.buttons["Dismiss keyboard"].tap()
+        app.swipeDown()
+        let past = Calendar.current.date(byAdding: .day, value: -2, to: .now)!
+        let pieces = Calendar.current.dateComponents([.year, .month, .day], from: past)
+        let key = String(format: "%04d-%02d-%02d", pieces.year!, pieces.month!, pieces.day!)
+        let progress = app.buttons["progress-day-" + key]
+        XCTAssertTrue(progress.waitForExistence(timeout: 5)); progress.tap()
+        XCTAssertTrue(app.buttons["Back to Today"].waitForExistence(timeout: 5))
+        selectTab("Notes", in: app); selectTab("Today", in: app)
+        XCTAssertFalse(app.buttons["Back to Today"].exists)
     }
 
     func testInlineCaptureAddsMultipleItemsWithoutASheet() {
@@ -313,6 +322,9 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertEqual(title.value as? String, "Trail options")
         app.typeText("\n- one\n")
         XCTAssertTrue((body.value as? String ?? "").contains("• one\n• "))
+        let keyboardDone = app.buttons["Done"].firstMatch
+        XCTAssertTrue(keyboardDone.isHittable)
+        XCTAssertLessThanOrEqual(keyboardDone.frame.maxX, app.frame.maxX)
         app.buttons["Indent"].tap()
         app.typeText("two")
         XCTAssertTrue((body.value as? String ?? "").contains("    • two"))

@@ -65,7 +65,7 @@ struct TodayView: View {
     private var page: some View {
         ScrollView { content }
             .scrollDismissesKeyboard(.interactively)
-            .captureDock(scheme) { InlineCapture() }
+            .captureDock(scheme) { InlineCapture(defaultDay: viewingPast ? .day(PlannerLogic.dayKey(day)) : .today) }
             .background(DayTheme.canvas(scheme)).tint(accent.fill)
             .onAppear {
                 viewingPast = false; day = Calendar.current.startOfDay(for: .now)

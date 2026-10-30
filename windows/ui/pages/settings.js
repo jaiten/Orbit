@@ -33,22 +33,26 @@ function renderSettings() {
     <section class="settings-block">
       <h2>Appearance</h2>
       <label class="toggle"><input type="checkbox" id="compact-rows" ${root.compact === "true" ? "checked" : ""} /> Compact habits and tasks</label>
-      <label class="toggle"><input type="checkbox" id="progress-tasks" ${localStorage.getItem("progressIncludesTasks") !== "false" ? "checked" : ""} /> Include tasks in daily progress</label>
-      <div class="settings-field"><label for="calendar-clock">Calendar clock</label><select id="calendar-clock"><option value="12" ${localStorage.getItem("calendarClock") !== "24" ? "selected" : ""}>12 hour (AM / PM)</option><option value="24" ${localStorage.getItem("calendarClock") === "24" ? "selected" : ""}>24 hour</option></select></div>
       <div class="accent-options segmented" role="group" aria-label="Appearance">${choiceButtons("appearance", appearances, root.appearance)}</div>
+      <h3>Accent</h3><div class="accent-options segmented" role="group" aria-label="Accent">${choiceButtons("accent", accents, root.accent)}</div>
     </section>
-    <section class="settings-block">
-      <h2>Accent</h2>
-      <div class="accent-options segmented" role="group" aria-label="Accent">${choiceButtons("accent", accents, root.accent)}</div>
+    <section class="settings-block" id="today-preferences"><h2>Today & Progress</h2>
+      <label class="toggle"><input type="checkbox" id="progress-tasks" ${localStorage.getItem("progressIncludesTasks") !== "false" ? "checked" : ""} /> Include tasks in daily progress</label>
+      <div class="settings-field"><label for="overall-range">Overall progress</label><select id="overall-range"><option value="7" ${localStorage.getItem("overallProgressRange") === "7" ? "selected" : ""}>Past week</option><option value="30" ${localStorage.getItem("overallProgressRange") !== "7" ? "selected" : ""}>Past month</option></select></div>
+      <p class="secondary">Recent progress always shows the last seven days. Select a date to correct it. Use the layout icon on Today to arrange or hide panels.</p>
+    </section>
+    <section class="settings-block" id="calendar-preferences"><h2>Calendar</h2>
+      <div class="settings-field"><label for="calendar-clock">Clock format</label><select id="calendar-clock"><option value="12" ${localStorage.getItem("calendarClock") !== "24" ? "selected" : ""}>12 hour (AM / PM)</option><option value="24" ${localStorage.getItem("calendarClock") === "24" ? "selected" : ""}>24 hour</option></select></div>
+      <p class="secondary">Drag the anytime section boundary to resize it, or use its toolbar icon to hide it.</p>
     </section>
     <section class="settings-block" id="desktop-settings">
-      <h2>Reminders & Shortcuts</h2>
+      <h2>Notifications & Keyboard</h2>
       <label class="toggle"><input type="checkbox" id="notifications-toggle" /> Show reminders for tasks and habits</label>
       <div class="settings-field"><span>Quick add from anywhere</span><div id="global-shortcut-wrap"></div></div>
       <button id="show-shortcuts">Keyboard Shortcuts</button>
     </section>
     <section class="settings-block">
-      <h2>Import & Export</h2>
+      <h2>Data & Backup</h2>
       <button id="export-backup">Export Everything (JSON)</button><button id="export-csv">Export Tasks (CSV)</button
       ><button id="import-backup">Import…</button>
       <p class="secondary">The JSON file holds your tasks, lists and habit history and can be imported on iPhone or Windows. No account details are included.</p>
@@ -73,6 +77,8 @@ function renderSettings() {
 }
 
 function bindSettings() {
+  if ($("#overall-range"))
+    $("#overall-range").onchange = (event) => localStorage.setItem("overallProgressRange", event.target.value);
   if ($("#progress-tasks"))
     $("#progress-tasks").onchange = (event) =>
       localStorage.setItem("progressIncludesTasks", String(event.target.checked));

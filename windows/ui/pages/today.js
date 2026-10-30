@@ -12,31 +12,6 @@ function consistencyLevels(habits, days = gridDays()) {
 
 const checklist = (items, row = taskRow) => `<div class="check-list">${items.map((i) => row(i)).join("")}</div>`;
 
-function missedYesterdayPrompt(allHabits) {
-  if (new Date().getHours() >= 12 || selected !== today()) return "";
-  const current = today(),
-    yesterday = OrbitHabits.addDays(current, -1);
-  const dismissed = localStorage.getItem("dismissedMissedHabitPromptDay");
-  if (dismissed === current) return "";
-  const last = localStorage.getItem("lastMissedHabitPromptDay");
-  if (last && last !== current && current < OrbitHabits.addDays(last, 7)) return "";
-  const candidates = allHabits.filter((habit) => {
-    if (OrbitHabits.schedule(habit) === "WEEKLY") return false;
-    const created = habit.createdAt ? dayKey(new Date(habit.createdAt)) : null;
-    if ((created && created > yesterday) || !OrbitHabits.scheduledOn(habit, yesterday) || checked(habit, yesterday))
-      return false;
-    const prior = Array.from({ length: 13 }, (_, index) => OrbitHabits.addDays(current, -index - 2))
-      .filter((key) => (!created || key >= created) && OrbitHabits.scheduledOn(habit, key))
-      .slice(0, 5);
-    return prior.length === 5 && prior.filter((key) => checked(habit, key)).length >= 3;
-  });
-  if (!candidates.length) return "";
-  localStorage.setItem("lastMissedHabitPromptDay", current);
-  return `<section class="card missed-prompt"><div><strong>Missed yesterday?</strong><button id="dismiss-missed" aria-label="Dismiss missed habit reminder">×</button></div><p>Only yesterday can be corrected.</p>${candidates
-    .map((habit) => `<button data-backfill-yesterday="${esc(habit.id)}">✓ Mark ${esc(habit.title)} done</button>`)
-    .join("")}</section>`;
-}
-
 // Calendar's views: the month grid, or every task this week or overall (renderAgenda).
 let todayScope = "week",
   calendarView = "month";
@@ -53,12 +28,23 @@ function scopeTabs() {
 }
 
 let editingTodayLayout = false;
+const todayPanelNames = {
+  tasks: "Your day",
+  recent: "Recent progress",
+  plan: "Your plan",
+  habits: "Habits",
+  heatmap: "Overall progress",
+};
 function todayPanel(id, content, defaultColumn = "side") {
   const stored = JSON.parse(localStorage.getItem("todayPanelLayout") || "null") || {};
   const column = stored[id]?.column || defaultColumn;
   const visibility = { heatmap: false, ...JSON.parse(localStorage.getItem("todayPanelVisibility") || "{}") };
-  const visible = visibility[id] !== false;
-  return `<section class="today-panel" data-today-panel="${id}" data-panel-column="${column}" ${!visible && !editingTodayLayout ? "hidden" : ""} ${editingTodayLayout ? 'draggable="true"' : ""}>${editingTodayLayout ? `<div class="panel-tools"><span>⠿ ${id === "heatmap" ? "Overall progress" : id}</span><button data-panel-column-toggle="${id}" aria-label="Move ${id} to other column">⇄</button><button data-panel-up="${id}" aria-label="Move ${id} up">↑</button><button data-panel-down="${id}" aria-label="Move ${id} down">↓</button></div>` : ""}${content}</section>`;
+  const visible = id === "tasks" || visibility[id] !== false;
+  return `<section class="today-panel" data-today-panel="${id}" data-panel-column="${column}" ${!visible && !editingTodayLayout ? "hidden" : ""} ${editingTodayLayout ? 'draggable="true"' : ""}>${editingTodayLayout ? `<div class="panel-tools"><button class="panel-grip" data-move-panel="${id}" aria-label="Move ${todayPanelNames[id]}" title="Drag to move; arrow keys also move panels">⠿ <span>${todayPanelNames[id]}</span></button></div>` : ""}${content}</section>`;
+}
+function todayLayoutOptions() {
+  const visibility = { heatmap: false, ...JSON.parse(localStorage.getItem("todayPanelVisibility") || "{}") };
+  return `<div class="today-layout-options" role="group" aria-label="Visible panels">${["recent", "plan", "habits", "heatmap"].map((id) => `<label><input type="checkbox" data-panel-visible="${id}" ${visibility[id] !== false ? "checked" : ""} /> ${todayPanelNames[id]}</label>`).join("")}<label>Overall progress <select id="layout-overall-range"><option value="7" ${localStorage.getItem("overallProgressRange") === "7" ? "selected" : ""}>Past week</option><option value="30" ${localStorage.getItem("overallProgressRange") !== "7" ? "selected" : ""}>Past month</option></select></label></div>`;
 }
 function overallProgressCard(tasks, habits) {
   const normalized = tasks.map((task) => ({
@@ -70,28 +56,31 @@ function overallProgressCard(tasks, habits) {
     ...habit,
     createdDay: habit.createdAt ? dayKey(new Date(habit.createdAt)) : null,
   }));
-  const levels = gridDays().map((key) =>
-    key > today()
-      ? -1
-      : OrbitRecentProgress.day(
-          normalized,
-          entries,
-          habitLogs(),
-          key,
-          localStorage.getItem("progressIncludesTasks") !== "false",
-        ).ratio,
-  );
-  return `<section class="card overall-progress"><h2>Overall progress <small>Past 12 weeks</small></h2>${boxGrid(levels, "sage", "Overall daily completion")}</section>`;
+  const count = localStorage.getItem("overallProgressRange") === "7" ? 7 : 30;
+  const days = Array.from({ length: count }, (_, index) => OrbitHabits.addDays(today(), index - count + 1));
+  const cells = days
+    .map((key) => {
+      const result = OrbitRecentProgress.day(
+        normalized,
+        entries,
+        habitLogs(),
+        key,
+        localStorage.getItem("progressIncludesTasks") !== "false",
+      );
+      return `<div class="overall-day" data-o="${result.ratio ? (0.25 + result.ratio * 0.75).toFixed(2) : "0"}" title="${key}: ${Math.round(result.ratio * 100)}% complete">${localDay(key).getDate()}</div>`;
+    })
+    .join("");
+  return `<section class="card overall-progress"><h2>Overall progress <small>${count === 7 ? "Past week" : "Past month"}</small></h2><div class="overall-days" role="group" aria-label="Daily progress, oldest first">${cells}</div></section>`;
 }
 function renderToday(tasks, allHabits) {
   // Today: dated today or earlier and still open, or finished today. Undated and Someday items stay in Notes.
   const relevant = tasks.filter((t) => OrbitPlanner.onDay(planItem(t), selected, today()));
-  const habits = allHabits.filter((h) => dueOn(h));
+  const habits = allHabits.filter((h) => (!h.createdAt || dayKey(new Date(h.createdAt)) <= selected) && dueOn(h));
   const open = relevant.filter((t) => !t.completedAt),
     complete = relevant.filter((t) => t.completedAt);
   // Timed tasks first, in time order; then the rest as arranged.
   open.sort((a, b) => (a.hasTime ? a.dueDate : Infinity) - (b.hasTime ? b.dueDate : Infinity));
-  const overdue = open.filter((t) => OrbitPlanner.isOverdue(planItem(t), today()));
+  const overdue = open.filter((t) => selected === today() && OrbitPlanner.isOverdue(planItem(t), today()));
   const timed = open.filter((t) => t.hasTime && !overdue.includes(t)),
     untimed = open.filter((t) => !t.hasTime && !overdue.includes(t));
   const habitsDone = habits.filter((h) => checked(h)).length;
@@ -102,40 +91,9 @@ function renderToday(tasks, allHabits) {
   const isToday = selected === today();
   const heading = isToday ? "Today" : date.toLocaleDateString([], { weekday: "long" });
   const eyebrow = date.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
-  return `<div class="today-layout">
-    <header class="page-head">
-        <div><div class="eyebrow">${eyebrow}</div><h1>${heading}</h1></div>
-        <div class="head-tools"><button id="edit-today-layout" aria-pressed="${editingTodayLayout}">${editingTodayLayout ? "Done" : "Edit layout"}</button>
-          <div class="day-nav" role="group" aria-label="Day">
-            <button class="icon-button" data-day-step="-1" aria-label="Previous day" title="Previous day"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button
-            ><button id="go-today" class="today-button" ${isToday ? "disabled" : ""}>Today</button
-            ><button class="icon-button" data-day-step="1" aria-label="Next day" title="Next day"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
-          </div>
-        </div>
-      </header>
-    ${
-      editingTodayLayout
-        ? `<div class="today-layout-options" role="group" aria-label="Visible panels">${[
-            ["recent", "Recent progress"],
-            ["plan", "Your plan"],
-            ["habits", "Habits"],
-            ["heatmap", "Overall progress"],
-          ]
-            .map(([id, title]) => {
-              const visibility = {
-                heatmap: false,
-                ...JSON.parse(localStorage.getItem("todayPanelVisibility") || "{}"),
-              };
-              return `<label><input type="checkbox" data-panel-visible="${id}" ${visibility[id] !== false ? "checked" : ""} /> ${title}</label>`;
-            })
-            .join("")}</div>`
-        : ""
-    }
-    <section class="today-main">
-      ${focusBanner()}
+  const agenda = `      ${focusBanner()}
       ${conflictBanner()}
-      ${missedYesterdayPrompt(allHabits)}
-      ${overdue.length ? sectionLabel("Overdue", `${overdue.length} to review`) + checklist(overdue) : ""}
+      ${overdue.length ? `<div class="overdue-heading">${sectionLabel("Overdue", `${overdue.length} to review`)}<div class="overdue-bulk" aria-label="Move all overdue tasks"><button data-overdue-all="today">All to Today</button><button data-overdue-all="later">All to Later</button><button data-overdue-all="someday">All to Someday</button></div></div>` + checklist(overdue) : ""}
       ${timed.length ? sectionLabel("On the agenda", "Time blocks") + checklist(timed) : ""}
       ${untimed.length ? sectionLabel("At your own pace", "To-dos") + checklist(untimed) : ""}
       ${
@@ -151,15 +109,24 @@ function renderToday(tasks, allHabits) {
             </details>`
           : ""
       }
-      <div id="today-main-panels" class="today-panel-column" data-panel-drop="main"></div>
-      <div class="capture-dock">${addField()}</div>
-    </section>
-    <aside class="today-side today-panel-column" data-panel-drop="side" aria-label="Plan and progress">
-      ${todayPanel("recent", recentProgressCard(tasks, allHabits))}
-      ${todayPanel("plan", planCard(done, total))}
-      ${todayPanel("habits", habits.length ? sectionLabel("Habits", `${habitsDone} of ${habits.length}`) + `<div class="check-list compact-habits">${habitCards(habits)}</div>` : '<p class="secondary">No habits today</p>', habits.length > 6 ? "main" : "side")}
-      ${todayPanel("heatmap", overallProgressCard(tasks, allHabits))}
-    </aside>
+`;
+  return `<div class="today-layout">
+    <header class="page-head"><div><div class="eyebrow">${eyebrow}</div><h1>${heading}</h1></div><div class="head-tools">
+      <button id="edit-today-layout" class="icon-button" aria-label="${editingTodayLayout ? "Finish editing layout" : "Edit layout"}" title="${editingTodayLayout ? "Finish editing layout" : "Edit layout"}" aria-pressed="${editingTodayLayout}"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${editingTodayLayout ? "m5 12 4 4L19 6" : "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"}"/></svg></button>
+      <div class="day-nav" role="group" aria-label="Day"><button class="icon-button" data-day-step="-1" aria-label="Previous day" ${selected <= OrbitHabits.addDays(today(), -6) ? "disabled" : ""}>‹</button><button id="go-today" class="today-button" ${isToday ? "disabled" : ""}>Today</button><button class="icon-button" data-day-step="1" aria-label="Next day">›</button></div>
+    </div></header>
+    ${!isToday ? `<div class="past-edit-banner" role="status"><span>Editing ${date.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" })}</span><button id="back-to-today">Back to Today</button></div>` : ""}
+    ${editingTodayLayout ? todayLayoutOptions() : ""}
+    <div class="today-board ${editingTodayLayout ? "editing" : ""}">
+      <section class="today-main today-panel-column" data-panel-drop="main">${todayPanel("tasks", agenda, "main")}</section>
+      <aside class="today-side today-panel-column" data-panel-drop="side" aria-label="Plan and progress">
+        ${todayPanel("recent", recentProgressCard(tasks, allHabits))}
+        ${todayPanel("plan", planCard(done, total))}
+        ${todayPanel("habits", `<section class="card habits-compact-card">${sectionLabel("Habits", `${habitsDone} of ${habits.length}`)}<div class="check-list compact-habits">${habitCards(habits)}</div></section>`, habits.length > 6 ? "main" : "side")}
+        ${todayPanel("heatmap", overallProgressCard(tasks, allHabits))}
+      </aside>
+    </div>
+    <div class="capture-dock">${addField()}</div>
   </div>`;
 }
 
@@ -259,78 +226,44 @@ function bindToday() {
     $("#edit-today-layout").onclick = () => {
       editingTodayLayout = !editingTodayLayout;
       render();
+      $("#edit-today-layout")?.focus();
     };
-  const panels = [...document.querySelectorAll("[data-today-panel]")];
-  const layout = JSON.parse(localStorage.getItem("todayPanelLayout") || "null") || {};
-  const original = new Map(panels.map((panel, order) => [panel, order]));
-  panels.sort(
-    (a, b) =>
-      (layout[a.dataset.todayPanel]?.order ?? original.get(a)) -
-      (layout[b.dataset.todayPanel]?.order ?? original.get(b)),
-  );
-  panels.forEach((panel) => document.querySelector(`[data-panel-drop="${panel.dataset.panelColumn}"]`)?.append(panel));
-  const persist = () => {
-    const values = {};
-    document.querySelectorAll("[data-panel-drop]").forEach((column) => {
-      [...column.children].forEach((panel, order) => {
-        values[panel.dataset.todayPanel] = { column: column.dataset.panelDrop, order };
-      });
-    });
-    localStorage.setItem("todayPanelLayout", JSON.stringify(values));
-    render();
-  };
-  document.querySelectorAll("[data-panel-column-toggle], [data-panel-up], [data-panel-down]").forEach((button) => {
+  if ($("#layout-overall-range"))
+    $("#layout-overall-range").onchange = (event) => {
+      localStorage.setItem("overallProgressRange", event.target.value);
+      render();
+    };
+  bindTodayBoard();
+  document.querySelectorAll(".overall-day[data-o]").forEach((cell) => cell.style.setProperty("--o", cell.dataset.o));
+  document.querySelectorAll("[data-progress-day]").forEach((button) => {
     button.onclick = () => {
-      const panel = button.closest("[data-today-panel]");
-      if (button.dataset.panelColumnToggle)
-        document
-          .querySelector(`[data-panel-drop="${panel.parentElement.dataset.panelDrop === "main" ? "side" : "main"}"]`)
-          .append(panel);
-      else if (button.dataset.panelUp && panel.previousElementSibling) panel.previousElementSibling.before(panel);
-      else if (button.dataset.panelDown && panel.nextElementSibling) panel.nextElementSibling.after(panel);
-      persist();
-    };
-  });
-  panels.forEach((panel) => {
-    panel.ondragstart = (event) => {
-      if (!editingTodayLayout) {
-        event.preventDefault();
-        return;
-      }
-      event.dataTransfer.setData("text/orbit-panel", panel.dataset.todayPanel);
-    };
-  });
-  document.querySelectorAll("[data-panel-drop]").forEach((column) => {
-    column.ondragover = (event) => {
-      if (editingTodayLayout && event.dataTransfer.types.includes("text/orbit-panel")) event.preventDefault();
-    };
-    column.ondrop = (event) => {
-      if (!editingTodayLayout) return;
-      const id = event.dataTransfer.getData("text/orbit-panel");
-      const source = panels.find((panel) => panel.dataset.todayPanel === id);
-      if (!source) return;
-      event.preventDefault();
-      const target = event.target.closest("[data-today-panel]");
-      if (target && target !== source) column.insertBefore(source, target);
-      else column.append(source);
-      persist();
-    };
-  });
-  bindPickers({
-    "progress-range": (value) => {
-      progressRange = Number(value);
-      localStorage.setItem("progressRange", value);
-      render();
-    },
-  });
-  if ($("#dismiss-missed"))
-    $("#dismiss-missed").onclick = () => {
-      localStorage.setItem("dismissedMissedHabitPromptDay", today());
+      selected = button.dataset.progressDay;
       render();
     };
-  document
-    .querySelectorAll("[data-backfill-yesterday]")
-    .forEach((button) => (button.onclick = () => action(() => backfillYesterday(button.dataset.backfillYesterday))));
+  });
+  if ($("#back-to-today"))
+    $("#back-to-today").onclick = () => {
+      selected = today();
+      render();
+    };
+  document.querySelectorAll("[data-overdue-all]").forEach((button) => {
+    button.onclick = () =>
+      action(async () => {
+        const tasks = rows("tasks").filter((task) => !task.isNote && OrbitPlanner.isOverdue(planItem(task), today()));
+        await api.batch(
+          tasks.map((task) => ({
+            key: task._key,
+            payload: clean(
+              button.dataset.overdueAll === "today"
+                ? OrbitPlanner.moveToDay(task, today())
+                : button.dataset.overdueAll === "someday"
+                  ? OrbitPlanner.moveToSomeday(task)
+                  : OrbitPlanner.moveLater(task),
+            ),
+          })),
+        );
+      });
+  });
   if ($(".completed-items"))
     $(".completed-items").ontoggle = (e) => {
       completedOpen = e.target.open;
@@ -350,7 +283,7 @@ function bindToday() {
     };
 }
 
-let progressRange = Number(localStorage.getItem("progressRange")) === 30 ? 30 : 7;
+const progressRange = 7;
 function recentProgressCard(tasks, habits) {
   const normalized = tasks.map((task) => ({
     day: taskDate(task),
@@ -362,17 +295,9 @@ function recentProgressCard(tasks, habits) {
     createdDay: habit.createdAt ? dayKey(new Date(habit.createdAt)) : null,
   }));
   const days = Array.from({ length: progressRange }, (_, index) =>
-    OrbitHabits.addDays(selected, index - progressRange + 1),
+    OrbitHabits.addDays(today(), index - progressRange + 1),
   );
-  return `<section class="card recent-progress"><div class="recent-progress-head"><h2>Recent progress</h2>${macPicker(
-    "progress-range",
-    "Progress range",
-    [
-      ["7", "Past week"],
-      ["30", "Past month"],
-    ],
-    String(progressRange),
-  )}</div><div class="progress-days ${progressRange === 30 ? "month" : "week"}">${days
+  return `<section class="card recent-progress"><div class="recent-progress-head"><h2>Recent progress</h2><span class="secondary">Past week</span></div><div class="progress-days week">${days
     .map((key) => {
       const progress = OrbitRecentProgress.day(
         normalized,
@@ -384,7 +309,7 @@ function recentProgressCard(tasks, habits) {
       const date = localDay(key),
         ratio = key > today() ? 0 : progress.ratio;
       const label = `${date.toLocaleDateString([], { month: "short", day: "numeric" })}: ${progress.total ? `${Math.round(ratio * 100)}% complete, ${progress.taskCount} tasks and ${progress.habitCount} habits` : "No scheduled items"}`;
-      return `<div class="progress-day" role="img" aria-label="${esc(label)}" title="${esc(label)}"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="12" class="progress-track"/><circle cx="16" cy="16" r="12" pathLength="100" stroke-dasharray="${ratio * 100} 100" class="progress-value"/></svg><small>${progressRange === 7 ? date.toLocaleDateString([], { weekday: "narrow" }) : date.getDate()}</small></div>`;
+      return `<button class="progress-day ${key === selected ? "chosen" : ""}" data-progress-day="${key}" aria-pressed="${key === selected}" aria-label="${esc(label)}. Edit this day" title="${esc(label)}"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="12" class="progress-track"/><circle cx="16" cy="16" r="12" pathLength="100" stroke-dasharray="${ratio >= 1 ? "none" : `${ratio * 100} 100`}" class="progress-value"/></svg><small>${progressRange === 7 ? date.toLocaleDateString([], { weekday: "narrow" }) : date.getDate()}</small></button>`;
     })
     .join("")}</div></section>`;
 }

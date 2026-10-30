@@ -65,6 +65,8 @@ const shared = Object.fromEntries(
     "checklist",
     "orderedLists",
     "bindToday",
+    "bindTodayBoard",
+    "editingTodayLayout",
     "renderLists",
     "openList",
     "renderCalendar",

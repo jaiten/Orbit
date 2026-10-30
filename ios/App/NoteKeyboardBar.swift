@@ -8,7 +8,7 @@ final class NoteKeyboardBar: UIView {
         autoresizingMask = [.flexibleWidth]
         backgroundColor = UIColor { traits in UIColor(DayTheme.canvas(traits.userInterfaceStyle == .dark ? .dark : .light)) }
         isOpaque = true
-        let scroll = UIScrollView(); scroll.showsHorizontalScrollIndicator = false
+        let scroll = UIScrollView(); scroll.showsHorizontalScrollIndicator = false; scroll.accessibilityIdentifier = "note-edit-controls"
         scroll.alwaysBounceHorizontal = true
         let stack = UIStackView(); stack.axis = .horizontal; stack.spacing = 4
         for (name, symbol, selector) in actions {

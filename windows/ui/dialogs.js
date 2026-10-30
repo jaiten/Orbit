@@ -15,7 +15,7 @@ function openTask(id, date, draft = null) {
   f.elements.listID.innerHTML =
     `<option value="">No section</option><option value="${SOMEDAY}">Someday</option>` +
     rows("lists")
-      .filter((l) => l.id !== SOMEDAY)
+      .filter((l) => l.id !== SOMEDAY && l.kind !== "notes")
       .map((l) => `<option value="${esc(l.id)}">${esc(l.name)}</option>`)
       .join("");
   f.elements.listID.value = source?.listID || selectedList || "";
@@ -29,6 +29,8 @@ function openTask(id, date, draft = null) {
   $("#editor-title").textContent = editing ? "Edit Task" : "New Task";
   $("#delete-task").hidden = !editing;
   $("#move-task").hidden = !editing;
+  const dateOptions = f.querySelector("details.capture-options");
+  if (dateOptions) dateOptions.open = !editing && page === "calendar";
   openDialog($("#editor"));
 }
 

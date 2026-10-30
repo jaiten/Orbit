@@ -57,7 +57,8 @@ function bindLists() {
   );
   document.querySelectorAll("[data-note-section]").forEach(
     (b) =>
-      (b.onclick = () => {
+      (b.onclick = async () => {
+        if (page === "note") await saveNote();
         const id = b.dataset.noteSection;
         if (collapsedNoteSections.has(id)) collapsedNoteSections.delete(id);
         else collapsedNoteSections.add(id);
@@ -67,8 +68,14 @@ function bindLists() {
   );
   document.querySelectorAll("[data-new-list]").forEach((button) => (button.onclick = () => openList()));
   if ($("#note-filter")) {
-    $("#note-filter").oninput = (e) => {
+    $("#note-filter").oninput = async (e) => {
+      const wasEmpty = !noteFilter;
       noteFilter = e.target.value;
+      if (wasEmpty !== !noteFilter) {
+        if (page === "note") await saveNote();
+        render();
+        $("#note-filter")?.focus();
+      }
       applyNoteFilter();
     };
     applyNoteFilter();
@@ -82,7 +89,7 @@ function bindLists() {
     group.ondrop = (event) => {
       event.preventDefault();
       const source = event.dataTransfer.getData("text/orbit-section");
-      const ordered = orderedLists();
+      const ordered = orderedLists("notes");
       const from = ordered.findIndex((list) => list.id === source);
       const to = ordered.findIndex((list) => list.id === group.dataset.dragSection);
       if (from < 0 || from === to) return;
@@ -95,6 +102,35 @@ function bindLists() {
           })),
         ),
       );
+    };
+  });
+  document.querySelectorAll("[data-section-menu]").forEach((row) => {
+    row.oncontextmenu = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const id = row.dataset.sectionMenu;
+      let menu = $("#row-menu");
+      if (!menu) {
+        menu = document.createElement("div");
+        menu.id = "row-menu";
+        menu.className = "row-menu";
+        menu.setAttribute("role", "menu");
+        document.body.append(menu);
+      }
+      menu.innerHTML =
+        '<button role="menuitem" data-section-rename>Rename section</button><button role="menuitem" class="danger" data-section-delete>Delete section</button>';
+      menu.hidden = false;
+      menu.style.left = `${Math.min(event.clientX, innerWidth - 200)}px`;
+      menu.style.top = `${Math.min(event.clientY, innerHeight - 90)}px`;
+      menu.querySelector("[data-section-rename]").onclick = () => {
+        closeRowMenu();
+        openList(id, "notes");
+      };
+      menu.querySelector("[data-section-delete]").onclick = () => {
+        closeRowMenu();
+        beginSectionDeletion(id);
+      };
+      menu.querySelector("button").focus();
     };
   });
   bindNoteEditor();
@@ -118,7 +154,7 @@ function sectionName(id) {
 }
 /** Your sections in order, then notes without one, then Someday. */
 function noteSections() {
-  const own = orderedLists().map((l) => ({ id: l.id, name: l.name, color: colorName(l.color), own: true }));
+  const own = orderedLists("notes").map((l) => ({ id: l.id, name: l.name, color: colorName(l.color), own: true }));
   return own;
 }
 function notesIn(id) {
@@ -142,10 +178,10 @@ function notesNav() {
       const items = notesIn(s.id);
       if (!items.length && !s.own) return "";
       const key = s.id || "none";
-      const open = !collapsedNoteSections.has(key) || items.some((n) => n.id === openID);
+      const open = !collapsedNoteSections.has(key) || !!noteFilter;
       const selected = page === "lists" && (selectedList || "") === s.id && selectedList !== null;
       return `<div class="notes-nav-group" ${s.own ? `draggable="true" data-drag-section="${esc(s.id)}"` : ""}>
-        <div class="notes-nav-row ${selected ? "selected" : ""}">
+        <div class="notes-nav-row ${selected ? "selected" : ""}" data-section-menu="${esc(s.id)}">
           <button class="notes-nav-toggle" data-note-section="${esc(key)}" aria-expanded="${open}" aria-label="${open ? "Collapse" : "Expand"} ${esc(s.name)}"><span class="chevron ${open ? "open" : ""}">${icon(ICONS.chevron)}</span></button>
           <button class="notes-nav-name" data-notes-home="${esc(s.id)}" title="${esc(s.name)}"><span class="list-dot ${s.color}"></span>${esc(s.name)}<span class="note-count">${items.length || ""}</span></button>
           <button class="icon-button small" data-new-note="${esc(s.id)}" aria-label="New note in ${esc(s.name)}" title="New note in ${esc(s.name)}">${icon(ICONS.plus)}</button>
@@ -171,14 +207,21 @@ function notesNav() {
       <button class="icon-button" data-new-note="${esc(selectedList || "")}" aria-label="New note" title="New note (Ctrl+N)">${icon(ICONS.compose)}</button>
     </div>
     <input id="note-filter" type="search" placeholder="Find a page" aria-label="Find a page" value="${esc(noteFilter)}" />
-    <button class="notes-nav-all ${page === "lists" && selectedList === null ? "selected" : ""}" data-notes-home="all">All<span class="note-count">${notes().length}</span></button>
-    <div class="notes-nav-pages">${notes()
-      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
-      .map(
-        (n) =>
-          `<button class="notes-nav-page ${n.id === openID ? "selected" : ""}" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" data-search="${esc([n.title, n.notes].join(" ").toLowerCase())}">${docIcon}<span>${esc(noteDisplayTitle(n))}</span></button>`,
-      )
-      .join("")}</div>
+    <div class="notes-nav-row ${page === "lists" && selectedList === null ? "selected" : ""}">
+      <button class="notes-nav-toggle" data-note-section="all" aria-expanded="${!collapsedNoteSections.has("all") || !!noteFilter}" aria-label="${collapsedNoteSections.has("all") && !noteFilter ? "Expand" : "Collapse"} All notes"><span class="chevron ${collapsedNoteSections.has("all") && !noteFilter ? "" : "open"}">${icon(ICONS.chevron)}</span></button>
+      <button class="notes-nav-name notes-nav-all" data-notes-home="all">All<span class="note-count">${notes().length}</span></button>
+    </div>
+    ${
+      !collapsedNoteSections.has("all") || !!noteFilter
+        ? `<div class="notes-nav-pages">${notes()
+            .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+            .map(
+              (n) =>
+                `<button class="notes-nav-page ${n.id === openID ? "selected" : ""}" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" data-search="${esc([n.title, n.notes].join(" ").toLowerCase())}">${docIcon}<span>${esc(noteDisplayTitle(n))}</span></button>`,
+            )
+            .join("")}</div>`
+        : ""
+    }
     <div class="notes-nav-sections">${sections}</div>
     <button class="notes-nav-add" data-new-list>${icon(ICONS.plus)}New section</button>
   </aside>`;
@@ -265,7 +308,7 @@ function renderNoteEditor() {
   const note = notes().find((n) => n.id === noteID) || pendingNotes.get(noteID);
   const section = note ? note.listID || "" : noteSection || "";
   const options = [`<option value="">All</option>`]
-    .concat(orderedLists().map((l) => `<option value="${esc(l.id)}">${esc(l.name)}</option>`))
+    .concat(orderedLists("notes").map((l) => `<option value="${esc(l.id)}">${esc(l.name)}</option>`))
     .concat(`<option value="${SOMEDAY}">Someday</option>`)
     .join("")
     .replace(`value="${esc(section)}"`, `value="${esc(section)}" selected`);
@@ -434,17 +477,17 @@ function bindNoteEditor() {
 function renderLists() {
   // Someday is built in: always last, never renamed or deleted.
   const someday = `<div class="sidebar-list"><button data-list="${SOMEDAY}" class="${selectedList === SOMEDAY ? "selected" : ""}"><span class="list-dot lavender"></span>Someday</button></div>`;
-  const own = orderedLists();
+  const own = orderedLists("notes");
   $("#sidebar-lists").innerHTML =
     `<div class="list-heading">Note sections</div>` +
     own
       .map(
         (l) =>
-          `<div class="sidebar-list"><button data-notes-section-link="${esc(l.id)}"><span class="list-dot ${colorName(l.color)}"></span>${esc(l.name)}</button><button data-edit-list="${esc(l.id)}" aria-label="Edit ${esc(l.name)} note section">⋯</button></div>`,
+          `<div class="sidebar-list" data-section-menu="${esc(l.id)}"><button data-notes-section-link="${esc(l.id)}"><span class="list-dot ${colorName(l.color)}"></span>${esc(l.name)}</button><button data-edit-list="${esc(l.id)}" data-list-kind="notes" aria-label="Edit ${esc(l.name)} note section">⋯</button></div>`,
       )
       .join("") +
     `<div class="list-heading">Task categories</div>` +
-    own
+    orderedLists("tasks")
       .map(
         (l) =>
           `<div class="sidebar-list"><button data-list="${esc(l.id)}" class="${page === "tasks" && selectedList === l.id ? "selected" : ""}"><span class="list-dot ${colorName(l.color)}"></span>${esc(l.name)}</button><button data-edit-list="${esc(l.id)}" aria-label="Edit ${esc(l.name)} section">⋯</button></div>`,
@@ -468,10 +511,14 @@ function renderLists() {
         render();
       }),
   );
-  document.querySelectorAll("[data-edit-list]").forEach((b) => (b.onclick = () => openList(b.dataset.editList)));
+  document
+    .querySelectorAll("[data-edit-list]")
+    .forEach((b) => (b.onclick = () => openList(b.dataset.editList, b.dataset.listKind || "tasks")));
 }
 
-function openList(id) {
+let listEditingKind = "notes";
+function openList(id, kind = page === "tasks" ? "tasks" : "notes") {
+  listEditingKind = kind;
   $("#list-delete-confirm").hidden = true;
   editingList = rows("lists").find((l) => l.id === id) || null;
   const f = $("#list-form");
@@ -479,11 +526,18 @@ function openList(id) {
   f.elements.color.value = editingList?.color || "sage";
   $("#delete-list").hidden = !editingList;
   $("#list-order-controls").hidden = !editingList;
-  const ordered = orderedLists();
+  const ordered = orderedLists(listEditingKind);
   const index = ordered.findIndex((list) => list.id === id);
   $("#list-move-up").disabled = index <= 0;
   $("#list-move-down").disabled = index < 0 || index === ordered.length - 1;
-  $("#list-editor-title").textContent = editingList ? "Edit Section" : "New Section";
+  $("#list-editor-title").textContent =
+    listEditingKind === "notes"
+      ? editingList
+        ? "Edit Section"
+        : "New Section"
+      : editingList
+        ? "Edit Category"
+        : "New Category";
   openDialog($("#list-editor"));
   f.elements.name.focus();
 }
@@ -498,6 +552,7 @@ $("#list-form").onsubmit = (e) => {
       ...(rows("lists").find((list) => list.id === editingList?.id) || {
         id: crypto.randomUUID(),
         sortOrder: rows("lists").length,
+        kind: listEditingKind,
       }),
       name: f.elements.name.value.trim(),
       color: f.elements.color.value,
@@ -512,25 +567,77 @@ $("#delete-list").onclick = () => {
 $("#confirm-delete-list").onclick = () =>
   action(async () => {
     if (!editingList) return;
-    // Deleting a section keeps its notes and tasks; they move out of it.
-    const changes = rows("tasks")
-      .filter((t) => t.listID === editingList.id)
-      .map((t) => ({ key: t._key, payload: { ...clean(t), listID: null, updatedAt: Date.now() } }));
-    changes.push({ key: editingList._key, payload: clean(editingList), deleted: true });
-    await api.batch(changes);
+    await deleteScopedGroup(editingList, listEditingKind, false);
     selectedList = null;
     $("#list-editor").close();
     $("#list-delete-confirm").hidden = true;
   });
+let deletingNoteSection = null;
+async function beginSectionDeletion(id) {
+  if (page === "note") await saveNote();
+  clearTimeout(noteSaveTimer);
+  deletingNoteSection = rows("lists").find((list) => list.id === id);
+  if (!deletingNoteSection) return;
+  const count = notes().filter((note) => note.listID === id).length;
+  if (!count) {
+    void action(() => deleteScopedGroup(deletingNoteSection, "notes", false));
+    return;
+  }
+  $("#section-delete-description").textContent =
+    `${count} ${count === 1 ? "note is" : "notes are"} in this section. Move them to All, or delete them with the section.`;
+  openDialog($("#section-delete"));
+}
+async function deleteScopedGroup(list, kind, deleteContents) {
+  const changes = rows("tasks")
+    .filter((task) => task.listID === list.id && !!task.isNote === (kind === "notes"))
+    .map((task) => ({
+      key: task._key,
+      payload: { ...clean(task), listID: null, updatedAt: Date.now() },
+      deleted: deleteContents,
+    }));
+  const opposite = kind === "notes" ? "tasks" : "notes";
+  if (!list.kind) changes.push({ key: list._key, payload: { ...clean(list), kind: opposite, updatedAt: Date.now() } });
+  else changes.push({ key: list._key, payload: clean(list), deleted: true });
+  if (deleteContents)
+    for (const change of changes) {
+      if (!change.key.startsWith("tasks/")) continue;
+      pendingNotes.delete(change.payload.id);
+      if (lastNoteID === change.payload.id) {
+        lastNoteID = null;
+        localStorage.removeItem("lastNoteID");
+      }
+      if (noteID === change.payload.id) {
+        noteID = null;
+        page = "lists";
+        notePageToken++;
+      }
+    }
+  await api.batch(changes);
+}
+for (const [selector, remove] of [
+  ["#release-section-notes", false],
+  ["#delete-section-notes", true],
+])
+  $(selector).onclick = () =>
+    action(async () => {
+      if (deletingNoteSection) await deleteScopedGroup(deletingNoteSection, "notes", remove);
+      if (noteID && !notes().some((note) => note.id === noteID)) {
+        noteID = null;
+        page = "lists";
+      }
+      selectedList = null;
+      $("#section-delete").close();
+      deletingNoteSection = null;
+    });
 
-function orderedLists() {
+function orderedLists(kind = "tasks") {
   return rows("lists")
-    .filter((list) => list.id !== SOMEDAY)
+    .filter((list) => list.id !== SOMEDAY && (!list.kind || list.kind === kind))
     .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
 }
 function moveList(delta) {
   void action(async () => {
-    const ordered = orderedLists();
+    const ordered = orderedLists(listEditingKind);
     const index = ordered.findIndex((list) => list.id === editingList?.id);
     const next = index + delta;
     if (index < 0 || next < 0 || next >= ordered.length) return;

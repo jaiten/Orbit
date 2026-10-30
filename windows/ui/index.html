@@ -257,6 +257,15 @@
       </div>
       <dl id="shortcuts-list" class="shortcuts"></dl>
     </dialog>
+    <dialog id="section-delete" aria-labelledby="section-delete-title">
+      <h2 id="section-delete-title">Delete section?</h2>
+      <p id="section-delete-description"></p>
+      <footer>
+        <button type="button" data-close>Cancel</button
+        ><button type="button" id="release-section-notes">Move notes to All</button
+        ><button type="button" id="delete-section-notes" class="danger">Delete section and notes</button>
+      </footer>
+    </dialog>
     <script src="planning.js"></script>
     <script src="notes.js"></script>
     <script src="habits.js"></script>
@@ -269,6 +278,7 @@
     <script src="core.js"></script>
     <script src="motion.js"></script>
     <script src="controls.js"></script>
+    <script src="today-layout.js"></script>
     <script src="pages/today.js"></script>
     <script src="pages/tasks.js"></script>
     <script src="note-document.js"></script>

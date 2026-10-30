@@ -73,6 +73,8 @@ jobs:
         run: |
           set -euo pipefail
           xcrun altool --upload-app --type ios --file "$RUNNER_TEMP/export/Orbit.ipa" --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+      - name: Verify Apple finished processing this build
+        run: python3 scripts/wait_for_testflight.py
       - name: Remove signing material
         if: always()
         run: |

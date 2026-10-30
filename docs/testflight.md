@@ -81,3 +81,11 @@ On a Mac, use Xcode's Run button on a connected iPhone for UI iteration, and cli
 the diamond beside an individual test to rerun it. This avoids a TestFlight upload
 for each visual adjustment. Without a Mac, focused CI runs provide the same narrow
 feedback loop through GitHub Actions.
+
+## Processing confirmation
+
+After upload, CI runs `scripts/wait_for_testflight.py` with the existing App Store
+Connect identity. It finds the exact bundle and archived build number, waits for
+Apple's `VALID` processing state, and records the internal testing state in the job
+summary. A rejected, expired or unprocessed build does not pass this release gate.
+The check uses read-only App Store Connect requests and does not change tester groups.

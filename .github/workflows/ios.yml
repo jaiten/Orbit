@@ -3,9 +3,9 @@ run-name: iOS ${{ inputs.test_scope || 'smoke' }} checks — ${{ github.ref_name
 on:
   push:
     branches: [main]
-    paths: ['ios/**', 'shared/**', '.github/workflows/ios.yml', '.github/workflows/testflight.yml', 'scripts/prepare_testflight.py', 'scripts/run_ios_tests.sh', 'scripts/restore_source_mtimes.py']
+    paths: ['ios/**', 'shared/**', '.github/workflows/ios.yml', '.github/workflows/testflight.yml', 'scripts/prepare_testflight.py', 'scripts/wait_for_testflight.py', 'scripts/run_ios_tests.sh', 'scripts/restore_source_mtimes.py']
   pull_request:
-    paths: ['ios/**', 'shared/**', '.github/workflows/ios.yml', '.github/workflows/testflight.yml', 'scripts/prepare_testflight.py', 'scripts/run_ios_tests.sh', 'scripts/restore_source_mtimes.py']
+    paths: ['ios/**', 'shared/**', '.github/workflows/ios.yml', '.github/workflows/testflight.yml', 'scripts/prepare_testflight.py', 'scripts/wait_for_testflight.py', 'scripts/run_ios_tests.sh', 'scripts/restore_source_mtimes.py']
   workflow_dispatch:
     inputs:
       test_scope:

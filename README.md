@@ -41,18 +41,27 @@ reminders schedule the nearest 60 requests and refill on app interaction.
 
 ## Beta interface refinements
 
-Windows Today has compact habits and movable panels behind **Edit layout**.
-Recent progress, Your plan, Habits and Overall progress can each be hidden; the
-heatmap is off by default. Calendar uses quarter-hour slots, draggable scheduling,
-a duration handle on hover and a 12/24-hour preference (12-hour default). Anytime
-tasks occupy one line each. Notes support automatic lists, Tab/Shift+Tab indentation,
-inline photo placement, selection/deletion and text wrapping around photos.
+Windows Today has compact, colored habit rows and squared cards. The layout icon
+opens direct drag-and-drop editing: every panel, including tasks, can move between
+columns or above the task list. Recent progress is always seven clickable dates;
+select a date to edit missed tasks and habits, then reopen Today to return to the
+current day. Overdue tasks have bulk Today / Later / Someday actions. Overall progress
+is optional, reads left to right, and uses a week/month choice in Settings or Edit layout.
 
-On iPhone, Notes has a native monochrome keyboard toolbar for lists, indentation,
-undo/redo and Done. Both apps keep saving during editing while the displayed edited
-time stays fixed until the note is reopened. **Include tasks in daily progress** is
-on by default; the iPhone preference also applies to Today widgets. iPhone Settings
-also offers Sunday or Monday as the calendar's first day of the week.
+Calendar has quarter-hour slots, draggable tasks, a 12/24-hour preference and thin
+anytime rows. Drag the anytime boundary to resize or fully collapse it; the toolbar
+restores it. New calendar tasks open their date/time options. Notes supports styled
+bullet levels, inline photos, and section menus with explicit keep/delete-content
+choices. New note sections and task categories are independent. Legacy shared groups
+remain readable so existing filing is preserved.
+
+On iPhone, Notes has an opaque keyboard accessory with horizontally scrolling list,
+indent and undo/redo controls and a pinned Done button. Category creation uses an
+inline plus button; native drag handles reorder categories, including Someday.
+Settings groups appearance, Today/progress, calendars, notifications and data.
+Both apps keep saving during note editing while the displayed edited time stays
+fixed until the note is reopened. Task inclusion in daily progress defaults on,
+including iPhone widgets. The release pipeline verifies Apple processing after upload.
 
 ## Calendars and focus
 
@@ -92,8 +101,7 @@ Work, Someday…); open one to edit it as a page with a large title, a Section p
 the text below. Type more than about 120 characters (or a line break) into Add a task and
 the chip changes to *Note*; Return saves it to Notes instead of Today. Notes are task
 records marked `isNote`, so they sync, back up and undo with everything else, and never
-appear as to-dos. Sections are the former lists; tasks filed in one still show on its
-Notes page (Windows) and in Calendar's overview. Calendar's **Overview** (iPhone) and **Month / Week / All** views (Windows) show
+appear as to-dos. New note sections and task categories are scoped independently; older shared groups stay readable. Calendar's **Overview** (iPhone) and **Month / Week / All** views (Windows) show
 every task in that period by day, and how each habit is going. Notes has the same bottom
 bar as Today; whatever you type there becomes a note.
 

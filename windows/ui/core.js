@@ -389,10 +389,10 @@ function habitCard(h, { editable = false, fullWidth = false } = {}) {
   const done = checked(h);
   const id = esc(h.id),
     title = esc(h.title);
-  return `<div class="row habit-row check-tile ${done ? "complete" : ""} ${fullWidth ? "wide-habit" : ""}" data-flip="habit-${id}" data-row-menu="habit:${id}">
+  return `<div class="row habit-row habit-${colorName(h.color)} check-tile ${done ? "complete" : ""} ${fullWidth ? "wide-habit" : ""}" data-flip="habit-${id}" data-row-menu="habit:${id}">
     <div class="row-line">
       <button class="row-tick" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-menu="${id}" ${selected > today() ? "disabled" : ""}>${tick(done, poppedID === h.id)}</button>
-      <div class="row-main"><button class="row-body" aria-label="Edit ${title}" data-habit-edit="${id}"><span class="row-title">${title}</span>${editable ? `<span class="dot ${colorName(h.color)}" aria-hidden="true"></span>` : ""}<span class="row-detail ${done ? "met" : ""}">${habitDetail(h)}</span></button>
+      <div class="row-main"><button class="row-body" aria-label="Edit ${title}" data-habit-edit="${id}"><span class="row-title">${title}</span>${editable ? `<span class="dot ${colorName(h.color)}" aria-hidden="true"></span>` : ""}<span class="row-detail ${done ? "met" : ""}">${page === "today" ? `${progress(h)} of ${h.target}` : habitDetail(h)}</span></button>
       ${rowActions(id, title, true)}</div>
     </div>
   </div>`;
@@ -436,7 +436,7 @@ function newTask(title, date) {
 async function toggle(id) {
   const t = rows("tasks").find((t) => t.id === id);
   if (!t) return;
-  if (!t.completedAt && t.progressTracking === true && !t.startedAt) {
+  if (!(page === "today" && selected !== today()) && !t.completedAt && t.progressTracking === true && !t.startedAt) {
     poppedID = t.id;
     await put("tasks", OrbitPlanner.setProgress(t, true, true));
     return;
@@ -446,14 +446,18 @@ async function toggle(id) {
   await put("tasks", {
     ...t,
     startedAt: t.completedAt ? null : t.startedAt,
-    completedAt: t.completedAt ? null : Date.now(),
+    completedAt: t.completedAt
+      ? null
+      : page === "today" && selected !== today()
+        ? new Date(`${selected}T12:00:00`).getTime()
+        : Date.now(),
     updatedAt: Date.now(),
   });
 }
 async function log(id, undo, date = selected) {
   const h = rows("habits").find((h) => h.id === id);
   const current = dayKey(new Date());
-  if (date > current || date < OrbitHabits.addDays(current, -1) || !h) return;
+  if (date > current || date < OrbitHabits.addDays(current, -6) || !h) return;
   const old = rows("habit_logs").find((l) => l.habitID === id && l.dayKey === date);
   if (!undo && checked(h, date)) return;
   const data = old || { id: crypto.randomUUID(), habitID: id, dayKey: date, count: 0 };
