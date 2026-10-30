@@ -671,7 +671,8 @@ const fs = require("node:fs");
     await p.screenshot({ path: process.env.ORBIT_SCREENSHOT.replace(".png", "-calendar.png") });
   await p.keyboard.press("Control+6");
   await p.locator("#calendar-clock").evaluate((picker) => picker.scrollIntoView({ block: "end" }));
-  await p.getByRole("combobox", { name: "Calendar clock format", exact: true }).click();
+  await p.getByRole("combobox", { name: "Calendar clock format", exact: true }).focus();
+  await p.keyboard.press("ArrowDown");
   await p.waitForFunction(() =>
     document.querySelector('[data-picker="calendar-clock"]').classList.contains("opens-up"),
   );

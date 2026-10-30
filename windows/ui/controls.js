@@ -11,7 +11,7 @@ function bindPickers(handlers, root = document) {
   root.querySelectorAll("[data-picker]").forEach((picker) => {
     const summary = picker.querySelector("summary");
     const buttons = [...picker.querySelectorAll("[role=option]")];
-    picker.ontoggle = () => {
+    const syncPicker = () => {
       summary.setAttribute("aria-expanded", String(picker.open));
       if (picker.open) {
         const menu = picker.querySelector(".picker-menu");
@@ -28,10 +28,17 @@ function bindPickers(handlers, root = document) {
         });
       }
     };
+    picker.ontoggle = syncPicker;
+    summary.onclick = (event) => {
+      event.preventDefault();
+      picker.open = !picker.open;
+      syncPicker();
+    };
     summary.onkeydown = (event) => {
       if (["ArrowDown", "ArrowUp"].includes(event.key)) {
         event.preventDefault();
         picker.open = true;
+        syncPicker();
         (buttons.find((button) => button.getAttribute("aria-selected") === "true") || buttons[0])?.focus();
       }
     };
