@@ -4582,3 +4582,30 @@ body:is([data-view="history"], [data-view="habit-history"]) .page-head {
 .overall-progress .recent-progress-head {
   margin-bottom: 10px;
 }
+.today-board .card {
+  border: 1px solid var(--line);
+  box-shadow: none;
+}
+.today-board .plan-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  min-height: 0;
+}
+.today-board .plan-card .eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  margin: 0;
+}
+.today-board .plan-card .plan-count {
+  font-size: 11px;
+  margin: 0;
+  align-self: center;
+}
+.today-board .plan-card .plan-bar {
+  grid-column: 1 / -1;
+  height: 5px;
+  margin: 0;
+}
