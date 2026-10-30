@@ -77,7 +77,7 @@ struct InlineCapture: View {
         }.tint(accent.text)
             .animation(reduceMotion ? .easeOut(duration: 0.15) : .orbit, value: focused)
             .onDisappear { dismissKeyboard() }
-            .sheet(isPresented: $options) { QuickCapture(listID: listID, fromList: listID != nil || defaultDay == .undated, initialText: text, habitsOnly: habitsOnly, onSaved: { text = "" }) }
+            .sheet(isPresented: $options) { QuickCapture(listID: listID, fromList: listID != nil || defaultDay == .undated, initialText: text, habitsOnly: habitsOnly, onSaved: { text = "" }).presentationDragIndicator(.visible) }
             .confirmationDialog("This time overlaps another plan", isPresented: $confirmConflict, titleVisibility: .visible) {
                 Button("Add anyway") { save(allowConflict: true) }
                 Button("Change time", role: .cancel) {}

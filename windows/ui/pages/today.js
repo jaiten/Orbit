@@ -52,6 +52,37 @@ function scopeTabs() {
   ).join("")}</div>`;
 }
 
+let editingTodayLayout = false;
+function todayPanel(id, content, defaultColumn = "side") {
+  const stored = JSON.parse(localStorage.getItem("todayPanelLayout") || "null") || {};
+  const column = stored[id]?.column || defaultColumn;
+  const visibility = { heatmap: false, ...JSON.parse(localStorage.getItem("todayPanelVisibility") || "{}") };
+  const visible = visibility[id] !== false;
+  return `<section class="today-panel" data-today-panel="${id}" data-panel-column="${column}" ${!visible && !editingTodayLayout ? "hidden" : ""} ${editingTodayLayout ? 'draggable="true"' : ""}>${editingTodayLayout ? `<div class="panel-tools"><span>⠿ ${id === "heatmap" ? "Overall progress" : id}</span><button data-panel-column-toggle="${id}" aria-label="Move ${id} to other column">⇄</button><button data-panel-up="${id}" aria-label="Move ${id} up">↑</button><button data-panel-down="${id}" aria-label="Move ${id} down">↓</button></div>` : ""}${content}</section>`;
+}
+function overallProgressCard(tasks, habits) {
+  const normalized = tasks.map((task) => ({
+    day: taskDate(task),
+    completedDay: task.completedAt ? dayKey(new Date(task.completedAt)) : null,
+    isNote: task.isNote,
+  }));
+  const entries = habits.map((habit) => ({
+    ...habit,
+    createdDay: habit.createdAt ? dayKey(new Date(habit.createdAt)) : null,
+  }));
+  const levels = gridDays().map((key) =>
+    key > today()
+      ? -1
+      : OrbitRecentProgress.day(
+          normalized,
+          entries,
+          habitLogs(),
+          key,
+          localStorage.getItem("progressIncludesTasks") !== "false",
+        ).ratio,
+  );
+  return `<section class="card overall-progress"><h2>Overall progress <small>Past 12 weeks</small></h2>${boxGrid(levels, "sage", "Overall daily completion")}</section>`;
+}
 function renderToday(tasks, allHabits) {
   // Today: dated today or earlier and still open, or finished today. Undated and Someday items stay in Notes.
   const relevant = tasks.filter((t) => OrbitPlanner.onDay(planItem(t), selected, today()));
@@ -64,8 +95,9 @@ function renderToday(tasks, allHabits) {
   const timed = open.filter((t) => t.hasTime && !overdue.includes(t)),
     untimed = open.filter((t) => !t.hasTime && !overdue.includes(t));
   const habitsDone = habits.filter((h) => checked(h)).length;
-  const done = complete.length + habitsDone,
-    total = relevant.length + habits.length;
+  const includeTasks = localStorage.getItem("progressIncludesTasks") !== "false";
+  const done = (includeTasks ? complete.length : 0) + habitsDone,
+    total = (includeTasks ? relevant.length : 0) + habits.length;
   const date = localDay(selected);
   const isToday = selected === today();
   const heading = isToday ? "Today" : date.toLocaleDateString([], { weekday: "long" });
@@ -73,7 +105,7 @@ function renderToday(tasks, allHabits) {
   return `<div class="today-layout">
     <header class="page-head">
         <div><div class="eyebrow">${eyebrow}</div><h1>${heading}</h1></div>
-        <div class="head-tools">
+        <div class="head-tools"><button id="edit-today-layout" aria-pressed="${editingTodayLayout}">${editingTodayLayout ? "Done" : "Edit layout"}</button>
           <div class="day-nav" role="group" aria-label="Day">
             <button class="icon-button" data-day-step="-1" aria-label="Previous day" title="Previous day"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button
             ><button id="go-today" class="today-button" ${isToday ? "disabled" : ""}>Today</button
@@ -81,6 +113,24 @@ function renderToday(tasks, allHabits) {
           </div>
         </div>
       </header>
+    ${
+      editingTodayLayout
+        ? `<div class="today-layout-options" role="group" aria-label="Visible panels">${[
+            ["recent", "Recent progress"],
+            ["plan", "Your plan"],
+            ["habits", "Habits"],
+            ["heatmap", "Overall progress"],
+          ]
+            .map(([id, title]) => {
+              const visibility = {
+                heatmap: false,
+                ...JSON.parse(localStorage.getItem("todayPanelVisibility") || "{}"),
+              };
+              return `<label><input type="checkbox" data-panel-visible="${id}" ${visibility[id] !== false ? "checked" : ""} /> ${title}</label>`;
+            })
+            .join("")}</div>`
+        : ""
+    }
     <section class="today-main">
       ${focusBanner()}
       ${conflictBanner()}
@@ -101,12 +151,14 @@ function renderToday(tasks, allHabits) {
             </details>`
           : ""
       }
-      ${habits.length ? sectionLabel("Habits", `${habitsDone} of ${habits.length}`) + `<div class="check-list">${habitCards(habits)}</div>` : ""}
+      <div id="today-main-panels" class="today-panel-column" data-panel-drop="main"></div>
       <div class="capture-dock">${addField()}</div>
     </section>
-    <aside class="today-side" aria-label="Plan and progress">
-      ${recentProgressCard(tasks, allHabits)}
-      ${planCard(done, total)}
+    <aside class="today-side today-panel-column" data-panel-drop="side" aria-label="Plan and progress">
+      ${todayPanel("recent", recentProgressCard(tasks, allHabits))}
+      ${todayPanel("plan", planCard(done, total))}
+      ${todayPanel("habits", habits.length ? sectionLabel("Habits", `${habitsDone} of ${habits.length}`) + `<div class="check-list compact-habits">${habitCards(habits)}</div>` : '<p class="secondary">No habits today</p>', habits.length > 6 ? "main" : "side")}
+      ${todayPanel("heatmap", overallProgressCard(tasks, allHabits))}
     </aside>
   </div>`;
 }
@@ -195,6 +247,75 @@ function renderAgenda(tasks, allHabits, head = "") {
 }
 
 function bindToday() {
+  document.querySelectorAll("[data-panel-visible]").forEach((toggle) => {
+    toggle.onchange = () => {
+      const visibility = { heatmap: false, ...JSON.parse(localStorage.getItem("todayPanelVisibility") || "{}") };
+      visibility[toggle.dataset.panelVisible] = toggle.checked;
+      localStorage.setItem("todayPanelVisibility", JSON.stringify(visibility));
+      render();
+    };
+  });
+  if ($("#edit-today-layout"))
+    $("#edit-today-layout").onclick = () => {
+      editingTodayLayout = !editingTodayLayout;
+      render();
+    };
+  const panels = [...document.querySelectorAll("[data-today-panel]")];
+  const layout = JSON.parse(localStorage.getItem("todayPanelLayout") || "null") || {};
+  const original = new Map(panels.map((panel, order) => [panel, order]));
+  panels.sort(
+    (a, b) =>
+      (layout[a.dataset.todayPanel]?.order ?? original.get(a)) -
+      (layout[b.dataset.todayPanel]?.order ?? original.get(b)),
+  );
+  panels.forEach((panel) => document.querySelector(`[data-panel-drop="${panel.dataset.panelColumn}"]`)?.append(panel));
+  const persist = () => {
+    const values = {};
+    document.querySelectorAll("[data-panel-drop]").forEach((column) => {
+      [...column.children].forEach((panel, order) => {
+        values[panel.dataset.todayPanel] = { column: column.dataset.panelDrop, order };
+      });
+    });
+    localStorage.setItem("todayPanelLayout", JSON.stringify(values));
+    render();
+  };
+  document.querySelectorAll("[data-panel-column-toggle], [data-panel-up], [data-panel-down]").forEach((button) => {
+    button.onclick = () => {
+      const panel = button.closest("[data-today-panel]");
+      if (button.dataset.panelColumnToggle)
+        document
+          .querySelector(`[data-panel-drop="${panel.parentElement.dataset.panelDrop === "main" ? "side" : "main"}"]`)
+          .append(panel);
+      else if (button.dataset.panelUp && panel.previousElementSibling) panel.previousElementSibling.before(panel);
+      else if (button.dataset.panelDown && panel.nextElementSibling) panel.nextElementSibling.after(panel);
+      persist();
+    };
+  });
+  panels.forEach((panel) => {
+    panel.ondragstart = (event) => {
+      if (!editingTodayLayout) {
+        event.preventDefault();
+        return;
+      }
+      event.dataTransfer.setData("text/orbit-panel", panel.dataset.todayPanel);
+    };
+  });
+  document.querySelectorAll("[data-panel-drop]").forEach((column) => {
+    column.ondragover = (event) => {
+      if (editingTodayLayout && event.dataTransfer.types.includes("text/orbit-panel")) event.preventDefault();
+    };
+    column.ondrop = (event) => {
+      if (!editingTodayLayout) return;
+      const id = event.dataTransfer.getData("text/orbit-panel");
+      const source = panels.find((panel) => panel.dataset.todayPanel === id);
+      if (!source) return;
+      event.preventDefault();
+      const target = event.target.closest("[data-today-panel]");
+      if (target && target !== source) column.insertBefore(source, target);
+      else column.append(source);
+      persist();
+    };
+  });
   bindPickers({
     "progress-range": (value) => {
       progressRange = Number(value);
@@ -253,7 +374,13 @@ function recentProgressCard(tasks, habits) {
     String(progressRange),
   )}</div><div class="progress-days ${progressRange === 30 ? "month" : "week"}">${days
     .map((key) => {
-      const progress = OrbitRecentProgress.day(normalized, entries, habitLogs(), key);
+      const progress = OrbitRecentProgress.day(
+        normalized,
+        entries,
+        habitLogs(),
+        key,
+        localStorage.getItem("progressIncludesTasks") !== "false",
+      );
       const date = localDay(key),
         ratio = key > today() ? 0 : progress.ratio;
       const label = `${date.toLocaleDateString([], { month: "short", day: "numeric" })}: ${progress.total ? `${Math.round(ratio * 100)}% complete, ${progress.taskCount} tasks and ${progress.habitCount} habits` : "No scheduled items"}`;

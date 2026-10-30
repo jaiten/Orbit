@@ -5,12 +5,14 @@ struct SyncIndicator: View {
     @ObservedObject private var sync = SyncService.shared
     @Environment(\.modelContext) private var context
     @State private var details = false
+    var textOnly = false
     var body: some View {
         Button { details = true } label: {
             Group {
-                if sync.syncing { ProgressView().controlSize(.small) }
+                if textOnly { Text(sync.status == "All changes synced" && !sync.syncing ? "Synced" : "Not synced").font(.subheadline).fixedSize() }
+                else if sync.syncing { ProgressView().controlSize(.small) }
                 else { Image(systemName: sync.status.contains("Saved locally") || sync.status.contains("review") ? "exclamationmark.icloud" : sync.email == nil ? "icloud" : "checkmark.icloud").font(.system(size: 17)) }
-            }.frame(width: 44, height: 44).foregroundStyle(.secondary)
+            }.frame(minWidth: 44, minHeight: 44).foregroundStyle(.secondary)
         }.accessibilityLabel("Sync status").sheet(isPresented: $details) {
             NavigationStack {
                 Form {
@@ -19,7 +21,7 @@ struct SyncIndicator: View {
                     Button("Sync now") { Task { await sync.run(context) } }.disabled(sync.email == nil || sync.syncing)
                 }.navigationTitle("Sync").navigationBarTitleDisplayMode(.inline)
                     .toolbar { Button("Done") { details = false } }
-            }.presentationDetents([.medium])
+            }.presentationDetents([.medium]).presentationDragIndicator(.visible)
         }
     }
 }

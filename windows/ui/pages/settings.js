@@ -33,6 +33,8 @@ function renderSettings() {
     <section class="settings-block">
       <h2>Appearance</h2>
       <label class="toggle"><input type="checkbox" id="compact-rows" ${root.compact === "true" ? "checked" : ""} /> Compact habits and tasks</label>
+      <label class="toggle"><input type="checkbox" id="progress-tasks" ${localStorage.getItem("progressIncludesTasks") !== "false" ? "checked" : ""} /> Include tasks in daily progress</label>
+      <div class="settings-field"><label for="calendar-clock">Calendar clock</label><select id="calendar-clock"><option value="12" ${localStorage.getItem("calendarClock") !== "24" ? "selected" : ""}>12 hour (AM / PM)</option><option value="24" ${localStorage.getItem("calendarClock") === "24" ? "selected" : ""}>24 hour</option></select></div>
       <div class="accent-options segmented" role="group" aria-label="Appearance">${choiceButtons("appearance", appearances, root.appearance)}</div>
     </section>
     <section class="settings-block">
@@ -71,6 +73,11 @@ function renderSettings() {
 }
 
 function bindSettings() {
+  if ($("#progress-tasks"))
+    $("#progress-tasks").onchange = (event) =>
+      localStorage.setItem("progressIncludesTasks", String(event.target.checked));
+  if ($("#calendar-clock"))
+    $("#calendar-clock").onchange = (event) => localStorage.setItem("calendarClock", event.target.value);
   if ($("#compact-rows")) $("#compact-rows").onchange = (event) => applyCompact(event.target.checked);
   document.querySelectorAll("button[data-accent]").forEach(
     (b) =>

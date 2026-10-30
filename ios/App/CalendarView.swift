@@ -16,12 +16,17 @@ struct CalendarView: View {
     @State private var overview = false
     @State private var error: String?
     @State private var showCompleted = false
-    private var calendar: Calendar { .current }
+    @AppStorage("calendarFirstWeekday") private var firstWeekday = Calendar.current.firstWeekday
+    private var calendar: Calendar { var value = Calendar.current; value.firstWeekday = firstWeekday; return value }
     private var days: [Date] {
         let interval = calendar.dateInterval(of: mode == "Week" ? .weekOfYear : .month, for: selected)!
         var result: [Date] = []
         var day = mode == "Month" ? calendar.dateInterval(of: .weekOfYear, for: interval.start)!.start : interval.start
-        for _ in 0..<(mode == "Week" ? 7 : 42) { result.append(day); day = calendar.date(byAdding: .day, value: 1, to: day)! }
+        let end = mode == "Week" ? calendar.date(byAdding: .day, value: 7, to: day)! : calendar.date(byAdding: .day, value: 6, to: interval.end)!
+        while day < end {
+            if mode == "Month", day >= interval.end, calendar.component(.weekday, from: day) == calendar.firstWeekday { break }
+            result.append(day); day = calendar.date(byAdding: .day, value: 1, to: day)!
+        }
         return result
     }
     private var selectedTasks: [PlannerTask] {
@@ -34,7 +39,7 @@ struct CalendarView: View {
                 let visibleEvents = calendars.events(from: days[0], to: calendar.date(byAdding: .day, value: 1, to: days.last!)!)
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
                     PageHeader(eyebrow: "", title: "Calendar") {
-                        Button { selected = .now } label: { Text("Today").font(.subheadline).foregroundStyle(.secondary).frame(minHeight: 44) }
+                        Button { selected = .now } label: { Text("Today").font(.subheadline).foregroundStyle(.secondary).padding(.horizontal, 14).frame(minWidth: 76, minHeight: 44).fixedSize(horizontal: true, vertical: false) }
                     }
                     Picker("Calendar view", selection: $mode) { Text("Week").tag("Week"); Text("Month").tag("Month") }.pickerStyle(.segmented)
                     HStack {
@@ -51,6 +56,7 @@ struct CalendarView: View {
                             ForEach(days, id: \.self) { day in
                                 Button { selected = day } label: {
                                     let isSelected = calendar.isDate(day, inSameDayAs: selected)
+                                    let outside = mode == "Month" && !calendar.isDate(day, equalTo: selected, toGranularity: .month)
                                     let busy = tasks.contains { $0.day == PlannerLogic.dayKey(day) } || visibleEvents.contains { $0.startDate < calendar.date(byAdding: .day, value: 1, to: day)! && $0.endDate > day }
                                     // Day tiles as on the website: surface with a line; the selected day is filled.
                                     VStack(spacing: 6) {
@@ -58,7 +64,7 @@ struct CalendarView: View {
                                         Text(day.formatted(.dateTime.day())).font(.subheadline.weight(.semibold)).monospacedDigit()
                                         Circle().fill(busy ? (isSelected ? Color.white : accent.fill) : .clear).frame(width: 4, height: 4)
                                     }.frame(maxWidth: .infinity).padding(.vertical, 10)
-                                        .foregroundStyle(isSelected ? Color.white : .primary)
+                                        .foregroundStyle(isSelected ? Color.white : outside ? Color.secondary.opacity(0.45) : Color.primary)
                                         .background(isSelected ? accent.text : Color.orbitSurface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                                         .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(isSelected ? .clear : Color.orbitLine))
                                         .animation(.orbit, value: isSelected)
@@ -95,9 +101,9 @@ struct CalendarView: View {
             }.background(DayTheme.canvas(scheme)).tint(accent.fill).navigationTitle("Calendar").navigationBarTitleDisplayMode(.inline)
                 .toolbar(.hidden, for: .navigationBar)
                 .onChange(of: selected) { _, _ in showCompleted = false }
-                .sheet(item: $editing) { TaskEditor(task: $0) }
-                .sheet(isPresented: $adding) { QuickCapture(initialDate: selected) }
-                .sheet(isPresented: $overview) { AgendaSheet(day: selected) }
+                .sheet(item: $editing) { TaskEditor(task: $0).presentationDragIndicator(.visible) }
+                .sheet(isPresented: $adding) { QuickCapture(initialDate: selected).presentationDragIndicator(.visible) }
+                .sheet(isPresented: $overview) { AgendaSheet(day: selected).presentationDragIndicator(.visible) }
                 .modifier(MutationErrorModifier(error: $error))
         }
     }

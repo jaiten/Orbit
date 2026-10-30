@@ -39,6 +39,21 @@ Windows does not yet edit tags, subtasks or reminder offsets, but keeps them whe
 saving. Background sync services remain follow-up work. iOS
 reminders schedule the nearest 60 requests and refill on app interaction.
 
+## Beta interface refinements
+
+Windows Today has compact habits and movable panels behind **Edit layout**.
+Recent progress, Your plan, Habits and Overall progress can each be hidden; the
+heatmap is off by default. Calendar uses quarter-hour slots, draggable scheduling,
+a duration handle on hover and a 12/24-hour preference (12-hour default). Anytime
+tasks occupy one line each. Notes support automatic lists, Tab/Shift+Tab indentation,
+inline photo placement, selection/deletion and text wrapping around photos.
+
+On iPhone, Notes has a native monochrome keyboard toolbar for lists, indentation,
+undo/redo and Done. Both apps keep saving during editing while the displayed edited
+time stays fixed until the note is reopened. **Include tasks in daily progress** is
+on by default; the iPhone preference also applies to Today widgets. iPhone Settings
+also offers Sunday or Monday as the calendar's first day of the week.
+
 ## Calendars and focus
 
 On iPhone, **Settings → Calendars → Connect calendars** shows today's events from

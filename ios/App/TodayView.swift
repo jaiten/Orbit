@@ -23,6 +23,7 @@ struct TodayView: View {
     @AppStorage("homeSections") private var homeSections = HomeLayoutEditor.defaultSections
     @AppStorage("hiddenHomeSections") private var hiddenSections = HomeLayoutEditor.defaultHidden
     @AppStorage("compactRows") private var compactRows = false
+    @AppStorage("progressIncludesTasks") private var includeTasks = true
     @Environment(\.dynamicTypeSize) private var typeSize
     private var rowSpacing: CGFloat { compactRows && !typeSize.isAccessibilitySize ? 3 : CGFloat(DesignTokens.spaceS) }
     @State private var editing: PlannerTask?
@@ -40,7 +41,7 @@ struct TodayView: View {
     /// Dated today or earlier and still open, or finished today. Undated and Someday items stay in Lists.
     private var relevant: [PlannerTask] {
         let today = PlannerLogic.dayKey(day)
-        return tasks.filter { TodayRules.onDay(TodayRules.item($0), day: today, today: today) }
+        return tasks.filter { !$0.note && TodayRules.onDay(TodayRules.item($0), day: today, today: today) }
     }
     /// Habits scheduled for the day; a weekly habit drops off once its week is done.
     private var dueHabits: [Habit] { habits.filter { PlannerLogic.isDue($0, logs: logs, at: day) } }
@@ -55,7 +56,7 @@ struct TodayView: View {
             page
                 .navigationTitle("Today").navigationBarTitleDisplayMode(.inline)
                 .toolbar(.hidden, for: .navigationBar)
-                .sheet(isPresented: $showSettings) { SettingsView() }
+                .sheet(isPresented: $showSettings) { SettingsView().presentationDragIndicator(.visible) }
                 .modifier(TodaySheets(addingHabit: $addingHabit, customizing: $customizing, editing: $editing, editingHabit: $editingHabit))
                 .modifier(MutationErrorModifier(error: $error))
         }
@@ -82,7 +83,7 @@ struct TodayView: View {
             FocusBanner()
             ConflictBanner()
             // The plan, then the day's sections; capture is docked at the bottom.
-            if sections.contains("progress") { PlanCard(done: planDone, total: relevant.count + dueHabits.count, accent: accent.fill) }
+            if sections.contains("progress") { PlanCard(done: planDone, total: (includeTasks ? relevant.count : 0) + dueHabits.count, accent: accent.fill) }
             missedYesterdayBanner
             ForEach(sections.filter { $0 != "progress" }, id: \.self) { section in
                 homeSection(section)
@@ -93,7 +94,7 @@ struct TodayView: View {
         .frame(maxWidth: 760).frame(maxWidth: .infinity)
     }
 
-    private var planDone: Int { relevant.filter { $0.completedAt != nil }.count + checkedHabits.count }
+    private var planDone: Int { (includeTasks ? relevant.filter { $0.completedAt != nil }.count : 0) + checkedHabits.count }
 
     /// The daily heading stays above the plan.
     private var header: some View {
@@ -129,7 +130,7 @@ struct TodayView: View {
     @ViewBuilder private func homeSection(_ id: String) -> some View {
         switch id {
         case "consistency":
-            if !habits.isEmpty { ConsistencyStrip(habits: habits, logs: logs).orbitCard() }
+            if !habits.isEmpty || tasks.contains(where: { !$0.note }) { ConsistencyStrip(habits: habits, logs: logs).orbitCard() }
         case "today":
             let today = PlannerLogic.dayKey(.now)
             let open = relevant.filter { $0.completedAt == nil }
@@ -245,10 +246,10 @@ private struct TodaySheets: ViewModifier {
     @Binding var editingHabit: Habit?
     func body(content: Content) -> some View {
         content
-            .sheet(isPresented: $addingHabit) { HabitEditor() }
-            .sheet(isPresented: $customizing) { HomeLayoutEditor() }
-            .sheet(item: $editing) { TaskEditor(task: $0) }
-            .sheet(item: $editingHabit) { HabitEditor(habit: $0) }
+            .sheet(isPresented: $addingHabit) { HabitEditor().presentationDragIndicator(.visible) }
+            .sheet(isPresented: $customizing) { HomeLayoutEditor().presentationDragIndicator(.visible) }
+            .sheet(item: $editing) { TaskEditor(task: $0).presentationDragIndicator(.visible) }
+            .sheet(item: $editingHabit) { HabitEditor(habit: $0).presentationDragIndicator(.visible) }
             .onChange(of: addingHabit) { _, showing in if showing { stopDictation() } }
             .onChange(of: customizing) { _, showing in if showing { stopDictation() } }
             .onChange(of: editing?.id) { _, id in if id != nil { stopDictation() } }

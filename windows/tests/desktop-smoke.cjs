@@ -393,7 +393,8 @@ const remove = (folder) => {
         (r) => r.payload.title === "Garden plan" && r.payload.photos?.length === 1,
       ),
     );
-    await p.waitForFunction(() => document.querySelector("#note-photos img")?.naturalWidth > 0);
+    await p.waitForFunction(() => document.querySelector("#note-body figure img")?.naturalWidth > 0);
+    await p.locator("#note-body figure img").click();
     await p.getByRole("button", { name: "Copy photo", exact: true }).click();
     if (!(await app.evaluate(({ clipboard }) => clipboard.has("image/png"))))
       throw Error("Photo was not copied to the native clipboard");
@@ -405,7 +406,8 @@ const remove = (folder) => {
       ),
     );
     if (
-      (await p.getByRole("textbox", { name: "Note text" }).inputValue()) !== "Tomatoes by the fence. Herbs by the door."
+      (await p.getByRole("textbox", { name: "Note text" }).evaluate((field) => field.value)) !==
+      "Tomatoes by the fence. Herbs by the door."
     )
       throw Error("Pasting a photo changed the note text");
     // Esc saves and returns to the overview; the page is in the notes sidebar too.
@@ -450,7 +452,7 @@ const remove = (folder) => {
     await p.locator('[data-page="calendar"]').click();
     await p.getByRole("tab", { name: "Week", exact: true }).click();
     await p.locator('[data-scope="week"][aria-selected="true"]').waitFor();
-    if ((await p.locator(".time-slot").count()) !== 336) throw Error("Week must show seven hourly columns");
+    if ((await p.locator(".time-slot").count()) !== 672) throw Error("Week must show seven quarter-hour columns");
     await p.getByRole("tab", { name: "Month", exact: true }).click();
     await p.getByRole("group", { name: "Days" }).waitFor();
     await p.locator('[data-page="today"]').click();

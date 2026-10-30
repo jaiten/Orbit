@@ -1,11 +1,12 @@
 /* global require */
 (function (root) {
   const habitsAPI = typeof module === "object" ? require("./habits.js") : root.OrbitHabits;
-  function day(tasks, habits, logs, key) {
+  function day(tasks, habits, logs, key, includeTasks = true) {
     const active = habits.filter(
       (habit) => (!habit.createdDay || habit.createdDay <= key) && habitsAPI.scheduledOn(habit, key),
     );
-    const items = tasks.filter((task) => !task.isNote && (task.day === key || task.completedDay === key));
+    // A moved completion belongs to its completion day, never to two days.
+    const items = includeTasks ? tasks.filter((task) => !task.isNote && (task.completedDay || task.day) === key) : [];
     const habitDone = active.reduce(
       (sum, habit) => sum + Math.min(1, habitsAPI.dayCount(habit, logs, key) / habitsAPI.dailyTarget(habit)),
       0,

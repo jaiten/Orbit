@@ -2,8 +2,15 @@
 let calendarStart = null,
   calendarDay = null,
   calendarCompletedOpen = false,
-  calendarScrollTop = 8 * 64;
+  calendarScrollTop = 8 * 48;
+const calendarTime = (stamp) =>
+  new Date(stamp).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: localStorage.getItem("calendarClock") !== "24",
+  });
 const chevron = (path) => `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${path}"/></svg>`;
+const calendarDragGrip = '<span class="calendar-drag-grip" aria-hidden="true">⠿</span>';
 const monthOf = (key) => key.slice(0, 8) + "01";
 function shiftMonth(key, delta) {
   const date = localDay(key);
@@ -24,7 +31,16 @@ function renderCalendar(tasks) {
   if (calendarView !== "month") return renderSchedule(tasks);
   const first = localDay(calendarStart),
     start = OrbitHabits.weekStartKey(calendarStart, weekStart);
-  const days = Array.from({ length: 42 }, (_, index) => OrbitHabits.addDays(start, index));
+  const days = Array.from(
+    {
+      length:
+        Math.ceil(
+          (new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate() + ((first.getDay() - weekStart + 7) % 7)) /
+            7,
+        ) * 7,
+    },
+    (_, index) => OrbitHabits.addDays(start, index),
+  );
   const on = (key) =>
     tasks
       .filter((task) => taskDate(task) === key)
@@ -42,9 +58,7 @@ function renderCalendar(tasks) {
       const lines = items
         .slice(0, 3)
         .map((task) => {
-          const time = task.hasTime
-            ? new Date(task.dueDate).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
-            : "";
+          const time = task.hasTime ? calendarTime(task.dueDate) : "";
           return `<span class="cal-item ${task.completedAt ? "done" : ""}"><i></i>${
             time
               ? `<b>${time
@@ -89,26 +103,28 @@ function renderSchedule(tasks) {
   const untimed = days
     .map(
       (key) =>
-        `<div class="schedule-all-day-column"><button class="schedule-all-day-add" data-add-day="${key}" aria-label="Add an untimed task on ${key}">Any time ${chevron("M12 5v14M5 12h14")}</button>${open
+        `<div class="schedule-all-day-column"><button class="schedule-all-day-add" data-add-day="${key}" aria-label="Add an untimed task on ${key}">${chevron("M12 5v14M5 12h14")}</button>${open
           .filter((task) => taskDate(task) === key && !task.hasTime)
-          .map(taskRow)
+          .map(
+            (task) =>
+              `<div class="schedule-anytime" draggable="true" data-drag-task="${esc(task.id)}" title="${esc(task.title)}">${taskRow(task)}${calendarDragGrip}</div>`,
+          )
           .join("")}</div>`,
     )
     .join("");
-  const axis = Array.from(
-    { length: 24 },
-    (_, hour) => `<div>${new Date(2000, 0, 1, hour).toLocaleTimeString([], { hour: "numeric" })}</div>`,
-  ).join("");
+  const axis = Array.from({ length: 24 }, (_, hour) => `<div>${calendarTime(new Date(2000, 0, 1, hour))}</div>`).join(
+    "",
+  );
   const columns = days
     .map((key) => {
-      const slots = Array.from({ length: 48 }, (_, index) => {
-        const time = `${String(Math.floor(index / 2)).padStart(2, "0")}:${index % 2 ? "30" : "00"}`;
-        return `<button class="time-slot ${index % 2 ? "half-hour" : ""}" data-time-slot="${key}T${time}" aria-label="Add task on ${key} at ${time}"></button>`;
+      const slots = Array.from({ length: 96 }, (_, index) => {
+        const time = `${String(Math.floor(index / 4)).padStart(2, "0")}:${String((index % 4) * 15).padStart(2, "0")}`;
+        return `<button class="time-slot ${index % 4 ? "half-hour" : ""}" data-time-slot="${key}T${time}" aria-label="Add task on ${key} at ${time}"></button>`;
       }).join("");
       const blocks = OrbitCalendarLayout.place(open.filter((task) => taskDate(task) === key && task.hasTime))
         .map(
           ({ task, start, end, lane, lanes }) =>
-            `<div class="schedule-event check-tile" data-event-start="${start}" data-event-end="${end}" data-lane="${lane}" data-lanes="${lanes}" data-row-menu="task:${esc(task.id)}"><button class="schedule-check" role="checkbox" aria-checked="false" aria-label="Complete ${esc(task.title)}" data-toggle="${esc(task.id)}">${tick(false)}</button><button class="schedule-event-body" data-edit="${esc(task.id)}" aria-label="Edit ${esc(task.title)}" title="${esc(task.title)}"><strong>${esc(task.title)}</strong><span>${new Date(task.dueDate).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span></button>${rowActions(esc(task.id), esc(task.title))}</div>`,
+            `<div draggable="true" data-drag-task="${esc(task.id)}" class="schedule-event check-tile" data-event-start="${start}" data-event-end="${end}" data-lane="${lane}" data-lanes="${lanes}" data-row-menu="task:${esc(task.id)}"><button class="schedule-check" role="checkbox" aria-checked="false" aria-label="Complete ${esc(task.title)}" data-toggle="${esc(task.id)}">${tick(false)}</button><button class="schedule-event-body" data-edit="${esc(task.id)}" aria-label="Edit ${esc(task.title)}" title="${esc(task.title)}"><strong>${esc(task.title)}</strong><span>${calendarTime(task.dueDate)}</span></button>${calendarDragGrip}<button class="calendar-resize" data-resize-task="${esc(task.id)}" aria-label="Change duration of ${esc(task.title)}" title="Drag to change duration; arrow keys adjust by 15 minutes"></button>${rowActions(esc(task.id), esc(task.title))}</div>`,
         )
         .join("");
       return `<div class="schedule-day"><div class="schedule-slots">${slots}</div>${blocks}</div>`;
@@ -151,14 +167,98 @@ function bindCalendar() {
         $("#task-form input[name=title]").focus();
       }),
   );
+  document.querySelectorAll("[data-drag-task]").forEach((block) => {
+    block.ondragstart = (event) => {
+      event.dataTransfer.setData("text/orbit-task", block.dataset.dragTask);
+      event.dataTransfer.effectAllowed = "move";
+    };
+  });
+  document.querySelectorAll("[data-resize-task]").forEach((handle) => {
+    const task = rows("tasks").find((item) => item.id === handle.dataset.resizeTask);
+    if (!task) return;
+    const startDate = new Date(task.dueDate);
+    const max = 1440 - startDate.getHours() * 60 - startDate.getMinutes();
+    const clamp = (minutes) => Math.max(15, Math.min(max, Math.round(minutes / 15) * 15));
+    const saveDuration = (durationMinutes) =>
+      action(() => put("tasks", { ...task, durationMinutes, updatedAt: Date.now() }));
+    handle.onclick = (event) => event.stopPropagation();
+    handle.ondragstart = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    handle.onkeydown = (event) => {
+      if (!["ArrowUp", "ArrowDown"].includes(event.key)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      void saveDuration(clamp((task.durationMinutes || 30) + (event.key === "ArrowDown" ? 15 : -15)));
+    };
+    handle.onpointerdown = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const block = handle.closest(".schedule-event");
+      const origin = event.clientY,
+        initial = task.durationMinutes || 30;
+      let duration = initial;
+      handle.setPointerCapture(event.pointerId);
+      handle.onpointermove = (move) => {
+        duration = clamp(initial + ((move.clientY - origin) * 60) / 48);
+        block.style.height = `${Math.max(20, (duration * 48) / 60 - 2)}px`;
+      };
+      const finish = () => {
+        handle.onpointermove = null;
+        handle.onpointerup = null;
+        handle.onpointercancel = null;
+      };
+      handle.onpointerup = () => {
+        finish();
+        if (duration !== initial) void saveDuration(duration);
+      };
+      handle.onpointercancel = () => {
+        finish();
+        block.style.height = `${Math.max(20, (initial * 48) / 60 - 2)}px`;
+      };
+    };
+  });
+  const reschedule = async (event, key, time = null) => {
+    event.preventDefault();
+    const id = event.dataTransfer.getData("text/orbit-task");
+    const task = rows("tasks").find((item) => item.id === id && !item.isNote);
+    if (!task) return;
+    await action(async () => {
+      const stamp = time ? new Date(`${key}T${time}:00`).getTime() : null;
+      const delta = task.hasTime && stamp ? stamp - task.dueDate : 0;
+      await put("tasks", {
+        ...task,
+        hasTime: !!time,
+        dueDate: stamp,
+        localDate: time ? null : key,
+        reminders: time ? (task.reminders || []).map((value) => value + delta) : [],
+        updatedAt: Date.now(),
+      });
+      calendarDay = key;
+    });
+  };
+  document.querySelectorAll("[data-time-slot], .schedule-all-day-column").forEach((target) => {
+    target.ondragover = (event) => {
+      if (!event.dataTransfer.types.includes("text/orbit-task")) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+    };
+    target.ondrop = (event) => {
+      const [key, time] = target.dataset.timeSlot?.split("T") || [
+        target.querySelector("[data-add-day]").dataset.addDay,
+      ];
+      void reschedule(event, key, time);
+    };
+  });
   const timeline = $("#calendar-timeline");
   if (timeline) {
     timeline
       .querySelectorAll(".time-grid")
       .forEach((grid) => grid.style.setProperty("--schedule-days", calendarView === "day" ? 1 : 7));
     timeline.querySelectorAll("[data-event-start]").forEach((block) => {
-      block.style.top = `${(Number(block.dataset.eventStart) * 64) / 60}px`;
-      block.style.height = `${Math.max(20, ((Number(block.dataset.eventEnd) - Number(block.dataset.eventStart)) * 64) / 60 - 2)}px`;
+      block.style.top = `${(Number(block.dataset.eventStart) * 48) / 60}px`;
+      block.style.height = `${Math.max(20, ((Number(block.dataset.eventEnd) - Number(block.dataset.eventStart)) * 48) / 60 - 2)}px`;
       block.style.left = `calc(${(Number(block.dataset.lane) / Number(block.dataset.lanes)) * 100}% + 2px)`;
       block.style.width = `calc(${100 / Number(block.dataset.lanes)}% - 4px)`;
     });

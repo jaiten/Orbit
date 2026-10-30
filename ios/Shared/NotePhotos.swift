@@ -4,6 +4,8 @@ import UIKit
 struct NotePhoto: Codable, Identifiable, Equatable {
     var id: String
     var contentType = "image/jpeg"
+    var position: String? = nil
+    var wrap: String? = nil
 }
 
 extension PlannerTask {
@@ -14,6 +16,23 @@ extension PlannerTask {
 }
 
 enum NotePhotos {
+    /// Keep desktop photo anchors attached to the same surrounding text after an iPhone edit.
+    static func reanchor(_ photos: [NotePhoto], from old: String, to new: String) -> [NotePhoto] {
+        let before = old as NSString, after = new as NSString
+        var start = 0, suffix = 0
+        while start < min(before.length, after.length), before.character(at: start) == after.character(at: start) { start += 1 }
+        while suffix < min(before.length, after.length) - start,
+              before.character(at: before.length - suffix - 1) == after.character(at: after.length - suffix - 1) { suffix += 1 }
+        let oldEnd = before.length - suffix, newEnd = after.length - suffix
+        return photos.map { photo in
+            var result = photo
+            if let value = photo.position.flatMap(Int.init) {
+                let adjusted = value <= start ? value : value >= oldEnd ? value + after.length - before.length : newEnd
+                result.position = String(max(0, min(after.length, adjusted)))
+            }
+            return result
+        }
+    }
     static let bucket = "orbit-note-photos"
     static var directory: URL {
         let group = Bundle.main.object(forInfoDictionaryKey: "OrbitAppGroup") as? String ?? "group.com.jaiten.orbit.shared"

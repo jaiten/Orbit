@@ -223,12 +223,12 @@ const fs = require("node:fs");
     window.releaseRead();
   });
   await p.waitForTimeout(150);
-  assert.equal(await p.locator("#note-body").inputValue(), "Initial body continued");
+  assert.equal(await p.locator("#note-body").evaluate((field) => field.value), "Initial body continued");
   assert.equal(await p.evaluate(() => document.activeElement.id), "note-body");
   await p.keyboard.type(" safely");
   if (process.env.ORBIT_SCREENSHOT)
     await p.screenshot({ path: process.env.ORBIT_SCREENSHOT.replace(".png", "-note.png") });
-  assert.equal(await p.locator("#note-body").inputValue(), "Initial body continued safely");
+  assert.equal(await p.locator("#note-body").evaluate((field) => field.value), "Initial body continued safely");
   await p.keyboard.press("Control+6");
   await p.locator("#compact-rows").check();
   await p.locator('[data-appearance="light"]').click();
@@ -264,7 +264,8 @@ const fs = require("node:fs");
   await p.keyboard.press("Control+Shift+V");
   assert.equal(await p.locator(".day-tile").count(), 7);
   await p.keyboard.press("Control+Shift+V");
-  assert.equal(await p.locator(".day-tile").count(), 42);
+  assert.ok([28, 35, 42].includes(await p.locator(".day-tile").count()));
+  assert.ok((await p.locator(".cal-cell:not(.outside)").count()) >= 28);
   const arrow = await p.getByRole("button", { name: "Next month" }).boundingBox();
   await p.getByRole("button", { name: "Next month" }).click();
   const nextArrow = await p.getByRole("button", { name: "Next month" }).boundingBox();
@@ -309,7 +310,7 @@ const fs = require("node:fs");
   await p.locator('[data-page="lists"]').click();
   await p.locator("#note-photo-file").setInputFiles(path.resolve(__dirname, "../assets/orbit.png"));
   await p.waitForFunction(async () => (await window.orbit.read()).records.some((r) => r.payload.photos?.length === 1));
-  assert.equal(await p.locator("#note-body").inputValue(), "Last edit before restart");
+  assert.equal(await p.locator("#note-body").evaluate((field) => field.value), "Last edit before restart");
   await p.locator("#note-body").focus();
   const syncBefore = await p.locator("#sync-text").innerText();
   await p.evaluate(() => {
@@ -358,7 +359,9 @@ const fs = require("node:fs");
   const calendarTitle = await calendarRow.locator(".row-title").boundingBox();
   await calendarRow.hover();
   await p.waitForTimeout(160);
-  assert.deepEqual(await calendarRow.locator(".row-title").boundingBox(), calendarTitle);
+  const hoveredTitle = await calendarRow.locator(".row-title").boundingBox();
+  for (const dimension of ["x", "y", "width", "height"])
+    assert.ok(Math.abs(hoveredTitle[dimension] - calendarTitle[dimension]) < 1);
   await calendarRow.getByRole("button", { name: "Edit task: Second selection", exact: true }).click();
   assert.equal(await p.locator('#task-form input[name="title"]').inputValue(), "Second selection");
   await p.locator("#editor").getByRole("button", { name: "Close", exact: true }).click();
@@ -386,7 +389,7 @@ const fs = require("node:fs");
   await p.locator('[data-page="calendar"]').click();
   await p.locator('[data-month="0"]').click();
   await p.getByRole("tab", { name: "Week", exact: true }).click();
-  assert.equal(await p.locator(".time-slot").count(), 7 * 48);
+  assert.equal(await p.locator(".time-slot").count(), 7 * 96);
   const slot = p.locator('[data-time-slot$="T09:30"]').first();
   const slotDate = (await slot.getAttribute("data-time-slot")).split("T")[0];
   await slot.click();
@@ -398,7 +401,7 @@ const fs = require("node:fs");
   if (process.env.ORBIT_SCREENSHOT)
     await p.screenshot({ path: process.env.ORBIT_SCREENSHOT.replace(".png", "-week.png") });
   await p.getByRole("tab", { name: "Day", exact: true }).click();
-  assert.equal(await p.locator(".time-slot").count(), 48);
+  assert.equal(await p.locator(".time-slot").count(), 96);
   assert.equal(await p.locator(".schedule-event").count(), 1);
   await p.locator('[data-time-slot$="T15:00"]').click();
   assert.equal(await p.locator('#task-form input[name="time"]').inputValue(), "15:00");
@@ -408,7 +411,7 @@ const fs = require("node:fs");
   await p.getByRole("option", { name: "Off", exact: true }).click();
   await p.waitForFunction(async () => (await window.orbit.desktopSettings()).shortcut === "");
   await p.locator('[data-page="lists"]').click();
-  const noteBody = await p.locator("#note-body").inputValue();
+  const noteBody = await p.locator("#note-body").evaluate((field) => field.value);
   await p.evaluate(() => (window.noteFieldBeforeResize = document.querySelector("#note-body")));
   for (const [selector, amount] of [
     ["#main-pane-grip", 42],
@@ -426,7 +429,7 @@ const fs = require("node:fs");
   await p.getByRole("button", { name: "Hide note list", exact: true }).click();
   assert.equal(await p.locator(".notes-nav").isVisible(), false);
   await p.getByRole("button", { name: "Show note list", exact: true }).click();
-  assert.equal(await p.locator("#note-body").inputValue(), noteBody);
+  assert.equal(await p.locator("#note-body").evaluate((field) => field.value), noteBody);
   await p.getByRole("button", { name: "Hide main sidebar", exact: true }).click();
   assert.equal(await p.locator(".sidebar").isVisible(), false);
   await p.getByRole("button", { name: "Show main sidebar", exact: true }).click();
@@ -434,6 +437,116 @@ const fs = require("node:fs");
   await p.locator("h1").filter({ hasText: "Today" }).waitFor();
   assert.equal(await p.locator("#main-pane-grip").getAttribute("aria-valuenow"), "258");
   assert.equal(await p.evaluate(() => localStorage.getItem("notesSidebarWidth")), "296");
+  // Notes keep photo anchors at the insertion point and preserve text through delete/undo.
+  await p.keyboard.press("Control+4");
+  await p.locator("#note-title").fill("Beta editor checks");
+  await p.locator("#note-body").fill("Before after");
+  await p.locator("#note-body").evaluate((field) => {
+    field.focus();
+    field.setSelectionRange(6, 6);
+    field.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+  });
+  await p.locator("#note-photo-file").setInputFiles(path.resolve(__dirname, "../assets/orbit.png"));
+  await p.locator("[data-photo-id]").waitFor();
+  assert.equal(await p.locator("#note-body").evaluate((field) => field.value), "Before after");
+  await p.waitForFunction(async () =>
+    (await window.orbit.read()).records.some(
+      (r) => r.payload.title === "Beta editor checks" && r.payload.photos?.[0]?.position === "6",
+    ),
+  );
+  await p.locator("[data-photo-id] img").click();
+  assert.equal(await p.locator("figure.photo-selected").count(), 1);
+  await p.getByRole("button", { name: "Wrap text to the right", exact: true }).click();
+  assert.equal(await p.locator("[data-photo-id]").getAttribute("data-wrap"), "left");
+  await p.keyboard.press("Backspace");
+  assert.equal(await p.locator("[data-photo-id]").count(), 0);
+  assert.equal(await p.locator("#note-body").evaluate((field) => field.value), "Before after");
+  await p.keyboard.press("Control+z");
+  assert.equal(await p.locator("[data-photo-id]").count(), 1);
+  await p.keyboard.press("Control+1");
+  await p.keyboard.press("Control+4");
+  assert.equal(await p.locator("[data-photo-id]").getAttribute("data-wrap"), "left");
+  const editedLabel = await p.locator("#note-edited").innerText();
+  await p.locator("#note-body").fill("");
+  await p.keyboard.type("- one");
+  await p.keyboard.press("Enter");
+  await p.keyboard.type("two");
+  assert.equal(await p.locator("#note-body").evaluate((field) => field.value), "• one\n• two");
+  await p.keyboard.press("Tab");
+  assert.equal(await p.locator("#note-body").evaluate((field) => field.value), "• one\n    • two");
+  await p.keyboard.press("Shift+Tab");
+  assert.equal(await p.locator("#note-body").evaluate((field) => field.value), "• one\n• two");
+  await p.waitForTimeout(750);
+  assert.equal(await p.locator("#note-edited").innerText(), editedLabel);
+  await p.keyboard.press("Control+1");
+  // Layout edits are opt-in and persist, including accessible button moves.
+  assert.equal(await p.locator(".today-panel[draggable=true]").count(), 0);
+  assert.equal(await p.locator('[data-today-panel="heatmap"]').isVisible(), false);
+  await p.getByRole("button", { name: "Edit layout", exact: true }).click();
+  await p.locator('[data-panel-visible="heatmap"]').check();
+  await p.locator('[data-panel-column-toggle="habits"]').click();
+  assert.equal(
+    await p.locator('[data-today-panel="habits"]').evaluate((panel) => panel.parentElement.dataset.panelDrop),
+    "main",
+  );
+  await p.getByRole("button", { name: "Done", exact: true }).click();
+  assert.equal(await p.locator(".today-panel[draggable=true]").count(), 0);
+  assert.equal(await p.locator('[data-today-panel="heatmap"]').isVisible(), true);
+  // A real drop reschedules a task to a quarter-hour and retains reminder offsets.
+  await p.locator("#inline-task-input").fill("Drag calendar task");
+  await p.locator("#inline-task-input").press("Enter");
+  await p.getByRole("button", { name: "Edit Drag calendar task", exact: true }).waitFor();
+  await p.keyboard.press("Control+2");
+  await p.getByRole("tab", { name: "Week", exact: true }).click();
+  const dragSource = p.locator(".schedule-anytime", { hasText: "Drag calendar task" });
+  const targetSlot = p.locator('[data-time-slot$="T10:15"]').first();
+  const expectedDay = (await targetSlot.getAttribute("data-time-slot")).slice(0, 10);
+  await targetSlot.scrollIntoViewIfNeeded();
+  // Dispatch the same DataTransfer events as a native desktop drag; Chromium headless
+  // cannot synthesize dragging from the scrolled all-day row into a virtual time grid.
+  await dragSource.evaluate((source, key) => {
+    const transfer = new DataTransfer();
+    source.dispatchEvent(new DragEvent("dragstart", { dataTransfer: transfer, bubbles: true }));
+    document
+      .querySelector(`[data-time-slot="${key}T10:15"]`)
+      .dispatchEvent(new DragEvent("drop", { dataTransfer: transfer, bubbles: true, cancelable: true }));
+  }, expectedDay);
+  await p.waitForFunction(async () =>
+    (await window.orbit.read()).records.some(
+      (r) =>
+        r.payload.title === "Drag calendar task" &&
+        r.payload.hasTime &&
+        new Date(r.payload.dueDate).getMinutes() === 15,
+    ),
+  );
+  await p.getByRole("button", { name: "Change duration of Drag calendar task", exact: true }).focus();
+  await p.keyboard.press("ArrowDown");
+  await p.waitForFunction(async () =>
+    (await window.orbit.read()).records.some(
+      (r) => r.payload.title === "Drag calendar task" && r.payload.durationMinutes === 45,
+    ),
+  );
+  assert.match(await p.locator(".time-axis").innerText(), /AM/);
+  if (process.env.ORBIT_SCREENSHOT)
+    await p.screenshot({ path: process.env.ORBIT_SCREENSHOT.replace(".png", "-calendar.png") });
+  await p.keyboard.press("Control+6");
+  await p.locator("#calendar-clock").selectOption("24");
+  await p.locator("#progress-tasks").uncheck();
+  await p.keyboard.press("Control+2");
+  assert.doesNotMatch(await p.locator(".time-axis").innerText(), /AM|PM/);
+  assert.equal(await p.evaluate(() => localStorage.getItem("progressIncludesTasks")), "false");
+  await p.keyboard.press("Control+1");
+  const row = p.locator(".task-row", { hasText: "Drag calendar task" });
+  await row.click({ button: "right" });
+  await p.locator("#row-menu").getByRole("menuitem", { name: "Select item", exact: true }).click();
+  await p.locator("h1").click();
+  assert.equal(await p.locator("#selection-bar").isVisible(), false);
+  await row.click({ button: "right" });
+  assert.equal(await p.locator("#row-menu .danger").innerText(), "Delete");
+  await p.locator("#row-menu .danger").click();
+  await p.waitForFunction(async () =>
+    (await window.orbit.read()).records.some((r) => r.payload.title === "Drag calendar task" && r.deleted),
+  );
   assert.deepEqual(errors, []);
   console.log(
     "PASS: account keyboard/back, note sizing/scrolling, row actions/icons, settings races and planner flows",

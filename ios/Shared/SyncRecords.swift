@@ -36,7 +36,12 @@ import SwiftData
             if let tracking = t.progressTracking { payload["progressTracking"] = tracking }
             if let started = t.startedAt { payload["startedAt"] = stamp(started) }
             if t.isNote == true { payload["isNote"] = true }
-            if !t.photos.isEmpty { payload["photos"] = t.photos.map { ["id": $0.id, "contentType": $0.contentType] } }
+            if !t.photos.isEmpty { payload["photos"] = t.photos.map { photo -> [String: String] in
+                var value = ["id": photo.id, "contentType": photo.contentType]
+                if let position = photo.position { value["position"] = position }
+                if let wrap = photo.wrap { value["wrap"] = wrap }
+                return value
+            } }
             try add("tasks", t.id.uuidString.lowercased(), payload)
         }
         for h in try context.fetch(FetchDescriptor<Habit>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) {
@@ -95,7 +100,7 @@ import SwiftData
             t.progressTracking = p["progressTracking"] as? Bool; t.startedAt = date("startedAt"); t.isNote = (p["isNote"] as? Bool) == true ? true : nil
             t.photos = (p["photos"] as? [[String: String]] ?? []).compactMap { value in
                 guard let id = value["id"], UUID(uuidString: id) != nil else { return nil }
-                return NotePhoto(id: id.lowercased())
+                return NotePhoto(id: id.lowercased(), position: value["position"], wrap: value["wrap"])
             }
             t.completedAt = date("completedAt"); t.nextOccurrenceID = uid("nextOccurrenceID"); t.sortOrder = p["sortOrder"] as? Int ?? 0; t.updatedAt = date("updatedAt") ?? .now
         case "habits":

@@ -8,6 +8,17 @@ import UIKit
         XCTAssertEqual(OrbitTab.ordered("notes,notes,invalid,tasks"), [.notes, .tasks, .today, .habits, .calendar])
         XCTAssertEqual(OrbitTab.ordered(OrbitTab.defaultOrder), [.today, .tasks, .notes, .habits, .calendar])
     }
+    func testDailyProgressIncludesTasksByDefaultAndOnlyCountsLateCompletionOnce() throws {
+        let task = PlannerTask(title: "Finish draft")
+        task.schedule(day: "2026-10-26")
+        var calendar = Calendar(identifier: .gregorian); calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let day = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 10, day: 27)))
+        task.completedAt = day
+        let note = PlannerTask(title: "A note"); note.isNote = true; note.schedule(day: "2026-10-27")
+        XCTAssertEqual(PlannerLogic.consistencySeries(habits: [], logs: [], ending: day, days: 2, calendar: calendar, tasks: [task, note]), [0, 1])
+        XCTAssertEqual(PlannerLogic.consistencySeries(habits: [], logs: [], ending: day, days: 1, calendar: calendar, tasks: [task], includeTasks: false), [0])
+    }
+
     func testCapturedNotesKeepBodyAndPhotosSurviveSyncAndBackup() throws {
         let context = ModelContext(try Persistence.makeContainer(inMemory: true))
         let text = "A note whose entire capture belongs in the body, even if the first sentence sounds like a title."
@@ -17,7 +28,8 @@ import UIKit
         let image = UIGraphicsImageRenderer(size: CGSize(width: 20, height: 20)).image { renderer in
             UIColor.orange.setFill(); renderer.fill(CGRect(x: 0, y: 0, width: 20, height: 20))
         }
-        let photo = try NotePhotos.save(image)
+        var photo = try NotePhotos.save(image)
+        photo.position = "6"; photo.wrap = "left"
         defer { if let file = try? NotePhotos.file(photo.id) { try? FileManager.default.removeItem(at: file) } }
         note.photos = [photo]
         try context.save()

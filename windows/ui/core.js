@@ -137,6 +137,7 @@ function interacting() {
   return (
     pointerBusy ||
     !!document.querySelector("dialog[open], details.mac-picker[open], #row-menu:not([hidden])") ||
+    document.activeElement?.closest?.("[contenteditable=true]") ||
     ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)
   );
 }
@@ -616,6 +617,7 @@ function openRowMenu(e) {
         ),
     ]);
   }
+  if (kind === "task" || kind === "note") entries.push(["Delete", () => action(() => put("tasks", item, true))]);
   let menu = $("#row-menu");
   if (!menu) {
     menu = document.createElement("div");
@@ -629,6 +631,7 @@ function openRowMenu(e) {
       const button = document.createElement("button");
       button.setAttribute("role", "menuitem");
       button.textContent = label;
+      if (label === "Delete") button.classList.add("danger");
       button.onclick = () => {
         closeRowMenu();
         void Promise.resolve(run()).catch((error) => showNotice(error.message));

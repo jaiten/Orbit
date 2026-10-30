@@ -59,3 +59,10 @@ test("adjacent short events keep their minimum clickable cards from hiding one a
     ],
   );
 });
+
+test("progress preference excludes tasks and a late completion counts on one day", () => {
+  const tasks = [{ day: "2026-10-26", completedDay: "2026-10-27" }];
+  assert.equal(progress.day(tasks, [], [], "2026-10-26").total, 0);
+  assert.equal(progress.day(tasks, [], [], "2026-10-27").ratio, 1);
+  assert.equal(progress.day(tasks, [], [], "2026-10-27", false).total, 0);
+});

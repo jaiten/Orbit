@@ -70,15 +70,15 @@ struct DayProvider: TimelineProvider {
         do {
             let container = try Persistence.makeContainer()
             let context = ModelContext(container)
-            let tasks = try context.fetch(FetchDescriptor<PlannerTask>())
-                .filter { $0.completedAt == nil && TodayRules.onDay(TodayRules.item($0), day: PlannerLogic.dayKey(.now), today: PlannerLogic.dayKey(.now)) }
+            let allTasks = try context.fetch(FetchDescriptor<PlannerTask>())
+            let tasks = allTasks.filter { $0.completedAt == nil && !$0.note && TodayRules.onDay(TodayRules.item($0), day: PlannerLogic.dayKey(.now), today: PlannerLogic.dayKey(.now)) }
                 .sorted {
                     if $0.hasTime != $1.hasTime { return $0.hasTime }
                     if $0.hasTime { return ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture) }
                     return $0.sortOrder < $1.sortOrder
                 }
             let today = PlannerLogic.dayKey(.now)
-            let planned = try context.fetch(FetchDescriptor<PlannerTask>()).filter { TodayRules.onDay(TodayRules.item($0), day: today, today: today) }
+            let planned = allTasks.filter { !$0.note && TodayRules.onDay(TodayRules.item($0), day: today, today: today) }
             let allHabits = try context.fetch(FetchDescriptor<Habit>(sortBy: [SortDescriptor(\Habit.createdAt)]))
             let logs = try context.fetch(FetchDescriptor<HabitLog>())
             let gridHabits = gridHabitIDs.flatMap { ids in
@@ -97,8 +97,8 @@ struct DayProvider: TimelineProvider {
                     subtitle: PlannerLogic.detail($0, logs: logs, at: .now), habit: true, date: nil)
             }
             return DayEntry(date: .now, items: taskItems + habitItems, completedHabits: habits.count - habitItems.count,
-                totalHabits: habits.count, doneToday: planned.filter { $0.completedAt != nil }.count + habits.count - habitItems.count,
-                totalToday: planned.count + habits.count, consistency: PlannerLogic.consistencySeries(habits: gridHabits, logs: logs, ending: .now, days: DayEntry.gridDays),
+                totalHabits: habits.count, doneToday: (PlannerPreferences.includesTasks ? planned.filter { $0.completedAt != nil }.count : 0) + habits.count - habitItems.count,
+                totalToday: (PlannerPreferences.includesTasks ? planned.count : 0) + habits.count, consistency: PlannerLogic.consistencySeries(habits: gridHabits, logs: logs, ending: .now, days: DayEntry.gridDays, tasks: allTasks, includeTasks: gridHabitIDs == nil && PlannerPreferences.includesTasks),
                 grids: gridHabits.prefix(3).map { habit in
                     HabitGrid(id: habit.id.uuidString, title: habit.title, color: habit.color,
                               values: PlannerLogic.consistencySeries(habits: [habit], logs: logs, ending: .now, days: DayEntry.gridDays))

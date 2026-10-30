@@ -29,3 +29,12 @@ Notes in Orbit's colours: a growing add field that turns long text into a note, 
 toggles with pages in quiet cards, and a page with an icon, large title and properties. Screens
 3–4 (blocks, a `/` menu, checklist lines that become tasks) are concepts, not built.
 `notes/windows-*.png` are screenshots of the Windows build from this change.
+
+## Beta interface direction (30 October 2026)
+
+`beta-interface.png` is a generated design proposal reflecting the latest feedback:
+retain the Windows sidebar, compact habits, optional progress panels with Overall
+progress off by default, per-task anytime rows and hover-only calendar drag grips.
+The iOS note toolbar uses monochrome list, indent, undo/redo and Done controls.
+This board is a design reference; the native implementation and device validation
+are described in the beta checklist.

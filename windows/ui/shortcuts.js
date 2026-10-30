@@ -70,7 +70,14 @@ document.addEventListener("keydown", (e) => {
         $("#search")?.focus();
       })();
     } else if (key === "/") openShortcuts();
-    else if (key === "z" && !e.shiftKey && !$("#undo-toast").hidden) void action(() => api.undo());
+    else if (
+      key === "z" &&
+      !e.shiftKey &&
+      !e.target.closest?.("[contenteditable=true]") &&
+      !["INPUT", "TEXTAREA"].includes(e.target.tagName) &&
+      !$("#undo-toast").hidden
+    )
+      void action(() => api.undo());
     else return;
     e.preventDefault();
     return;
@@ -113,7 +120,7 @@ function startTyping(char) {
     const field = $("#note-body");
     if (!field) return false;
     field.focus();
-    field.setRangeText(char, field.selectionStart, field.selectionEnd, "end");
+    document.execCommand("insertText", false, char);
     field.dispatchEvent(new Event("input", { bubbles: true }));
     return true;
   }

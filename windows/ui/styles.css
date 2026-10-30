@@ -3475,3 +3475,270 @@ dialog {
 .schedule-check {
   z-index: 4;
 }
+
+/* Beta refinements: compact schedules and deliberate layout editing. */
+.today-main > .empty-state,
+.today-side .plan-card,
+.today-panel .plan-card {
+  border-radius: 24px;
+}
+.today-main > .section-label:first-child {
+  margin-top: 0;
+}
+.today-panel-column {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+#today-main-panels {
+  margin-top: 20px;
+}
+.today-panel {
+  min-width: 0;
+}
+.today-panel[draggable="true"] {
+  outline: 1px dashed var(--muted);
+  border-radius: 18px;
+  padding: 8px;
+  cursor: grab;
+}
+.today-panel-column:has(.today-panel[draggable="true"]),
+#today-main-panels:empty {
+  min-height: 20px;
+}
+.panel-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.panel-tools span {
+  margin-right: auto;
+  text-transform: capitalize;
+  font-size: 12px;
+  color: var(--muted);
+}
+.panel-tools button {
+  padding: 6px 10px;
+}
+.today-side .section-label {
+  margin-top: 0;
+}
+.today-side .compact-habits .row-line {
+  min-height: 40px;
+}
+.today-side .compact-habits .row-body {
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+.overall-progress h2 {
+  font-size: 13px;
+  margin: 0 0 14px;
+}
+.overall-progress small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+.row-menu button.danger {
+  color: var(--danger, #e76666);
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+}
+.calendar-timeline {
+  max-height: calc(100vh - 205px);
+}
+body[data-view="calendar"] .calendar-page {
+  max-width: none;
+}
+.time-grid {
+  grid-template-columns: 68px repeat(var(--schedule-days, 7), minmax(0, 1fr));
+}
+.time-axis > div {
+  height: 48px;
+}
+.schedule-slots {
+  grid-template-rows: repeat(96, 12px);
+}
+.time-slot {
+  height: 12px;
+}
+.schedule-anytime {
+  min-width: 0;
+  cursor: grab;
+}
+.schedule-anytime .row-line {
+  min-height: 26px;
+}
+.schedule-anytime .row-body {
+  padding: 3px 4px;
+}
+.schedule-anytime .row-title {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.schedule-anytime .row-detail,
+.schedule-anytime .row-actions,
+.schedule-anytime .row-meta {
+  display: none;
+}
+.schedule-event[draggable="true"] {
+  cursor: grab;
+}
+.schedule-event-body strong {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.schedule-event-body {
+  cursor: grab;
+}
+.note-document {
+  display: flow-root;
+  min-height: 260px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  outline: none;
+}
+.note-document:empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  pointer-events: none;
+}
+.note-document figure {
+  position: relative;
+  display: block;
+  width: min(100%, 560px);
+  margin: 12px 0;
+  border-radius: 10px;
+  line-height: normal;
+  white-space: normal;
+  clear: both;
+}
+.note-document figure img {
+  display: block;
+  width: 100%;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.note-document figure[data-wrap="left"] {
+  float: left;
+  clear: left;
+  width: 42%;
+  margin: 6px 20px 12px 0;
+}
+.note-document figure[data-wrap="right"] {
+  float: right;
+  clear: right;
+  width: 42%;
+  margin: 6px 0 12px 20px;
+}
+.note-document figure.photo-selected {
+  outline: 2px solid #5798ff;
+  outline-offset: 3px;
+}
+.note-document figcaption {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: none;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 2px 12px #0003;
+  gap: 2px;
+}
+.note-document figure.photo-selected figcaption,
+.note-document figure:focus-within figcaption {
+  display: flex;
+}
+.note-document figcaption button {
+  font-size: 11px;
+  padding: 5px;
+}
+.today-panel[hidden] {
+  display: none;
+}
+.today-layout-options {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.today-layout-options label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.schedule-anytime {
+  position: relative;
+}
+.calendar-drag-grip {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 14px;
+  line-height: 16px;
+  opacity: 0;
+  color: var(--muted);
+  pointer-events: none;
+}
+.schedule-event:hover .calendar-drag-grip,
+.schedule-event:focus-within .calendar-drag-grip,
+.schedule-anytime:hover .calendar-drag-grip,
+.schedule-anytime:focus-within .calendar-drag-grip {
+  opacity: 1;
+}
+.schedule-all-day-add {
+  float: right;
+  height: 20px;
+  width: 20px;
+  padding: 2px;
+  justify-self: end;
+}
+.schedule-all-day-column {
+  gap: 2px;
+}
+.schedule-anytime .task-row {
+  border-radius: 6px;
+}
+.schedule-anytime .row-line {
+  min-height: 24px;
+}
+.schedule-anytime .row-body {
+  padding-right: 14px;
+}
+.schedule-all-day {
+  position: sticky;
+  top: 52px;
+  z-index: 3;
+  background: var(--canvas);
+  max-height: 160px;
+  overflow-y: auto;
+}
+.schedule-event-body {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.calendar-resize {
+  position: absolute;
+  bottom: 0;
+  left: 24%;
+  width: 52%;
+  height: 6px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  cursor: ns-resize;
+  opacity: 0;
+  background: var(--accent-text);
+  touch-action: none;
+}
+.schedule-event:hover .calendar-resize,
+.schedule-event:focus-within .calendar-resize {
+  opacity: 0.55;
+}

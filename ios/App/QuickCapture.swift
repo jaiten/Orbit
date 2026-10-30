@@ -189,6 +189,7 @@ struct CaptureTextField: UIViewRepresentable {
         field.textContainerInset = UIEdgeInsets(top: 11, left: 0, bottom: 11, right: 0)
         field.textContainer.lineFragmentPadding = 0
         field.delegate = context.coordinator
+        if identifier == "note-body" { field.configureNoteToolbar() }
         field.textChanged()
         field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         field.setContentHuggingPriority(.defaultLow, for: .horizontal)
@@ -225,6 +226,74 @@ struct CaptureTextField: UIViewRepresentable {
 
     final class Input: UITextView {
         var wantsFocus = false
+        var noteLists = false
+        func configureNoteToolbar() {
+            noteLists = true
+            let bar = UIToolbar(); bar.sizeToFit(); bar.tintColor = .label
+            let outdent = UIBarButtonItem(image: UIImage(systemName: "decrease.indent"), style: .plain, target: self, action: #selector(outdentNote))
+            outdent.accessibilityLabel = "Outdent"
+            let indent = UIBarButtonItem(image: UIImage(systemName: "increase.indent"), style: .plain, target: self, action: #selector(indentNote))
+            indent.accessibilityLabel = "Indent"
+            let bullets = UIBarButtonItem(image: UIImage(systemName: "list.bullet"), style: .plain, target: self, action: #selector(bulletNote))
+            bullets.accessibilityLabel = "Bullet list"
+            let numbers = UIBarButtonItem(image: UIImage(systemName: "list.number"), style: .plain, target: self, action: #selector(numberNote))
+            numbers.accessibilityLabel = "Numbered list"
+            bar.items = [bullets, numbers, outdent, indent, UIBarButtonItem(systemItem: .flexibleSpace),
+                         UIBarButtonItem(barButtonSystemItem: .undo, target: self, action: #selector(undoNote)),
+                         UIBarButtonItem(barButtonSystemItem: .redo, target: self, action: #selector(redoNote)),
+                         UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(doneNote))]
+            inputAccessoryView = bar
+        }
+        override var keyCommands: [UIKeyCommand]? {
+            guard noteLists else { return super.keyCommands }
+            return (super.keyCommands ?? []) + [
+                UIKeyCommand(input: "\t", modifierFlags: [], action: #selector(indentNote)),
+                UIKeyCommand(input: "\t", modifierFlags: [.shift], action: #selector(outdentNote))]
+        }
+        @objc private func bulletNote() { changeList(false) }
+        @objc private func numberNote() { changeList(true) }
+        private func changeList(_ numbered: Bool) {
+            let source = (text ?? "") as NSString
+            let range = source.lineRange(for: selectedRange)
+            let lines = source.substring(with: range).components(separatedBy: "\n")
+            let pattern = numbered ? #"^[ \t]*\d+\. "# : #"^[ \t]*• "#
+            let remove = lines.filter { !$0.isEmpty }.allSatisfy { $0.range(of: pattern, options: .regularExpression) != nil }
+            let value = lines.enumerated().map { index, line -> String in
+                if line.isEmpty && index > 0 { return line }
+                let indent = String(line.prefix { $0 == " " || $0 == "\t" })
+                let content = String(line.dropFirst(indent.count)).replacingOccurrences(of: #"^(?:•|-|\d+\.) "#, with: "", options: .regularExpression)
+                return indent + (remove ? "" : numbered ? "\(index + 1). " : "• ") + content
+            }.joined(separator: "\n")
+            replaceNote(range, with: value)
+        }
+        @objc private func indentNote() { changeIndent(false) }
+        @objc private func outdentNote() { changeIndent(true) }
+        @objc private func undoNote() { undoManager?.undo() }
+        @objc private func redoNote() { undoManager?.redo() }
+        @objc private func doneNote() { resignFirstResponder() }
+        func replaceNote(_ range: NSRange, with replacement: String) {
+            guard let start = position(from: beginningOfDocument, offset: range.location),
+                  let end = position(from: start, offset: range.length), let selection = textRange(from: start, to: end) else { return }
+            replace(selection, withText: replacement)
+            delegate?.textViewDidChange?(self)
+        }
+        private func changeIndent(_ outdent: Bool) {
+            let source = (text ?? "") as NSString
+            let selection = selectedRange
+            let end = selection.length > 0 ? selection.location + selection.length - 1 : selection.location
+            let first = source.lineRange(for: NSRange(location: selection.location, length: 0)).location
+            let last = source.lineRange(for: NSRange(location: end, length: 0))
+            let range = NSRange(location: first, length: NSMaxRange(last) - first)
+            let old = source.substring(with: range)
+            let value = old.components(separatedBy: "\n").enumerated().map { index, line in
+                if line.isEmpty && index > 0 { return line }
+                if outdent { return line.hasPrefix("    ") ? String(line.dropFirst(4)) : line.hasPrefix("\t") ? String(line.dropFirst()) : line }
+                return "    " + line
+            }.joined(separator: "\n")
+            replaceNote(range, with: value)
+            selectedRange = NSRange(location: min(first + (value as NSString).length, (text as NSString).length), length: 0)
+        }
+
         var onPasteImage: ((UIImage) -> Void)?
         override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
             if action == #selector(paste(_:)), onPasteImage != nil, UIPasteboard.general.hasImages { return true }
@@ -301,6 +370,31 @@ struct CaptureTextField: UIViewRepresentable {
             if parent.focused { parent.focused = false }
         }
         func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+            if parent.identifier == "note-body", textView.markedTextRange == nil,
+               let input = textView as? Input {
+                let source = (textView.text ?? "") as NSString
+                let start = source.lineRange(for: NSRange(location: range.location, length: 0)).location
+                let prefix = source.substring(with: NSRange(location: start, length: range.location - start))
+                if text == " ", range.length == 0,
+                   prefix.trimmingCharacters(in: .whitespaces) == "-" {
+                    input.replaceNote(NSRange(location: range.location - 1, length: 1), with: "• ")
+                    return false
+                }
+                if text == "\n", range.length == 0,
+                   let marker = prefix.range(of: #"^([ \t]*)(?:•|-|\d+\.) "#, options: .regularExpression) {
+                    let lead = String(prefix[marker])
+                    if prefix == lead {
+                        input.replaceNote(NSRange(location: start, length: range.location - start), with: "")
+                    } else {
+                        let continuation = lead.replacingOccurrences(of: #"\d+(?=\. )"#, with: "", options: .regularExpression)
+                        // Bullets continue at the same indentation; numbered lists increment.
+                        let digits = lead.trimmingCharacters(in: .whitespaces).dropLast()
+                        let next = Int(digits).map { lead.replacingOccurrences(of: String(digits), with: String($0 + 1)) } ?? continuation
+                        input.replaceNote(range, with: "\n" + next)
+                    }
+                    return false
+                }
+            }
             // Return submits; the save routine validates the draft (an empty one closes the keyboard).
             guard text == "\n", !parent.allowsNewlines else { return true }
             parent.onSubmit()

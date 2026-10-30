@@ -17,10 +17,17 @@ enum PlannerLogic {
     }
 
     static func overlaps(_ start: Date, _ end: Date, _ otherStart: Date, _ otherEnd: Date) -> Bool { start < otherEnd && otherStart < end }
-    static func consistencySeries(habits: [Habit], logs: [HabitLog], ending: Date, days: Int, calendar: Calendar = .current) -> [Double] {
+    static func consistencySeries(habits: [Habit], logs: [HabitLog], ending: Date, days: Int, calendar: Calendar = .current, tasks: [PlannerTask] = [], includeTasks: Bool = true) -> [Double] {
         let inputs = entries(habits, logs: logs, calendar: calendar)
         return (0..<max(0, days)).reversed().map { offset in
-            HabitRules.consistency(inputs, day: dayKey(calendar.date(byAdding: .day, value: -offset, to: ending)!, calendar: calendar))
+            let key = dayKey(calendar.date(byAdding: .day, value: -offset, to: ending)!, calendar: calendar)
+            let active = inputs.filter { ($0.createdDay.map { $0 <= key } ?? true) && HabitRules.scheduledOn(rule: $0.rule, day: key) }
+            let habitDone = active.reduce(0.0) { sum, entry in
+                sum + min(1, Double(entry.counts[key] ?? 0) / Double(HabitRules.dailyTarget(rule: entry.rule, target: entry.target)))
+            }
+            let items = includeTasks ? tasks.filter { !$0.note && ($0.completedAt.map { dayKey($0, calendar: calendar) } ?? $0.day) == key } : []
+            let total = active.count + items.count
+            return total == 0 ? 0 : (habitDone + Double(items.filter { $0.completedAt != nil }.count)) / Double(total)
         }
     }
     static func dailyProgress(_ habit: Habit, logs: [HabitLog], at date: Date, calendar: Calendar = .current) -> Int {

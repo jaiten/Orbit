@@ -9,7 +9,8 @@ let searchQuery = "",
   noteID = null,
   noteSection = null,
   notePhotoDraft = [],
-  notePageToken = 0;
+  notePageToken = 0,
+  noteDisplayedEdited = null;
 const docIcon =
   '<svg class="doc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>';
 const icon = (d) => `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
@@ -225,6 +226,7 @@ function renderNotes() {
 /** Opens a page (or a new one in a section). */
 function openNote(id, section = null, title = "") {
   notePageToken++;
+  noteDisplayedEdited = notes().find((n) => n.id === id)?.updatedAt || null;
   notePhotoDraft = [...(notes().find((n) => n.id === id)?.photos || pendingNotes.get(id)?.photos || [])];
   noteID = id;
   if (id) {
@@ -254,7 +256,7 @@ function resumeNote() {
   openNote(id);
 }
 function resizeNoteFields() {
-  for (const field of document.querySelectorAll("#note-title, #note-body")) {
+  for (const field of document.querySelectorAll("#note-title")) {
     field.style.height = "auto";
     field.style.height = Math.max(field.id === "note-title" ? 48 : 260, field.scrollHeight) + "px";
   }
@@ -267,8 +269,9 @@ function renderNoteEditor() {
     .concat(`<option value="${SOMEDAY}">Someday</option>`)
     .join("")
     .replace(`value="${esc(section)}"`, `value="${esc(section)}" selected`);
-  const when = note
-    ? new Date(note.updatedAt || Date.now()).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })
+  noteDisplayedEdited ??= note?.updatedAt || null;
+  const when = noteDisplayedEdited
+    ? new Date(noteDisplayedEdited).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })
     : "Not saved yet";
   const titleValue = note ? (note.title === "Untitled" ? "" : note.title) : noteDraftTitle;
   return `<div class="notes-app">
@@ -276,7 +279,7 @@ function renderNoteEditor() {
     <section class="notes-pane note-pane" aria-label="Note">
       <div class="note-toolbar"><button class="icon-button" data-toggle-notes aria-label="Hide note list"></button>
         <nav class="crumbs" aria-label="Location"><button data-back-notes>Back to notes</button><span>/</span><button data-notes-home="${esc(section)}">${esc(section ? sectionName(section) : "All")}</button></nav>
-        <span id="note-status" class="note-status">${note ? "Saved" : ""}</span>
+        <span id="note-status" class="note-status"></span>
         <button class="icon-button" id="add-note-photo" aria-label="Add photo" title="Add photo">${icon("M3 3h18v18H3zM3 17l6-6 4 4 3-3 5 5M8 7h.01")}</button><input id="note-photo-file" type="file" accept="image/*" multiple hidden />
         <button class="icon-button" data-copy-note aria-label="Copy text" title="Copy text">${icon(ICONS.copy)}</button>
         ${note ? `<button class="icon-button" data-note-to-task aria-label="Make it a Task" title="Make it a Task">${icon(ICONS.task)}</button><button class="icon-button danger" data-delete-note aria-label="Delete note" title="Delete note">${icon(ICONS.trash)}</button>` : ""}
@@ -288,8 +291,7 @@ function renderNoteEditor() {
           <div><dt>${icon("M3 7h18M3 12h18M3 17h12")}Section</dt><dd><select id="note-section" aria-label="Section">${options}</select></dd></div>
           <div><dt>${icon("M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0")}Edited</dt><dd id="note-edited">${esc(when)}</dd></div>
         </dl>
-        <textarea id="note-body" class="note-body" placeholder="Start writing, or press Esc to go back…" aria-label="Note text" spellcheck="true">${esc(note?.notes || "")}</textarea>
-        <div id="note-photos" class="note-photos">${notePhotoMarkup()}</div>
+        <div id="note-body" class="note-body note-document" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="Start writing…" aria-label="Note text" spellcheck="true">${OrbitNoteDocument.markup(note?.notes || "", notePhotoDraft)}</div>
       </article>
     </section>
   </div>`;
@@ -329,12 +331,8 @@ function saveNote(rethrow = false) {
         (current.listID || null) === snapshot.listID
       )
         return;
-      if (page === "note" && noteID === snapshot.id && $("#note-status")) $("#note-status").textContent = "Saving…";
+
       await saveTasks([snapshot]);
-      if (page === "note" && noteID === snapshot.id) {
-        if ($("#note-status")) $("#note-status").textContent = "Saved";
-        if ($("#note-edited")) $("#note-edited").textContent = "Just now";
-      }
     })
     .catch((error) => {
       showNotice(error.message);
@@ -350,12 +348,13 @@ function leaveNote(section) {
 }
 function bindNoteEditor() {
   if (!$("#note-title")) return;
+  OrbitNoteDocument.bind($("#note-body"));
   resizeNoteFields();
   bindNotePhotos();
   const later = () => {
     resizeNoteFields();
     clearTimeout(noteSaveTimer);
-    if ($("#note-status")) $("#note-status").textContent = "Editing";
+
     noteSaveTimer = setTimeout(() => void saveNote(), 600);
   };
   $("#note-title").oninput = later;
@@ -370,7 +369,7 @@ function bindNoteEditor() {
     }
   };
   $("#note-body").onkeydown = (e) => {
-    if (e.key === "Backspace" && !$("#note-body").value) {
+    if (!e.defaultPrevented && e.key === "Backspace" && !$("#note-body").value && !notePhotoDraft.length) {
       e.preventDefault();
       $("#note-title").focus();
     }
@@ -549,35 +548,16 @@ function moveList(delta) {
 $("#list-move-up").onclick = () => moveList(-1);
 $("#list-move-down").onclick = () => moveList(1);
 
-function notePhotoMarkup() {
-  return notePhotoDraft
-    .map(
-      (photo) =>
-        `<figure><img src="orbit://app/photos/${esc(photo.id)}.jpg" alt="Note photo" loading="lazy" /><button class="copy-photo icon-button" data-copy-note-photo="${esc(photo.id)}" aria-label="Copy photo">${icon(ICONS.copy)}</button><button class="icon-button" data-remove-note-photo="${esc(photo.id)}" aria-label="Remove photo">${icon(ICONS.trash)}</button></figure>`,
-    )
-    .join("");
-}
-function bindPhotoRemoval() {
-  document
-    .querySelectorAll("[data-copy-note-photo]")
-    .forEach(
-      (button) =>
-        (button.onclick = () =>
-          void api.copyNotePhoto(button.dataset.copyNotePhoto).catch((error) => showNotice(error.message))),
-    );
-  document.querySelectorAll("[data-remove-note-photo]").forEach(
-    (button) =>
-      (button.onclick = async () => {
-        notePhotoDraft = notePhotoDraft.filter((photo) => photo.id !== button.dataset.removeNotePhoto);
-        $("#note-photos").innerHTML = notePhotoMarkup();
-        bindPhotoRemoval();
-        await saveNote();
-      }),
-  );
-}
 function bindNotePhotos() {
-  bindPhotoRemoval();
-  const attach = async (files) => {
+  let lastRange = null;
+  const body = $("#note-body");
+  const remember = () => {
+    const selection = getSelection();
+    if (selection.rangeCount && body.contains(selection.anchorNode)) lastRange = selection.getRangeAt(0).cloneRange();
+  };
+  body.addEventListener("keyup", remember);
+  body.addEventListener("mouseup", remember);
+  const attach = async (files, insertion) => {
     const token = notePageToken;
     try {
       for (const file of files) {
@@ -585,24 +565,53 @@ function bindNotePhotos() {
         if (notePhotoDraft.length >= 12) throw Error("A note can hold up to 12 photos.");
         if (file.size > 25000000) throw Error("Choose a photo smaller than 25 MB.");
         const photo = await api.addNotePhoto(new Uint8Array(await file.arrayBuffer()));
-        if (token !== notePageToken || page !== "note") return;
-        notePhotoDraft.push(photo);
+        if (token !== notePageToken || page !== "note" || !body.isConnected) return;
+        body.focus();
+        const selection = getSelection();
+        if (insertion && body.contains(insertion.startContainer)) {
+          selection.removeAllRanges();
+          selection.addRange(insertion);
+        } else body.setSelectionRange(body.value.length, body.value.length);
+        document.execCommand("insertHTML", false, OrbitNoteDocument.figure(photo));
+        notePhotoDraft = OrbitNoteDocument.read(body).photos;
+        insertion = selection.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
         await saveNote(true);
-        $("#note-photos").innerHTML = notePhotoMarkup();
-        bindPhotoRemoval();
       }
     } catch (error) {
       showNotice(error.message);
     }
   };
+  $("#add-note-photo").onmousedown = remember;
   $("#add-note-photo").onclick = () => $("#note-photo-file").click();
-  $("#note-photo-file").onchange = (event) => void attach([...event.target.files]);
-  for (const field of [$("#note-title"), $("#note-body")])
+  $("#note-photo-file").onchange = (event) => void attach([...event.target.files], lastRange);
+  body.ondrop = (event) => {
+    event.preventDefault();
+    const range = document.caretRangeFromPoint?.(event.clientX, event.clientY);
+    const insertion = range && body.contains(range.startContainer) ? range : lastRange;
+    const files = [...(event.dataTransfer?.files || [])].filter((file) => file.type.startsWith("image/"));
+    if (files.length) {
+      void attach(files, insertion);
+      return;
+    }
+    body.focus();
+    if (insertion) {
+      const selection = getSelection();
+      selection.removeAllRanges();
+      selection.addRange(insertion);
+    }
+    document.execCommand("insertText", false, event.dataTransfer?.getData("text/plain") || "");
+  };
+  for (const field of [$("#note-title"), body])
     field.onpaste = (event) => {
       const photos = [...(event.clipboardData?.files || [])].filter((file) => file.type.startsWith("image/"));
       if (photos.length) {
         event.preventDefault();
-        void attach(photos);
+        remember();
+        void attach(photos, lastRange);
+      } else if (field === body) {
+        // Paste text only: external HTML must never introduce scripts, remote images or controls.
+        event.preventDefault();
+        document.execCommand("insertText", false, event.clipboardData?.getData("text/plain") || "");
       }
     };
 }

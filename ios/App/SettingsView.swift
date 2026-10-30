@@ -12,7 +12,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: CGFloat(DesignTokens.spaceL)) {
-                PageHeader(eyebrow: "Preferences", title: "Settings")
+                PageHeader(eyebrow: "Preferences", title: "Settings") { SyncIndicator(textOnly: true) }
                     .padding(.horizontal, 20).padding(.top, 8)
                 Form {
                     Section {
@@ -30,10 +30,6 @@ struct SettingsView: View {
                     Section("Layout") {
                         NavigationLink("Arrange Today") { HomeLayoutEditor() }
                         NavigationLink("Tab order") { NavigationLayoutEditor() }
-                    }
-                    Section("Sync") {
-                        Text(sync.status == "All changes synced" ? "Synced" : sync.status)
-                            .foregroundStyle(sync.status == "All changes synced" ? Color.green : Color.orange)
                     }
                     AppearanceSection()
                     RemindersSection(message: $message)
@@ -62,6 +58,8 @@ private struct AppearanceSection: View {
     @AppStorage("appearance") private var appearance = "system"
     @AppStorage("accentTheme") private var accentTheme = "coral"
     @AppStorage("compactRows") private var compactRows = false
+    @AppStorage("progressIncludesTasks") private var includeTasks = true
+    @AppStorage("calendarFirstWeekday") private var firstWeekday = Calendar.current.firstWeekday
     var body: some View {
         Section("Appearance") {
             AccentPicker(title: "Appearance", selection: $appearance, choices: [("system", "System"), ("light", "Light"), ("dark", "Dark")])
@@ -76,6 +74,8 @@ private struct AppearanceSection: View {
                     }.buttonStyle(.plain).accessibilityLabel(name.capitalized + (accentTheme == name ? ", selected" : ""))
                 }
             }.padding(.vertical, 6)
+            Toggle("Include tasks in daily progress", isOn: $includeTasks)
+            Picker("Start week on", selection: $firstWeekday) { Text("Sunday").tag(1); Text("Monday").tag(2) }
             Toggle("Compact habits and tasks", isOn: $compactRows)
             Text("Fits more items by reducing spacing. Larger accessibility text keeps the room it needs.")
                 .font(.footnote).foregroundStyle(.secondary)

@@ -35,6 +35,7 @@ struct RootView: View {
     @AppStorage("appearance") private var appearance = "system"
     @AppStorage("accentTheme") private var accentTheme = "coral"
     @AppStorage("consistencyRange") private var consistencyRange = 7
+    @AppStorage("progressIncludesTasks") private var progressIncludesTasks = true
     @ObservedObject private var undo = UndoJournal.shared
     @ObservedObject private var sync = SyncService.shared
     @State private var selectedTab = OrbitTab.today
@@ -70,7 +71,8 @@ struct RootView: View {
             NavigationStack { AccountView().toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showAccount = false } } } }
         }
         .task { decideOnboarding() }
-        .task { do { try Migrations.run(context) } catch { errorMessage = error.localizedDescription }; applyNativeAccent(); DayTheme.sharedDefaults?.set(consistencyRange, forKey: "consistencyRange"); DayTheme.sharedDefaults?.set(accentTheme, forKey: "accentTheme"); UsageSignals.recordVisit(); await refreshNotifications() }
+        .task { do { try Migrations.run(context) } catch { errorMessage = error.localizedDescription }; applyNativeAccent(); DayTheme.sharedDefaults?.set(progressIncludesTasks, forKey: "progressIncludesTasks"); DayTheme.sharedDefaults?.set(consistencyRange, forKey: "consistencyRange"); DayTheme.sharedDefaults?.set(accentTheme, forKey: "accentTheme"); UsageSignals.recordVisit(); await refreshNotifications() }
+        .onChange(of: progressIncludesTasks) { _, value in DayTheme.sharedDefaults?.set(value, forKey: "progressIncludesTasks"); WidgetCenter.shared.reloadAllTimelines() }
         .onChange(of: consistencyRange) { _, range in DayTheme.sharedDefaults?.set(range, forKey: "consistencyRange"); WidgetCenter.shared.reloadAllTimelines() }
         .onChange(of: accentTheme) { _, theme in applyNativeAccent(); DayTheme.sharedDefaults?.set(theme, forKey: "accentTheme"); WidgetCenter.shared.reloadAllTimelines() }
         .task {

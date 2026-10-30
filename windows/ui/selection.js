@@ -37,6 +37,16 @@ document.addEventListener(
   "click",
   (event) => {
     const row = event.target.closest("[data-row-menu], [data-note-menu]");
+    if (
+      !row &&
+      selectedRows.size &&
+      !event.target.closest(
+        "button, input, textarea, select, a, summary, [contenteditable], [role=button], #selection-bar, #row-menu",
+      )
+    ) {
+      selectedRows.clear();
+      refreshSelection();
+    }
     if (!row || row.dataset.rowMenu?.startsWith("habit:") || !(event.ctrlKey || event.metaKey || selectedRows.size))
       return;
     event.preventDefault();
@@ -47,7 +57,12 @@ document.addEventListener(
   true,
 );
 document.addEventListener("keydown", (event) => {
-  if (!selectedRows.size || ["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName)) return;
+  if (
+    !selectedRows.size ||
+    event.target.closest?.("[contenteditable=true]") ||
+    ["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName)
+  )
+    return;
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") {
     event.preventDefault();
     void copySelected();

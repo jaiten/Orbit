@@ -208,8 +208,8 @@ struct AgendaSheet: View {
             .background(DayTheme.canvas(scheme)).tint(accent.fill)
             .navigationTitle(scope == .day ? AgendaScope.week.title : scope.title).navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-            .sheet(item: $editing) { TaskEditor(task: $0) }
-            .sheet(item: $editingHabit) { HabitEditor(habit: $0) }
+            .sheet(item: $editing) { TaskEditor(task: $0).presentationDragIndicator(.visible) }
+            .sheet(item: $editingHabit) { HabitEditor(habit: $0).presentationDragIndicator(.visible) }
         }
     }
 }
@@ -248,7 +248,7 @@ struct TasksView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     PageHeader(eyebrow: "", title: "Tasks") {
-                        Button { managing = true } label: { Label("Categories", systemImage: "plus").font(.subheadline).frame(minHeight: 44) }
+                        Button { managing = true } label: { Label("Categories", systemImage: "plus").font(.subheadline).padding(.horizontal, 14).frame(minHeight: 44).fixedSize(horizontal: true, vertical: false) }
                     }
                     TextField("Search tasks", text: $search).textFieldStyle(.roundedBorder)
                     Picker("Show tasks", selection: $scope) {
@@ -270,8 +270,8 @@ struct TasksView: View {
             .captureDock(scheme) { InlineCapture(defaultDay: scope == "Someday" || scope == "All tasks" ? .undated : scope == "Future" ? .day(HabitRules.addDays(PlannerLogic.dayKey(.now), 1)) : .today) }
             .background(DayTheme.canvas(scheme))
             .navigationTitle("Tasks").toolbar(.hidden, for: .navigationBar)
-            .sheet(item: $editing) { TaskEditor(task: $0) }
-            .sheet(isPresented: $managing) { ListsView(categoryMode: true) }
+            .sheet(item: $editing) { TaskEditor(task: $0).presentationDragIndicator(.visible) }
+            .sheet(isPresented: $managing) { ListsView(categoryMode: true).presentationDragIndicator(.visible) }
         }
     }
     @ViewBuilder private func category(_ name: String, id: String, items: [PlannerTask]) -> some View {

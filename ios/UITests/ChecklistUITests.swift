@@ -305,6 +305,13 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(body.waitForExistence(timeout: 5))
         app.typeText("Ridge loop or the lake path")
         XCTAssertEqual(title.value as? String, "Trail options")
+        app.typeText("\n- one\n")
+        XCTAssertTrue((body.value as? String ?? "").contains("• one\n• "))
+        app.buttons["Indent"].tap()
+        app.typeText("two")
+        XCTAssertTrue((body.value as? String ?? "").contains("    • two"))
+        app.buttons["Outdent"].tap()
+        XCTAssertTrue((body.value as? String ?? "").contains("\n• two"))
         let page = XCTAttachment(screenshot: app.screenshot())
         page.name = "New note page"; page.lifetime = .keepAlways; add(page)
         let back = app.navigationBars.buttons["Notes"]

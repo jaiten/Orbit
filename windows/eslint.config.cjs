@@ -146,6 +146,8 @@ const shared = Object.fromEntries(
     "calendarStart",
     "calendarDay",
     "OrbitNotes",
+    "OrbitNoteDocument",
+    "notePhotoDraft",
     "updateQuickPreview",
     "noteSection",
     "renderNotes",

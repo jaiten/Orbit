@@ -20,7 +20,7 @@ struct TaskActions: ViewModifier {
                 Button("Make It a Note", systemImage: "doc.text") { change { task.isNote = true; task.schedule(nil, hasTime: false); task.reminders = []; task.progressTracking = nil; task.startedAt = nil; task.updatedAt = .now; try Mutations.save(context) } }
                 Button("Delete", systemImage: "xmark", role: .destructive) { change { context.delete(task); try Mutations.save(context) } }
         }
-            .sheet(item: $calendarDraft) { CalendarEventEditor(draft: $0) }
+            .sheet(item: $calendarDraft) { CalendarEventEditor(draft: $0).presentationDragIndicator(.visible) }
             .modifier(MutationErrorModifier(error: $error))
     }
     private func change(_ action: () throws -> Void) {

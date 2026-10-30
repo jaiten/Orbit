@@ -14,30 +14,21 @@ struct HabitsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
-                    PageHeader(eyebrow: "", title: "Habits")
+                    PageHeader(eyebrow: "", title: "Habits") {
+                        NavigationLink { HabitHistoryIndex() } label: { Image(systemName: "clock.arrow.circlepath").frame(width: 44, height: 44) }.accessibilityLabel("History")
+                    }
                     if habits.isEmpty { ContentUnavailableView("No Habits", systemImage: "repeat", description: Text("Start typing to add a habit.")) }
                     VStack(spacing: compactRows && !typeSize.isAccessibilitySize ? 3 : CGFloat(DesignTokens.spaceS)) {
                         ForEach(habits) { habit in
                             HabitRow(habit: habit, logs: logs, date: .now, edit: { editing = habit })
                         }
                     }
-                    if !habits.isEmpty {
-                        NavigationLink { HabitHistoryIndex() } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Eyebrow(text: "History")
-                                    Text("The last 7 days, for every habit").font(.body).foregroundStyle(.primary)
-                                }
-                                Spacer()
-                                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
-                            }.orbitCard()
-                        }.buttonStyle(OrbitPress()).accessibilityLabel("History")
-                    }
+
                 }.padding(.horizontal, CGFloat(DesignTokens.screenPadding)).padding(.vertical, CGFloat(DesignTokens.spaceS))
                     .frame(maxWidth: 760).frame(maxWidth: .infinity)
             }.captureDock(scheme) { InlineCapture(habitsOnly: true) }.background(DayTheme.canvas(scheme)).navigationTitle("Habits").navigationBarTitleDisplayMode(.inline)
                 .toolbar(.hidden, for: .navigationBar)
-                .sheet(isPresented: $adding) { HabitEditor() }.sheet(item: $editing) { HabitEditor(habit: $0) }
+                .sheet(isPresented: $adding) { HabitEditor().presentationDragIndicator(.visible) }.sheet(item: $editing) { HabitEditor(habit: $0).presentationDragIndicator(.visible) }
         }
     }
 }
@@ -52,14 +43,13 @@ struct HabitHistoryIndex: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceM)) {
-                Text("The last 7 days and 12 weeks, for every habit. Yesterday is the only past day you can correct.").font(.subheadline).foregroundStyle(.secondary).padding(.horizontal, 4)
+                Text("Your week at a glance. Open a habit for its full history.").font(.subheadline).foregroundStyle(.secondary).padding(.horizontal, 4)
                 ForEach(habits) { habit in
-                    VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceM)) {
+                    VStack(alignment: .leading, spacing: 10) {
                         historyHeading(habit)
-                        Text(PlannerLogic.detail(habit, logs: logs, at: .now)).font(.footnote).foregroundStyle(.secondary).padding(.leading, 20).padding(.top, -8)
-                        HabitHistoryCharts(habit: habit, logs: logs)
+                        HabitHistoryCharts(habit: habit, logs: logs, compact: true)
                         NavigationLink { HabitHistoryDetail(habit: habit) } label: {
-                            HStack { Text("Check-ins"); Spacer(); Image(systemName: "chevron.right").font(.caption.weight(.semibold)) }
+                            HStack { Text("Full history"); Spacer(); Image(systemName: "chevron.right").font(.caption.weight(.semibold)) }
                                 .font(.footnote).foregroundStyle(.secondary)
                         }.accessibilityLabel("Check-ins")
                     }.orbitCard()
@@ -133,6 +123,7 @@ struct HabitHistoryCharts: View {
     let logs: [HabitLog]
     @State private var error: String?
     @State private var feedback = 0
+    var compact = false
     var body: some View {
         let color = DayTheme.color(habit.color)
         let week = (-6...0).map { Calendar.current.date(byAdding: .day, value: $0, to: .now)! }
@@ -144,11 +135,11 @@ struct HabitHistoryCharts: View {
                          scheduled: week.map { HabitRules.scheduledOn(rule: habit.frequencyRule, day: PlannerLogic.dayKey($0)) },
                          available: week.map { PlannerLogic.dayKey($0) >= PlannerLogic.dayKey(habit.createdAt) },
                          toggle: toggle)
-            BoxGrid(levels: BoxGrid.days().map { day -> Double? in
+            if !compact { BoxGrid(levels: BoxGrid.days().map { day -> Double? in
                 let key = PlannerLogic.dayKey(day)
                 return key > today ? nil : Double(counts[key] ?? 0) / target
             }, color: color)
-            .accessibilityLabel("\(habit.title), last 12 weeks")
+            .accessibilityLabel("\(habit.title), last 12 weeks") }
         }
         .modifier(MutationErrorModifier(error: $error))
         .sensoryFeedback(.success, trigger: feedback)

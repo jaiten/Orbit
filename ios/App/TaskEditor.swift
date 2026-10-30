@@ -98,7 +98,7 @@ struct TaskEditor: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) { Button("Save", action: save).disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
             }
-            .sheet(item: $calendarDraft) { CalendarEventEditor(draft: $0) }
+            .sheet(item: $calendarDraft) { CalendarEventEditor(draft: $0).presentationDragIndicator(.visible) }
             .confirmationDialog("This time overlaps another plan", isPresented: $confirmConflict, titleVisibility: .visible) {
                 Button("Save anyway", action: saveConfirmed)
                 Button("Change time", role: .cancel) {}

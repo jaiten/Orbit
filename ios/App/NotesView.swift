@@ -39,13 +39,6 @@ struct NotesView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
                     PageHeader(eyebrow: "", title: "Notes")
-                    HStack {
-                        Button { managing = true } label: {
-                            Label("New section", systemImage: "folder.badge.plus").frame(minHeight: 44).contentShape(Rectangle())
-                        }.accessibilityIdentifier("edit-sections")
-                        Spacer()
-                        Button { withAnimation(.orbit) { path.append(.new(section: nil, token: UUID())) } } label: { Image(systemName: "square.and.pencil") }.accessibilityLabel("New note")
-                    }.frame(minHeight: 44)
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                         TextField("Search notes", text: $search).textInputAutocapitalization(.never)
@@ -66,6 +59,8 @@ struct NotesView: View {
                             sectionView(section.id, name: section.name, color: section.color, listID: section.listID, pages: pages)
                         }
                     }
+                    Button("Manage sections", systemImage: "folder.badge.gearshape") { managing = true }
+                        .frame(minHeight: 44).accessibilityIdentifier("edit-sections")
                 }.padding(.horizontal, CGFloat(DesignTokens.screenPadding)).padding(.vertical, CGFloat(DesignTokens.spaceS))
                     .frame(maxWidth: 760).frame(maxWidth: .infinity)
             }
@@ -81,7 +76,7 @@ struct NotesView: View {
                 case .new(let section, _): NoteEditor(note: nil, sectionID: section)
                 }
             }
-            .sheet(isPresented: $managing) { ListsView() }
+            .sheet(isPresented: $managing) { ListsView().presentationDragIndicator(.visible) }
         }
     }
 
@@ -258,11 +253,11 @@ struct NoteEditor: View {
     @State private var text = ""
     @State private var section: UUID?
     @State private var loaded = false
+    @State private var displayedEdited: Date?
     @State private var error: String?
     @State private var confirmDelete = false
     @State private var photos: [NotePhoto] = []
     @State private var selectedPhoto: PhotosPickerItem?
-    @State private var importingPhoto = false
     @State private var focus: Field?
     private enum Field { case title, body }
 
@@ -292,7 +287,7 @@ struct NoteEditor: View {
                     }
                     if let note {
                         property("Edited", icon: "clock") {
-                            Text(note.updatedAt.formatted(.relative(presentation: .named))).foregroundStyle(.secondary)
+                            Text((displayedEdited ?? note.updatedAt).formatted(date: .abbreviated, time: .shortened)).foregroundStyle(.secondary)
                         }
                     }
                 }.font(.subheadline)
@@ -316,20 +311,10 @@ struct NoteEditor: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            HStack(spacing: 18) {
-                PhotosPicker(selection: $selectedPhoto, matching: .images) { Image(systemName: "photo.badge.plus").frame(width: 44, height: 44) }.accessibilityLabel("Add photo")
-                Button { if let image = UIPasteboard.general.image { addPhoto(image) } } label: { Image(systemName: "doc.on.clipboard").frame(width: 44, height: 44) }.accessibilityLabel("Paste photo")
-                if importingPhoto { ProgressView() }
-                Spacer()
-                if focus != nil { Button("Done") { focus = nil; save() }.frame(minHeight: 44) }
-            }.padding(.horizontal, 24).padding(.top, 4).padding(.bottom, 12).background(DayTheme.canvas(scheme))
-        }
         .onChange(of: selectedPhoto) { _, item in
             guard let item else { return }
-            importingPhoto = true
             Task {
-                defer { importingPhoto = false; selectedPhoto = nil }
+                defer { selectedPhoto = nil }
                 do {
                     guard let data = try await item.loadTransferable(type: Data.self), let image = UIImage(data: data) else { throw CocoaError(.fileReadCorruptFile) }
                     addPhoto(image)
@@ -337,6 +322,7 @@ struct NoteEditor: View {
             }
         }
         .toolbar {
+            ToolbarItem(placement: .primaryAction) { PhotosPicker(selection: $selectedPhoto, matching: .images) { Image(systemName: "photo.badge.plus") }.accessibilityLabel("Add photo") }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button("Copy text", systemImage: "doc.on.doc") { UIPasteboard.general.string = [title, text].filter { !$0.isEmpty }.joined(separator: "\n\n") }
@@ -351,6 +337,7 @@ struct NoteEditor: View {
         .onDisappear { save() }
         .onChange(of: phase) { _, value in if value != .active { save() } }
         .onChange(of: section) { _, _ in if loaded { save() } }
+        .onChange(of: text) { old, new in if loaded { photos = NotePhotos.reanchor(photos, from: old, to: new) } }
         // Return in the title moves to the text, as in Notion.
         .onChange(of: title) { _, value in
             guard value.contains("\n") else { return }
@@ -383,7 +370,7 @@ struct NoteEditor: View {
 
     private func load() {
         guard !loaded else { return }
-        if let note { title = note.title; text = note.notes; section = note.listID; photos = note.photos }
+        if let note { displayedEdited = note.updatedAt; title = note.title; text = note.notes; section = note.listID; photos = note.photos }
         else { section = sectionID; Task { try? await Task.sleep(for: .milliseconds(250)); focus = .title } }
         loaded = true
     }
@@ -407,6 +394,7 @@ struct NoteEditor: View {
                 context.insert(created)
                 try Mutations.save(context)
                 note = created
+                if displayedEdited == nil { displayedEdited = created.updatedAt }
             }
         } catch { context.rollback(); self.error = error.localizedDescription }
     }
