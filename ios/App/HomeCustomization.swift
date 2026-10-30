@@ -88,12 +88,16 @@ struct ConsistencyStrip: View {
                                 else { Circle().trim(from: 0, to: ratio).stroke(accent.fill, style: StrokeStyle(lineWidth: 3, lineCap: .round)).rotationEffect(.degrees(-90)) }
                             }.frame(width: range == 7 ? 30 : 20, height: range == 7 ? 30 : 20)
                         if range == 7 { Text(day.formatted(.dateTime.weekday(.narrow))).font(.caption2).foregroundStyle(.secondary) }
-                    }.frame(maxWidth: .infinity, minHeight: 48).contentShape(Rectangle()) }
+                    }.frame(maxWidth: .infinity, minHeight: 48).contentShape(Rectangle())
+                        .overlay(alignment: .bottom) {
+                            if Calendar.current.isDate(day, inSameDayAs: selectedDate) {
+                                Capsule().fill(accent.fill).frame(width: 16, height: 2).accessibilityHidden(true)
+                            }
+                        }
+                    }
                     .buttonStyle(.plain)
-                    .overlay(alignment: .bottom) { if Calendar.current.isDate(day, inSameDayAs: selectedDate) { Capsule().fill(accent.fill).frame(width: 16, height: 2) } }
-                    .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("\(day.formatted(date: .abbreviated, time: .omitted)), \(Int(ratio * 100)) percent complete. Edit this day")
-                        .accessibilityIdentifier("progress-day-" + PlannerLogic.dayKey(day))
+                    .accessibilityLabel("\(day.formatted(date: .abbreviated, time: .omitted)), \(Int(ratio * 100)) percent complete. Edit this day")
+                    .accessibilityIdentifier("progress-day-" + PlannerLogic.dayKey(day))
                 }
             }
         }
