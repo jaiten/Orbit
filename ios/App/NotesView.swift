@@ -59,8 +59,11 @@ struct NotesView: View {
                             sectionView(section.id, name: section.name, color: section.color, listID: section.listID, pages: pages)
                         }
                     }
-                    Button("Manage sections", systemImage: "folder.badge.gearshape") { managing = true }
-                        .frame(minHeight: 44).accessibilityIdentifier("edit-sections")
+                    Button { managing = true } label: {
+                        Label("Manage sections", systemImage: "folder.badge.gearshape")
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
+                    }.buttonStyle(.plain).accessibilityIdentifier("edit-sections")
                 }.padding(.horizontal, CGFloat(DesignTokens.screenPadding)).padding(.vertical, CGFloat(DesignTokens.spaceS))
                     .frame(maxWidth: 760).frame(maxWidth: .infinity)
             }
