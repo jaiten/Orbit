@@ -4,13 +4,18 @@ import SwiftData
 /// Suggests a category for a new task from earlier tasks with similar titles.
 /// Mirrors suggestCategory in windows/ui/planner.js; cases in shared/test-cases/category-suggestions.json.
 enum CategorySuggestion {
-    private static let stopWords: Set<String> = Set("the and for with from into about this that your our get make some more then than have need new week".split(separator: " ").map(String.init))
+    private static let stopWords: Set<String> = ["the", "and", "for", "with", "from", "into", "about", "this", "that", "your",
+                                                 "our", "get", "make", "some", "more", "then", "than", "have", "need", "new", "week"]
 
     /// Words of three or more letters, minus common words, with a trailing "s" dropped.
     static func words(_ title: String) -> Set<String> {
-        Set(title.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init)
-            .filter { $0.count >= 3 && !stopWords.contains($0) }
-            .map { $0.count > 3 && $0.hasSuffix("s") ? String($0.dropLast()) : $0 })
+        var result = Set<String>()
+        for part in title.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber }) {
+            let word = String(part)
+            guard word.count >= 3, !stopWords.contains(word) else { continue }
+            result.insert(word.count > 3 && word.hasSuffix("s") ? String(word.dropLast()) : word)
+        }
+        return result
     }
 
     /// Each category scores the words its tasks share with `title`; the top score wins unless it ties.
