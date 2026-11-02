@@ -25,7 +25,7 @@ struct TodayView: View {
     @AppStorage("compactRows") private var compactRows = false
     @AppStorage("progressIncludesTasks") private var includeTasks = true
     @Environment(\.dynamicTypeSize) private var typeSize
-    private var rowSpacing: CGFloat { compactRows && !typeSize.isAccessibilitySize ? 3 : CGFloat(DesignTokens.spaceS) }
+    private var rowSpacing: CGFloat { DayTheme.rowSpacing(compact: compactRows, typeSize: typeSize) }
     @State private var editing: PlannerTask?
     @State private var editingHabit: Habit?
     @State private var addingHabit = false
@@ -125,11 +125,15 @@ struct TodayView: View {
                 checklistSection("Your day", note: "", items: planned.map { TodayItem(task: $0) }, empty: relevant.isEmpty ? "Nothing planned. Add a task to get started." : "No more tasks scheduled for today.")
                 if !overdue.isEmpty {
                     HStack { SectionLabel(title: "Overdue", note: "\(overdue.count) to review"); Menu("Move all", systemImage: "arrow.turn.down.right") {
-                        Button("Move all to Today") { moveOverdue(overdue, destination: "today") }
-                        Button("Move all to Later") { moveOverdue(overdue, destination: "later") }
-                        Button("Move all to Someday") { moveOverdue(overdue, destination: "someday") }
+                        Button("Move all to Today") { moveOverdue(overdue, to: .today) }
+                        Button("Move all to Someday") { moveOverdue(overdue, to: .someday) }
+                        if !categories.isEmpty {
+                            Section("Categories") {
+                                ForEach(categories) { list in Button("Move all to \(list.name)") { moveOverdue(overdue, to: .category(list.id)) } }
+                            }
+                        }
                     }.frame(minHeight: 44) }
-                    checklist(overdue.map { TodayItem(task: $0) })
+                    checklist(overdue.map { TodayItem(task: $0) }, moves: true)
                 }
             }
         case "routine":
@@ -178,16 +182,18 @@ struct TodayView: View {
         }
     }
 
-    /// Keep rows still during completion; only the check control animates.
-    private func checklist(_ items: [TodayItem]) -> some View {
+    private var categories: [TaskList] { lists.filter(\.isUserCategory) }
+
+    /// Keep rows still during completion; only the check control animates. Overdue rows offer moves.
+    private func checklist(_ items: [TodayItem], moves: Bool = false) -> some View {
         VStack(spacing: rowSpacing) {
-            ForEach(items) { item in itemView(item) }
+            ForEach(items) { item in itemView(item, moves: moves) }
         }
     }
 
-    @ViewBuilder private func itemView(_ item: TodayItem) -> some View {
+    @ViewBuilder private func itemView(_ item: TodayItem, moves: Bool) -> some View {
         if let task = item.task {
-            TaskRow(task: task) { editing = task }
+            TaskRow(task: task, showMoves: moves, categories: moves ? categories : []) { editing = task }
         }
         if let habit = item.habit {
             HabitRow(habit: habit, logs: logs, date: day, edit: { editingHabit = habit })
@@ -198,12 +204,15 @@ struct TodayView: View {
         day = Calendar.current.startOfDay(for: .now)
         calendars.reload(); FocusSession.shared.restore()
     }
-    private func moveOverdue(_ tasks: [PlannerTask], destination: String) {
+    private enum OverdueDestination { case today, someday, category(UUID) }
+    private func moveOverdue(_ tasks: [PlannerTask], to destination: OverdueDestination) {
         do {
             for task in tasks {
-                if destination == "today" { TodayRules.moveToDay(task, day: .now) }
-                else if destination == "someday" { try TodayRules.moveToSomeday(task, in: context) }
-                else { TodayRules.moveLater(task) }
+                switch destination {
+                case .today: TodayRules.moveToDay(task, day: .now)
+                case .someday: try TodayRules.moveToSomeday(task, in: context)
+                case .category(let id): TodayRules.moveToList(task, listID: id)
+                }
             }
             try Mutations.save(context); Task { try? await refreshReminders(context) }
         } catch { self.error = error.localizedDescription }

@@ -14,7 +14,6 @@ function quickAddContext() {
     };
   if (page === "lists") return { defaultDate: "undated", listID: selectedList };
   if (page === "calendar" && calendarDay && calendarDay !== today()) return { defaultDate: calendarDay, listID: null };
-  if (page === "today" && selected !== today()) return { defaultDate: selected, listID: null };
   return { defaultDate: null, listID: null };
 }
 
@@ -157,9 +156,12 @@ $("#quick-add-form").onsubmit = (e) => {
     $("#quick-add-dialog").close();
   });
 };
-$("#quick-add-details").onclick = () => {
-  const result = quickParse();
-  $("#quick-add-dialog").close();
+/**
+ * The full editor for a capture: a habit, or a task with its date, time and options already open.
+ * Used by "More details…" and by the calendar button beside the writing bar.
+ */
+function openCaptureDetails(text) {
+  const result = parseCapture(text, quickContext.defaultDate);
   if (result.kind === "habit") {
     openHabit(null, { title: result.title, frequencyRule: result.schedule, reminderMinutes: result.time });
     afterCaptureSave = () => {
@@ -168,10 +170,15 @@ $("#quick-add-details").onclick = () => {
     return;
   }
   const { task } = quickRecords(result.title ? result : { ...result, title: "" });
-  openTask(null, task.localDate ?? "", task);
+  openTask(null, task.localDate ?? "", task, { expanded: true });
   afterCaptureSave = () => {
     inlineDraft = "";
   };
+}
+$("#quick-add-details").onclick = () => {
+  const text = $("#quick-add-form").elements.text.value;
+  $("#quick-add-dialog").close();
+  openCaptureDetails(text);
 };
 
 // Preserve the current inline draft across sync renders and page changes.

@@ -130,6 +130,9 @@ struct OrbitTick: View {
     var size = CGFloat(DesignTokens.rowTickLarge)
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var pop: CGFloat = 1
+    /// Completing: a ring and eight sparks burst out once (Windows: .tick.pop::before/::after).
+    @State private var bursting = false
+    @State private var burst: CGFloat = 0
     var body: some View {
         ZStack {
             Circle().strokeBorder(done ? color : color.opacity(DesignTokens.tintTickRing), lineWidth: DesignTokens.rowTickRing)
@@ -141,11 +144,26 @@ struct OrbitTick: View {
                 .animation(reduceMotion ? nil : .easeOut(duration: DesignTokens.tickDrawSeconds).delay(done ? 0.08 : 0), value: done)
         }
         .frame(width: size, height: size).scaleEffect(pop)
+        .overlay { if bursting { sparks } }
         .onChange(of: done) { _, now in
             guard now, !reduceMotion else { return }
             withAnimation(.easeOut(duration: 0.16)) { pop = DesignTokens.tickPop } completion: { withAnimation(.orbit) { pop = 1 } }
+            burst = 0; bursting = true
+            withAnimation(.easeOut(duration: 0.55)) { burst = 1 } completion: { bursting = false }
         }
         .accessibilityHidden(true)
+    }
+
+    private var sparks: some View {
+        ZStack {
+            Circle().stroke(color, lineWidth: 2).scaleEffect(1 + burst).opacity(0.7 * (1 - burst))
+            ForEach(0..<8, id: \.self) { index in
+                Circle().fill(color).frame(width: 4, height: 4)
+                    .offset(y: -size * (0.5 + 0.4 * burst))
+                    .rotationEffect(.degrees(Double(index) * 45))
+                    .opacity(1 - burst)
+            }
+        }.frame(width: size, height: size).allowsHitTesting(false)
     }
 }
 

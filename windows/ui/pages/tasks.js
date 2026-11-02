@@ -27,7 +27,8 @@ function renderTasks(tasks) {
           ? (a.sortOrder || 0) - (b.sortOrder || 0)
           : (taskDate(a) || "9999").localeCompare(taskDate(b) || "9999")),
   );
-  const groups = ["Today", "Overdue", "Upcoming", "Someday", "Completed"]
+  // Someday first, as on iPhone; then overdue, today and upcoming.
+  const groups = ["Someday", "Overdue", "Today", "Upcoming", "Completed"]
     .map((group) => {
       const items = filtered.filter((task) => OrbitPlanner.dateGroup(planItem(task), current) === group);
       return !items.length

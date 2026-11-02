@@ -17,7 +17,7 @@ struct TaskActions: ViewModifier {
                     Button("Move to Someday", systemImage: "moon.zzz") { change { try TodayRules.moveToSomeday(task, in: context); try Mutations.save(context) } }
                 }
                 Button("Make It a Habit", systemImage: "repeat") { change { try Conversions.toHabit(task, in: context) } }
-                Button("Make It a Note", systemImage: "doc.text") { change { task.isNote = true; task.schedule(nil, hasTime: false); task.reminders = []; task.progressTracking = nil; task.startedAt = nil; task.updatedAt = .now; try Mutations.save(context) } }
+                Button("Make It a Note", systemImage: "doc.text") { change { try NoteRules.makeNote(task, in: context) } }
                 Button("Delete", systemImage: "xmark", role: .destructive) { change { context.delete(task); try Mutations.save(context) } }
         }
             .sheet(item: $calendarDraft) { CalendarEventEditor(draft: $0).presentationDragIndicator(.visible) }

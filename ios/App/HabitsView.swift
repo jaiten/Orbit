@@ -18,7 +18,7 @@ struct HabitsView: View {
                         NavigationLink { HabitHistoryIndex() } label: { Image(systemName: "clock.arrow.circlepath").frame(width: 44, height: 44) }.accessibilityLabel("History")
                     }
                     if habits.isEmpty { ContentUnavailableView("No Habits", systemImage: "repeat", description: Text("Start typing to add a habit.")) }
-                    VStack(spacing: compactRows && !typeSize.isAccessibilitySize ? 3 : CGFloat(DesignTokens.spaceS)) {
+                    VStack(spacing: DayTheme.rowSpacing(compact: compactRows, typeSize: typeSize)) {
                         ForEach(habits) { habit in
                             HabitRow(habit: habit, logs: logs, date: .now, edit: { editing = habit })
                         }

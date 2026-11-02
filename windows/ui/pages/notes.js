@@ -448,12 +448,7 @@ function bindNoteEditor() {
         await saveNote();
         const n = notes().find((item) => item.id === noteID) || rows("tasks").find((item) => item.id === noteID);
         if (!n) return;
-        await put("tasks", {
-          ...n,
-          title: n.title || OrbitNotes.split(n.notes).title || "Photo note",
-          isNote: false,
-          updatedAt: Date.now(),
-        });
+        await put("tasks", noteToTask(n));
         pendingNotes.delete(n.id);
         lastNoteID = null;
         localStorage.removeItem("lastNoteID");

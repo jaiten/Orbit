@@ -6,6 +6,8 @@ import SwiftData
     var kind: String? = nil
     var isNoteSection: Bool { kind != "tasks" && id != TodayRules.somedayID }
     var isTaskCategory: Bool { kind != "notes" }
+    /// A category the user made (not the built-in Someday list).
+    var isUserCategory: Bool { isTaskCategory && id != TodayRules.somedayID }
 
     @Attribute(.unique) var id: UUID
     var name: String

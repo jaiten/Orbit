@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 
-/// What belongs on Today, and the moves between Today, Later and Someday.
+/// What belongs on Today, and the moves between Today, Someday and categories.
 /// Mirrors windows/ui/planner.js; cases in shared/test-cases/today.json.
 enum TodayRules {
     /// The built-in Someday list has the same ID on every device, so creating it twice never conflicts.
@@ -53,12 +53,12 @@ enum TodayRules {
         if task.listID == somedayID { task.listID = nil }
         task.updatedAt = .now
     }
-    /// Later: no date, so it waits in its list until it is added to Today again.
-    static func moveLater(_ task: PlannerTask) {
-        task.schedule(nil, hasTime: false); task.reminders = []; task.updatedAt = .now
+    /// Files a task in a category (or Someday) with no date or reminders, so it leaves Today.
+    static func moveToList(_ task: PlannerTask, listID: UUID) {
+        task.schedule(nil, hasTime: false); task.reminders = []; task.listID = listID; task.updatedAt = .now
     }
     /// Someday: no date, no reminders, never on Today.
     static func moveToSomeday(_ task: PlannerTask, in context: ModelContext) throws {
-        try ensureSomeday(context); moveLater(task); task.listID = somedayID
+        try ensureSomeday(context); moveToList(task, listID: somedayID)
     }
 }

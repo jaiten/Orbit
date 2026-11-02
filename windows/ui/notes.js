@@ -1,13 +1,14 @@
 // Notes: long captures become a titled page instead of a to-do.
 // Mirrors ios/Shared/NoteRules.swift; cases in shared/test-cases/notes.json.
 const OrbitNotes = (() => {
-  /** Captures longer than this (or with a line break) become notes. */
+  /** Captures longer than this, with more than WORD_LIMIT words, or with a line break become notes. */
   const THRESHOLD = 120;
+  const WORD_LIMIT = 10;
   const TITLE_LIMIT = 60;
 
   const isNote = (text) => {
     const value = String(text ?? "").trim();
-    return value.includes("\n") || value.length > THRESHOLD;
+    return value.includes("\n") || value.length > THRESHOLD || value.split(/\s+/).length > WORD_LIMIT;
   };
 
   /** Splits captured text into { title, body }: the first line, the first short sentence, or the opening words. */

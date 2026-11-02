@@ -299,12 +299,15 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(sections.frame.height + 0.001, 44)
         sections.tap()
         XCTAssertTrue(app.textFields["new-list-name"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Hide keyboard"].exists)
         for name in ["Weekend", "Errands"] {
             app.textFields["new-list-name"].tap(); app.textFields["new-list-name"].typeText(name)
             app.buttons["Add Section"].tap()
         }
-        app.buttons["Hide keyboard"].tap()
+        // Hide keyboard sits on the toolbar right above the software keyboard.
+        if app.keyboards.count > 0 {
+            let hide = app.buttons["Hide keyboard"]
+            XCTAssertTrue(hide.waitForExistence(timeout: 5)); hide.tap()
+        }
         let errands = app.textFields.matching(NSPredicate(format: "value == %@", "Errands")).firstMatch
         let weekend = app.textFields.matching(NSPredicate(format: "value == %@", "Weekend")).firstMatch
         let origin = app.coordinate(withNormalizedOffset: .zero)

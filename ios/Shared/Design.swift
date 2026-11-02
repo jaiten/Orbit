@@ -38,6 +38,10 @@ enum DayTheme {
     static let spacing = CGFloat(DesignTokens.spaceL)
     static let radius = CGFloat(DesignTokens.radiusCard)
     static let rowRadius = CGFloat(DesignTokens.radiusRow)
+    /// The gap between task and habit rows, the same on every page; tighter with Compact habits and tasks.
+    static func rowSpacing(compact: Bool, typeSize: DynamicTypeSize) -> CGFloat {
+        compact && !typeSize.isAccessibilitySize ? 3 : CGFloat(DesignTokens.spaceS)
+    }
 }
 
 struct DayCard<Content: View>: View {

@@ -44,7 +44,15 @@ function todayPanel(id, content, defaultColumn = "side") {
 }
 function todayLayoutOptions() {
   const visibility = { heatmap: false, ...JSON.parse(localStorage.getItem("todayPanelVisibility") || "{}") };
-  return `<div class="today-layout-options" role="group" aria-label="Visible panels">${["recent", "plan", "habits", "heatmap"].map((id) => `<label><input type="checkbox" data-panel-visible="${id}" ${visibility[id] !== false ? "checked" : ""} /> ${todayPanelNames[id]}</label>`).join("")}<label>Overall progress <select id="layout-overall-range"><option value="7" ${localStorage.getItem("overallProgressRange") === "7" ? "selected" : ""}>Past week</option><option value="30" ${localStorage.getItem("overallProgressRange") !== "7" ? "selected" : ""}>Past month</option></select></label></div>`;
+  return `<div class="today-layout-options" role="group" aria-label="Visible panels">${["recent", "plan", "habits", "heatmap"].map((id) => `<label><input type="checkbox" data-panel-visible="${id}" ${visibility[id] !== false ? "checked" : ""} /> ${todayPanelNames[id]}</label>`).join("")}<div class="layout-range"><span>Timeline</span>${macPicker(
+    "layout-overall-range",
+    "Overall progress range",
+    [
+      ["7", "Past week"],
+      ["30", "Past month"],
+    ],
+    localStorage.getItem("overallProgressRange") === "7" ? "7" : "30",
+  )}</div></div>`;
 }
 function overallProgressCard(tasks, habits) {
   const normalized = tasks.map((task) => ({
@@ -72,28 +80,40 @@ function overallProgressCard(tasks, habits) {
     .join("");
   return `<section class="card overall-progress"><div class="recent-progress-head"><h2>Overall progress</h2><span class="secondary">${count === 7 ? "Past week" : "Past month"}</span></div><div class="overall-days ${count === 7 ? "week" : "month"}" role="group" aria-label="Daily progress, oldest first">${cells}</div></section>`;
 }
+/**
+ * A habit on Today: the whole row logs one check-in (and undoes a completed one), so there are no
+ * hover actions to get in the way. Right-click or E edits it.
+ */
+function compactHabit(h) {
+  const done = checked(h),
+    id = esc(h.id),
+    title = esc(h.title);
+  return `<div class="row habit-row habit-${colorName(h.color)} check-tile ${done ? "complete" : ""}" data-flip="habit-${id}" data-row-menu="habit:${id}">
+    <button class="row-line habit-log" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-day="${today()}" data-habit-menu="${id}">${tick(done, poppedID === h.id)}<span class="row-title">${title}</span><span class="row-detail ${done ? "met" : ""}">${progress(h)} of ${h.target}</span></button>
+  </div>`;
+}
 function renderToday(tasks, allHabits) {
   // Today: dated today or earlier and still open, or finished today. Undated and Someday items stay in Notes.
-  const relevant = tasks.filter((t) => OrbitPlanner.onDay(planItem(t), selected, today()));
-  const habits = allHabits.filter((h) => (!h.createdAt || dayKey(new Date(h.createdAt)) <= selected) && dueOn(h));
+  // Today is always the current day; past days are reviewed in Calendar.
+  const day = today();
+  const relevant = tasks.filter((t) => OrbitPlanner.onDay(planItem(t), day, day));
+  const habits = allHabits.filter((h) => (!h.createdAt || dayKey(new Date(h.createdAt)) <= day) && dueOn(h));
   const open = relevant.filter((t) => !t.completedAt),
     complete = relevant.filter((t) => t.completedAt);
   // Timed tasks first, in time order; then the rest as arranged.
   open.sort((a, b) => (a.hasTime ? a.dueDate : Infinity) - (b.hasTime ? b.dueDate : Infinity));
-  const overdue = open.filter((t) => selected === today() && OrbitPlanner.isOverdue(planItem(t), today()));
+  const overdue = open.filter((t) => OrbitPlanner.isOverdue(planItem(t), day));
   const timed = open.filter((t) => t.hasTime && !overdue.includes(t)),
     untimed = open.filter((t) => !t.hasTime && !overdue.includes(t));
   const habitsDone = habits.filter((h) => checked(h)).length;
   const includeTasks = localStorage.getItem("progressIncludesTasks") !== "false";
   const done = (includeTasks ? complete.length : 0) + habitsDone,
     total = (includeTasks ? relevant.length : 0) + habits.length;
-  const date = localDay(selected);
-  const isToday = selected === today();
-  const heading = isToday ? "Today" : date.toLocaleDateString([], { weekday: "long" });
-  const eyebrow = date.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+  const eyebrow = localDay(day).toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+  const hideCompleted = localStorage.getItem("todayHideCompleted") === "true";
   const agenda = `      ${focusBanner()}
       ${conflictBanner()}
-      ${overdue.length ? `<div class="overdue-heading">${sectionLabel("Overdue", `${overdue.length} to review`)}<div class="overdue-bulk" aria-label="Move all overdue tasks"><button data-overdue-all="today">All to Today</button><button data-overdue-all="later">All to Later</button><button data-overdue-all="someday">All to Someday</button></div></div>` + checklist(overdue) : ""}
+      ${overdue.length ? `<div class="overdue-heading">${sectionLabel("Overdue", `${overdue.length} to review`)}<div class="overdue-bulk" role="group" aria-label="Move all overdue tasks"><button data-overdue-all="today">All to Today</button><button data-overdue-all="someday">All to Someday</button>${taskCategories().length ? macPicker("overdue-all-move", "Move all overdue tasks to a category", categoryOptions(), "", { placeholder: "All to a category", className: "pill-picker" }) : ""}</div></div>` + checklist(overdue) : ""}
       ${timed.length ? sectionLabel("On the agenda", "Time blocks") + checklist(timed) : ""}
       ${untimed.length ? sectionLabel("At your own pace", "To-dos") + checklist(untimed) : ""}
       ${
@@ -102,7 +122,7 @@ function renderToday(tasks, allHabits) {
           : `<div class="empty-state"><svg class="doc-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><p><strong>${complete.length ? "All done" : "Nothing planned"}</strong><br />Start typing to add a task.</p></div>`
       }
       ${
-        complete.length
+        complete.length && !hideCompleted
           ? `<details class="completed-items" ${completedOpen ? "open" : ""}>
               <summary class="section-label"><h2>${complete.length} completed</h2><span>Done</span></summary>
               ${checklist(complete)}
@@ -111,12 +131,19 @@ function renderToday(tasks, allHabits) {
       }
 `;
   return `<div class="today-layout">
-    <header class="page-head"><div><div class="eyebrow">${eyebrow}</div><h1>${heading}</h1></div><div class="head-tools">
+    <header class="page-head"><div><div class="eyebrow">${eyebrow}</div><h1>Today</h1></div><div class="head-tools">
+      ${macPicker(
+        "today-completed",
+        "Completed tasks",
+        [
+          ["show", "Show completed"],
+          ["hide", "Hide completed"],
+        ],
+        hideCompleted ? "hide" : "show",
+      )}
       <button id="home-update" class="icon-button home-update" hidden aria-label="Update available" title="Update available"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg><i aria-hidden="true"></i></button>
       <button id="edit-today-layout" class="icon-button" aria-label="${editingTodayLayout ? "Finish editing layout" : "Edit layout"}" title="${editingTodayLayout ? "Finish editing layout" : "Edit layout"}" aria-pressed="${editingTodayLayout}"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${editingTodayLayout ? "m5 12 4 4L19 6" : "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"}"/></svg></button>
-      <div class="day-nav" role="group" aria-label="Day"><button class="icon-button" data-day-step="-1" aria-label="Previous day" ${selected <= OrbitHabits.addDays(today(), -6) ? "disabled" : ""}>‹</button><button id="go-today" class="today-button" ${isToday ? "disabled" : ""}>Today</button><button class="icon-button" data-day-step="1" aria-label="Next day">›</button></div>
     </div></header>
-    ${!isToday ? `<div class="past-edit-banner" role="status"><span>Editing ${date.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" })}</span><button id="back-to-today">Back to Today</button></div>` : ""}
     ${editingTodayLayout ? todayLayoutOptions() : ""}
     <div class="today-board ${editingTodayLayout ? "editing" : ""}">
       ${editingTodayLayout ? `<div id="today-column-resizer" role="separator" tabindex="0" aria-label="Today column widths" aria-orientation="vertical" aria-valuemin="35" aria-valuemax="75" title="Drag to resize columns; arrow keys also adjust"></div>` : ""}
@@ -124,7 +151,7 @@ function renderToday(tasks, allHabits) {
       <aside class="today-side today-panel-column" data-panel-drop="side" aria-label="Plan and progress">
         ${todayPanel("recent", recentProgressCard(tasks, allHabits))}
         ${todayPanel("plan", planCard(done, total))}
-        ${todayPanel("habits", `<section class="card habits-compact-card">${sectionLabel("Habits", `${habitsDone} of ${habits.length}`)}<div class="check-list compact-habits">${habitCards(habits)}</div></section>`, habits.length > 6 ? "main" : "side")}
+        ${todayPanel("habits", `<section class="card habits-compact-card">${sectionLabel("Habits", `${habitsDone} of ${habits.length}`)}<div class="check-list compact-habits">${habits.map(compactHabit).join("")}</div></section>`, habits.length > 6 ? "main" : "side")}
         ${todayPanel("heatmap", overallProgressCard(tasks, allHabits))}
       </aside>
     </div>
@@ -230,58 +257,50 @@ function bindToday() {
       render();
       $("#edit-today-layout")?.focus();
     };
-  if ($("#layout-overall-range"))
-    $("#layout-overall-range").onchange = (event) => {
-      localStorage.setItem("overallProgressRange", event.target.value);
-      render();
-    };
   bindTodayBoard();
   document.querySelectorAll(".overall-day[data-o]").forEach((cell) => cell.style.setProperty("--o", cell.dataset.o));
-  document.querySelectorAll("[data-progress-day]").forEach((button) => {
-    button.onclick = () => {
-      selected = button.dataset.progressDay;
-      render();
-    };
-  });
-  if ($("#back-to-today"))
-    $("#back-to-today").onclick = () => {
-      selected = today();
-      render();
-    };
+  // Overdue tasks move to Today, Someday or a category, one at a time or all together.
+  const overdueTasks = () =>
+    rows("tasks").filter((task) => !task.isNote && OrbitPlanner.isOverdue(planItem(task), today()));
+  const moveOverdue = (tasks, destination) =>
+    action(() =>
+      saveTasks(
+        tasks.map((task) =>
+          destination === "today"
+            ? OrbitPlanner.moveToDay(task, today())
+            : OrbitPlanner.moveToList(task, destination === "someday" ? SOMEDAY : destination),
+        ),
+      ),
+    );
+  const rowMoves = Object.fromEntries(
+    [...document.querySelectorAll("[data-overdue-move]")].map((picker) => [
+      picker.dataset.picker,
+      (listID) =>
+        moveOverdue(
+          rows("tasks").filter((task) => task.id === picker.dataset.overdueMove),
+          listID,
+        ),
+    ]),
+  );
   document.querySelectorAll("[data-overdue-all]").forEach((button) => {
-    button.onclick = () =>
-      action(async () => {
-        const tasks = rows("tasks").filter((task) => !task.isNote && OrbitPlanner.isOverdue(planItem(task), today()));
-        await api.batch(
-          tasks.map((task) => ({
-            key: task._key,
-            payload: clean(
-              button.dataset.overdueAll === "today"
-                ? OrbitPlanner.moveToDay(task, today())
-                : button.dataset.overdueAll === "someday"
-                  ? OrbitPlanner.moveToSomeday(task)
-                  : OrbitPlanner.moveLater(task),
-            ),
-          })),
-        );
-      });
+    button.onclick = () => moveOverdue(overdueTasks(), button.dataset.overdueAll);
+  });
+  bindPickers({
+    ...rowMoves,
+    "overdue-all-move": (listID) => moveOverdue(overdueTasks(), listID),
+    "today-completed": (value) => {
+      localStorage.setItem("todayHideCompleted", String(value === "hide"));
+      render();
+    },
+    "layout-overall-range": (value) => {
+      localStorage.setItem("overallProgressRange", value);
+      render();
+    },
   });
   if ($(".completed-items"))
     $(".completed-items").ontoggle = (e) => {
       completedOpen = e.target.open;
       localStorage.setItem("todayCompletedExpanded", String(completedOpen));
-    };
-  document.querySelectorAll("[data-day-step]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        selected = OrbitHabits.addDays(selected, Number(b.dataset.dayStep));
-        render();
-      }),
-  );
-  if ($("#go-today"))
-    $("#go-today").onclick = () => {
-      selected = dayKey(new Date());
-      render();
     };
 }
 
@@ -311,7 +330,7 @@ function recentProgressCard(tasks, habits) {
       const date = localDay(key),
         ratio = key > today() ? 0 : progress.ratio;
       const label = `${date.toLocaleDateString([], { month: "short", day: "numeric" })}: ${progress.total ? `${Math.round(ratio * 100)}% complete, ${progress.taskCount} tasks and ${progress.habitCount} habits` : "No scheduled items"}`;
-      return `<button class="progress-day ${key === selected ? "chosen" : ""}" data-progress-day="${key}" aria-pressed="${key === selected}" aria-label="${esc(label)}. Edit this day" title="${esc(label)}"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="12" class="progress-track"/><circle cx="16" cy="16" r="12" pathLength="100" stroke-dasharray="${ratio >= 1 ? "none" : `${ratio * 100} 100`}" class="progress-value"/></svg><small>${progressRange === 7 ? date.toLocaleDateString([], { weekday: "narrow" }) : date.getDate()}</small></button>`;
+      return `<div class="progress-day" data-progress-day="${key}" role="img" aria-label="${esc(label)}" title="${esc(label)}"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="12" class="progress-track"/><circle cx="16" cy="16" r="12" pathLength="100" stroke-dasharray="${ratio >= 1 ? "none" : `${ratio * 100} 100`}" class="progress-value"/></svg><small>${progressRange === 7 ? date.toLocaleDateString([], { weekday: "narrow" }) : date.getDate()}</small></div>`;
     })
     .join("")}</div></section>`;
 }

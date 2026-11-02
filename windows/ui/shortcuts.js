@@ -29,7 +29,6 @@ async function goTo(name) {
     return;
   }
   closeRowMenu();
-  if (name === "today") selected = today();
   page = name;
   selectedList = null;
   render();
@@ -85,17 +84,6 @@ document.addEventListener("keydown", (e) => {
   }
   const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName) || e.target.isContentEditable;
   if (typing || dialogOpen || e.altKey || e.metaKey || e.ctrlKey) return;
-  if (page === "today" && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
-    e.preventDefault();
-    selected =
-      e.key === "ArrowLeft"
-        ? OrbitHabits.addDays(selected, -1)
-        : e.key === "ArrowRight"
-          ? OrbitHabits.addDays(selected, 1)
-          : today();
-    render();
-    return;
-  }
   // Space and Enter press the focused tile's button natively; E and Delete act on the focused tile.
   const tile = e.target.closest?.(".check-tile");
   if (!tile || (key !== "e" && e.key !== "Delete")) {

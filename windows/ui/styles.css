@@ -608,6 +608,62 @@ main {
     transform: scale(var(--tick-pop));
   }
 }
+/* Completing something: a ring and eight sparks burst out from the tick (iOS: OrbitTick). */
+.tick.pop::before,
+.tick.pop::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  border-radius: 50%;
+}
+.tick.pop::before {
+  inset: 0;
+  border: 2px solid var(--accent);
+  animation: tick-ring 520ms ease-out forwards;
+}
+.tick.pop::after {
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  box-shadow:
+    0 -13px var(--accent),
+    9px -9px var(--accent),
+    13px 0 var(--accent),
+    9px 9px var(--accent),
+    0 13px var(--accent),
+    -9px 9px var(--accent),
+    -13px 0 var(--accent),
+    -9px -9px var(--accent);
+  animation: tick-sparks 560ms ease-out forwards;
+}
+@keyframes tick-ring {
+  from {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2);
+  }
+}
+@keyframes tick-sparks {
+  from {
+    opacity: 1;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tick.pop::before,
+  .tick.pop::after {
+    display: none;
+  }
+}
 @keyframes tick-fill {
   from {
     opacity: 0;
@@ -1649,7 +1705,7 @@ dialog footer .danger {
 }
 .row-title {
   white-space: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .sidebar {
@@ -1927,22 +1983,32 @@ dialog footer .danger {
   color: var(--accent-text);
   font-weight: 600;
 }
+/* Takes no room until shown, so it never squeezes the title. */
 .timer-action {
   flex: none;
   align-self: center;
-  margin-right: 6px;
-  padding: 5px 12px;
+  max-width: 0;
+  margin-right: 0;
+  padding: 5px 0;
+  overflow: hidden;
+  white-space: nowrap;
   border-radius: var(--radius-chip);
   font-size: 13px;
   font-weight: 500;
   color: var(--accent-text);
   background: color-mix(in srgb, var(--accent) var(--tint-accent-fill), transparent);
   opacity: 0;
-  transition: opacity 0.15s;
+  transition:
+    opacity 0.15s,
+    max-width 0.15s,
+    padding 0.15s;
 }
 .task-row:hover .timer-action,
 .timer-action:focus-visible,
 .timer-action.suggested {
+  max-width: 140px;
+  margin-right: 6px;
+  padding: 5px 12px;
   opacity: 1;
 }
 
@@ -2447,11 +2513,6 @@ body[data-view="lists"] .page {
   margin-left: -4px;
   width: calc(100% + 8px);
 }
-.day-nav {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
 .today-button {
   min-height: 32px;
   padding: 0 12px;
@@ -2614,6 +2675,19 @@ body[data-view="lists"] .page {
   font-size: 14px;
 }
 .cal-day .inline-capture {
+  margin: 0;
+}
+/* The day column is narrow: status and time drop below the title instead of squeezing it. */
+.cal-day .task-row .row-body {
+  flex-wrap: wrap;
+  row-gap: 2px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.cal-day .task-row .row-title {
+  flex: 1 1 120px;
+}
+.cal-day .task-row .row-detail {
   margin: 0;
 }
 @media (max-width: 1100px) {
@@ -3023,8 +3097,8 @@ dialog {
 }
 #shortcut-hint {
   position: fixed;
-  right: 24px;
-  bottom: 84px;
+  right: 14px;
+  bottom: 14px;
   z-index: 8;
   display: flex;
   align-items: center;
@@ -3524,13 +3598,6 @@ dialog {
 .today-side .section-label {
   margin-top: 0;
 }
-.today-side .compact-habits .row-line {
-  min-height: 40px;
-}
-.today-side .compact-habits .row-body {
-  padding-top: 7px;
-  padding-bottom: 7px;
-}
 .overall-progress h2 {
   font-size: 13px;
   margin: 0 0 14px;
@@ -3876,18 +3943,6 @@ body[data-view="today"] .today-layout {
   background: var(--surface);
   color: var(--ink);
 }
-.past-edit-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 16px;
-  margin-bottom: 18px;
-  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--line));
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
-  font-size: 13px;
-}
 .overdue-heading {
   display: flex;
   align-items: center;
@@ -3896,6 +3951,7 @@ body[data-view="today"] .today-layout {
   margin-bottom: 8px;
 }
 .overdue-heading .section-label {
+  gap: 8px;
   margin: 0 auto 0 0;
 }
 .overdue-bulk {
@@ -3942,17 +3998,18 @@ body[data-view="today"] .today-layout {
 .compact-habits .habit-clay {
   --habit-color: var(--clay);
 }
-.today-side .compact-habits .row-line,
-.compact-habits .row-line {
-  min-height: 28px;
-}
-.today-side .compact-habits .row-body,
-.compact-habits .row-body {
+.compact-habits .habit-log {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 4px 6px 4px 0;
+  width: 100%;
+  min-height: 30px;
+  padding: 4px 9px;
+  background: none;
+  color: inherit;
   font-size: 12px;
+  text-align: left;
+  cursor: pointer;
 }
 .compact-habits .row-detail {
   margin: 0 0 0 auto;
@@ -3965,10 +4022,8 @@ body[data-view="today"] .today-layout {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.compact-habits .row-tick {
-  padding: 5px 9px;
-}
 .compact-habits .tick {
+  flex: none;
   width: 10px;
   height: 10px;
   border: 0;
@@ -3989,13 +4044,6 @@ body[data-view="today"] .today-layout {
   padding: 4px 0 5px;
   border-radius: 8px;
   min-width: 0;
-}
-.progress-day.chosen {
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
-  box-shadow: inset 0 -2px var(--accent-text);
-}
-.progress-day:hover {
-  background: color-mix(in srgb, var(--accent) 9%, transparent);
 }
 .overall-days {
   display: grid;
@@ -4186,14 +4234,6 @@ body[data-view="settings"] .settings-block {
   max-width: 100%;
   min-width: 0;
 }
-.compact-habits .row-main {
-  min-width: 0;
-  flex: 1;
-}
-.compact-habits .row-body {
-  min-width: 0;
-  flex: 1;
-}
 .today-board .task-row .row-line {
   min-height: 38px;
 }
@@ -4213,11 +4253,14 @@ body[data-view="settings"] .settings-block {
   padding-top: 8px;
   padding-bottom: 8px;
 }
+/* Long titles wrap to two lines, as on iPhone, rather than being cut to one. */
 .today-board .task-row .row-title {
+  display: -webkit-box;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 .today-board .task-row .row-detail {
   margin: 0 0 0 auto;
@@ -4247,7 +4290,6 @@ main
     .capture-chip,
     .check-tile,
     .completed-items,
-    .past-edit-banner,
     .progress-day,
     .overall-day
   ),
@@ -4483,10 +4525,6 @@ select {
   transform: rotate(-90deg);
   transform-origin: 16px 16px;
 }
-.progress-day.chosen {
-  background: transparent;
-  box-shadow: none;
-}
 .overall-days {
   grid-template-columns: repeat(15, minmax(0, 1fr));
   gap: 3px;
@@ -4699,4 +4737,34 @@ body:is([data-view="history"], [data-view="habit-history"]) .page-head {
 .mac-picker.opens-up .picker-menu {
   top: auto;
   bottom: calc(100% + 5px);
+}
+
+/* Pickers used as move actions ("Category", "All to a category") match the pills beside them. */
+.row-pills .pill-picker summary {
+  height: auto;
+  min-width: 0;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 0;
+  border-radius: var(--radius-chip);
+  font-weight: 500;
+  color: var(--accent-text);
+  background: color-mix(in srgb, var(--accent) var(--tint-accent-fill), transparent);
+}
+.overdue-bulk .pill-picker summary {
+  height: auto;
+  min-width: 0;
+  gap: 6px;
+  padding: 5px 8px;
+  font-size: 11px;
+}
+/* Edit layout: "Overall progress [Past month]" on one line with the panel toggles. */
+.layout-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.layout-range .mac-picker summary {
+  height: 30px;
+  min-width: 128px;
 }

@@ -140,10 +140,10 @@ const fs = require("node:fs");
   await p.getByRole("button", { name: "Back to settings" }).click();
   assert.equal(await p.locator("h1").innerText(), "Settings");
   await p.locator('[data-page="today"]').click();
+  // Today is always the current day: arrows do not move it and there are no day controls.
   await p.keyboard.press("ArrowLeft");
-  assert.notEqual(await p.locator("h1").innerText(), "Today");
-  await p.keyboard.press("ArrowDown");
   assert.equal(await p.locator("h1").innerText(), "Today");
+  assert.equal(await p.locator("[data-day-step], #go-today").count(), 0);
   await p.locator("#inline-task-input").fill("Visit Japan someday");
   await p.locator("#inline-task-input").press("Enter");
   await p.locator('[data-page="tasks"]').click();
@@ -696,10 +696,12 @@ const fs = require("node:fs");
   await p.waitForFunction(async () =>
     (await window.orbit.read()).records.some((r) => r.payload.title === "Drag calendar task" && r.deleted),
   );
-  // Past corrections keep their own completion date, fill the ring, and reset on navigation.
+  // Recent progress is read-only: earlier days are reviewed, not edited, from Today.
+  assert.equal(await p.locator("button[data-progress-day]").count(), 0);
   const pastKey = await p.locator("[data-progress-day]").nth(2).getAttribute("data-progress-day");
   const taskID = "a1111111-1111-4111-8111-111111111111",
-    habitID = "b1111111-1111-4111-8111-111111111111";
+    habitID = "b1111111-1111-4111-8111-111111111111",
+    categoryID = "c1111111-1111-4111-8111-111111111111";
   await p.evaluate(
     async ({ pastKey, taskID, habitID }) => {
       await window.orbit.batch([
@@ -723,12 +725,16 @@ const fs = require("node:fs");
     },
     { pastKey, taskID, habitID },
   );
-  await p.locator(`[data-progress-day="${pastKey}"]`).click();
-  assert.equal(await p.getByRole("button", { name: "Back to Today", exact: true }).isVisible(), true);
-  await p.getByRole("checkbox", { name: "Complete Past task", exact: true }).click();
-  assert.equal(await p.getByRole("checkbox", { name: "Log Past habit", exact: true }).isDisabled(), true);
-  assert.equal(await p.locator(`[data-progress-day="${pastKey}"]`).getAttribute("aria-pressed"), "true");
-  assert.equal(await p.locator("[data-progress-day] svg path").count(), 0);
+  // A habit on Today logs with one click anywhere on its row, and has no hover actions.
+  const todayHabit = p.locator(".compact-habits .habit-row").filter({ hasText: "Past habit" });
+  assert.equal(await todayHabit.locator(".row-actions").count(), 0);
+  await todayHabit.locator(".row-title").click();
+  await p.waitForFunction(
+    async (id) =>
+      (await window.orbit.read()).records.some((record) => record.payload.habitID === id && record.payload.count === 1),
+    habitID,
+  );
+  await p.getByRole("checkbox", { name: "Undo Past habit", exact: true }).click();
   await p.locator('[data-page="habits"]').click();
   assert.equal(
     await p.getByRole("checkbox", { name: "Log Past habit", exact: true }).isEnabled(),
@@ -739,9 +745,11 @@ const fs = require("node:fs");
   const historicalToggle = p.locator(`[data-history-toggle="${habitID}"][data-day="${pastKey}"]`);
   await historicalToggle.click();
   await p.waitForFunction(
-    async (id) =>
-      (await window.orbit.read()).records.some((record) => record.payload.habitID === id && record.payload.count === 1),
-    habitID,
+    async ({ id, day }) =>
+      (await window.orbit.read()).records.some(
+        (record) => record.payload.habitID === id && record.payload.dayKey === day && record.payload.count === 1,
+      ),
+    { id: habitID, day: pastKey },
   );
   const historyGrid = await p.locator(".habit-history .box-grid").first().boundingBox();
   assert.ok(historyGrid.width > historyGrid.height, "History uses compact horizontal weeks");
@@ -754,32 +762,28 @@ const fs = require("node:fs");
   await p.getByRole("button", { name: "Back to History", exact: true }).click();
   await p.getByRole("button", { name: "Back to Habits", exact: true }).click();
   await p.locator('[data-page="today"]').click();
-  await p.locator(`[data-progress-day="${pastKey}"]`).click();
-  // Restore tasks in progress for this assertion, which was switched off earlier in Settings.
-  await p.evaluate(() => localStorage.setItem("progressIncludesTasks", "true"));
-  await p.locator(`[data-progress-day="${pastKey}"]`).click();
-  assert.equal(
-    await p.locator(`[data-progress-day="${pastKey}"] .progress-value`).getAttribute("stroke-dasharray"),
-    "none",
-  );
-  assert.equal(
-    await p.evaluate(
-      async (id) =>
-        new Date(
-          (await window.orbit.read()).records.find((record) => record.payload.id === id).payload.completedAt,
-        ).getDate(),
-      taskID,
-    ),
-    Number(pastKey.slice(-2)),
-  );
-  await p.keyboard.press("Control+4");
-  await p.keyboard.press("Control+1");
-  assert.equal(await p.locator(".past-edit-banner").count(), 0);
-  // Bulk moves replace repeated per-row overdue handling.
+  // Overdue tasks offer Today, Someday and the user's own categories; there is no Later.
+  assert.equal(await p.locator("[data-later], [data-overdue-all=later]").count(), 0);
   await p.evaluate(async (id) => {
-    const record = (await window.orbit.read()).records.find((record) => record.payload.id === id);
-    await window.orbit.put(record.key, { ...record.payload, completedAt: null, updatedAt: Date.now() });
-  }, taskID);
+    await window.orbit.put("lists/" + id, { id, name: "Errands", kind: "tasks", sortOrder: 5, updatedAt: Date.now() });
+  }, categoryID);
+  await p.getByRole("combobox", { name: "Move Past task to a category", exact: true }).click();
+  await p.getByRole("option", { name: "Errands", exact: true }).click();
+  await p.waitForFunction(
+    async ({ id, list }) => {
+      const task = (await window.orbit.read()).records.find((record) => record.payload.id === id).payload;
+      return task.listID === list && !task.localDate;
+    },
+    { id: taskID, list: categoryID },
+  );
+  await p.evaluate(
+    async ({ id, day }) => {
+      const record = (await window.orbit.read()).records.find((record) => record.payload.id === id);
+      await window.orbit.put(record.key, { ...record.payload, listID: null, localDate: day, updatedAt: Date.now() });
+    },
+    { id: taskID, day: pastKey },
+  );
+  // Bulk moves replace repeated per-row overdue handling.
   await p.waitForFunction(() => !!document.querySelector('[data-overdue-all="someday"]'));
   await p.getByRole("button", { name: "All to Someday", exact: true }).click();
   await p.waitForFunction(

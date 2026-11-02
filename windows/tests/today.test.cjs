@@ -18,7 +18,7 @@ for (const c of cases) {
   });
 }
 
-test("moving keeps the time of day and reminder offsets; Someday clears dates and reminders", () => {
+test("moving keeps the time of day and reminder offsets; Someday and categories clear dates and reminders", () => {
   const due = new Date("2026-10-18T09:30:00").getTime();
   const task = {
     id: "t",
@@ -39,8 +39,8 @@ test("moving keeps the time of day and reminder offsets; Someday clears dates an
     [someday.listID, someday.localDate, someday.dueDate, someday.hasTime, someday.reminders],
     [planner.SOMEDAY_LIST_ID, null, null, false, []],
   );
-  const later = planner.moveLater({ ...task, listID: "work" }, 1);
-  assert.deepEqual([later.listID, later.localDate, later.dueDate], ["work", null, null]);
+  const filed = planner.moveToList(task, "work", 1);
+  assert.deepEqual([filed.listID, filed.localDate, filed.dueDate, filed.reminders], ["work", null, null, []]);
 });
 
 test("overdue labels name the weekday within a week", () => {

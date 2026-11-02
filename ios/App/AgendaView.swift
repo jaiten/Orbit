@@ -36,7 +36,7 @@ struct AgendaView: View {
     @AppStorage("compactRows") private var compactRows = false
     @AppStorage("agendaCompletedExpanded") private var showCompleted = false
     @Environment(\.dynamicTypeSize) private var typeSize
-    private var rowSpacing: CGFloat { compactRows && !typeSize.isAccessibilitySize ? 3 : CGFloat(DesignTokens.spaceS) }
+    private var rowSpacing: CGFloat { DayTheme.rowSpacing(compact: compactRows, typeSize: typeSize) }
     private var tasks: [PlannerTask] { allTasks.filter { !$0.note } }
     /// A titled run of tasks: a day key, or a TaskDateGroup name for everything.
     private struct TaskRun: Identifiable { let id: String; let items: [PlannerTask] }
@@ -214,9 +214,12 @@ struct AgendaSheet: View {
     }
 }
 
-/// Tasks are grouped by category. Both categories and completed items can stay folded away.
+/// Tasks: Someday first, then tasks without a category by day (Overdue, Today, Upcoming), then each
+/// category. Groups and completed items can stay folded away. Rows match Today's spacing.
 struct TasksView: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @AppStorage("compactRows") private var compactRows = false
     @Query(sort: \PlannerTask.sortOrder) private var tasks: [PlannerTask]
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
     @State private var scope = "All tasks"
@@ -258,17 +261,24 @@ struct TasksView: View {
                         ForEach(["All tasks", "Today", "This week", "Future", "Someday"], id: \.self) { Text($0) }
                     }.pickerStyle(.menu)
                     if visible.isEmpty { ContentUnavailableView("No tasks in this view", systemImage: "checklist") }
-                    category("Uncategorized", id: "none", items: visible.filter { $0.completedAt == nil && $0.listID == nil })
-                    ForEach(lists.filter(\.isTaskCategory)) { list in
-                        category(list.name, id: list.id.uuidString, items: visible.filter { $0.completedAt == nil && $0.listID == list.id })
+                    let open = visible.filter { $0.completedAt == nil }
+                    category("Someday", id: TodayRules.somedayID.uuidString, items: open.filter { someday($0) })
+                    ForEach([TaskDateGroup.overdue, .today, .upcoming]) { group in
+                        category(group.rawValue, id: group.rawValue, items: open.filter { !someday($0) && dateGroup($0) == group })
+                    }
+                    ForEach(categories) { list in
+                        category(list.name, id: list.id.uuidString, items: open.filter { $0.listID == list.id })
                     }
                     let completed = visible.filter { $0.completedAt != nil }
                     if !completed.isEmpty {
                         DisclosureGroup(isExpanded: $showCompleted) {
-                            VStack(spacing: 8) { ForEach(completed) { task in TaskRow(task: task) { editing = task } } }.padding(.top, 8)
+                            rows(completed)
                         } label: { Text("Completed (\(completed.count))").font(.subheadline).foregroundStyle(.secondary) }
                     }
-                }.padding(20).frame(maxWidth: 760).frame(maxWidth: .infinity)
+                }
+                .padding(.top, CGFloat(DesignTokens.spaceS))
+                .padding(.horizontal, CGFloat(DesignTokens.screenPadding)).padding(.bottom, CGFloat(DesignTokens.spaceSection))
+                .frame(maxWidth: 760).frame(maxWidth: .infinity)
             }
             .captureDock(scheme) { InlineCapture(defaultDay: scope == "Someday" || scope == "All tasks" ? .undated : scope == "Future" ? .day(HabitRules.addDays(PlannerLogic.dayKey(.now), 1)) : .today) }
             .background(DayTheme.canvas(scheme))
@@ -277,12 +287,32 @@ struct TasksView: View {
             .sheet(isPresented: $managing) { ListsView(categoryMode: true).presentationDragIndicator(.visible) }
         }
     }
+    private var categories: [TaskList] { lists.filter(\.isUserCategory) }
+    /// Tasks filed in a category that no longer exists (or in a note section) count as uncategorized,
+    /// so nothing disappears from this page.
+    private func uncategorized(_ task: PlannerTask) -> Bool {
+        guard let id = task.listID else { return true }
+        return id != TodayRules.somedayID && !categories.contains { $0.id == id }
+    }
+    /// The Someday list, plus undated tasks with no category.
+    private func someday(_ task: PlannerTask) -> Bool {
+        task.listID == TodayRules.somedayID || (uncategorized(task) && task.day == nil)
+    }
+    private func dateGroup(_ task: PlannerTask) -> TaskDateGroup? {
+        guard uncategorized(task) else { return nil }
+        return TaskDateGroup.group(day: task.day, someday: false, completed: false, today: PlannerLogic.dayKey(.now))
+    }
+    private func rows(_ items: [PlannerTask]) -> some View {
+        VStack(spacing: DayTheme.rowSpacing(compact: compactRows, typeSize: typeSize)) {
+            ForEach(items) { task in TaskRow(task: task) { editing = task } }
+        }.padding(.top, CGFloat(DesignTokens.spaceS))
+    }
     @ViewBuilder private func category(_ name: String, id: String, items: [PlannerTask]) -> some View {
         if !items.isEmpty {
             DisclosureGroup(isExpanded: Binding(get: { !collapsedCategories.contains(id) || !search.isEmpty }, set: { expanded in
                 if expanded { collapsedCategories.remove(id) } else { collapsedCategories.insert(id) }
             })) {
-                VStack(spacing: 8) { ForEach(items) { task in TaskRow(task: task) { editing = task } } }.padding(.top, 8)
+                rows(items)
             } label: { Text("\(name) (\(items.count))").font(.subheadline.weight(.medium)) }
         }
     }

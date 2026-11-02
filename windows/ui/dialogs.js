@@ -3,7 +3,7 @@ let afterCaptureSave = () => {};
 let taskDraft = null,
   habitDraft = null;
 /** Opens the task editor for an existing task, or a new one prefilled from `draft`. */
-function openTask(id, date, draft = null) {
+function openTask(id, date, draft = null, { expanded = false } = {}) {
   afterCaptureSave = () => {};
   $("#overlap-confirm").hidden = true;
   $("#task-form").dataset.allowOverlap = "";
@@ -14,14 +14,13 @@ function openTask(id, date, draft = null) {
   f.reset();
   f.elements.listID.innerHTML =
     `<option value="">No section</option><option value="${SOMEDAY}">Someday</option>` +
-    rows("lists")
-      .filter((l) => l.id !== SOMEDAY && l.kind !== "notes")
+    taskCategories()
       .map((l) => `<option value="${esc(l.id)}">${esc(l.name)}</option>`)
       .join("");
   f.elements.listID.value = source?.listID || selectedList || "";
   f.elements.title.value = source?.title || "";
   f.elements.notes.value = source?.notes || "";
-  f.elements.date.value = editing ? taskDate(editing) || "" : (date ?? (page === "today" ? selected : ""));
+  f.elements.date.value = editing ? taskDate(editing) || "" : (date ?? (page === "today" ? today() : ""));
   f.elements.time.value = source?.hasTime && source.dueDate ? new Date(source.dueDate).toTimeString().slice(0, 5) : "";
   f.elements.progressTracking.checked = source?.progressTracking === true;
   f.elements.duration.value = editing?.durationMinutes || 30;
@@ -29,8 +28,9 @@ function openTask(id, date, draft = null) {
   $("#editor-title").textContent = editing ? "Edit Task" : "New Task";
   $("#delete-task").hidden = !editing;
   $("#move-task").hidden = !editing;
-  const dateOptions = f.querySelector("details.capture-options");
-  if (dateOptions) dateOptions.open = !editing && page === "calendar";
+  f.querySelectorAll("details.capture-options").forEach((section, index) => {
+    section.open = expanded || (index === 0 && !editing && page === "calendar");
+  });
   openDialog($("#editor"));
 }
 
@@ -63,7 +63,7 @@ function habitPickers() {
       ["honey", "Honey"],
     ],
     form.elements.color.value,
-    true,
+    { swatches: true },
   );
   bindPickers(
     {

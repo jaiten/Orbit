@@ -24,7 +24,8 @@ const remove = (folder) => {
     if (process.env.ORBIT_SMALL_SCREEN)
       await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1200, 700));
     const quickAdd = async (text, preview) => {
-      await p.getByRole("button", { name: "Task options", exact: true }).first().click();
+      // Ctrl+N opens Quick add; the calendar button beside the writing bar opens the full editor.
+      await p.keyboard.press("Control+n");
       await p.getByRole("textbox", { name: "Quick add" }).fill(text);
       if (preview) await p.locator("#quick-add-preview").getByText(preview, { exact: true }).waitFor();
       await p.getByRole("button", { name: "Add", exact: true }).click();
@@ -135,13 +136,14 @@ const remove = (folder) => {
     await p.locator("#quick-add-preview").getByText("Habit · Daily", { exact: true }).waitFor();
     await p.getByRole("button", { name: "Add", exact: true }).click();
     await p.getByRole("checkbox", { name: "Log Morning walk", exact: true }).click();
+    // On Today the whole habit row is the check-in button, with its count inside.
     await p
-      .getByRole("button", { name: "Edit Morning walk", exact: true })
+      .getByRole("checkbox", { name: "Undo Morning walk", exact: true })
       .getByText("1 of 1", { exact: true })
       .waitFor();
     await p.getByRole("checkbox", { name: "Undo Morning walk", exact: true }).click();
     await p
-      .getByRole("button", { name: "Edit Morning walk", exact: true })
+      .getByRole("checkbox", { name: "Log Morning walk", exact: true })
       .getByText("0 of 1", { exact: true })
       .waitFor();
     await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).click();
@@ -347,10 +349,11 @@ const remove = (folder) => {
       (await window.orbit.read()).records.find((r) => r.key === "lists/00000000-0000-4000-8000-000000000001"),
     );
     if (someday?.payload.name !== "Someday") throw Error("Someday list was not created");
+    // The calendar button beside the writing bar opens the full editor, with every option showing.
+    await p.getByRole("textbox", { name: "New task", exact: true }).fill("Plan picnic tomorrow 1pm #weekend");
     await p.getByRole("button", { name: "Task options", exact: true }).first().click();
-    await p.getByRole("textbox", { name: "Quick add" }).fill("Plan picnic tomorrow 1pm #weekend");
-    await p.locator("#quick-add-preview").getByText("Task · Tomorrow · 1:00 PM · #weekend", { exact: true }).waitFor();
-    await p.getByRole("button", { name: "More details…", exact: true }).click();
+    if ((await p.locator("#task-form details.capture-options:not([open])").count()) !== 0)
+      throw Error("Details opened collapsed");
     await p.evaluate(async () => {
       const r = (await window.orbit.read()).records.find((r) => r.payload.title === "Wash car");
       await window.orbit.put(r.key, { ...r.payload, notes: "Synced while the editor is open" });
@@ -358,6 +361,7 @@ const remove = (folder) => {
     if ((await p.locator("#task-form input[name=title]").inputValue()) !== "Plan picnic")
       throw Error("Details lost the title");
     await p.getByRole("button", { name: "Cancel", exact: true }).click();
+    await p.getByRole("textbox", { name: "New task", exact: true }).fill("");
     // Adding to a list keeps the task undated in that list, off Today.
     await p.getByRole("button", { name: "Someday", exact: true }).first().click();
     // Task categories open in Tasks; Ctrl+N adds to the selected category.
@@ -526,7 +530,7 @@ const remove = (folder) => {
     if (!(await q.locator(".completed-items").evaluate((details) => details.open)))
       throw Error("Completed did not remember expanded state after reload");
     await q
-      .getByRole("button", { name: "Edit Morning walk", exact: true })
+      .getByRole("checkbox", { name: "Log Morning walk", exact: true })
       .getByText("0 of 1", { exact: true })
       .waitFor();
     const late = new Date();

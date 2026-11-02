@@ -99,7 +99,8 @@ struct NotesView: View {
                     }.frame(minHeight: 44).contentShape(Rectangle())
                 }.buttonStyle(.plain)
                     .accessibilityLabel("\(name), \(pages.count) notes").accessibilityValue(open ? "Expanded" : "Collapsed")
-                Button { if listID == nil { managing = true } else { withAnimation(.orbit) { path.append(.new(section: listID, token: UUID())) } } } label: {
+                // + always starts a page here; Manage sections adds, renames, reorders and deletes sections.
+                Button { withAnimation(.orbit) { path.append(.new(section: listID, token: UUID())) } } label: {
                     Image(systemName: "plus").font(.system(size: 16, weight: .medium)).frame(width: 44, height: 44)
                 }.foregroundStyle(.secondary).accessibilityLabel("New note in \(name)")
             }.padding(.horizontal, 4)
@@ -176,7 +177,7 @@ struct NoteMenuItems: View {
             ForEach(lists.filter(\.isNoteSection)) { list in Button(list.name) { move(list.id) } }
             Button("Someday") { move(TodayRules.somedayID) }
         }
-        Button("Make It a Task", systemImage: "checklist") { change { note.isNote = nil; if note.title.isEmpty { note.title = NoteRules.split(note.notes).title.isEmpty ? "Photo note" : NoteRules.split(note.notes).title }; note.updatedAt = .now; try Mutations.save(context) } }
+        Button("Make It a Task", systemImage: "checklist") { change { try NoteRules.makeTask(note, in: context) } }
         Button("Delete", systemImage: "trash", role: .destructive) { change { context.delete(note); try Mutations.save(context) } }
     }
     private func move(_ id: UUID?) {
@@ -449,7 +450,7 @@ struct NoteEditor: View {
     private func makeTask() {
         save()
         guard let note else { return }
-        do { note.isNote = nil; if note.title.isEmpty { note.title = NoteRules.split(note.notes).title.isEmpty ? "Photo note" : NoteRules.split(note.notes).title }; note.updatedAt = .now; try Mutations.save(context); dismiss() }
+        do { try NoteRules.makeTask(note, in: context); dismiss() }
         catch { context.rollback(); self.error = error.localizedDescription }
     }
 }

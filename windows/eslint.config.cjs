@@ -16,7 +16,6 @@ const shared = Object.fromEntries(
     "$",
     "state",
     "page",
-    "selected",
     "editing",
     "editingHabit",
     "editingList",
@@ -164,6 +163,11 @@ const shared = Object.fromEntries(
     "renderAgenda",
     "focusBanner",
     "plus",
+    "quickAddContext",
+    "openCaptureDetails",
+    "taskCategories",
+    "categoryOptions",
+    "noteToTask",
   ].map((name) => [name, "writable"]),
 );
 

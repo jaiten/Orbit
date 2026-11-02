@@ -47,7 +47,7 @@ function renderSettings() {
         ],
         localStorage.getItem("overallProgressRange") === "7" ? "7" : "30",
       )}</div>
-      <p class="secondary">Recent progress always shows the last seven days. Select a date to correct it. Use the layout icon on Today to arrange or hide panels.</p>
+      <p class="secondary">Recent progress always shows the last seven days; review earlier days in Calendar. Use the layout icon on Today to arrange or hide panels.</p>
     </section>
     <section class="settings-block" id="calendar-preferences"><h2>Calendar</h2>
       <div class="settings-field"><span>Clock format</span>${macPicker(

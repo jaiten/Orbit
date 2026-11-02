@@ -35,7 +35,7 @@ Keep generated AI out of the critical path. Useful next local signals would be c
   arranges and hides sections and pins lists using the existing device preferences.
 - Capture stays directly below Today's header regardless of section arrangement.
   Progress is a small count and bar. Today's scheduled tasks precede overdue tasks,
-  whose Today / Later / Someday actions remain available. Completed tasks and habits
+  whose Today / Someday / category actions remain available. Completed tasks and habits
   live in one initially collapsed section; expand it to edit or undo completion.
 - Today has no staggered entrance, sideways transitions, or spring-driven row
   rearrangement. Check feedback and horizontal swipe feedback remain local to the

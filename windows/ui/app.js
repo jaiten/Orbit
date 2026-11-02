@@ -119,7 +119,6 @@ function refreshCalendarDay() {
   lastZone = zoneSignature();
   if (zoneChanged) reschedule();
   if (now === lastCalendarDay && !zoneChanged) return;
-  if (selected === lastCalendarDay) selected = now;
   lastCalendarDay = now;
   if (interacting()) pendingRender = true;
   else render();

@@ -27,7 +27,7 @@ extension View {
 }
 
 /// Capture docked at the bottom of Today; advanced options use the same parser and save path. The field
-/// grows as you type, and past `NoteRules.threshold` (or with a line break) the text becomes a note.
+/// grows as you type, and past `NoteRules.threshold` characters, `NoteRules.wordLimit` words or a line break the text becomes a note.
 /// With `notesOnly` (on Notes) everything typed becomes a note.
 struct InlineCapture: View {
     var notesOnly = false

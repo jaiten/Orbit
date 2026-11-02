@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 enum NoteIcons {
     struct Choice: Identifiable {
@@ -26,13 +27,15 @@ enum NoteIcons {
 /// Long captures become a titled note instead of a to-do.
 /// Mirrors windows/ui/notes.js; cases in shared/test-cases/notes.json.
 enum NoteRules {
-    /// Captures longer than this (or with a line break) become notes.
+    /// Captures longer than this, with more than `wordLimit` words, or with a line break become notes.
     static let threshold = 120
+    static let wordLimit = 10
     private static let titleLimit = 60
 
     static func isNote(_ text: String) -> Bool {
         let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
         return value.contains("\n") || value.count > threshold
+            || value.split(whereSeparator: \.isWhitespace).count > wordLimit
     }
 
     /// The first line, the first short sentence, or the opening words become the title.
@@ -64,5 +67,31 @@ enum NoteRules {
     /// One line under a note's title: the start of its body.
     static func snippet(_ body: String) -> String {
         String(body.split(whereSeparator: \.isWhitespace).joined(separator: " ").prefix(140))
+    }
+}
+
+/// Turning a note into a task and back. Mirrors noteToTask/taskToNote in windows/ui/core.js.
+@MainActor extension NoteRules {
+    /// Note → task: it lands on Today, so it is easy to find, and leaves a note-only section.
+    static func makeTask(_ note: PlannerTask, in context: ModelContext) throws {
+        if note.title.isEmpty { let title = split(note.notes).title; note.title = title.isEmpty ? "Photo note" : title }
+        note.isNote = nil
+        if try !keepsList(note.listID, otherKind: "notes", in: context) { note.listID = nil }
+        TodayRules.moveToDay(note, day: .now)
+        try Mutations.save(context)
+    }
+    /// Task → note: no date, reminders or progress, and out of a task-only category.
+    static func makeNote(_ task: PlannerTask, in context: ModelContext) throws {
+        task.isNote = true; task.schedule(nil, hasTime: false); task.reminders = []
+        task.progressTracking = nil; task.startedAt = nil
+        if try !keepsList(task.listID, otherKind: "tasks", in: context) { task.listID = nil }
+        task.updatedAt = .now
+        try Mutations.save(context)
+    }
+    /// Whether `id` names a list that still exists and is not only for `otherKind` items.
+    private static func keepsList(_ id: UUID?, otherKind: String, in context: ModelContext) throws -> Bool {
+        guard let id else { return true }
+        let lists = try context.fetch(FetchDescriptor<TaskList>(predicate: #Predicate { $0.id == id }))
+        return lists.first.map { $0.kind != otherKind } ?? false
     }
 }

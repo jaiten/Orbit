@@ -82,7 +82,7 @@ struct QuickCapture: View {
                     Picker("Category", selection: $selectedListID) {
                         Text("No category").tag(nil as UUID?)
                         Text("Someday").tag(Optional(TodayRules.somedayID))
-                        ForEach(lists.filter { $0.isTaskCategory && $0.id != TodayRules.somedayID }) { list in
+                        ForEach(lists.filter(\.isUserCategory)) { list in
                             Text(list.name).tag(Optional(list.id))
                         }
                     }

@@ -42,7 +42,7 @@ timeline scheduling. Resolve observed failures before calling the prototype veri
 - [ ] Verify the real system status bar remains legible in system/light/dark modes.
 - [ ] Check the large title collapses naturally and the tab bar respects the home indicator.
 - [ ] Open/dismiss the quick-add keyboard; the field and last task remain reachable.
-- [ ] Select a past day, log/undo a habit, and confirm the selected date's history changes.
+- [ ] In Habits → History, log/undo a past day and confirm that day's history changes.
 - [ ] Select a future date; habit completion must be unavailable.
 - [ ] A partial multi-count daily habit contributes a fraction to the ring; weekly
       targets must not affect daily completion totals.
@@ -81,8 +81,8 @@ timeline scheduling. Resolve observed failures before calling the prototype veri
   the target is met. Verify hiding Completed and customizing section order still work.
 - Long press tasks and habits on Today. Convert in both directions through their
   menus, then undo. Scrolling or dragging a row must never convert it.
-- Verify today's scheduled tasks appear before overdue items; Today / Later /
-  Someday still move overdue tasks correctly. Check empty days and all-done days.
+- Verify today's scheduled tasks appear before overdue items; Today, Someday and the
+  category menu move overdue tasks correctly, one at a time and all together. Check empty days and all-done days.
 - With long titles, accessibility text sizes and Reduce Motion, check row controls,
   scrolling, the compact summary and Completed disclosure. Verify the Add field
   remains near the top when progress is hidden or moved in Edit Today.

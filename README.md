@@ -36,16 +36,19 @@ Only habits repeat. Older repeating tasks were converted to habits (daily, weekd
 weekends or weekly) with their history kept; monthly and custom repeats became one-off
 tasks. Habits reset at midnight and show “X of the last 7 days”, not streaks.
 Windows does not yet edit tags, subtasks or reminder offsets, but keeps them when
-saving. Background sync services remain follow-up work. iOS
+saving. Windows keeps syncing while it runs in the tray; iPhone syncs while open and
+catches up when reopened (no background refresh yet). iOS
 reminders schedule the nearest 60 requests and refill on app interaction.
 
 ## Beta interface refinements
 
 Windows Today has compact, colored habit rows and squared cards. The layout icon
 opens direct drag-and-drop editing: every panel, including tasks, can move between
-columns or above the task list. Recent progress is always seven clickable dates;
-select a date to edit missed tasks and habits, then reopen Today to return to the
-current day. Overdue tasks have bulk Today / Later / Someday actions. Overall progress
+columns or above the task list. Today always shows the current day on both apps; Recent
+progress shows the last seven days, and earlier days are reviewed in Calendar. Habits on
+Today log with one click anywhere on the row. A menu hides or shows completed tasks.
+Overdue tasks move to Today, Someday or one of your categories, one at a time or all
+together. The calendar button beside the writing bar opens the full task editor. Overall progress
 is optional, reads left to right, and uses a week/month choice in Settings or Edit layout.
 
 Calendar has quarter-hour slots, draggable tasks, a 12/24-hour preference and thin
@@ -89,7 +92,7 @@ TestFlight uploads follow successful iOS checks on main: [release guide](docs/te
 ## Planning a day
 
 **Today** shows tasks dated today, anything overdue, and habits due today. Overdue
-tasks offer **Today**, **Later** (removes the date) and **Someday**. Undated tasks
+tasks offer **Today**, **Someday** and your own categories (which remove the date). Undated tasks
 stay in their list until you add them to Today. Completed items move below the
 open ones in a collapsed Completed section. Task and habit titles open their details;
 use the separate check control to complete a task or log a habit. Touch and hold a
@@ -98,7 +101,7 @@ Edit Today.
 
 **Notes** replaces Lists. Notes are titled pages grouped into sections (Personal,
 Work, Someday…); open one to edit it as a page with a large title, a Section property and
-the text below. Type more than about 120 characters (or a line break) into Add a task and
+the text below. Type more than 10 words, about 120 characters, or a line break into Add a task and
 the chip changes to *Note*; Return saves it to Notes instead of Today. Notes are task
 records marked `isNote`, so they sync, back up and undo with everything else, and never
 appear as to-dos. New note sections and task categories are scoped independently; older shared groups stay readable. Calendar's **Overview** (iPhone) and **Month / Week / All** views (Windows) show

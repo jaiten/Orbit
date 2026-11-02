@@ -7,10 +7,11 @@ struct TodayItem: Identifiable {
     var id: String { task.map { "task-" + $0.id.uuidString } ?? "habit-" + habit!.id.uuidString }
 }
 
-struct TileMove { let title: String; let action: () -> Void }
+/// A move under an overdue row. With `options` it is a menu (for example, the user's categories).
+struct TileMove { let title: String; let action: () -> Void; var options: [TileMove] = [] }
 
 /// Tasks and habits share the same controls: the check logs progress; the title opens details.
-/// Overdue tasks show Today / Later / Someday. A left swipe reveals Delete.
+/// Overdue tasks show Today / Someday / Category. A left swipe reveals Delete.
 struct CheckTile: View {
     let title: String
     let subtitle: String
@@ -24,7 +25,6 @@ struct CheckTile: View {
     /// The detail is a habit count that has met its target (shown in the accent text colour).
     var met = false
     var icon: String? = nil
-    var bodyText = ""
     var progress = 0 // 0: ordinary, 1: ready, 2: in progress
     var progressOptions: [TileMove] = []
     var allowsToggle = true
@@ -110,27 +110,32 @@ struct CheckTile: View {
     }
 
     private var moveButtons: some View {
-                    ForEach(moves, id: \.title) { move in
-                        Button(move.title) { move.action() }
-                            .font(.subheadline.weight(.medium)).foregroundStyle(accent.text)
-                            .padding(.horizontal, 14).padding(.vertical, 6)
-                            .background(accent.fill.opacity(DesignTokens.tintAccentFill), in: Capsule())
-                            .frame(minHeight: 44)
-                            .buttonStyle(OrbitPress())
-                    }
+        ForEach(moves, id: \.title) { move in
+            Group {
+                if move.options.isEmpty {
+                    Button(move.title) { move.action() }
+                } else {
+                    Menu {
+                        ForEach(Array(move.options.enumerated()), id: \.offset) { _, option in Button(option.title, action: option.action) }
+                    } label: {
+                        HStack(spacing: 4) { Text(move.title); Image(systemName: "chevron.down").font(.caption2.weight(.semibold)) }
+                    }.accessibilityLabel("Move \(title) to a category")
+                }
+            }
+            .font(.subheadline.weight(.medium)).foregroundStyle(accent.text)
+            .padding(.horizontal, 14).padding(.vertical, 6)
+            .background(accent.fill.opacity(DesignTokens.tintAccentFill), in: Capsule())
+            .frame(minHeight: 44)
+            .buttonStyle(OrbitPress())
+        }
     }
 
-    private var longTitle: Bool { title.split(whereSeparator: \.isWhitespace).count > 10 }
-    private var cardHeading: String { longTitle && bodyText.isEmpty ? title.split(whereSeparator: \.isWhitespace).prefix(10).joined(separator: " ") + "…" : title }
-    private var cardBody: String { longTitle && bodyText.isEmpty ? title.split(whereSeparator: \.isWhitespace).dropFirst(10).joined(separator: " ") : bodyText }
+    /// Rows look the same everywhere: the title (up to two lines) and its detail. Notes, steps and other
+    /// details appear only when the task is opened.
     private var line: some View {
         Group {
-            if typeSize.isAccessibilitySize || !cardBody.isEmpty || longTitle {
-                VStack(alignment: .leading, spacing: 7) {
-                    titleText
-                    if !cardBody.isEmpty { Text(cardBody).font(.subheadline).foregroundStyle(.secondary).lineLimit(5) }
-                    detailText
-                }
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 7) { titleText; detailText }
             } else {
                 HStack(spacing: 12) { titleText; Spacer(minLength: 8); detailText }
             }
@@ -138,9 +143,9 @@ struct CheckTile: View {
             .frame(maxWidth: .infinity, minHeight: rowHeight, alignment: .leading).contentShape(Rectangle())
     }
     private var titleText: some View {
-        Text(cardHeading).font(.body.weight(longTitle || !cardBody.isEmpty ? .semibold : .regular)).foregroundStyle(done ? .secondary : .primary)
+        Text(title).font(.body).foregroundStyle(done ? .secondary : .primary)
             .strikethrough(done, color: .secondary)
-            .lineLimit(typeSize.isAccessibilitySize || title.split(whereSeparator: \.isWhitespace).count > 10 ? nil : 2).fixedSize(horizontal: false, vertical: true)
+            .lineLimit(typeSize.isAccessibilitySize ? nil : 2).fixedSize(horizontal: false, vertical: true)
     }
     @ViewBuilder private var detailText: some View {
         if !subtitle.isEmpty {
@@ -199,9 +204,10 @@ struct TaskRow: View {
     @Environment(\.orbitAccent) private var accent
     @Environment(\.modelContext) private var context
     let task: PlannerTask
-    /// Overdue tasks on Today offer Today / Later / Someday.
+    /// Overdue tasks on Today offer Today / Someday / one of `categories`.
     var showMoves = false
     var completionDate: Date = .now
+    var categories: [TaskList] = []
     var edit: () -> Void
     @State private var error: String?
     @State private var feedback = 0
@@ -218,9 +224,14 @@ struct TaskRow: View {
                     TileMove(title: "Not now") { suggestTimer = false }]
         }
         guard overdue else { return [] }
-        return [TileMove(title: "Today") { change { TodayRules.moveToDay(task, day: .now); try Mutations.save(context) } },
-                TileMove(title: "Later") { change { TodayRules.moveLater(task); try Mutations.save(context) } },
-                TileMove(title: "Someday") { change { try TodayRules.moveToSomeday(task, in: context); try Mutations.save(context) } }]
+        var result = [TileMove(title: "Today") { change { TodayRules.moveToDay(task, day: .now); try Mutations.save(context) } },
+                      TileMove(title: "Someday") { change { try TodayRules.moveToSomeday(task, in: context); try Mutations.save(context) } }]
+        if !categories.isEmpty {
+            result.append(TileMove(title: "Category", action: {}, options: categories.map { list in
+                TileMove(title: list.name) { change { TodayRules.moveToList(task, listID: list.id); try Mutations.save(context) } }
+            }))
+        }
+        return result
     }
     private var progress: Int { Calendar.current.isDateInToday(completionDate) && task.completedAt == nil && task.progressTracking == true ? (task.startedAt == nil ? 1 : 2) : 0 }
     private var progressOptions: [TileMove] {
@@ -249,7 +260,7 @@ struct TaskRow: View {
     var body: some View {
         CheckTile(title: task.title, subtitle: subtitle, done: task.completedAt != nil, color: accent.fill,
                   completionLabel: completionLabel,
-                  toggle: toggle, edit: edit, remove: { change { context.delete(task); try Mutations.save(context) } }, moves: moves, icon: ItemIcons.suggested(for: task.title), bodyText: task.notes, progress: progress, progressOptions: progressOptions)
+                  toggle: toggle, edit: edit, remove: { change { context.delete(task); try Mutations.save(context) } }, moves: moves, icon: ItemIcons.suggested(for: task.title), progress: progress, progressOptions: progressOptions)
             .modifier(TaskActions(task: task)).modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
             .sensoryFeedback(.impact(weight: .medium), trigger: startedFeedback)
     }

@@ -39,13 +39,13 @@
     const listID = task.listID === SOMEDAY_LIST_ID ? null : task.listID;
     return { ...task, listID, localDate: day, dueDate, hasTime: !!dueDate, reminders, updatedAt: now };
   }
-  /** Later: no date, so it waits in its list until it is added to Today again. */
-  function moveLater(task, now = Date.now()) {
-    return { ...task, localDate: null, dueDate: null, hasTime: false, reminders: [], updatedAt: now };
+  /** Files a task in a category (or Someday) with no date or reminders, so it leaves Today. */
+  function moveToList(task, listID, now = Date.now()) {
+    return { ...task, listID, localDate: null, dueDate: null, hasTime: false, reminders: [], updatedAt: now };
   }
   /** Someday: no date, no reminders, never on Today. */
   function moveToSomeday(task, now = Date.now()) {
-    return { ...moveLater(task, now), listID: SOMEDAY_LIST_ID };
+    return moveToList(task, SOMEDAY_LIST_ID, now);
   }
   /** "from Tue" within the last week, otherwise "from Oct 12". */
   function overdueLabel(day, today, locale) {
@@ -109,7 +109,7 @@
     isOverdue,
     somedayList,
     moveToDay,
-    moveLater,
+    moveToList,
     moveToSomeday,
     overdueLabel,
     localKey,

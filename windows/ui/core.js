@@ -18,7 +18,6 @@ const api = window.orbit;
 const $ = (s) => document.querySelector(s);
 let state = { records: [] },
   page = "today",
-  selected = dayKey(new Date()),
   editing = null,
   editingHabit = null,
   editingList = null,
@@ -238,19 +237,19 @@ const weekStart = (() => {
   }
 })();
 const habitLogs = () => rows("habit_logs");
-function dailyCount(h, date = selected) {
+function dailyCount(h, date = today()) {
   return OrbitHabits.dayCount(h, habitLogs(), date);
 }
-function checked(h, date = selected) {
+function checked(h, date = today()) {
   return OrbitHabits.checkedOn(h, habitLogs(), date);
 }
-function progress(h, date = selected) {
+function progress(h, date = today()) {
   return OrbitHabits.periodProgress(h, habitLogs(), date, weekStart);
 }
-function dueOn(h, date = selected) {
+function dueOn(h, date = today()) {
   return OrbitHabits.dueOn(h, habitLogs(), date, weekStart);
 }
-function habitDetail(h, date = selected) {
+function habitDetail(h, date = today()) {
   const schedule = OrbitHabits.schedule(h);
   const count = `${progress(h, date)} of ${h.target} ${schedule === "WEEKLY" ? "this week" : "today"}`;
   return schedule === "DAILY" || schedule === "WEEKLY" ? count : `${OrbitHabits.label(h)} · ${count}`;
@@ -322,6 +321,9 @@ function boxGrid(levels, color, label, weeks = 12) {
   return `<div class="box-grid fill-${color}" role="img" aria-label="${esc(label)}: ${done} of ${levels.length} days over the last ${weeks} weeks">${cells}</div>`;
 }
 
+/** The task categories the user made, for filing and moving tasks (Someday is separate). */
+const taskCategories = () => rows("lists").filter((l) => l.id !== SOMEDAY && l.kind !== "notes");
+const categoryOptions = () => taskCategories().map((l) => [l.id, l.name]);
 function rowActions(id, title, habit = false) {
   return `<span class="row-actions"><button class="icon-button" ${habit ? "data-habit-edit" : "data-edit"}="${id}" aria-label="Edit ${habit ? "habit" : "task"}: ${title}" title="Edit (E)"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m16 3 5 5-12 12-6 1 1-6zM14 5l5 5"/></svg></button><button class="icon-button danger" data-delete-row="${id}" aria-label="Delete ${title}" title="Delete"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V3h8v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg></button></span>`;
 }
@@ -351,7 +353,15 @@ function taskRow(t) {
       : "";
   const moves = overdue
     ? `<div class="row-pills" role="group" aria-label="Move ${title}">
-        <button class="pill" data-today="${id}">Today</button><button class="pill" data-later="${id}">Later</button><button class="pill" data-someday="${id}">Someday</button>
+        <button class="pill" data-today="${id}">Today</button><button class="pill" data-someday="${id}">Someday</button>${
+          taskCategories().length
+            ? macPicker(`overdue-move-${id}`, `Move ${t.title} to a category`, categoryOptions(), "", {
+                placeholder: "Category",
+                className: "pill-picker",
+                attributes: `data-overdue-move="${id}"`,
+              })
+            : ""
+        }
       </div>`
     : "";
   const tracking = !t.completedAt && t.progressTracking === true;
@@ -384,29 +394,30 @@ function taskRow(t) {
     ${moves}
   </div>`;
 }
-/** A habit: colour dot, title and count. Tapping logs one check-in; right-click (or E) edits. */
-function habitCard(h, { editable = false, fullWidth = false } = {}) {
-  const date = page === "today" ? selected : today();
+/** A habit on the Habits page: tick, title, colour dot and count. The tick logs a check-in; the title edits. */
+function habitCard(h, { fullWidth = false } = {}) {
+  const date = today();
   const done = checked(h, date);
   const id = esc(h.id),
     title = esc(h.title);
   return `<div class="row habit-row habit-${colorName(h.color)} check-tile ${done ? "complete" : ""} ${fullWidth ? "wide-habit" : ""}" data-flip="habit-${id}" data-row-menu="habit:${id}">
     <div class="row-line">
-      <button class="row-tick" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-day="${date}" data-habit-menu="${id}" ${date !== today() ? "disabled" : ""}>${tick(done, poppedID === h.id)}</button>
-      <div class="row-main"><button class="row-body" aria-label="Edit ${title}" data-habit-edit="${id}"><span class="row-title">${title}</span>${editable ? `<span class="dot ${colorName(h.color)}" aria-hidden="true"></span>` : ""}<span class="row-detail ${done ? "met" : ""}">${page === "today" ? `${progress(h, date)} of ${h.target}` : habitDetail(h, date)}</span></button>
+      <button class="row-tick" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-day="${date}" data-habit-menu="${id}">${tick(done, poppedID === h.id)}</button>
+      <div class="row-main"><button class="row-body" aria-label="Edit ${title}" data-habit-edit="${id}"><span class="row-title">${title}</span><span class="dot ${colorName(h.color)}" aria-hidden="true"></span><span class="row-detail ${done ? "met" : ""}">${habitDetail(h, date)}</span></button>
       ${rowActions(id, title, true)}</div>
     </div>
   </div>`;
 }
-function habitCards(habits, editable = false) {
+/** Two short habits share a row; longer titles take the full width. */
+function habitCards(habits) {
   const compact = (habit) => habit.title.length <= 22 && habit.title.split(/\s+/).length <= 4;
   let result = "";
   for (let index = 0; index < habits.length; ) {
     if (compact(habits[index]) && habits[index + 1] && compact(habits[index + 1])) {
-      result += habitCard(habits[index], { editable }) + habitCard(habits[index + 1], { editable });
+      result += habitCard(habits[index]) + habitCard(habits[index + 1]);
       index += 2;
     } else {
-      result += habitCard(habits[index], { editable, fullWidth: true });
+      result += habitCard(habits[index], { fullWidth: true });
       index++;
     }
   }
@@ -437,7 +448,7 @@ function newTask(title, date) {
 async function toggle(id) {
   const t = rows("tasks").find((t) => t.id === id);
   if (!t) return;
-  if (!(page === "today" && selected !== today()) && !t.completedAt && t.progressTracking === true && !t.startedAt) {
+  if (!t.completedAt && t.progressTracking === true && !t.startedAt) {
     poppedID = t.id;
     await put("tasks", OrbitPlanner.setProgress(t, true, true));
     return;
@@ -447,15 +458,11 @@ async function toggle(id) {
   await put("tasks", {
     ...t,
     startedAt: t.completedAt ? null : t.startedAt,
-    completedAt: t.completedAt
-      ? null
-      : page === "today" && selected !== today()
-        ? new Date(`${selected}T12:00:00`).getTime()
-        : Date.now(),
+    completedAt: t.completedAt ? null : Date.now(),
     updatedAt: Date.now(),
   });
 }
-async function log(id, undo, date = selected) {
+async function log(id, undo, date = today()) {
   const h = rows("habits").find((h) => h.id === id);
   const current = dayKey(new Date());
   if (date > current || date < OrbitHabits.addDays(current, -6) || !h) return;
@@ -530,7 +537,13 @@ function bindTiles() {
   document.querySelectorAll("[data-start-timer]").forEach((b) => (b.onclick = () => startTimer(b.dataset.startTimer)));
   if ($("[data-stop-timer]")) $("[data-stop-timer]").onclick = () => stopTimer();
   document.querySelectorAll("[data-row-menu], [data-note-menu]").forEach((row) => (row.oncontextmenu = openRowMenu));
-  document.querySelectorAll("[data-quick-add]").forEach((b) => (b.onclick = () => openQuickAdd()));
+  document.querySelectorAll("[data-quick-add]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        quickContext = quickAddContext();
+        openCaptureDetails(inlineDraft);
+      }),
+  );
   bindInlineCapture();
   // Choosing Today, Later or Someday springs the row away before the list re-forms.
   const move = (attribute, change) =>
@@ -544,7 +557,6 @@ function bindTiles() {
           })),
     );
   move("today", (t) => OrbitPlanner.moveToDay(t, today()));
-  move("later", (t) => OrbitPlanner.moveLater(t));
   move("someday", (t) => OrbitPlanner.moveToSomeday(t));
 }
 
@@ -592,6 +604,27 @@ setInterval(() => {
   if ($("#focus-left")) $("#focus-left").textContent = left > 0 ? timeLeft(left) : "Finished";
 }, 1000);
 
+/** Whether `listID` names a list that still exists and is not only for `otherKind` items. */
+function keepsList(listID, otherKind) {
+  if (!listID) return true;
+  const list = rows("lists").find((l) => l.id === listID);
+  return !!list && list.kind !== otherKind;
+}
+/** Note → task: it lands on Today, so it is easy to find, and leaves a note-only section (iOS: NoteRules). */
+function noteToTask(note) {
+  const title = note.title || OrbitNotes.split(note.notes).title || "Photo note";
+  const listID = keepsList(note.listID, "notes") ? note.listID : null;
+  return OrbitPlanner.moveToDay({ ...note, title, listID, isNote: false }, today());
+}
+/** Task → note: no date, reminders or progress, and out of a task-only category. */
+function taskToNote(task) {
+  return {
+    ...OrbitPlanner.moveToList(task, keepsList(task.listID, "tasks") ? task.listID : null),
+    isNote: true,
+    progressTracking: null,
+    startedAt: null,
+  };
+}
 let rowMenuScrollPosition = null;
 /** Right-click (or the Menu key) on a row: copy its text and other quick actions. */
 function openRowMenu(e) {
@@ -610,23 +643,7 @@ function openRowMenu(e) {
       entries.push(
         focusTimer?.taskID === id ? ["Stop timer", () => stopTimer()] : ["Start timer", () => startTimer(id)],
       );
-    entries.push([
-      "Make it a Note",
-      () =>
-        action(() =>
-          put("tasks", {
-            ...item,
-            isNote: true,
-            localDate: null,
-            dueDate: null,
-            hasTime: false,
-            reminders: [],
-            progressTracking: null,
-            startedAt: null,
-            updatedAt: Date.now(),
-          }),
-        ),
-    ]);
+    entries.push(["Make it a Note", () => action(() => put("tasks", taskToNote(item)))]);
   }
   if (kind === "task" || kind === "note") entries.push(["Delete", () => action(() => put("tasks", item, true))]);
   let menu = $("#row-menu");

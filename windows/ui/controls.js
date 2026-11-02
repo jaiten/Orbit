@@ -1,11 +1,18 @@
 // Compact, keyboard-accessible pickers with the same quiet menu surface as row actions.
-function macPicker(id, label, options, value, swatches = false) {
-  const selected = options.find(([key]) => key === value)?.[1] || label;
+// `placeholder` is shown when no option is chosen (an action menu such as "Move to"); `swatches` shows habit colours.
+function macPicker(
+  id,
+  label,
+  options,
+  value,
+  { placeholder = label, className = "", attributes = "", swatches = false } = {},
+) {
+  const selected = options.find(([key]) => key === value)?.[1] || placeholder;
   const swatch = (key) =>
-    swatches && ["sage", "lavender", "clay", "honey"].includes(key)
+    swatches && OrbitHabits.COLORS.includes(key)
       ? `<i class="colour-swatch swatch-${key}" aria-hidden="true"></i>`
       : "";
-  return `<details class="mac-picker" data-picker="${id}"><summary id="${id}" role="combobox" aria-label="${esc(label)}" aria-haspopup="listbox" aria-controls="${id}-options" aria-expanded="false">${swatch(value)}<span>${esc(selected)}</span><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></summary><div class="picker-menu" id="${id}-options" role="listbox" aria-label="${esc(label)}">${options.map(([key, name]) => `<button type="button" role="option" aria-label="${esc(name)}" aria-selected="${key === value}" data-value="${esc(key)}">${swatch(key)}${esc(name)}</button>`).join("")}</div></details>`;
+  return `<details class="mac-picker ${className}" data-picker="${id}" ${attributes}><summary id="${id}" role="combobox" aria-label="${esc(label)}" aria-haspopup="listbox" aria-controls="${id}-options" aria-expanded="false">${swatch(value)}<span>${esc(selected)}</span><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></summary><div class="picker-menu" id="${id}-options" role="listbox" aria-label="${esc(label)}">${options.map(([key, name]) => `<button type="button" role="option" aria-label="${esc(name)}" aria-selected="${key === value}" data-value="${esc(key)}">${swatch(key)}${esc(name)}</button>`).join("")}</div></details>`;
 }
 function bindPickers(handlers, root = document) {
   root.querySelectorAll("[data-picker]").forEach((picker) => {

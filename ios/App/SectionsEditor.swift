@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 /// Sections (stored as lists) group notes and tasks. Someday is built in.
 struct ListsView: View {
@@ -42,8 +43,15 @@ struct ListsView: View {
                 .scrollDismissesKeyboard(.interactively)
                 .onAppear { if categoryMode { do { try TodayRules.ensureSomeday(context); try Mutations.save(context, undoable: false) } catch { self.error = error.localizedDescription } } }.tint(accent.fill).navigationTitle(categoryMode ? "Categories" : "Edit Sections")
                 .toolbar {
-                    ToolbarItem(placement: .topBarLeading) { Button("Hide keyboard", systemImage: "keyboard.chevron.compact.down") { naming = false } }
                     ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                    // Right above the keyboard, for the new-name field and any name being edited.
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("Hide keyboard", systemImage: "keyboard.chevron.compact.down") {
+                            naming = false
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        }
+                    }
                 }
                 .modifier(MutationErrorModifier(error: $error))
                 .confirmationDialog("Delete this section? Its notes and tasks are kept, without a section.", isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }), titleVisibility: .visible) {

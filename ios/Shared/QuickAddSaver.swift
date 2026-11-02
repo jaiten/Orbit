@@ -51,7 +51,7 @@ import SwiftData
         if result.someday { try TodayRules.ensureSomeday(context); return TodayRules.somedayID }
         if let name = result.list {
             let lists = try context.fetch(FetchDescriptor<TaskList>(sortBy: [SortDescriptor(\.sortOrder)]))
-            if let existing = lists.first(where: { $0.isTaskCategory && $0.id != TodayRules.somedayID && $0.name.localizedCaseInsensitiveCompare(name) == .orderedSame }) { return existing.id }
+            if let existing = lists.first(where: { $0.isUserCategory && $0.name.localizedCaseInsensitiveCompare(name) == .orderedSame }) { return existing.id }
             let list = TaskList(name: name, sortOrder: lists.count, kind: "tasks"); context.insert(list); return list.id
         }
         if listID == TodayRules.somedayID && result.date != nil { return nil }
