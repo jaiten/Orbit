@@ -103,3 +103,24 @@ test("update events emit independent snapshots and installation failures remain 
   f.manager.stop();
   assert.equal(f.manager.timers.length, 0);
 });
+
+test("opening or hiding the window checks when the last check is old, and failures retry later", async () => {
+  let time = 1_000_000;
+  const f = fixture();
+  f.manager.now = () => time;
+  await f.manager.checkIfDue();
+  assert.equal(f.checks(), 1);
+  time += 5 * 60 * 1000;
+  await f.manager.checkIfDue();
+  assert.equal(f.checks(), 1, "a recent check is reused");
+  time += 15 * 60 * 1000;
+  await f.manager.checkIfDue();
+  assert.equal(f.checks(), 2);
+  f.manager.start();
+  f.updater.checkForUpdates = async () => {
+    throw Error("offline");
+  };
+  assert.equal((await f.manager.check()).status, "error");
+  assert.ok(f.manager.retry, "a failed check schedules a retry");
+  f.manager.stop();
+});

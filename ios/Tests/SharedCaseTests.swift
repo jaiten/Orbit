@@ -22,6 +22,27 @@ final class SharedCaseTests: XCTestCase {
         XCTAssertEqual(Set(ItemIcons.all.map(\.id)).count, ItemIcons.all.count)
     }
 
+    func testStreakCases() throws {
+        for row in try Self.cases("streaks") {
+            let habit = row["habit"] as! [String: Any]
+            let rule = habit["frequencyRule"] as! String, target = habit["target"] as! Int
+            var counts: [String: Int] = [:]
+            for day in row["checkedDays"] as! [String] { counts[day] = HabitRules.dailyTarget(rule: rule, target: target) }
+            for day in row["partialDays"] as? [String] ?? [] { counts[day] = 1 }
+            let streak = HabitRules.streak(rule: rule, target: target, counts: counts, day: row["day"] as! String, weekStart: row["weekStart"] as! Int)
+            let expect = row["expect"] as! [String: Any]
+            XCTAssertEqual(streak, expect["streak"] as! Int, row["name"] as! String)
+            XCTAssertEqual(HabitRules.milestone(rule: rule, streak: streak), expect["milestone"] as? String, row["name"] as! String)
+        }
+    }
+
+    func testCategorySuggestionCases() throws {
+        for row in try Self.cases("category-suggestions") {
+            let history = (row["history"] as! [[String]]).map { (title: $0[0], category: $0[1]) }
+            XCTAssertEqual(CategorySuggestion.suggest(row["title"] as! String, history: history), row["expect"] as? String, row["name"] as! String)
+        }
+    }
+
     func testNoteCases() throws {
         for row in try Self.cases("notes") {
             let text = row["text"] as! String

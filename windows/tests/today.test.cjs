@@ -47,3 +47,42 @@ test("overdue labels name the weekday within a week", () => {
   assert.equal(planner.overdueLabel("2026-10-20", "2026-10-22", "en-US"), "from Tue");
   assert.equal(planner.overdueLabel("2026-10-01", "2026-10-22", "en-US"), "from Oct 1");
 });
+
+test("Tasks groups match iPhone: Someday first, uncategorized by day, then categories", () => {
+  const S = planner.SOMEDAY_LIST_ID;
+  const entries = [
+    { id: "late", day: "2026-11-01", listID: null },
+    { id: "now", day: "2026-11-02", listID: null },
+    { id: "soon", day: "2026-11-05", listID: null },
+    { id: "loose", day: null, listID: null },
+    { id: "someday", day: null, listID: S },
+    { id: "errand", day: "2026-11-02", listID: "errands" },
+    { id: "noteSection", day: null, listID: "personal-notes" },
+    { id: "done", day: "2026-11-02", listID: null, completedDay: "2026-11-02" },
+  ];
+  const groups = planner.taskGroups(entries, [{ id: "errands", name: "Errands" }], "2026-11-02");
+  assert.deepEqual(
+    groups.map((g) => [g.name, g.items.map((e) => e.id)]),
+    [
+      ["Someday", ["loose", "someday", "noteSection"]],
+      ["Overdue", ["late"]],
+      ["Today", ["now"]],
+      ["Upcoming", ["soon"]],
+      ["Errands", ["errand"]],
+      ["Completed", ["done"]],
+    ],
+  );
+});
+
+test("category suggestions follow the shared cases", () => {
+  const { cases } = require("../../shared/test-cases/category-suggestions.json");
+  for (const c of cases)
+    assert.equal(
+      planner.suggestCategory(
+        c.title,
+        c.history.map(([title, category]) => ({ title, category })),
+      ),
+      c.expect,
+      c.name,
+    );
+});

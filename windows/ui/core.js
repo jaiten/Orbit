@@ -333,15 +333,8 @@ function taskRow(t) {
   const overdue = page === "today" && OrbitPlanner.isOverdue(planItem(t), today());
   const length = time && t.durationMinutes ? `${t.durationMinutes} min` : "";
   const timing = focusTimer?.taskID === t.id;
-  const status =
-    !t.completedAt && t.progressTracking
-      ? t.startedAt
-        ? timing
-          ? "Timer running"
-          : "In progress"
-        : "Ready to start"
-      : "";
-  const detail = [status, overdue ? OrbitPlanner.overdueLabel(taskDate(t), today()) : "", time, length]
+  // Progress shows in the ring and the row tint, so the title keeps the room (no "In progress" text).
+  const detail = [overdue ? OrbitPlanner.overdueLabel(taskDate(t), today()) : "", time, length]
     .filter(Boolean)
     .join(" · ");
   const onToday = OrbitPlanner.onDay(planItem(t), today());
@@ -379,10 +372,13 @@ function taskRow(t) {
         }</div></details>`
       : "";
   // In progress: a timer is one click away (on hover, and suggested right after starting).
-  const minutes = Math.min(240, Math.max(5, t.durationMinutes || 30));
   const timer =
     started && !timing
-      ? `<button class="timer-action ${poppedID === t.id ? "suggested" : ""}" data-start-timer="${id}" aria-label="Start a ${minutes}-minute timer for ${title}" title="Start a ${minutes}-minute timer"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="14" r="8"/><path d="M9 2h6M12 6V2M12 10v4l2 2"/></svg> ${minutes} min</button>`
+      ? macPicker(`timer-${id}`, `Start a timer for ${t.title}`, timerOptions(t), "", {
+          placeholder: "Timer",
+          className: `timer-action ${poppedID === t.id ? "suggested" : ""}`,
+          attributes: `data-timer-task="${id}"`,
+        })
       : "";
   const search = [t.title, t.notes, ...(t.tags || [])].join(" ").toLowerCase();
   return `<div class="row task-row check-tile ${t.completedAt ? "complete" : ""} ${overdue ? "overdue" : ""} ${started ? "in-progress" : ""}" data-flip="task-${id}" data-search="${esc(search)}" data-row-menu="task:${id}">
@@ -475,6 +471,22 @@ async function log(id, undo, date = today()) {
   data.updatedAt = Date.now();
   data._key = `habit_logs/${id}-${date}`;
   await put("habit_logs", data);
+  if (!undo && date === current) celebrateStreak(h, [...habitLogs().filter((l) => l.id !== data.id), data]);
+}
+/** A gentle note when a check-in lands a streak on a milestone (7 days, 4 weeks…), with a bigger burst. */
+let celebrationTimer;
+function celebrateStreak(habit, logs) {
+  if (!OrbitHabits.checkedOn(habit, logs, today())) return;
+  const text = OrbitHabits.milestone(habit, OrbitHabits.streak(habit, logs, today(), weekStart));
+  const box = $("#celebration");
+  if (!text || !box) return;
+  box.innerHTML = `<span class="celebration-burst fill-${colorName(habit.color)}" aria-hidden="true"></span><strong>${esc(habit.title)}</strong><span>${text}</span>`;
+  box.hidden = false;
+  box.classList.remove("show");
+  void box.offsetWidth;
+  box.classList.add("show");
+  clearTimeout(celebrationTimer);
+  celebrationTimer = setTimeout(() => (box.hidden = true), 4000);
 }
 async function backfillYesterday(id) {
   const h = rows("habits").find((habit) => habit.id === id);
@@ -534,7 +546,14 @@ function bindTiles() {
   );
   document.querySelectorAll("[data-habit-edit]").forEach((b) => (b.onclick = () => openHabit(b.dataset.habitEdit)));
   document.querySelectorAll("[data-new-habit]").forEach((b) => (b.onclick = () => openHabit(null)));
-  document.querySelectorAll("[data-start-timer]").forEach((b) => (b.onclick = () => startTimer(b.dataset.startTimer)));
+  bindPickers(
+    Object.fromEntries(
+      [...document.querySelectorAll("[data-timer-task]")].map((picker) => [
+        picker.dataset.picker,
+        (minutes) => startTimer(picker.dataset.timerTask, Number(minutes)),
+      ]),
+    ),
+  );
   if ($("[data-stop-timer]")) $("[data-stop-timer]").onclick = () => stopTimer();
   document.querySelectorAll("[data-row-menu], [data-note-menu]").forEach((row) => (row.oncontextmenu = openRowMenu));
   document.querySelectorAll("[data-quick-add]").forEach(
@@ -566,10 +585,21 @@ function saveTimer() {
   if (focusTimer) localStorage.setItem("focusTimer", JSON.stringify(focusTimer));
   else localStorage.removeItem("focusTimer");
 }
-function startTimer(id) {
+/** Timer lengths offered for a task: these, plus the task's own duration (iOS: FocusSession.choices). */
+const TIMER_CHOICES = [15, 30, 60, 120];
+const timerLabel = (minutes) =>
+  minutes < 60 ? `${minutes} min` : `${+(minutes / 60).toFixed(1)} hour${minutes === 60 ? "" : "s"}`;
+const taskMinutes = (t) => Math.min(240, Math.max(5, t.durationMinutes || 30));
+function timerOptions(t) {
+  const choices = [...new Set([...TIMER_CHOICES, taskMinutes(t)])].sort((a, b) => a - b);
+  return choices.map((minutes) => [String(minutes), timerLabel(minutes)]);
+}
+function startTimer(id, minutes) {
   const t = rows("tasks").find((task) => task.id === id);
   if (!t) return;
-  const minutes = Math.min(240, Math.max(5, t.durationMinutes || 30));
+  minutes = minutes || taskMinutes(t);
+  // A timer means the task is under way.
+  if (!t.completedAt && !t.startedAt) void action(() => put("tasks", OrbitPlanner.setProgress(t, true, true)));
   focusTimer = { taskID: t.id, title: t.title, startedAt: Date.now(), endsAt: Date.now() + minutes * 60000 };
   saveTimer();
   render();
@@ -639,10 +669,12 @@ function openRowMenu(e) {
   if (kind === "note") entries.push(["Open", () => openNote(id)]);
   if (kind === "task") {
     entries.push(["Edit…", () => openTask(id)]);
-    if (!item.completedAt && item.progressTracking === true && item.startedAt)
-      entries.push(
-        focusTimer?.taskID === id ? ["Stop timer", () => stopTimer()] : ["Start timer", () => startTimer(id)],
-      );
+    if (!item.completedAt && !item.startedAt)
+      entries.push(["Mark in progress", () => action(() => put("tasks", OrbitPlanner.setProgress(item, true, true)))]);
+    if (focusTimer?.taskID === id) entries.push(["Stop timer", () => stopTimer()]);
+    else if (!item.completedAt)
+      for (const [minutes, label] of timerOptions(item))
+        entries.push([`Start ${label} timer`, () => startTimer(id, Number(minutes))]);
     entries.push(["Make it a Note", () => action(() => put("tasks", taskToNote(item)))]);
   }
   if (kind === "task" || kind === "note") entries.push(["Delete", () => action(() => put("tasks", item, true))]);

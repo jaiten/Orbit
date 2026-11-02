@@ -10,7 +10,14 @@ struct TaskActions: ViewModifier {
     func body(content: Content) -> some View {
         content.contextMenu {
                 Button("Copy text", systemImage: "doc.on.doc") { UIPasteboard.general.string = task.notes.isEmpty ? task.title : task.title + "\n\n" + task.notes }
-                Button("Start focus timer", systemImage: "timer") { Task { do { try await FocusSession.shared.start(task) } catch { self.error = error.localizedDescription } } }
+                if task.completedAt == nil && task.startedAt == nil {
+                    Button("Mark in progress", systemImage: "play.circle") { change { try Mutations.setProgress(task, enabled: true, start: true, in: context) } }
+                }
+                Menu("Start focus timer", systemImage: "timer") {
+                    ForEach(FocusSession.options(for: task), id: \.self) { minutes in
+                        Button(FocusSession.label(minutes)) { startTimer(minutes) }
+                    }
+                }
                 Button("Send to calendar", systemImage: "calendar.badge.plus") { Task { do { calendarDraft = try await CalendarBridge.shared.draft(for: task) } catch { self.error = error.localizedDescription } } }
                 Button("Add to Today", systemImage: "sun.max") { change { TodayRules.moveToDay(task, day: .now); try Mutations.save(context) } }
                 if task.listID != TodayRules.somedayID {
@@ -22,6 +29,14 @@ struct TaskActions: ViewModifier {
         }
             .sheet(item: $calendarDraft) { CalendarEventEditor(draft: $0).presentationDragIndicator(.visible) }
             .modifier(MutationErrorModifier(error: $error))
+    }
+    /// A timer means the task is under way.
+    private func startTimer(_ minutes: Int) {
+        // Not through change(), which stops this task's timer after an edit.
+        if task.completedAt == nil && task.startedAt == nil {
+            do { try Mutations.setProgress(task, enabled: true, start: true, in: context) } catch { self.error = error.localizedDescription }
+        }
+        Task { do { try await FocusSession.shared.start(task, minutes: minutes) } catch { self.error = error.localizedDescription } }
     }
     private func change(_ action: () throws -> Void) {
         let id = task.id

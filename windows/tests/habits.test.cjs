@@ -34,3 +34,16 @@ for (const c of require("../../shared/test-cases/consistency.json").cases) {
 const colors = require("../../shared/test-cases/habit-colors.json");
 for (const c of colors.cases)
   test(`new habit colour: ${c.name}`, () => assert.equal(habits.nextColor(c.existing), c.expect));
+
+for (const c of require("../../shared/test-cases/streaks.json").cases) {
+  test("streak: " + c.name, () => {
+    const habit = { id: "h", ...c.habit };
+    const full = habits.dailyTarget(habit);
+    const logs = [
+      ...c.checkedDays.map((dayKey) => ({ habitID: "h", dayKey, count: full })),
+      ...(c.partialDays || []).map((dayKey) => ({ habitID: "h", dayKey, count: 1 })),
+    ];
+    const count = habits.streak(habit, logs, c.day, c.weekStart);
+    assert.deepEqual({ streak: count, milestone: habits.milestone(habit, count) }, c.expect);
+  });
+}

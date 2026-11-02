@@ -48,6 +48,8 @@ function updateQuickPreview() {
   const listName = contextListName();
   if (text && result.kind === "task" && !result.someday && !result.list && listName) text += " · " + listName;
   if (text && quickContext.listID === SOMEDAY && result.kind === "task" && !result.date) text = "Someday";
+  const suggestion = text && suggestedCategory(result);
+  if (suggestion) text += " · " + suggestion.name;
   showChip($("#quick-add-preview"), text);
 }
 
@@ -107,6 +109,17 @@ function listNamed(name) {
   return { id: list.id, change: { key: "lists/" + list.id, payload: list } };
 }
 
+/** A category suggested from earlier tasks with similar titles, when nothing else files the task. */
+function suggestedCategory(result, listID = quickContext.listID) {
+  if (result.kind !== "task" || result.someday || result.list || listID || !result.title) return null;
+  const categories = taskCategories();
+  const known = new Set(categories.map((c) => c.id));
+  const history = rows("tasks")
+    .filter((t) => !t.isNote && known.has(t.listID))
+    .map((t) => ({ title: t.title, category: t.listID }));
+  const id = OrbitPlanner.suggestCategory(result.title, history);
+  return categories.find((c) => c.id === id) || null;
+}
 /** Turns a parse result into records. Returns the created item for "More details…". */
 function quickRecords(result) {
   const now = Date.now();
@@ -132,6 +145,7 @@ function quickRecords(result) {
     listID = list.id;
     if (list.change) extra.push(list.change);
   }
+  listID = listID || suggestedCategory(result, listID)?.id || null;
   if (result.someday) listID = SOMEDAY;
   if (listID === SOMEDAY && result.date) listID = null;
   const task = { ...newTask(result.title, result.date), listID };
@@ -207,7 +221,9 @@ function bindInlineCapture() {
       ? ""
       : page === "lists" || OrbitNotes.isNote(inlineDraft)
         ? "Note · " + (section ? sectionName(section) : "Notes")
-        : OrbitPlanning.describe(parsed);
+        : [OrbitPlanning.describe(parsed), suggestedCategory(parsed, quickAddContext().listID)?.name]
+            .filter(Boolean)
+            .join(" · ");
     showChip($("#inline-preview"), text);
     $("#inline-receipt").textContent = "";
   };

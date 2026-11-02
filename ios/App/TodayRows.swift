@@ -119,7 +119,7 @@ struct CheckTile: View {
                         ForEach(Array(move.options.enumerated()), id: \.offset) { _, option in Button(option.title, action: option.action) }
                     } label: {
                         HStack(spacing: 4) { Text(move.title); Image(systemName: "chevron.down").font(.caption2.weight(.semibold)) }
-                    }.accessibilityLabel("Move \(title) to a category")
+                    }.accessibilityLabel("\(move.title): \(title)")
                 }
             }
             .font(.subheadline.weight(.medium)).foregroundStyle(accent.text)
@@ -217,10 +217,11 @@ struct TaskRow: View {
     @ObservedObject private var focus = FocusSession.shared
     private var timing: Bool { focus.taskID == task.id }
     private var overdue: Bool { showMoves && TodayRules.isOverdue(TodayRules.item(task), today: PlannerLogic.dayKey(.now)) }
-    private var timerMinutes: Int { min(240, max(5, task.durationMinutes)) }
     private var moves: [TileMove] {
         if progress == 2 && suggestTimer && !timing {
-            return [TileMove(title: "Start a \(timerMinutes)-min timer") { startTimer() },
+            return [TileMove(title: "Start a timer", action: {}, options: FocusSession.options(for: task).map { minutes in
+                        TileMove(title: FocusSession.label(minutes)) { startTimer(minutes) }
+                    }),
                     TileMove(title: "Not now") { suggestTimer = false }]
         }
         guard overdue else { return [] }
@@ -238,7 +239,9 @@ struct TaskRow: View {
         guard task.completedAt == nil else { return [] }
         if task.progressTracking == true {
             var options: [TileMove] = []
-            if task.startedAt != nil && !timing { options.append(TileMove(title: "Start timer") { startTimer() }) }
+            if task.startedAt != nil && !timing {
+                options += FocusSession.options(for: task).map { minutes in TileMove(title: "Start \(FocusSession.label(minutes)) timer") { startTimer(minutes) } }
+            }
             if timing { options.append(TileMove(title: "Stop timer") { Task { await focus.stop() } }) }
             if task.startedAt != nil { options.append(TileMove(title: "Reset progress") { change { try Mutations.setProgress(task, enabled: true, in: context) } }) }
             options.append(TileMove(title: "Turn off start & finish") { change { try Mutations.setProgress(task, enabled: false, in: context) } })
@@ -250,8 +253,8 @@ struct TaskRow: View {
     }
     private var completionLabel: String { (task.completedAt != nil ? "Reopen " : progress == 1 ? "Start " : progress == 2 ? "Finish " : "Complete ") + task.title }
     private var subtitle: String {
+        // Progress shows in the ring and row tint, so the title keeps the room (no "In progress" text).
         var parts: [String] = []
-        if task.completedAt == nil && task.progressTracking == true { parts.append(task.startedAt == nil ? "Ready to start" : timing ? "Timer running" : "In progress") }
         if overdue, let day = task.day { parts.append(TodayRules.overdueLabel(day, today: PlannerLogic.dayKey(.now))) }
         if task.hasTime, let date = task.dueDate { parts.append(date.formatted(date: .omitted, time: .shortened)) }
         if !task.subtasks.isEmpty { parts.append("\(task.subtasks.filter(\.completed).count)/\(task.subtasks.count) steps") }
@@ -274,9 +277,9 @@ struct TaskRow: View {
             if task.completedAt != nil { Task { await FocusSession.shared.stopIfMatching(task.id) } }
         }
     }
-    private func startTimer() {
+    private func startTimer(_ minutes: Int) {
         suggestTimer = false
-        Task { do { try await focus.start(task) } catch { self.error = error.localizedDescription } }
+        Task { do { try await focus.start(task, minutes: minutes) } catch { self.error = error.localizedDescription } }
     }
     private func change(_ action: () throws -> Void) {
         do { try action(); Task { do { try await refreshReminders(context) } catch { self.error = error.localizedDescription } } }
@@ -304,7 +307,11 @@ struct HabitRow: View {
     private func toggle() {
         guard canLog else { return }
         change {
-            if checked { try Mutations.undoLog(habit, at: date, in: context) } else { try Mutations.log(habit, at: date, in: context) }
+            if checked { try Mutations.undoLog(habit, at: date, in: context) }
+            else {
+                try Mutations.log(habit, at: date, in: context)
+                Celebration.shared.checkIn(habit, logs: try context.fetch(FetchDescriptor<HabitLog>()), at: date)
+            }
             feedback += 1
         }
     }

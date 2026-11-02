@@ -26,12 +26,12 @@ shortcuts, and provides an uninstaller. Install 0.3.4 or later once to enable
 automatic updates from [GitHub Releases](https://github.com/jaiten/Orbit/releases/latest).
 The app ID and user-data location are shared with the portable build, so upgrades
 keep the local planner, preferences and sign-in data. Uninstalling keeps app data.
-Installed Windows copies check after opening (15 seconds) and every four hours
-while running, including in the tray. Updates download in the background. Choose
-**Update ready — restart** in the sidebar or **Settings → Updates → Restart to
-update** to install and reopen Orbit. Closing the app does not install an update
-without that action. **Check for updates** also checks manually. Offline checks
-stay in Settings and retry on the next check. Notes save before restart; unfinished
+Installed Windows copies check at launch, every hour while running (including in the
+tray), and whenever the window is opened or closed to the tray, at most every 15 minutes.
+A failed check (for example, offline at sign-in) retries after 10 minutes. Updates
+download in the background. Choose **Update ready · Restart** in the sidebar or
+**Settings → Updates → Restart to update** to install and reopen Orbit. Closing the app
+does not install an update without that action. **Check for updates** also checks manually. Notes save before restart; unfinished
 capture drafts block a restart until finished or cleared. Portable and development
 copies do not auto-update.
 

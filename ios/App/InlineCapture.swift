@@ -50,7 +50,12 @@ struct InlineCapture: View {
         return parsed
     }
     private var isNote: Bool { notesOnly || (!habitsOnly && NoteRules.isNote(text)) }
-    private var preview: String { isNote ? "Note · All notes" : QuickAdd.describe(result) }
+    private var preview: String {
+        if isNote { return "Note · All notes" }
+        let value = QuickAdd.describe(result)
+        guard !value.isEmpty, listID == nil, let suggested = CategorySuggestion.suggest(for: result, in: context) else { return value }
+        return value + " · " + suggested.name
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // The chip belongs to the keyboard: it leaves when the keyboard is swiped away.

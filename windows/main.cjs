@@ -551,6 +551,8 @@ app.whenReady().then(async () => {
   updates.start();
   if (pendingRecoveryURL) void recoveryHandler();
   window.on("focus", () => void sync.run());
+  // Orbit lives in the tray, so opening or closing the window is when an update check is most useful.
+  for (const event of ["show", "hide"]) window.on(event, () => void updates.checkIfDue());
   // A sleeping PC can miss midnight; tell the page to re-check the day.
   for (const event of ["resume", "unlock-screen"])
     powerMonitor.on(event, () => {

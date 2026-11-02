@@ -34,10 +34,12 @@ SwiftData app currently requires Xcode; WSL/xtool is not yet supported.
 
 Only habits repeat. Older repeating tasks were converted to habits (daily, weekdays,
 weekends or weekly) with their history kept; monthly and custom repeats became one-off
-tasks. Habits reset at midnight and show “X of the last 7 days”, not streaks.
+tasks. Habits reset at midnight and show “X of the last 7 days”. There is no streak counter,
+but a check-in that lands a streak on 7, 14, 30, 50, 100, 200 or 365 days (4, 8, 12, 26 or 52
+weeks for weekly habits) shows a short celebration ([cases](shared/test-cases/streaks.json)).
 Windows does not yet edit tags, subtasks or reminder offsets, but keeps them when
-saving. Windows keeps syncing while it runs in the tray; iPhone syncs while open and
-catches up when reopened (no background refresh yet). iOS
+saving. Windows keeps syncing while it runs in the tray; iPhone syncs while open and uses
+Background App Refresh, which iOS runs a few times a day at times it chooses. iOS
 reminders schedule the nearest 60 requests and refill on app interaction.
 
 ## Beta interface refinements
@@ -48,7 +50,13 @@ columns or above the task list. Today always shows the current day on both apps;
 progress shows the last seven days, and earlier days are reviewed in Calendar. Habits on
 Today log with one click anywhere on the row. A menu hides or shows completed tasks.
 Overdue tasks move to Today, Someday or one of your categories, one at a time or all
-together. The calendar button beside the writing bar opens the full task editor. Overall progress
+together. The calendar button beside the writing bar opens the full task editor. Tasks is
+grouped the same on both apps: Someday first, then tasks without a category by Overdue /
+Today / Upcoming, then each category. A new task with no category takes the category of
+earlier tasks with similar titles, shown in the chip before saving
+([cases](shared/test-cases/category-suggestions.json)). In-progress tasks show only the
+ring, and their timer offers 15 minutes, 30 minutes, 1 hour, 2 hours or the task's own
+length; touch and hold (right-click on Windows) for **Mark in progress**. Overall progress
 is optional, reads left to right, and uses a week/month choice in Settings or Edit layout.
 
 Calendar has quarter-hour slots, draggable tasks, a 12/24-hour preference and thin

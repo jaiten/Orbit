@@ -23,9 +23,21 @@ import SwiftUI
         } else { title = nil; endsAt = nil; taskID = nil }
         if let endsAt, endsAt <= .now { Task { await stop() } }
     }
-    func start(_ task: PlannerTask) async throws {
+    /// Timer lengths offered for a task: these, plus the task's own duration (Windows: TIMER_CHOICES).
+    static let choices = [15, 30, 60, 120]
+    static func minutes(for task: PlannerTask) -> Int { min(240, max(5, task.durationMinutes)) }
+    static func options(for task: PlannerTask) -> [Int] { Array(Set(choices + [minutes(for: task)])).sorted() }
+    static func label(_ minutes: Int) -> String {
+        guard minutes >= 60 else { return "\(minutes) min" }
+        let hours = Double(minutes) / 60
+        let text = hours == hours.rounded() ? String(Int(hours)) : String(format: "%.1f", hours)
+        return text + (minutes == 60 ? " hour" : " hours")
+    }
+
+    func start(_ task: PlannerTask, minutes: Int? = nil) async throws {
         await stop()
-        let start = Date.now, end = start.addingTimeInterval(Double(min(240, max(5, task.durationMinutes))) * 60)
+        let length = minutes ?? Self.minutes(for: task)
+        let start = Date.now, end = start.addingTimeInterval(Double(length) * 60)
         if ActivityAuthorizationInfo().areActivitiesEnabled {
             activity = try? Activity.request(attributes: FocusAttributes(taskID: task.id, title: task.title), content: ActivityContent(state: .init(startedAt: start, endsAt: end), staleDate: end), pushType: nil)
         }

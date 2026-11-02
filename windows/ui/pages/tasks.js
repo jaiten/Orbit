@@ -27,15 +27,14 @@ function renderTasks(tasks) {
           ? (a.sortOrder || 0) - (b.sortOrder || 0)
           : (taskDate(a) || "9999").localeCompare(taskDate(b) || "9999")),
   );
-  // Someday first, as on iPhone; then overdue, today and upcoming.
-  const groups = ["Someday", "Overdue", "Today", "Upcoming", "Completed"]
-    .map((group) => {
-      const items = filtered.filter((task) => OrbitPlanner.dateGroup(planItem(task), current) === group);
-      return !items.length
-        ? ""
-        : group === "Completed"
-          ? `<details class="completed-tasks"><summary>Completed (${items.length})</summary>${checklist(items)}</details>`
-          : sectionLabel(group, String(items.length)) + checklist(items);
+  // Grouped as on iPhone: Someday, tasks with no category by day, then each category.
+  const entries = filtered.map((task) => ({ ...planItem(task), listID: task.listID, task }));
+  const groups = OrbitPlanner.taskGroups(entries, orderedLists("tasks"), current)
+    .map(({ id, name, items }) => {
+      const tasks = items.map((entry) => entry.task);
+      return id === "completed"
+        ? `<details class="completed-tasks"><summary>Completed (${tasks.length})</summary>${checklist(tasks)}</details>`
+        : sectionLabel(esc(name), String(tasks.length)) + checklist(tasks);
     })
     .join("");
   return `<div class="narrow wide"><header class="page-head"><h1>Tasks</h1><input id="task-search" type="search" aria-label="Search tasks" placeholder="Search tasks" value="${esc(taskSearch)}" /></header>

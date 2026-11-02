@@ -1,0 +1,18 @@
+{
+  "about": "A new task with no category takes the category of earlier tasks with similar titles: words of 3+ letters (minus common words, with a trailing s dropped) are compared, each category scores the words its tasks share, and the top score wins unless it ties.",
+  "cases": [
+    {
+      "name": "shared word",
+      "title": "buy bread",
+      "history": [["Buy milk", "Groceries"], ["Buy eggs", "Groceries"], ["Email Sam about the report", "Work"]],
+      "expect": "Groceries"
+    },
+    { "name": "other category", "title": "Finish the report", "history": [["Buy milk", "Groceries"], ["Email Sam about the report", "Work"]], "expect": "Work" },
+    { "name": "no shared words", "title": "Walk the dog", "history": [["Buy milk", "Groceries"]], "expect": null },
+    { "name": "a tie suggests nothing", "title": "call plumber", "history": [["Call mom", "Family"], ["Call bank", "Errands"]], "expect": null },
+    { "name": "plural and case", "title": "Renew LIBRARY book", "history": [["Return library books", "Errands"]], "expect": "Errands" },
+    { "name": "common words never match", "title": "the plan for this week", "history": [["Read the news for work", "Work"]], "expect": null },
+    { "name": "more shared words win", "title": "dentist appointment friday", "history": [["dentist checkup", "Health"], ["book dentist appointment", "Errands"], ["friday drinks", "Social"]], "expect": "Errands" },
+    { "name": "no history", "title": "anything", "history": [], "expect": null }
+  ]
+}

@@ -26,6 +26,9 @@ import Combine
                     description: Text(startupError ?? "Please reopen Orbit."))
             }
         }
+        .backgroundTask(.appRefresh(BackgroundRefresh.identifier)) {
+            if let container { await BackgroundRefresh.run(container) }
+        }
     }
 }
 
@@ -92,7 +95,10 @@ struct RootView: View {
         }
         .onChange(of: phase) { _, value in
             if value == .active { UsageSignals.recordVisit(); SyncService.shared.resumeRealtime(); Task { await refreshNotifications(); await SyncService.shared.run(context) } }
-            else { SyncService.shared.suspendRealtime() }
+            else {
+                SyncService.shared.suspendRealtime()
+                if value == .background { BackgroundRefresh.schedule() }
+            }
         }
         .alert("Orbit", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("OK") { errorMessage = nil }
@@ -115,6 +121,7 @@ struct RootView: View {
         .onPreferenceChange(CaptureDockHeight.self) { captureDockHeight = $0 }
         // The toast stays quiet for routine edits; shake can undo the latest local mutation.
         .overlay(alignment: .bottom) { undoToast }
+        .overlay(alignment: .top) { CelebrationToast().padding(.top, 8) }
         .onReceive(NotificationCenter.default.publisher(for: .orbitShake)) { _ in
             if undo.shakeChange != nil && UIAccessibility.isShakeToUndoEnabled { confirmShakeUndo = true }
         }

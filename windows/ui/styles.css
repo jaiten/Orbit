@@ -20,6 +20,23 @@ html {
 }
 :root {
   --sheen: 0.5;
+
+  /* Consistent editing surfaces and compact controls. */
+  --content-inset: 32px;
+  --capture-width: 760px;
+
+  /* Locked Windows content geometry. Sidebar pills, progress rings and colour dots
+   retain their circular shapes; every content box uses this single radius. */
+  --content-radius: 12px;
+  --radius-card: var(--content-radius);
+  --radius-row: var(--content-radius);
+  --radius-input: var(--content-radius);
+
+  /* A lighter charcoal canvas, following the compact reference surfaces. */
+  --canvas: light-dark(#f5f5f7, #242526);
+  --surface: light-dark(#ffffff, #2d2e2f);
+  --line: light-dark(#e4e4e8, #3d3f40);
+  --muted: light-dark(#6d6d73, #b0b1b5);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-appearance="light"]) {
@@ -236,7 +253,6 @@ nav button span {
   align-items: center;
   gap: var(--space-m);
   flex: 1;
-  height: 36px;
   padding: 0 12px;
   text-align: left;
   font-size: 14px;
@@ -248,7 +264,6 @@ nav button span {
   color: var(--ink);
 }
 .sidebar-list button[data-edit-list] {
-  opacity: 0;
   padding: 4px 8px;
   color: var(--muted);
 }
@@ -306,13 +321,9 @@ nav button span {
   text-align: left;
 }
 .restart-update {
-  margin: 0 8px 4px;
-  padding: 8px;
   text-align: left;
-  border-radius: 7px;
   font-size: 12px;
   color: var(--accent-text);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 .restart-update[hidden] {
   display: none;
@@ -347,10 +358,6 @@ main {
   width: calc(100% - var(--sidebar-width));
   min-height: 100vh;
 }
-.page {
-  max-width: 1120px;
-  padding: var(--space-section) 40px 64px;
-}
 #notice,
 .banner {
   display: flex;
@@ -378,11 +385,6 @@ main {
   justify-content: space-between;
   align-items: flex-start;
   gap: var(--space-l);
-  margin-bottom: var(--space-xl);
-}
-.icon-button {
-  padding: 8px;
-  color: var(--muted);
 }
 .icon-button svg {
   width: 18px;
@@ -504,7 +506,6 @@ main {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
   transition: color 300ms;
 }
 .row-detail {
@@ -535,10 +536,27 @@ main {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+/* Shown on hover or keyboard focus only, and takes no room until then. */
 .today-action {
+  flex: none;
+  max-width: 0;
+  margin-right: 0;
+  padding: 3px 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 12px;
+  opacity: 0;
+  transition:
+    opacity 0.15s,
+    max-width 0.15s,
+    padding 0.15s;
+}
+.task-row:hover .today-action,
+.task-row:focus-within .today-action {
+  max-width: 140px;
   margin-right: var(--space-m);
   padding: 3px 12px;
-  font-size: 12px;
+  opacity: 1;
 }
 .row-pills {
   display: flex;
@@ -685,7 +703,6 @@ main {
 }
 .today-layout > .page-head {
   grid-column: 1 / -1;
-  margin-bottom: 0;
 }
 .today-side {
   display: grid;
@@ -854,12 +871,10 @@ main {
 }
 .history-list {
   display: grid;
-  gap: var(--space-m);
 }
 .history-head {
   display: flex;
   align-items: center;
-  gap: var(--space-m);
   width: 100%;
   padding: 0;
   text-align: left;
@@ -873,10 +888,8 @@ main {
 }
 .history-head > span:last-child {
   color: var(--muted);
-  font-size: var(--type-detail);
 }
 .history-schedule {
-  margin: 2px 0 var(--space-l) calc(var(--row-dot) + var(--space-m));
   color: var(--muted);
   font-size: var(--type-detail);
 }
@@ -885,16 +898,10 @@ main {
 }
 .history-charts {
   display: grid;
-  grid-template-columns: minmax(200px, 1fr) minmax(180px, 220px);
   align-items: center;
-  gap: var(--space-xxl);
 }
 /* History reads like a calendar: seven consecutive days across, then the next week below. */
 .history-charts .box-grid {
-  grid-template-columns: repeat(7, 14px);
-  grid-template-rows: none;
-  grid-auto-flow: row;
-  grid-auto-rows: 14px;
   justify-content: end;
 }
 .week-segments {
@@ -959,14 +966,11 @@ button.segment:focus-visible {
   outline-offset: -1px;
 }
 .check-ins {
-  margin: 0;
-  padding: 4px 18px;
   list-style: none;
 }
 .check-ins li {
   display: flex;
   justify-content: space-between;
-  padding: 10px 0;
   border-top: 1px solid var(--line);
 }
 .check-ins li:first-child {
@@ -1041,7 +1045,6 @@ label.toggle {
 }
 .settings-block h2 {
   margin-bottom: var(--space-m);
-  font-size: var(--type-eyebrow);
   font-weight: 600;
   letter-spacing: var(--type-eyebrow-tracking);
   text-transform: uppercase;
@@ -1052,11 +1055,6 @@ label.toggle {
   display: grid;
   gap: var(--space-xs);
   margin: var(--space-s) 0;
-}
-.settings-block label.toggle {
-  display: flex;
-  align-items: center;
-  gap: var(--space-s);
 }
 input[type="checkbox"] {
   accent-color: var(--accent-button);
@@ -1114,16 +1112,12 @@ input[type="checkbox"] {
 dialog {
   width: min(520px, calc(100vw - 48px));
   border: 0;
-  border-radius: var(--radius-card);
   padding: var(--space-xxl);
   background: var(--surface);
   color: var(--ink);
   box-shadow:
     0 0 0 1px var(--line),
     0 24px 48px -16px color-mix(in srgb, black 30%, transparent);
-}
-dialog[open] {
-  animation: card-in var(--spring-ui-duration) var(--spring-ui);
 }
 dialog::backdrop {
   background: color-mix(in srgb, var(--ink) 12%, transparent);
@@ -1282,7 +1276,6 @@ dialog footer .danger {
 .undo-toast {
   position: fixed;
   left: 50%;
-  bottom: var(--space-xxl);
   transform: translateX(-50%);
   display: flex;
   align-items: center;
@@ -1480,13 +1473,11 @@ dialog footer .danger {
   flex: none;
   border-radius: 50%;
   box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--muted) 60%, transparent);
+  position: relative;
 }
 .habit-suggestions button[aria-pressed="true"] {
   background: color-mix(in srgb, var(--accent) 12%, var(--surface));
   box-shadow: inset 0 0 0 1.5px var(--accent);
-}
-.habit-suggestions .pick {
-  position: relative;
 }
 .habit-suggestions button[aria-pressed="true"] .pick {
   background: var(--accent);
@@ -1548,10 +1539,6 @@ dialog footer .danger {
   min-height: 72px;
   margin-bottom: var(--space-l);
 }
-.narrow,
-.narrow.wide {
-  max-width: 760px;
-}
 .page-head h1 {
   overflow-wrap: anywhere;
 }
@@ -1596,6 +1583,8 @@ dialog footer .danger {
 }
 .inline-capture .add-field {
   align-items: flex-start;
+  border-radius: 12px;
+  transition: box-shadow 0.15s;
 }
 .inline-chip {
   min-height: 0;
@@ -1624,10 +1613,6 @@ dialog footer .danger {
 .inline-capture:focus-within .capture-submit,
 .inline-capture.has-text .capture-submit {
   opacity: 1;
-}
-.inline-capture .add-field {
-  border-radius: 12px;
-  transition: box-shadow 0.15s;
 }
 .inline-capture .add-field:focus-within {
   box-shadow:
@@ -1698,10 +1683,6 @@ dialog footer .danger {
     padding-left: 24px;
     padding-right: 24px;
   }
-}
-
-.today-layout > .page-head {
-  margin-bottom: var(--space-l);
 }
 .row-title {
   white-space: normal;
@@ -1983,33 +1964,28 @@ dialog footer .danger {
   color: var(--accent-text);
   font-weight: 600;
 }
-/* Takes no room until shown, so it never squeezes the title. */
+/* The timer menu on an in-progress row: shown on hover, while open, or right after starting. */
 .timer-action {
-  flex: none;
+  display: none;
   align-self: center;
-  max-width: 0;
-  margin-right: 0;
-  padding: 5px 0;
-  overflow: hidden;
-  white-space: nowrap;
+  margin-right: 6px;
+}
+.task-row:hover .timer-action,
+.timer-action[open],
+.timer-action:focus-within,
+.timer-action.suggested {
+  display: block;
+}
+.timer-action > summary {
+  height: auto;
+  min-width: 0;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 0;
   border-radius: var(--radius-chip);
-  font-size: 13px;
   font-weight: 500;
   color: var(--accent-text);
   background: color-mix(in srgb, var(--accent) var(--tint-accent-fill), transparent);
-  opacity: 0;
-  transition:
-    opacity 0.15s,
-    max-width 0.15s,
-    padding 0.15s;
-}
-.task-row:hover .timer-action,
-.timer-action:focus-visible,
-.timer-action.suggested {
-  max-width: 140px;
-  margin-right: 6px;
-  padding: 5px 12px;
-  opacity: 1;
 }
 
 /* Row menu (right-click) */
@@ -2044,9 +2020,6 @@ dialog footer .danger {
 .row-menu button {
   color: var(--ink);
 }
-.month-heading {
-  display: flex;
-}
 .month-arrows {
   display: flex;
   flex: none;
@@ -2070,8 +2043,8 @@ body[data-view="lists"] .page {
 }
 .notes-app {
   display: grid;
-  grid-template-columns: 248px minmax(0, 1fr);
   min-height: 100vh;
+  grid-template-columns: var(--notes-width, 248px) minmax(0, 1fr);
 }
 .notes-nav {
   position: sticky;
@@ -2137,7 +2110,6 @@ body[data-view="lists"] .page {
 }
 .notes-nav-row {
   display: flex;
-  align-items: center;
   gap: 2px;
 }
 .notes-nav-name {
@@ -2147,16 +2119,11 @@ body[data-view="lists"] .page {
   font-size: 13px;
 }
 .notes-nav-toggle {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
   flex: none;
   border-radius: 5px;
   color: var(--muted);
 }
 .notes-nav-toggle .chevron {
-  display: grid;
   transition: transform 0.18s ease;
 }
 .notes-nav-toggle .chevron.open {
@@ -2414,16 +2381,12 @@ body[data-view="lists"] .page {
 .note-title-input,
 .note-body {
   display: block;
-  width: 100%;
   border: none;
   outline: none;
   resize: none;
   background: transparent;
   color: var(--ink);
   font: inherit;
-  padding: 0 2px;
-  margin-left: -2px;
-  field-sizing: content;
   box-shadow: none;
 }
 .note-title-input:focus,
@@ -2435,7 +2398,7 @@ body[data-view="lists"] .page {
   font-size: 40px;
   font-weight: 700;
   letter-spacing: -0.025em;
-  line-height: 1.15;
+  overflow: hidden;
 }
 .note-title-input::placeholder,
 .note-body::placeholder {
@@ -2478,20 +2441,8 @@ body[data-view="lists"] .page {
   background: color-mix(in srgb, var(--ink) 6%, transparent);
 }
 .note-body {
-  min-height: 50vh;
   font-size: 16.5px;
   line-height: 1.75;
-}
-@media (max-width: 900px) {
-  .notes-app {
-    grid-template-columns: 1fr;
-  }
-  .notes-nav {
-    position: static;
-    height: auto;
-    border-right: none;
-    border-bottom: 0.5px solid var(--line);
-  }
 }
 .notes-nav {
   overflow-x: hidden;
@@ -2504,22 +2455,11 @@ body[data-view="lists"] .page {
   width: auto;
   margin-left: -8px;
 }
-.note-title-input {
-  overflow: hidden;
-}
-.note-title-input,
-.note-body {
-  padding: 0 4px;
-  margin-left: -4px;
-  width: calc(100% + 8px);
-}
 .today-button {
   min-height: 32px;
   padding: 0 12px;
-  border-radius: 8px;
   font-size: 13px;
   font-weight: 500;
-  background: color-mix(in srgb, var(--ink) 6%, transparent);
 }
 .today-button:disabled {
   opacity: 0.45;
@@ -2779,15 +2719,13 @@ body[data-view="lists"] .page {
   min-height: 100vh;
 }
 .capture-dock {
-  position: sticky;
-  bottom: 0;
-  z-index: 4;
   margin-top: auto;
-  padding: 28px 0 20px;
   background: linear-gradient(to bottom, transparent, var(--canvas) 34%);
 }
 .capture-dock .inline-capture {
   margin: 0;
+  display: flex;
+  flex-direction: column;
 }
 .capture-dock .add-field {
   box-shadow:
@@ -2797,10 +2735,6 @@ body[data-view="lists"] .page {
 .capture-dock .inline-chip {
   order: -1;
   margin: 0 0 8px;
-}
-.capture-dock .inline-capture {
-  display: flex;
-  flex-direction: column;
 }
 .notes-overview .capture-dock [data-quick-add] {
   display: none;
@@ -2828,15 +2762,14 @@ body[data-view="lists"] .page {
 .today-side .plan-card,
 .today-main .empty-state {
   border-radius: 8px;
-  min-height: 160px;
-  padding: 24px;
   box-shadow: none;
   border: 1px solid var(--line);
   background: var(--surface);
+  min-height: 104px;
+  padding: 16px;
 }
 .tasks-controls {
   display: flex;
-  gap: 12px;
   flex-wrap: wrap;
   align-items: center;
   margin-bottom: 24px;
@@ -2874,12 +2807,6 @@ dialog[open] {
   display: flex;
   flex-direction: column;
 }
-
-/* Consistent editing surfaces and compact controls. */
-:root {
-  --content-inset: 32px;
-  --capture-width: 760px;
-}
 .page {
   max-width: none;
   padding: 28px var(--content-inset) 110px;
@@ -2904,11 +2831,6 @@ body[data-view="lists"] .page {
 .notes-pane:not(.note-pane) {
   padding-bottom: 110px;
 }
-.today-side .plan-card,
-.today-main .empty-state {
-  min-height: 104px;
-  padding: 16px;
-}
 .today-main .empty-state {
   align-items: flex-start;
   justify-content: flex-start;
@@ -2917,7 +2839,6 @@ body[data-view="lists"] .page {
   font-size: 23px;
 }
 .month-heading {
-  display: grid;
   grid-template-columns: 300px 72px;
   gap: 8px;
 }
@@ -3016,35 +2937,19 @@ body[data-view="lists"] .page {
   display: flex;
   gap: 2px;
   flex: none;
-  width: 0;
-  overflow: hidden;
   opacity: 0;
   pointer-events: none;
-  transform: translateX(6px);
-  transition:
-    width 180ms ease,
-    padding-right 180ms ease,
-    opacity 140ms ease,
-    transform 180ms ease;
 }
 .check-tile:hover .row-actions,
 .check-tile:focus-within .row-actions {
-  width: 70px;
   padding-right: 8px;
   opacity: 1;
   pointer-events: auto;
-  transform: translateX(0);
 }
 .row-actions .icon-button {
   flex: none;
   min-width: 30px;
   min-height: 30px;
-}
-@media (prefers-reduced-motion: reduce) {
-  .row-actions {
-    transition: none;
-    transform: none;
-  }
 }
 dialog {
   border-radius: 14px;
@@ -3087,9 +2992,6 @@ dialog {
   margin: 0 0 16px -8px;
   padding: 6px 8px;
   border-radius: 7px;
-}
-.timer-action .ui-icon {
-  vertical-align: middle;
 }
 .account-sign-in {
   color: #0a84ff;
@@ -3242,10 +3144,8 @@ dialog {
 .pane-grip {
   position: absolute;
   z-index: 8;
-  right: -3px;
   top: 0;
   bottom: 0;
-  width: 7px;
   cursor: col-resize;
 }
 .pane-grip:hover,
@@ -3258,9 +3158,6 @@ dialog {
   cursor: col-resize !important;
   user-select: none !important;
 }
-.notes-app {
-  grid-template-columns: var(--notes-width, 248px) minmax(0, 1fr);
-}
 :root[data-notes-closed="true"] .notes-app {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -3270,14 +3167,8 @@ dialog {
 :root[data-sidebar-closed="true"] .notes-nav-head {
   padding-left: 38px;
 }
-@media (max-width: 900px) {
-  .notes-app {
-    grid-template-columns: 1fr;
-  }
-}
 .today-layout > .page-head {
   min-height: 56px;
-  margin-bottom: 12px;
 }
 .today-main .section-label,
 .today-side .section-label {
@@ -3292,9 +3183,6 @@ dialog {
 }
 .today-layout {
   row-gap: 8px;
-}
-.today-layout > .page-head {
-  margin-bottom: 4px;
 }
 .recent-progress {
   padding: 16px;
@@ -3338,7 +3226,7 @@ dialog {
   height: 30px;
   fill: none;
   stroke-width: 3;
-  transform: rotate(-90deg);
+  transform: none;
 }
 .progress-track {
   stroke: color-mix(in srgb, var(--accent) 12%, transparent);
@@ -3346,6 +3234,8 @@ dialog {
 .progress-value {
   stroke: var(--accent-text);
   stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 16px 16px;
 }
 .progress-day small {
   font-size: 10px;
@@ -3365,16 +3255,16 @@ dialog {
   }
 }
 .calendar-timeline {
-  max-height: calc(100vh - 240px);
   min-height: 280px;
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--canvas);
+  max-height: calc(100vh - 205px);
 }
 .time-grid {
   display: grid;
-  grid-template-columns: 52px repeat(var(--schedule-days, 7), minmax(0, 1fr));
+  grid-template-columns: 68px repeat(var(--schedule-days, 7), minmax(0, 1fr));
 }
 .schedule-header {
   position: sticky;
@@ -3400,9 +3290,6 @@ dialog {
 .schedule-header .day-tile.selected strong {
   color: var(--accent-text);
 }
-.schedule-all-day {
-  border-bottom: 1px solid var(--line);
-}
 .time-axis-label {
   font-size: 10px;
   color: var(--muted);
@@ -3411,15 +3298,12 @@ dialog {
 .schedule-all-day-column {
   min-width: 0;
   border-left: 1px solid var(--line);
-  padding: 3px;
   display: grid;
-  gap: 4px;
   align-content: start;
 }
 .schedule-all-day-add {
   font-size: 10px;
   color: var(--muted);
-  padding: 4px;
   border-radius: 4px;
 }
 .schedule-all-day-add svg {
@@ -3445,7 +3329,6 @@ dialog {
   display: none;
 }
 .time-axis > div {
-  height: 64px;
   text-align: right;
   padding-right: 8px;
   font-size: 11px;
@@ -3458,10 +3341,9 @@ dialog {
 }
 .schedule-slots {
   display: grid;
-  grid-template-rows: repeat(48, 32px);
+  grid-template-rows: repeat(96, 12px);
 }
 .time-slot {
-  height: 32px;
   padding: 0;
   width: 100%;
   border-radius: 0;
@@ -3494,6 +3376,7 @@ dialog {
   padding: 2px 4px 2px 22px;
   overflow: hidden;
   border-radius: 3px;
+  cursor: grab;
 }
 .schedule-event-body strong {
   display: block;
@@ -3513,6 +3396,7 @@ dialog {
   left: 1px;
   top: 2px;
   padding: 3px;
+  z-index: 4;
 }
 .schedule-check .tick {
   width: 12px;
@@ -3545,9 +3429,6 @@ dialog {
   flex: 1;
   min-width: 0;
   align-self: stretch;
-}
-.schedule-check {
-  z-index: 4;
 }
 
 /* Beta refinements: compact schedules and deliberate layout editing. */
@@ -3612,20 +3493,11 @@ dialog {
   border-top: 1px solid var(--line);
   margin-top: 4px;
 }
-.calendar-timeline {
-  max-height: calc(100vh - 205px);
-}
 body[data-view="calendar"] .calendar-page {
   max-width: none;
 }
-.time-grid {
-  grid-template-columns: 68px repeat(var(--schedule-days, 7), minmax(0, 1fr));
-}
 .time-axis > div {
   height: 48px;
-}
-.schedule-slots {
-  grid-template-rows: repeat(96, 12px);
 }
 .time-slot {
   height: 12px;
@@ -3633,12 +3505,6 @@ body[data-view="calendar"] .calendar-page {
 .schedule-anytime {
   min-width: 0;
   cursor: grab;
-}
-.schedule-anytime .row-line {
-  min-height: 26px;
-}
-.schedule-anytime .row-body {
-  padding: 3px 4px;
 }
 .schedule-anytime .row-title {
   display: block;
@@ -3657,9 +3523,6 @@ body[data-view="calendar"] .calendar-page {
 .schedule-event-body strong {
   white-space: nowrap;
   text-overflow: ellipsis;
-}
-.schedule-event-body {
-  cursor: grab;
 }
 .note-document {
   display: flow-root;
@@ -3731,7 +3594,6 @@ body[data-view="calendar"] .calendar-page {
   grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 24px;
   font-size: 13px;
   color: var(--muted);
 }
@@ -3765,15 +3627,17 @@ body[data-view="calendar"] .calendar-page {
   width: 20px;
   padding: 2px;
   justify-self: end;
+  position: absolute;
+  top: 0;
+  right: 2px;
+  opacity: 0;
+  z-index: 2;
 }
 .schedule-all-day-column {
   gap: 2px;
 }
 .schedule-anytime .task-row {
   border-radius: 6px;
-}
-.schedule-anytime .row-line {
-  min-height: 24px;
 }
 .schedule-anytime .row-body {
   padding-right: 14px;
@@ -3783,7 +3647,6 @@ body[data-view="calendar"] .calendar-page {
   top: 52px;
   z-index: 3;
   background: var(--canvas);
-  max-height: 160px;
   overflow-y: auto;
 }
 .schedule-event-body {
@@ -3832,20 +3695,17 @@ body[data-view="today"] .today-layout {
   display: block;
   max-width: 1180px;
 }
-.today-layout > .page-head {
-  margin-bottom: 20px;
-}
 .today-board {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
   gap: 24px;
   align-items: start;
+  position: relative;
 }
 .today-board .today-panel-column {
   display: flex;
   flex-direction: column;
   min-height: 80px;
-  gap: 16px;
 }
 .today-board .today-main {
   min-width: 0;
@@ -3982,6 +3842,7 @@ body[data-view="today"] .today-layout {
   gap: 5px;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
 }
 .compact-habits .habit-row {
   --habit-color: var(--sage);
@@ -4047,16 +3908,11 @@ body[data-view="today"] .today-layout {
 }
 .overall-days {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 5px;
 }
 .overall-day {
-  aspect-ratio: 1.15;
   display: grid;
   place-items: center;
   font-size: 10px;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--sage) calc(var(--o) * 100%), var(--surface));
   color: var(--ink);
 }
 body[data-view="settings"] .settings-block {
@@ -4146,13 +4002,6 @@ body[data-view="settings"] .settings-block {
   position: relative;
   padding: 2px;
 }
-.schedule-all-day-add {
-  position: absolute;
-  top: 0;
-  right: 2px;
-  opacity: 0;
-  z-index: 2;
-}
 .schedule-all-day-column:hover .schedule-all-day-add,
 .schedule-all-day-add:focus-visible {
   opacity: 1;
@@ -4160,20 +4009,14 @@ body[data-view="settings"] .settings-block {
 .schedule-anytime .task-row,
 .schedule-anytime .row-line {
   border: 0;
-  border-radius: 0;
   box-shadow: none;
   background: transparent;
 }
 .schedule-anytime .row-body {
-  font-size: 10px;
   font-weight: 400;
-  padding: 2px 14px 2px 1px;
 }
 .schedule-anytime .row-line {
   min-height: 20px;
-}
-.schedule-anytime .row-tick {
-  padding: 3px;
 }
 .schedule-anytime .tick {
   width: 10px;
@@ -4208,12 +4051,9 @@ body[data-view="settings"] .settings-block {
 .anytime-resizer:hover span {
   opacity: 0.8;
 }
-.anytime-resizer.collapsed {
-  height: 2px;
-}
 @media (max-width: 1000px) {
   .today-board {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) !important;
   }
   .today-board .today-side {
     padding-top: 0 !important;
@@ -4225,9 +4065,6 @@ body[data-view="settings"] .settings-block {
   select {
     transition: none;
   }
-}
-.habits-compact-card .compact-habits {
-  align-items: stretch;
 }
 .compact-habits .habit-row {
   width: 100%;
@@ -4266,15 +4103,6 @@ body[data-view="settings"] .settings-block {
   margin: 0 0 0 auto;
   white-space: nowrap;
   font-size: 11px;
-}
-
-/* Locked Windows content geometry. Sidebar pills, progress rings and colour dots
-   retain their circular shapes; every content box uses this single radius. */
-:root {
-  --content-radius: 12px;
-  --radius-card: var(--content-radius);
-  --radius-row: var(--content-radius);
-  --radius-input: var(--content-radius);
 }
 main
   :is(
@@ -4406,12 +4234,6 @@ select {
 .swatch-honey {
   background: var(--honey);
 }
-.overall-day {
-  background: color-mix(in srgb, var(--accent) calc(var(--o) * 100%), var(--surface));
-}
-.today-board {
-  position: relative;
-}
 #today-column-resizer {
   position: absolute;
   top: 0;
@@ -4485,9 +4307,6 @@ select {
   background: var(--accent-text);
 }
 @media (max-width: 1000px) {
-  .today-board {
-    grid-template-columns: minmax(0, 1fr) !important;
-  }
   #today-column-resizer {
     display: none;
   }
@@ -4497,14 +4316,6 @@ select {
   width: 100%;
   max-width: none;
   height: 36px;
-}
-
-/* A lighter charcoal canvas, following the compact reference surfaces. */
-:root {
-  --canvas: light-dark(#f5f5f7, #242526);
-  --surface: light-dark(#ffffff, #2d2e2f);
-  --line: light-dark(#e4e4e8, #3d3f40);
-  --muted: light-dark(#6d6d73, #b0b1b5);
 }
 #home-update[hidden] {
   display: none;
@@ -4517,13 +4328,6 @@ select {
 }
 .today-board :is(.recent-progress, .plan-card, .overall-progress) {
   padding: 12px;
-}
-.progress-day svg {
-  transform: none;
-}
-.progress-value {
-  transform: rotate(-90deg);
-  transform-origin: 16px 16px;
 }
 .overall-days {
   grid-template-columns: repeat(15, minmax(0, 1fr));
@@ -4675,20 +4479,22 @@ body:is([data-view="history"], [data-view="habit-history"]) .page-head {
   color: var(--accent-text);
   background: var(--surface);
 }
+/* One slim line: icon, "Update ready", and "Restart" at the end. */
 .restart-update {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  height: 30px;
   margin: 4px 6px 6px;
-  padding: 10px 12px;
+  padding: 0 10px;
   border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
-  border-radius: var(--content-radius);
+  border-radius: 999px;
   background: color-mix(in srgb, var(--accent) 10%, var(--surface));
 }
 .restart-update svg {
-  width: 20px;
-  height: 20px;
-  flex: 0 0 20px;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.6;
@@ -4696,8 +4502,13 @@ body:is([data-view="history"], [data-view="habit-history"]) .page-head {
   stroke-linejoin: round;
 }
 .restart-update > span {
-  display: grid;
-  gap: 2px;
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
 }
 .restart-update strong {
   font-size: 12px;
@@ -4705,7 +4516,7 @@ body:is([data-view="history"], [data-view="habit-history"]) .page-head {
 }
 .restart-update small {
   font-size: 11px;
-  color: var(--muted);
+  font-weight: 600;
 }
 .restart-update:hover {
   background: color-mix(in srgb, var(--accent) 17%, var(--surface));
@@ -4767,4 +4578,102 @@ body:is([data-view="history"], [data-view="habit-history"]) .page-head {
 .layout-range .mac-picker summary {
   height: 30px;
   min-width: 128px;
+}
+/* Streak milestones: a small note above the writing bar, with the completion burst in the habit's colour. */
+#celebration {
+  position: fixed;
+  left: 50%;
+  bottom: 96px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.14);
+  font-size: 13px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+#celebration[hidden] {
+  display: none;
+}
+#celebration.show {
+  animation: celebration-in 4s ease-out forwards;
+}
+#celebration span:last-child {
+  color: var(--muted);
+}
+.celebration-burst {
+  position: relative;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--fill, var(--accent));
+}
+.celebration-burst.fill-sage {
+  --fill: var(--sage);
+}
+.celebration-burst.fill-lavender {
+  --fill: var(--lavender);
+}
+.celebration-burst.fill-clay {
+  --fill: var(--clay);
+}
+.celebration-burst.fill-honey {
+  --fill: var(--honey);
+}
+.celebration-burst::before,
+.celebration-burst::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+}
+.celebration-burst::before {
+  inset: 0;
+  border: 2px solid var(--fill, var(--accent));
+  animation: tick-ring 700ms ease-out forwards;
+}
+.celebration-burst::after {
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  color: var(--fill, var(--accent));
+  box-shadow:
+    0 -14px,
+    10px -10px,
+    14px 0,
+    10px 10px,
+    0 14px,
+    -10px 10px,
+    -14px 0,
+    -10px -10px;
+  animation: tick-sparks 800ms ease-out forwards;
+}
+@keyframes celebration-in {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  8%,
+  85% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #celebration.show {
+    animation: none;
+  }
+  .celebration-burst::before,
+  .celebration-burst::after {
+    display: none;
+  }
 }

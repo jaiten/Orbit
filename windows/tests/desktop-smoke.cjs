@@ -342,7 +342,10 @@ const remove = (folder) => {
     await overdue.waitFor({ state: "detached" });
     await p.locator(`[data-list="00000000-0000-4000-8000-000000000001"]`).click();
     await p.getByRole("heading", { name: "Someday", exact: true }).waitFor();
-    await p.getByRole("button", { name: "Add to Today", exact: true }).click();
+    // Add to Today appears when the row is hovered.
+    const somedayRow = p.locator(".task-row").filter({ hasText: "Renew passport" });
+    await somedayRow.hover();
+    await somedayRow.getByRole("button", { name: "Add to Today", exact: true }).click();
     await p.locator('[data-page="today"]').click();
     await p.getByRole("checkbox", { name: "Complete Renew passport", exact: true }).waitFor();
     const someday = await p.evaluate(async () =>

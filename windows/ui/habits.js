@@ -73,6 +73,36 @@
     if (!active.length) return 0;
     return active.reduce((sum, h) => sum + Math.min(1, dayCount(h, logs, key) / dailyTarget(h)), 0) / active.length;
   }
+  /**
+   * Scheduled days checked in a row ending on `key` (unscheduled days are skipped), or for a weekly
+   * habit, weeks in a row that met the weekly target. Cases: shared/test-cases/streaks.json.
+   */
+  function streak(habit, logs, key, weekStart = 0) {
+    let count = 0;
+    if (schedule(habit) === "WEEKLY") {
+      const target = Math.max(1, habit.target || 1);
+      for (let week = weekStartKey(key, weekStart); count < 520; week = addDays(week, -7)) {
+        if (periodProgress(habit, logs, week, weekStart) < target) break;
+        count++;
+      }
+      return count;
+    }
+    for (let day = key, i = 0; i < 3660; day = addDays(day, -1), i++) {
+      if (!scheduledOn(habit, day)) continue;
+      if (!checkedOn(habit, logs, day)) break;
+      count++;
+    }
+    return count;
+  }
+  const DAY_MILESTONES = [7, 14, 30, 50, 100, 200, 365],
+    WEEK_MILESTONES = [4, 8, 12, 26, 52];
+  /** "7 days in a row" when a streak lands exactly on a milestone, otherwise null. */
+  function milestone(habit, count) {
+    const weekly = schedule(habit) === "WEEKLY";
+    return (weekly ? WEEK_MILESTONES : DAY_MILESTONES).includes(count)
+      ? `${count} ${weekly ? "weeks" : "days"} in a row`
+      : null;
+  }
   function label(habit) {
     return { DAILY: "Daily", WEEKDAYS: "Weekdays", WEEKENDS: "Weekends", WEEKLY: "Weekly" }[schedule(habit)];
   }
@@ -106,6 +136,8 @@
     periodProgress,
     dueOn,
     checkedDays,
+    streak,
+    milestone,
     consistency,
     label,
     COLORS,

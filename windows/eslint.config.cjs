@@ -168,6 +168,7 @@ const shared = Object.fromEntries(
     "taskCategories",
     "categoryOptions",
     "noteToTask",
+    "timerOptions",
   ].map((name) => [name, "writable"]),
 );
 

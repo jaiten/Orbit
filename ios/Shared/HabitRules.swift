@@ -83,6 +83,32 @@ enum HabitRules {
         guard !active.isEmpty else { return 0 }
         return active.reduce(0.0) { $0 + min(1, Double($1.counts[day] ?? 0) / Double(dailyTarget(rule: $1.rule, target: $1.target))) } / Double(active.count)
     }
+    /// Scheduled days checked in a row ending on `day` (unscheduled days are skipped), or for a weekly
+    /// habit, weeks in a row that met the weekly target. Cases: shared/test-cases/streaks.json.
+    static func streak(rule: String, target: Int, counts: [String: Int], day: String, weekStart: Int) -> Int {
+        var count = 0
+        if schedule(rule) == "WEEKLY" {
+            var week = weekStartKey(day, weekStart: weekStart)
+            while count < 520, periodProgress(rule: rule, counts: counts, day: week, weekStart: weekStart) >= max(1, target) {
+                count += 1; week = addDays(week, -7)
+            }
+            return count
+        }
+        var current = day
+        for _ in 0..<3660 {
+            defer { current = addDays(current, -1) }
+            if !scheduledOn(rule: rule, day: current) { continue }
+            if !checked(rule: rule, target: target, counts: counts, day: current) { break }
+            count += 1
+        }
+        return count
+    }
+    /// "7 days in a row" when a streak lands exactly on a milestone, otherwise nil.
+    static func milestone(rule: String, streak: Int) -> String? {
+        let weekly = schedule(rule) == "WEEKLY"
+        return (weekly ? [4, 8, 12, 26, 52] : [7, 14, 30, 50, 100, 200, 365]).contains(streak)
+            ? "\(streak) \(weekly ? "weeks" : "days") in a row" : nil
+    }
     /// Days checked in the `days` days ending with `day`. Missed days only lower the count.
     static func checkedDays(rule: String, target: Int, counts: [String: Int], day: String, days: Int = 7) -> Int {
         (0..<days).filter { checked(rule: rule, target: target, counts: counts, day: addDays(day, -$0)) }.count

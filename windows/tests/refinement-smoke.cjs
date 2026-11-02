@@ -320,7 +320,8 @@ const fs = require("node:fs");
   await p.locator("#inline-task-input").fill("Unfinished draft");
   await p.evaluate(() => window.emitUpdate({ status: "downloaded", version: "0.3.5", percent: 100 }));
   assert.equal(await p.locator("#home-update").isVisible(), true);
-  assert.match(await p.locator("#restart-update").innerText(), /Click to restart/);
+  assert.match(await p.locator("#restart-update").innerText(), /Update ready\s*Restart/);
+  assert.ok((await p.locator("#restart-update").boundingBox()).height <= 32, "The update button is one slim line");
   await p.locator("#home-update").click();
   assert.equal(await p.evaluate(() => window.updateInstalls), 0, "Restart discarded an unfinished task draft");
   await p.keyboard.press("Control+6");
@@ -734,6 +735,23 @@ const fs = require("node:fs");
       (await window.orbit.read()).records.some((record) => record.payload.habitID === id && record.payload.count === 1),
     habitID,
   );
+  await p.getByRole("checkbox", { name: "Undo Past habit", exact: true }).click();
+  // Landing a streak on a milestone shows a gentle note.
+  await p.evaluate(async (habitID) => {
+    const changes = [];
+    for (let i = 1; i <= 6; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dayKey = d.toLocaleDateString("en-CA");
+      changes.push({
+        key: `habit_logs/${habitID}-${dayKey}`,
+        payload: { id: "streak-" + i, habitID, dayKey, count: 1, updatedAt: Date.now() },
+      });
+    }
+    await window.orbit.batch(changes);
+  }, habitID);
+  await p.getByRole("checkbox", { name: "Log Past habit", exact: true }).click();
+  await p.locator("#celebration").getByText("7 days in a row", { exact: true }).waitFor();
   await p.getByRole("checkbox", { name: "Undo Past habit", exact: true }).click();
   await p.locator('[data-page="habits"]').click();
   assert.equal(

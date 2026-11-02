@@ -49,6 +49,7 @@ struct QuickCapture: View {
         if isNote { return "Note · " + (contextListName ?? "Notes") }
         var value = QuickAdd.describe(result)
         if !value.isEmpty, result.kind == .task, !result.someday, result.list == nil, let name = contextListName { value += " · " + name }
+        else if !value.isEmpty, selectedListID == nil, let suggested = CategorySuggestion.suggest(for: result, in: context) { value += " · " + suggested.name }
         return value
     }
     private var contextListName: String? {

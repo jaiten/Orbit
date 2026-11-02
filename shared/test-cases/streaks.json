@@ -1,0 +1,12 @@
+{
+  "about": "Habit streak milestones. A streak counts scheduled days checked in a row ending on `day` (days a habit is not scheduled are skipped); a weekly habit counts weeks in a row that met the weekly target. Milestones are 7, 14, 30, 50, 100, 200 and 365 days, or 4, 8, 12, 26 and 52 weeks. 2026-11-02 is a Monday.",
+  "cases": [
+    { "name": "seven days in a row is a milestone", "habit": { "frequencyRule": "DAILY", "target": 1 }, "checkedDays": ["2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30", "2026-10-31", "2026-11-01", "2026-11-02"], "day": "2026-11-02", "weekStart": 0, "expect": { "streak": 7, "milestone": "7 days in a row" } },
+    { "name": "a missed day restarts the count", "habit": { "frequencyRule": "DAILY", "target": 1 }, "checkedDays": ["2026-10-27", "2026-10-28", "2026-10-30", "2026-10-31", "2026-11-01", "2026-11-02"], "day": "2026-11-02", "weekStart": 0, "expect": { "streak": 4, "milestone": null } },
+    { "name": "today not yet checked has no streak", "habit": { "frequencyRule": "DAILY", "target": 1 }, "checkedDays": ["2026-10-31", "2026-11-01"], "day": "2026-11-02", "weekStart": 0, "expect": { "streak": 0, "milestone": null } },
+    { "name": "weekends are skipped for a weekday habit", "habit": { "frequencyRule": "WEEKDAYS", "target": 1 }, "checkedDays": ["2026-10-22", "2026-10-23", "2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30", "2026-11-02"], "day": "2026-11-02", "weekStart": 0, "expect": { "streak": 8, "milestone": null } },
+    { "name": "a daily target must be met each day", "habit": { "frequencyRule": "DAILY", "target": 2 }, "checkedDays": ["2026-11-01", "2026-11-02"], "partialDays": ["2026-10-31"], "day": "2026-11-02", "weekStart": 0, "expect": { "streak": 2, "milestone": null } },
+    { "name": "weekly habits count weeks", "habit": { "frequencyRule": "WEEKLY", "target": 1 }, "checkedDays": ["2026-10-06", "2026-10-14", "2026-10-21", "2026-10-28", "2026-11-02"], "day": "2026-11-02", "weekStart": 1, "expect": { "streak": 5, "milestone": null } },
+    { "name": "four weeks is a weekly milestone", "habit": { "frequencyRule": "WEEKLY", "target": 1 }, "checkedDays": ["2026-10-14", "2026-10-21", "2026-10-28", "2026-11-02"], "day": "2026-11-02", "weekStart": 1, "expect": { "streak": 4, "milestone": "4 weeks in a row" } }
+  ]
+}

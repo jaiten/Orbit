@@ -28,10 +28,11 @@ struct NotesView: View {
         }
     }
     /// Your sections in order, then notes without one, then Someday.
-    private struct NoteSection: Identifiable { let id: String; let name: String; let color: String; let listID: UUID? }
+    /// `color` is nil for All notes, which uses the accent chosen in Settings.
+    private struct NoteSection: Identifiable { let id: String; let name: String; let color: String?; let listID: UUID? }
     private var sections: [NoteSection] {
         lists.filter(\.isNoteSection).map { NoteSection(id: $0.id.uuidString, name: $0.name, color: $0.color, listID: $0.id) }
-            + [NoteSection(id: "none", name: "All notes", color: "clay", listID: nil)]
+            + [NoteSection(id: "none", name: "All notes", color: nil, listID: nil)]
     }
 
     var body: some View {
@@ -84,7 +85,7 @@ struct NotesView: View {
     }
 
     /// A Notion-style toggle: chevron, coloured dot, name and count; pages sit in one quiet card below.
-    private func sectionView(_ id: String, name: String, color: String, listID: UUID?, pages: [PlannerTask]) -> some View {
+    private func sectionView(_ id: String, name: String, color: String?, listID: UUID?, pages: [PlannerTask]) -> some View {
         let open = !collapsed.contains(id) || !search.isEmpty
         return VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceS)) {
             HStack(spacing: 8) {
@@ -92,7 +93,7 @@ struct NotesView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                             .rotationEffect(.degrees(open ? 90 : 0))
-                        Circle().fill(DayTheme.color(color)).frame(width: 8, height: 8)
+                        Circle().fill(color.map(DayTheme.color) ?? accent.fill).frame(width: 8, height: 8)
                         Text(name).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
                         Text("\(pages.count)").font(.caption).monospacedDigit().foregroundStyle(.secondary)
                         Spacer(minLength: 0)

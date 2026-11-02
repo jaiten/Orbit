@@ -63,6 +63,58 @@
     if (item.day === today) return "Today";
     return item.day < today ? "Overdue" : "Upcoming";
   }
+  /**
+   * The Tasks page groups, as on iPhone: Someday (the list, plus undated tasks with no category), then
+   * dated tasks with no category by Overdue / Today / Upcoming, then each category in order, then
+   * Completed. Entries are { day, completedDay, listID }; a list that is not a category (a note
+   * section, or deleted) counts as no category, so nothing disappears.
+   */
+  function taskGroups(entries, categories, today) {
+    const known = new Set(categories.map((c) => c.id));
+    const uncategorized = (e) => !e.listID || (e.listID !== SOMEDAY_LIST_ID && !known.has(e.listID));
+    const open = entries.filter((e) => !e.completedDay);
+    const someday = (e) => e.listID === SOMEDAY_LIST_ID || (uncategorized(e) && !e.day);
+    return [
+      { id: "someday", name: "Someday", items: open.filter(someday) },
+      ...["Overdue", "Today", "Upcoming"].map((name) => ({
+        id: name.toLowerCase(),
+        name,
+        items: open.filter((e) => !someday(e) && uncategorized(e) && dateGroup({ day: e.day }, today) === name),
+      })),
+      ...categories.map((c) => ({ id: c.id, name: c.name, items: open.filter((e) => e.listID === c.id) })),
+      { id: "completed", name: "Completed", items: entries.filter((e) => e.completedDay) },
+    ].filter((group) => group.items.length);
+  }
+  // Category suggestions. Mirrors ios/Shared/CategorySuggestion.swift; cases in
+  // shared/test-cases/category-suggestions.json.
+  const STOP_WORDS = new Set(
+    "the and for with from into about this that your our get make some more then than have need new week".split(" "),
+  );
+  function categoryWords(title) {
+    const words = String(title ?? "")
+      .toLowerCase()
+      .match(/[\p{L}\p{N}]+/gu);
+    return new Set(
+      (words || [])
+        .filter((w) => w.length >= 3 && !STOP_WORDS.has(w))
+        .map((w) => (w.length > 3 && w.endsWith("s") ? w.slice(0, -1) : w)),
+    );
+  }
+  /**
+   * The category of earlier tasks with similar titles: each category scores the words its tasks share
+   * with `title`; the top score wins unless it ties. `history` is [{ title, category }].
+   */
+  function suggestCategory(title, history) {
+    const wanted = categoryWords(title);
+    if (!wanted.size) return null;
+    const scores = new Map();
+    for (const item of history) {
+      const shared = [...categoryWords(item.title)].filter((w) => wanted.has(w)).length;
+      if (shared) scores.set(item.category, (scores.get(item.category) || 0) + shared);
+    }
+    const ranked = [...scores].sort((a, b) => b[1] - a[1]);
+    return ranked.length && (ranked.length === 1 || ranked[0][1] > ranked[1][1]) ? ranked[0][0] : null;
+  }
   function suggestsProgress(title) {
     const text =
       " " +
@@ -104,6 +156,8 @@
     suggestsProgress,
     setProgress,
     dateGroup,
+    taskGroups,
+    suggestCategory,
     SOMEDAY_LIST_ID,
     onDay,
     isOverdue,

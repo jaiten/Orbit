@@ -46,7 +46,8 @@ import SwiftData
         return HabitRules.nextColor(habits.map(\.color) + adding)
     }
 
-    /// Someday wins; then a #list (created when new); then the list being viewed. A dated item can't stay in Someday.
+    /// Someday wins; then a #list (created when new); then the list being viewed; then a category
+    /// suggested from similar earlier tasks. A dated item can't stay in Someday.
     static func list(for result: QuickAddResult, viewing listID: UUID?, in context: ModelContext) throws -> UUID? {
         if result.someday { try TodayRules.ensureSomeday(context); return TodayRules.somedayID }
         if let name = result.list {
@@ -56,6 +57,6 @@ import SwiftData
         }
         if listID == TodayRules.somedayID && result.date != nil { return nil }
         if listID == TodayRules.somedayID { try TodayRules.ensureSomeday(context) }
-        return listID
+        return listID ?? CategorySuggestion.suggest(for: result, in: context)?.id
     }
 }
