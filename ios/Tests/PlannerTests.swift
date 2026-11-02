@@ -285,7 +285,7 @@ import UIKit
         let lists = try context.fetch(FetchDescriptor<TaskList>())
         XCTAssertEqual(lists.filter { $0.name.lowercased() == "work" }.count, 1, "#work finds the list created by #Work")
         XCTAssertEqual(tasks.first { $0.title == "email boss" }?.notes, "https://example.com")
-        XCTAssertEqual(tasks.first { $0.title == "email boss" }?.day, PlannerLogic.dayKey(.now))
+        XCTAssertEqual(tasks.first { $0.title == "email boss" }?.day, PlannerLogic.today)
     }
     func testExamplesAddOnceAndRemoveOnlyThemselves() throws {
         let context = ModelContext(try Persistence.makeContainer(inMemory: true))

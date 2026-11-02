@@ -32,6 +32,11 @@ SwiftData app currently requires Xcode; WSL/xtool is not yet supported.
 | Widgets | Today in Progress, Checklist and Grid styles on Home and Lock Screen; Habit consistency with week/month options on both; interactive completion, focus Live Activity |
 | Brand | Vector mark/wordmark, Windows/iOS icons, [brand guide](shared/brand/README.md), colours and spacing from [design tokens](shared/design-tokens.json) |
 
+**Day starts at** (Settings → Today & Progress, 11 PM the evening before through 4 AM in
+half hours, 2 AM by default) decides when a new planner day begins. Until then, Today, check-ins,
+finished tasks and new habits count for the day before; scheduled dates and times never move.
+The choice syncs between devices as one `preferences` record ([cases](shared/test-cases/day-start.json)).
+
 Only habits repeat. Older repeating tasks were converted to habits (daily, weekdays,
 weekends or weekly) with their history kept; monthly and custom repeats became one-off
 tasks. Habits reset at midnight and show “X of the last 7 days”. There is no streak counter,

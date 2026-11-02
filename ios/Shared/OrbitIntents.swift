@@ -24,12 +24,12 @@ struct OrbitItemQuery: EntityQuery {
     /// Today's open tasks and the habits still due today.
     @MainActor func suggestedEntities() async throws -> [OrbitItem] {
         let context = ModelContext(try Persistence.makeContainer())
-        let today = PlannerLogic.dayKey(.now)
+        let today = PlannerLogic.today
         let logs = try context.fetch(FetchDescriptor<HabitLog>())
         let tasks = try context.fetch(FetchDescriptor<PlannerTask>(sortBy: [SortDescriptor(\.sortOrder)]))
             .filter { $0.completedAt == nil && TodayRules.onDay(TodayRules.item($0), day: today, today: today) }
         let habits = try context.fetch(FetchDescriptor<Habit>(sortBy: [SortDescriptor(\.createdAt)]))
-            .filter { PlannerLogic.isDue($0, logs: logs, at: .now) && !PlannerLogic.checkedToday($0, logs: logs, at: .now) }
+            .filter { PlannerLogic.isDue($0, logs: logs, at: PlannerLogic.todayDate) && !PlannerLogic.checkedToday($0, logs: logs, at: PlannerLogic.todayDate) }
         return tasks.map { OrbitItem(id: "task:" + $0.id.uuidString, title: $0.title) } + habits.map { OrbitItem(id: "habit:" + $0.id.uuidString, title: $0.title) }
     }
 }
@@ -49,7 +49,7 @@ struct CompleteItemIntent: AppIntent {
         context.autosaveEnabled = false
         var title = item.title
         if parts[0] == "habit", let habit = try context.fetch(FetchDescriptor<Habit>(predicate: #Predicate { $0.id == id })).first {
-            try Mutations.log(habit, at: .now, in: context); title = habit.title
+            try Mutations.log(habit, at: PlannerLogic.todayDate, in: context); title = habit.title
         } else if let task = try context.fetch(FetchDescriptor<PlannerTask>(predicate: #Predicate { $0.id == id })).first {
             if task.completedAt == nil { try Mutations.toggle(task, in: context) }
             title = task.title

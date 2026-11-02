@@ -45,7 +45,13 @@ function taskDate(t) {
   return t.hasTime && t.dueDate ? dayKey(new Date(t.dueDate)) : t.localDate;
 }
 const SOMEDAY = OrbitPlanner.SOMEDAY_LIST_ID;
-const today = () => dayKey(new Date());
+// The planner day starts at the synced day start (2 AM by default), not at midnight: "today",
+// completions, check-ins and new habits use the planner day; scheduled dates and times do not move.
+const dayStart = () =>
+  OrbitPlanner.dayStartMinutes(rows("preferences").find((p) => p.id === OrbitPlanner.PREFERENCES_ID)?.dayStartMinutes);
+const plannerNow = () => OrbitPlanner.plannerDate(Date.now(), dayStart());
+const plannerDay = (time) => OrbitPlanner.plannerDayKey(time, dayStart());
+const today = () => dayKey(plannerNow());
 const tomorrow = () => OrbitHabits.addDays(today(), 1);
 /** "Monday, November 2nd", as on iPhone (DateText.long). */
 function longDate(key) {
@@ -57,7 +63,7 @@ function longDate(key) {
 function planItem(t) {
   return {
     day: taskDate(t) || null,
-    completedDay: t.completedAt ? dayKey(new Date(t.completedAt)) : null,
+    completedDay: t.completedAt ? plannerDay(t.completedAt) : null,
     someday: t.listID === SOMEDAY,
   };
 }
@@ -468,7 +474,7 @@ async function toggle(id) {
 }
 async function log(id, undo, date = today()) {
   const h = rows("habits").find((h) => h.id === id);
-  const current = dayKey(new Date());
+  const current = today();
   if (date > current || date < OrbitHabits.addDays(current, -6) || !h) return;
   if (date !== current && !["history", "habit-history"].includes(page)) return;
   const old = rows("habit_logs").find((l) => l.habitID === id && l.dayKey === date);

@@ -37,6 +37,13 @@ function renderSettings() {
       <h3>Accent</h3><div class="accent-options segmented" role="group" aria-label="Accent">${choiceButtons("accent", accents, root.accent)}</div>
     </section>
     <section class="settings-block" id="today-preferences"><h2>Today & Progress</h2>
+      <div class="settings-field"><span>Day starts at</span>${macPicker(
+        "day-start",
+        "Day starts at",
+        OrbitPlanner.DAY_START_CHOICES.map((minutes) => [String(minutes), OrbitPlanner.dayStartLabel(minutes)]),
+        String(dayStart()),
+      )}</div>
+      <p class="secondary">Until then, check-ins and finished tasks count for the day before. Syncs to your other devices.</p>
       <label class="toggle"><input type="checkbox" id="progress-tasks" ${localStorage.getItem("progressIncludesTasks") !== "false" ? "checked" : ""} /> Include tasks in daily progress</label>
       <div class="settings-field"><span>Overall progress</span>${macPicker(
         "overall-range",
@@ -100,6 +107,15 @@ function bindSettings() {
           localStorage.setItem("overallProgressRange", value);
           render();
         },
+        "day-start": (value) =>
+          action(() =>
+            put("preferences", {
+              ...(rows("preferences").find((p) => p.id === OrbitPlanner.PREFERENCES_ID) || {}),
+              id: OrbitPlanner.PREFERENCES_ID,
+              dayStartMinutes: Number(value),
+              updatedAt: Date.now(),
+            }),
+          ),
       },
       $("#today-preferences"),
     );

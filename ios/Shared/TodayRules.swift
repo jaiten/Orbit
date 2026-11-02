@@ -21,7 +21,7 @@ enum TodayRules {
         !item.someday && item.completedDay == nil && (item.day.map { $0 < today } ?? false)
     }
     static func item(_ task: PlannerTask) -> Item {
-        Item(day: task.day, completedDay: task.completedAt.map { PlannerLogic.dayKey($0) }, someday: task.listID == somedayID)
+        Item(day: task.day, completedDay: task.completedAt.map { PlannerLogic.plannerDay($0) }, someday: task.listID == somedayID)
     }
     /// "from Tue" within the last week, otherwise "from Oct 12".
     static func overdueLabel(_ day: String, today: String) -> String {

@@ -9,13 +9,13 @@ function renderHabits(habits) {
 }
 
 /** "5 of the last 7 days" as seven rounded segments with weekday letters. Unscheduled days are outlined. */
-function weekSegments(h, end = dayKey(new Date())) {
+function weekSegments(h, end = today()) {
   const cells = Array.from({ length: 7 }, (_, i) => {
     const key = OrbitHabits.addDays(end, i - 6);
     const done = checked(h, key);
     const scheduled = OrbitHabits.scheduledOn(h, key);
     const name = localDay(key).toLocaleDateString([], { weekday: "narrow" });
-    const available = !h.createdAt || dayKey(new Date(h.createdAt)) <= key;
+    const available = !h.createdAt || plannerDay(h.createdAt) <= key;
     const status = done
       ? "checked"
       : !available

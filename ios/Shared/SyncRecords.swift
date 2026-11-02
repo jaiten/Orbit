@@ -57,6 +57,10 @@ import SwiftData
             if let kind = l.kind { payload["kind"] = kind }
             try add("lists", l.id.uuidString.lowercased(), payload)
         }
+        // Day start syncs once someone has chosen it, so a new device never overrides it with the default.
+        if DayStart.updatedAt > 0 {
+            try add("preferences", DayStart.recordID.uuidString.lowercased(), ["id": id(DayStart.recordID), "dayStartMinutes": DayStart.minutes, "updatedAt": DayStart.updatedAt])
+        }
         for i in try context.fetch(FetchDescriptor<IdeaPrompt>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) { try add("idea_prompts", i.id.uuidString.lowercased(), ["id": id(i.id), "text": i.text, "shownAt": stamp(i.shownAt), "dismissed": i.dismissed, "updatedAt": stamp(i.updatedAt)]) }
         return result
     }
@@ -122,6 +126,9 @@ import SwiftData
         case "lists":
             let old = try context.fetch(FetchDescriptor<TaskList>()).first { $0.id == uuid }; if deleted { if let old { context.delete(old) }; return }
             let l = old ?? TaskList(name: p["name"] as? String ?? "List"); if old == nil { l.id = uuid; context.insert(l) }; l.kind = p["kind"] as? String; l.name = p["name"] as? String ?? l.name; l.color = p["color"] as? String ?? "sage"; l.sortOrder = p["sortOrder"] as? Int ?? 0; l.updatedAt = date("updatedAt") ?? .now
+        case "preferences":
+            guard uuid == DayStart.recordID else { return }
+            if !deleted { DayStart.receive(minutes: p["dayStartMinutes"] as? Int, updatedAt: p["updatedAt"] as? Double ?? 0) }
         case "idea_prompts":
             let old = try context.fetch(FetchDescriptor<IdeaPrompt>()).first { $0.id == uuid }; if deleted { if let old { context.delete(old) }; return }
             let i = old ?? IdeaPrompt(text: p["text"] as? String ?? ""); if old == nil { i.id = uuid; context.insert(i) }; i.text = p["text"] as? String ?? ""; i.shownAt = date("shownAt"); i.dismissed = p["dismissed"] as? Bool ?? false; i.updatedAt = date("updatedAt") ?? .now

@@ -36,7 +36,8 @@ enum QuickAdd {
         }
     }
 
-    static func parse(_ input: String, defaultDay: DefaultDay = .today, now: Date = .now, calendar: Calendar = .current) -> QuickAddResult {
+    /// `now` defaults to the planner clock (DayStart), so "today" and "tomorrow" follow the day start.
+    static func parse(_ input: String, defaultDay: DefaultDay = .today, now: Date = DayStart.shifted(.now), calendar: Calendar = .current) -> QuickAddResult {
         var text = Text(value: " " + input.trimmingCharacters(in: .whitespacesAndNewlines) + " ")
         let someday = text.take(#"\ssomeday(?=\s)"#) != nil
         let list = text.take(#"\s#([\p{L}\p{N}_-]+)(?=\s)"#)?[1] ?? nil
@@ -108,7 +109,7 @@ enum QuickAdd {
     }
 
     /// Text for the preview chip, e.g. "Habit · Weekdays · 7:00 AM" or "Task · Tomorrow · 6:00 PM · List: Personal".
-    static func describe(_ result: QuickAddResult, now: Date = .now, calendar: Calendar = .current) -> String {
+    static func describe(_ result: QuickAddResult, now: Date = DayStart.shifted(.now), calendar: Calendar = .current) -> String {
         guard !result.title.isEmpty else { return "" }
         let clock = result.time.map { minutes in
             // Time formats may use a narrow no-break space before AM/PM; the chip uses a plain space on both apps.

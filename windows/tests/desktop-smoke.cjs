@@ -33,6 +33,14 @@ const remove = (folder) => {
     const errors = [];
     p.on("pageerror", (e) => errors.push(e.message));
     await p.getByRole("heading", { name: "Today", exact: true, level: 1 }).waitFor();
+    // Midnight day start keeps "today" equal to the calendar day whenever the test runs.
+    await p.evaluate(() =>
+      window.orbit.put("preferences/00000000-0000-4000-8000-000000000002", {
+        id: "00000000-0000-4000-8000-000000000002",
+        dayStartMinutes: 0,
+        updatedAt: 1,
+      }),
+    );
     // Homepage capture stays inline and keeps the draft field ready for another item.
     await p.getByRole("textbox", { name: "New task", exact: true }).fill("Inline walk");
     await p.getByRole("textbox", { name: "New task", exact: true }).press("Enter");

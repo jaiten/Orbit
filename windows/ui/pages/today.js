@@ -6,7 +6,7 @@ function gridDays(weeks = 12) {
 /** Share of the day's habits checked, for each day of the grid. */
 function consistencyLevels(habits, days = gridDays()) {
   const logs = habitLogs();
-  const entries = habits.map((h) => ({ ...h, createdDay: h.createdAt ? dayKey(new Date(h.createdAt)) : null }));
+  const entries = habits.map((h) => ({ ...h, createdDay: h.createdAt ? plannerDay(h.createdAt) : null }));
   return days.map((key) => (key > today() ? -1 : OrbitHabits.consistency(entries, logs, key)));
 }
 
@@ -57,12 +57,12 @@ function todayLayoutOptions() {
 function overallProgressCard(tasks, habits) {
   const normalized = tasks.map((task) => ({
     day: taskDate(task),
-    completedDay: task.completedAt ? dayKey(new Date(task.completedAt)) : null,
+    completedDay: task.completedAt ? plannerDay(task.completedAt) : null,
     isNote: task.isNote,
   }));
   const entries = habits.map((habit) => ({
     ...habit,
-    createdDay: habit.createdAt ? dayKey(new Date(habit.createdAt)) : null,
+    createdDay: habit.createdAt ? plannerDay(habit.createdAt) : null,
   }));
   const count = localStorage.getItem("overallProgressRange") === "7" ? 7 : 30;
   const days = Array.from({ length: count }, (_, index) => OrbitHabits.addDays(today(), index - count + 1));
@@ -97,7 +97,7 @@ function renderToday(tasks, allHabits) {
   // Today is always the current day; past days are reviewed in Calendar.
   const day = today();
   const relevant = tasks.filter((t) => OrbitPlanner.onDay(planItem(t), day, day));
-  const habits = allHabits.filter((h) => (!h.createdAt || dayKey(new Date(h.createdAt)) <= day) && dueOn(h));
+  const habits = allHabits.filter((h) => (!h.createdAt || plannerDay(h.createdAt) <= day) && dueOn(h));
   const open = relevant.filter((t) => !t.completedAt),
     complete = relevant.filter((t) => t.completedAt);
   // Timed tasks first, in time order; then the rest as arranged.
@@ -163,7 +163,7 @@ function scopeDays() {
 }
 /** Scheduled days so far in the period (not before the habit existed), and how many were checked. */
 function habitSummary(h, days) {
-  const created = h.createdAt ? dayKey(new Date(h.createdAt)) : null;
+  const created = h.createdAt ? plannerDay(h.createdAt) : null;
   let keys = days;
   if (todayScope === "all") {
     keys = [];
@@ -294,12 +294,12 @@ const progressRange = 7;
 function recentProgressCard(tasks, habits) {
   const normalized = tasks.map((task) => ({
     day: taskDate(task),
-    completedDay: task.completedAt ? dayKey(new Date(task.completedAt)) : null,
+    completedDay: task.completedAt ? plannerDay(task.completedAt) : null,
     isNote: task.isNote,
   }));
   const entries = habits.map((habit) => ({
     ...habit,
-    createdDay: habit.createdAt ? dayKey(new Date(habit.createdAt)) : null,
+    createdDay: habit.createdAt ? plannerDay(habit.createdAt) : null,
   }));
   const days = Array.from({ length: progressRange }, (_, index) =>
     OrbitHabits.addDays(today(), index - progressRange + 1),

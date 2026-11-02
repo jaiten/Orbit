@@ -103,7 +103,7 @@ function openHabit(id, draft = null) {
 }
 
 async function moveItem(entity, source) {
-  await api.batch(OrbitConversions.convert(entity, source, rows("habit_logs"), dayKey(new Date())));
+  await api.batch(OrbitConversions.convert(entity, source, rows("habit_logs"), today()));
   $("#editor").close();
   $("#habit-editor").close();
 }

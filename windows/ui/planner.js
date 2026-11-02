@@ -25,6 +25,24 @@
   const localKey = (d) =>
     d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 
+  // Day start: when a new planner day begins, synced as one preferences record. Minutes after
+  // midnight, -60 (11 PM the evening before) to 240 (4 AM) in 30-minute steps; 2 AM by default.
+  // Mirrors ios/Shared/DayStart.swift; cases in shared/test-cases/day-start.json.
+  const PREFERENCES_ID = "00000000-0000-4000-8000-000000000002";
+  const DAY_START_DEFAULT = 120;
+  const DAY_START_CHOICES = Array.from({ length: 11 }, (_, i) => -60 + i * 30);
+  const dayStartMinutes = (value) => (DAY_START_CHOICES.includes(value) ? value : DAY_START_DEFAULT);
+  /** `time` moved back by the day start, so its calendar day is the planner day. */
+  const plannerDate = (time, dayStart) => new Date(new Date(time).getTime() - dayStartMinutes(dayStart) * 60000);
+  const plannerDayKey = (time, dayStart) => localKey(plannerDate(time, dayStart));
+  function dayStartLabel(value) {
+    const minutes = dayStartMinutes(value);
+    if (minutes === 0) return "Midnight";
+    const clock = (minutes + 1440) % 1440,
+      hour = Math.floor(clock / 60);
+    const text = `${hour % 12 || 12}:${String(clock % 60).padStart(2, "0")} ${hour < 12 ? "AM" : "PM"}`;
+    return minutes < 0 ? text + " (the evening before)" : text;
+  }
   /** Moves a task to `day`, keeping its time of day and reminder offsets. Someday items leave Someday. */
   function moveToDay(task, day, now = Date.now()) {
     let dueDate = null,
@@ -167,6 +185,13 @@
     moveToSomeday,
     overdueLabel,
     localKey,
+    PREFERENCES_ID,
+    DAY_START_DEFAULT,
+    DAY_START_CHOICES,
+    dayStartMinutes,
+    plannerDate,
+    plannerDayKey,
+    dayStartLabel,
   };
   if (typeof module === "object") module.exports = api;
   else root.OrbitPlanner = api;

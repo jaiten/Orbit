@@ -247,7 +247,7 @@ struct BoxGrid: View {
         .accessibilityElement(children: .ignore)
     }
     /// Days for the grid: whole weeks in the locale's order, ending with this week.
-    static func days(weeks: Int = DesignTokens.gridWeeks, now: Date = .now, calendar: Calendar = .current) -> [Date] {
+    static func days(weeks: Int = DesignTokens.gridWeeks, now: Date = PlannerLogic.todayDate, calendar: Calendar = .current) -> [Date] {
         let thisWeek = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? calendar.startOfDay(for: now)
         let first = calendar.date(byAdding: .day, value: -7 * (weeks - 1), to: thisWeek) ?? thisWeek
         return (0..<(weeks * 7)).compactMap { calendar.date(byAdding: .day, value: $0, to: first) }
@@ -282,7 +282,7 @@ struct WeekSegments: View {
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), \(status)")
                 let calendar = Calendar.current
-                let today = calendar.startOfDay(for: .now)
+                let today = PlannerLogic.todayDate
                 let earliest = calendar.date(byAdding: .day, value: -6, to: today) ?? today
                 if let toggle, existed, calendar.startOfDay(for: day) >= earliest, calendar.startOfDay(for: day) <= today {
                     Button { toggle(day) } label: { cell }

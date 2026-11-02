@@ -67,9 +67,9 @@ struct ConsistencyStrip: View {
     private let range = 7
     @AppStorage("progressIncludesTasks") private var includeTasks = true
     @Query private var tasks: [PlannerTask]
-    private var days: [Date] { (0..<range).reversed().map { Calendar.current.date(byAdding: .day, value: -$0, to: .now)! } }
+    private var days: [Date] { (0..<range).reversed().map { Calendar.current.date(byAdding: .day, value: -$0, to: PlannerLogic.todayDate)! } }
     var body: some View {
-        let fractions = PlannerLogic.consistencySeries(habits: habits, logs: logs, ending: .now, days: range, tasks: tasks, includeTasks: includeTasks)
+        let fractions = PlannerLogic.consistencySeries(habits: habits, logs: logs, ending: PlannerLogic.todayDate, days: range, tasks: tasks, includeTasks: includeTasks)
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("Recent progress").font(.subheadline.weight(.semibold))
@@ -117,12 +117,12 @@ struct OverallProgressCard: View {
     @Environment(\.orbitAccent) private var accent
     var body: some View {
         let count = range == 7 ? 7 : 30
-        let fractions = PlannerLogic.consistencySeries(habits: habits, logs: logs, ending: .now, days: count, tasks: tasks, includeTasks: includesTasks)
+        let fractions = PlannerLogic.consistencySeries(habits: habits, logs: logs, ending: PlannerLogic.todayDate, days: count, tasks: tasks, includeTasks: includesTasks)
         VStack(alignment: .leading, spacing: 12) {
             HStack { Text("Overall progress").font(.subheadline.weight(.semibold)); Spacer(); Text(count == 7 ? "Past week" : "Past month").font(.caption).foregroundStyle(.secondary) }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 5), count: 7), spacing: 5) {
                 ForEach(Array(fractions.enumerated()), id: \.offset) { index, value in
-                    let date = Calendar.current.date(byAdding: .day, value: index - count + 1, to: .now)!
+                    let date = Calendar.current.date(byAdding: .day, value: index - count + 1, to: PlannerLogic.todayDate)!
                     RoundedRectangle(cornerRadius: 4).fill(accent.fill.opacity(value == 0 ? 0.08 : 0.25 + 0.75 * value))
                         .frame(height: 28).overlay { Text(date.formatted(.dateTime.day())).font(.caption2).foregroundStyle(value > 0.8 ? Color.white : Color.secondary) }
                         .accessibilityLabel("\(date.formatted(date: .abbreviated, time: .omitted)), \(Int(value * 100)) percent complete")

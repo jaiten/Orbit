@@ -20,7 +20,7 @@ struct HabitsView: View {
                     if habits.isEmpty { ContentUnavailableView("No Habits", systemImage: "repeat", description: Text("Start typing to add a habit.")) }
                     VStack(spacing: DayTheme.rowSpacing(compact: compactRows, typeSize: typeSize)) {
                         ForEach(habits) { habit in
-                            HabitRow(habit: habit, logs: logs, date: .now, edit: { editing = habit })
+                            HabitRow(habit: habit, logs: logs, date: PlannerLogic.todayDate, edit: { editing = habit })
                         }
                     }
 
@@ -59,7 +59,7 @@ struct HabitHistoryIndex: View {
         }.background(DayTheme.canvas(scheme)).navigationTitle("History").navigationBarTitleDisplayMode(.inline)
     }
     @ViewBuilder private func historyHeading(_ habit: Habit) -> some View {
-        let count = "\(PlannerLogic.checkedDays(habit, logs: logs, ending: .now)) of the last 7 days"
+        let count = "\(PlannerLogic.checkedDays(habit, logs: logs, ending: PlannerLogic.todayDate)) of the last 7 days"
         if typeSize.isAccessibilitySize {
             VStack(alignment: .leading, spacing: 6) {
                 Label { Text(habit.title).font(.body.weight(.semibold)) } icon: {
@@ -88,7 +88,7 @@ struct HabitHistoryDetail: View {
         ScrollView {
             VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceM)) {
-                    Eyebrow(text: "\(PlannerLogic.checkedDays(habit, logs: logs, ending: .now)) of the last 7 days")
+                    Eyebrow(text: "\(PlannerLogic.checkedDays(habit, logs: logs, ending: PlannerLogic.todayDate)) of the last 7 days")
                     Text("Tap any of the last seven days to add or remove a check-in.").font(.footnote).foregroundStyle(.secondary)
                     HabitHistoryCharts(habit: habit, logs: logs)
                 }.orbitCard()
@@ -126,14 +126,14 @@ struct HabitHistoryCharts: View {
     var compact = false
     var body: some View {
         let color = DayTheme.color(habit.color)
-        let week = (-6...0).map { Calendar.current.date(byAdding: .day, value: $0, to: .now)! }
+        let week = (-6...0).map { Calendar.current.date(byAdding: .day, value: $0, to: PlannerLogic.todayDate)! }
         let counts = PlannerLogic.counts(habit, logs: logs)
         let target = Double(PlannerLogic.dailyTarget(habit))
-        let today = PlannerLogic.dayKey(.now)
+        let today = PlannerLogic.today
         VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
             WeekSegments(done: week.map { PlannerLogic.checkedToday(habit, logs: logs, at: $0) }, days: week, color: color,
                          scheduled: week.map { HabitRules.scheduledOn(rule: habit.frequencyRule, day: PlannerLogic.dayKey($0)) },
-                         available: week.map { PlannerLogic.dayKey($0) >= PlannerLogic.dayKey(habit.createdAt) },
+                         available: week.map { PlannerLogic.dayKey($0) >= PlannerLogic.plannerDay(habit.createdAt) },
                          toggle: toggle)
             if !compact { BoxGrid(levels: BoxGrid.days().map { day -> Double? in
                 let key = PlannerLogic.dayKey(day)

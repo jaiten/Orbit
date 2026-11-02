@@ -62,7 +62,7 @@ struct DayProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<DayEntry>) -> Void) {
         Task { @MainActor in
             let entry = Self.read()
-            let refresh = min(Date.now.addingTimeInterval(900), Calendar.current.startOfDay(for: Calendar.current.date(byAdding: .day, value: 1, to: .now)!))
+            let refresh = min(Date.now.addingTimeInterval(900), Calendar.current.startOfDay(for: Calendar.current.date(byAdding: .day, value: 1, to: PlannerLogic.todayDate)!))
             completion(Timeline(entries: [entry], policy: .after(refresh)))
         }
     }
@@ -71,13 +71,13 @@ struct DayProvider: TimelineProvider {
             let container = try Persistence.makeContainer()
             let context = ModelContext(container)
             let allTasks = try context.fetch(FetchDescriptor<PlannerTask>())
-            let tasks = allTasks.filter { $0.completedAt == nil && !$0.note && TodayRules.onDay(TodayRules.item($0), day: PlannerLogic.dayKey(.now), today: PlannerLogic.dayKey(.now)) }
+            let tasks = allTasks.filter { $0.completedAt == nil && !$0.note && TodayRules.onDay(TodayRules.item($0), day: PlannerLogic.today, today: PlannerLogic.today) }
                 .sorted {
                     if $0.hasTime != $1.hasTime { return $0.hasTime }
                     if $0.hasTime { return ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture) }
                     return $0.sortOrder < $1.sortOrder
                 }
-            let today = PlannerLogic.dayKey(.now)
+            let today = PlannerLogic.today
             let planned = allTasks.filter { !$0.note && TodayRules.onDay(TodayRules.item($0), day: today, today: today) }
             let allHabits = try context.fetch(FetchDescriptor<Habit>(sortBy: [SortDescriptor(\Habit.createdAt)]))
             let logs = try context.fetch(FetchDescriptor<HabitLog>())
@@ -86,22 +86,22 @@ struct DayProvider: TimelineProvider {
                 return selected.isEmpty ? nil : selected
             } ?? allHabits
             let summaryHabits = gridHabitIDs == nil ? allHabits : gridHabits
-            let habits = summaryHabits.filter { PlannerLogic.isDue($0, logs: logs, at: .now) }
+            let habits = summaryHabits.filter { PlannerLogic.isDue($0, logs: logs, at: PlannerLogic.todayDate) }
             let taskItems = tasks.map { task in
                 WidgetItem(id: task.id.uuidString, title: task.title,
                     subtitle: task.hasTime ? task.dueDate!.formatted(date: .omitted, time: .shortened) : "",
                     habit: false, date: task.hasTime ? task.dueDate : nil)
             }
-            let habitItems = habits.filter { !PlannerLogic.checkedToday($0, logs: logs, at: .now) }.map {
+            let habitItems = habits.filter { !PlannerLogic.checkedToday($0, logs: logs, at: PlannerLogic.todayDate) }.map {
                 WidgetItem(id: $0.id.uuidString, title: $0.title,
-                    subtitle: PlannerLogic.detail($0, logs: logs, at: .now), habit: true, date: nil)
+                    subtitle: PlannerLogic.detail($0, logs: logs, at: PlannerLogic.todayDate), habit: true, date: nil)
             }
             return DayEntry(date: .now, items: taskItems + habitItems, completedHabits: habits.count - habitItems.count,
                 totalHabits: habits.count, doneToday: (PlannerPreferences.includesTasks ? planned.filter { $0.completedAt != nil }.count : 0) + habits.count - habitItems.count,
-                totalToday: (PlannerPreferences.includesTasks ? planned.count : 0) + habits.count, consistency: PlannerLogic.consistencySeries(habits: gridHabits, logs: logs, ending: .now, days: DayEntry.gridDays, tasks: allTasks, includeTasks: gridHabitIDs == nil && PlannerPreferences.includesTasks),
+                totalToday: (PlannerPreferences.includesTasks ? planned.count : 0) + habits.count, consistency: PlannerLogic.consistencySeries(habits: gridHabits, logs: logs, ending: PlannerLogic.todayDate, days: DayEntry.gridDays, tasks: allTasks, includeTasks: gridHabitIDs == nil && PlannerPreferences.includesTasks),
                 grids: gridHabits.prefix(3).map { habit in
                     HabitGrid(id: habit.id.uuidString, title: habit.title, color: habit.color,
-                              values: PlannerLogic.consistencySeries(habits: [habit], logs: logs, ending: .now, days: DayEntry.gridDays))
+                              values: PlannerLogic.consistencySeries(habits: [habit], logs: logs, ending: PlannerLogic.todayDate, days: DayEntry.gridDays))
                 })
         } catch { return DayEntry(date: .now, items: [], completedHabits: 0, totalHabits: 0, unavailable: true) }
     }

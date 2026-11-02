@@ -1,0 +1,21 @@
+{
+  "about": "When a new planner day begins. dayStart is minutes after midnight: -60 is 11 PM the evening before, 120 (2 AM) is the default, 240 is 4 AM, in 30-minute steps. A moment belongs to the planner day of the calendar day it falls on after moving it back by dayStart minutes. Times are local and avoid daylight-saving changes. Unknown values fall back to 120.",
+  "choices": [-60, -30, 0, 30, 60, 90, 120, 150, 180, 210, 240],
+  "cases": [
+    { "name": "1:30 AM still counts as the day before with the 2 AM default", "dayStart": 120, "time": "2026-10-14T01:30:00", "expect": "2026-10-13" },
+    { "name": "2 AM starts the new day", "dayStart": 120, "time": "2026-10-14T02:00:00", "expect": "2026-10-14" },
+    { "name": "midnight start is the calendar day", "dayStart": 0, "time": "2026-10-14T00:00:00", "expect": "2026-10-14" },
+    { "name": "4 AM start keeps 3:59 AM on the day before", "dayStart": 240, "time": "2026-10-14T03:59:00", "expect": "2026-10-13" },
+    { "name": "11 PM start begins tomorrow in the evening", "dayStart": -60, "time": "2026-10-13T23:15:00", "expect": "2026-10-14" },
+    { "name": "11 PM start leaves 10:59 PM on the same day", "dayStart": -60, "time": "2026-10-13T22:59:00", "expect": "2026-10-13" },
+    { "name": "an unknown value uses the 2 AM default", "dayStart": 17, "time": "2026-10-14T01:00:00", "expect": "2026-10-13" }
+  ],
+  "labels": [
+    { "dayStart": -60, "expect": "11:00 PM (the evening before)" },
+    { "dayStart": -30, "expect": "11:30 PM (the evening before)" },
+    { "dayStart": 0, "expect": "Midnight" },
+    { "dayStart": 90, "expect": "1:30 AM" },
+    { "dayStart": 120, "expect": "2:00 AM" },
+    { "dayStart": 240, "expect": "4:00 AM" }
+  ]
+}

@@ -31,7 +31,7 @@ import SwiftData
             if let reminder = task.reminders.first {
                 habit.reminderMinutes = Calendar.current.component(.hour, from: reminder) * 60 + Calendar.current.component(.minute, from: reminder)
             }
-            if let done = task.completedAt, Calendar.current.isDateInToday(done) {
+            if let done = task.completedAt, PlannerLogic.plannerDay(done) == PlannerLogic.today {
                 context.insert(HabitLog(habitID: habit.id, dayKey: PlannerLogic.dayKey(done)))
             }
         }
@@ -52,12 +52,12 @@ import SwiftData
             try SyncRecords.apply(["key": "tasks/" + habit.id.uuidString.lowercased(), "payload": source], context: context)
             task = try context.fetch(FetchDescriptor<PlannerTask>()).first { $0.id == habit.id }!
         } else {
-            task = PlannerTask(title: habit.title, dueDate: Calendar.current.startOfDay(for: .now))
+            task = PlannerTask(title: habit.title, dueDate: PlannerLogic.todayDate)
             task.id = habit.id; context.insert(task)
         }
         // Only habits repeat; a restored task is always one-off.
         task.title = habit.title; task.recurrenceRule = ""; task.nextOccurrenceID = nil; task.updatedAt = .now
-        task.completedAt = PlannerLogic.checkedToday(habit, logs: logs, at: .now) ? .now : nil
+        task.completedAt = PlannerLogic.checkedToday(habit, logs: logs, at: PlannerLogic.todayDate) ? .now : nil
         task.conversionData = try SyncRecords.json(["source": payload, "logs": history])
         for log in logs { context.delete(log) }
         context.delete(habit)

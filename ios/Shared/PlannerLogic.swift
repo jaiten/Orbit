@@ -1,6 +1,12 @@
 import Foundation
 
 enum PlannerLogic {
+    /// Today's planner day, which begins at the day start (DayStart), not midnight.
+    static var today: String { dayKey(DayStart.shifted(.now)) }
+    /// Midnight at the start of today's planner day, for views that work with dates.
+    static var todayDate: Date { Calendar.current.startOfDay(for: DayStart.shifted(.now)) }
+    /// The planner day a moment (a completion, a check-in, a habit's creation) counts for.
+    static func plannerDay(_ date: Date) -> String { dayKey(DayStart.shifted(date)) }
     /// Daily targets are fractional; weekly habits count a check-in on that day.
     /// Only habits scheduled for that day count, and habits created later never lower an earlier day.
     static func dailyConsistency(habits: [Habit], logs: [HabitLog], on day: Date, calendar: Calendar = .current) -> Double {
@@ -9,7 +15,7 @@ enum PlannerLogic {
     static func entries(_ habits: [Habit], logs: [HabitLog], calendar: Calendar = .current) -> [HabitRules.Entry] {
         var counts: [UUID: [String: Int]] = [:]
         for log in logs { counts[log.habitID, default: [:]][log.dayKey, default: 0] += log.count }
-        return habits.map { HabitRules.Entry(rule: $0.frequencyRule, target: $0.target, createdDay: dayKey($0.createdAt, calendar: calendar), counts: counts[$0.id] ?? [:]) }
+        return habits.map { HabitRules.Entry(rule: $0.frequencyRule, target: $0.target, createdDay: dayKey(DayStart.shifted($0.createdAt), calendar: calendar), counts: counts[$0.id] ?? [:]) }
     }
     static func dayKey(_ date: Date, calendar: Calendar = .current) -> String {
         let c = calendar.dateComponents([.year, .month, .day], from: date)
@@ -25,7 +31,7 @@ enum PlannerLogic {
             let habitDone = active.reduce(0.0) { sum, entry in
                 sum + min(1, Double(entry.counts[key] ?? 0) / Double(HabitRules.dailyTarget(rule: entry.rule, target: entry.target)))
             }
-            let items = includeTasks ? tasks.filter { !$0.note && ($0.completedAt.map { dayKey($0, calendar: calendar) } ?? $0.day) == key } : []
+            let items = includeTasks ? tasks.filter { !$0.note && ($0.completedAt.map { dayKey(DayStart.shifted($0), calendar: calendar) } ?? $0.day) == key } : []
             let total = active.count + items.count
             return total == 0 ? 0 : (habitDone + Double(items.filter { $0.completedAt != nil }.count)) / Double(total)
         }

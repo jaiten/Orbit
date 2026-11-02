@@ -34,16 +34,16 @@ struct TodayView: View {
     @AppStorage("todayCompletedExpanded") private var showingCompleted = false
     @State private var error: String?
     @AppStorage("showOverallProgress") private var showOverall = false
-    @State private var day = Calendar.current.startOfDay(for: .now)
+    @State private var day = PlannerLogic.todayDate
     @ObservedObject private var calendars = CalendarBridge.shared
 
     /// Dated today or earlier and still open, or finished today. Undated and Someday items stay in Lists.
     private var relevant: [PlannerTask] {
         let today = PlannerLogic.dayKey(day)
-        return tasks.filter { !$0.note && TodayRules.onDay(TodayRules.item($0), day: today, today: PlannerLogic.dayKey(.now)) }
+        return tasks.filter { !$0.note && TodayRules.onDay(TodayRules.item($0), day: today, today: PlannerLogic.today) }
     }
     /// Habits scheduled for the day; a weekly habit drops off once its week is done.
-    private var dueHabits: [Habit] { habits.filter { PlannerLogic.dayKey($0.createdAt) <= PlannerLogic.dayKey(day) && PlannerLogic.isDue($0, logs: logs, at: day) } }
+    private var dueHabits: [Habit] { habits.filter { PlannerLogic.plannerDay($0.createdAt) <= PlannerLogic.dayKey(day) && PlannerLogic.isDue($0, logs: logs, at: day) } }
     private var checkedHabits: [Habit] { dueHabits.filter { PlannerLogic.checkedToday($0, logs: logs, at: day) } }
     private var sections: [String] {
         let hidden = Set(hiddenSections.split(separator: ",").map(String.init))
@@ -67,7 +67,7 @@ struct TodayView: View {
             .captureDock(scheme) { InlineCapture() }
             .background(DayTheme.canvas(scheme)).tint(accent.fill)
             .onAppear {
-                day = Calendar.current.startOfDay(for: .now)
+                day = PlannerLogic.todayDate
                 let layout = HomeLayoutEditor.upgradedLayout(sections: homeSections, hidden: hiddenSections)
                 homeSections = layout.sections
                 hiddenSections = layout.hidden
@@ -114,7 +114,7 @@ struct TodayView: View {
             if !habits.isEmpty || tasks.contains(where: { !$0.note }) { ConsistencyStrip(habits: habits, logs: logs).orbitCard() }
         case "overall": OverallProgressCard(habits: habits, logs: logs, tasks: tasks)
         case "today":
-            let today = PlannerLogic.dayKey(.now)
+            let today = PlannerLogic.today
             let open = relevant.filter { $0.completedAt == nil }
             let overdue = open.filter { TodayRules.isOverdue(TodayRules.item($0), today: today) }
             let planned = open.filter { !overdue.contains($0) }.sorted { a, b in
@@ -201,7 +201,7 @@ struct TodayView: View {
     }
 
     private func refresh() {
-        day = Calendar.current.startOfDay(for: .now)
+        day = PlannerLogic.todayDate
         calendars.reload(); FocusSession.shared.restore()
     }
     private enum OverdueDestination { case today, someday, category(UUID) }
@@ -209,7 +209,7 @@ struct TodayView: View {
         do {
             for task in tasks {
                 switch destination {
-                case .today: TodayRules.moveToDay(task, day: .now)
+                case .today: TodayRules.moveToDay(task, day: PlannerLogic.todayDate)
                 case .someday: try TodayRules.moveToSomeday(task, in: context)
                 case .category(let id): TodayRules.moveToList(task, listID: id)
                 }

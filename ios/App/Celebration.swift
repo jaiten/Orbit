@@ -9,7 +9,7 @@ import UIKit
     @Published private(set) var moment: Moment?
 
     /// Call after logging `habit` for `date`, with every habit log (including the new check-in).
-    func checkIn(_ habit: Habit, logs: [HabitLog], at date: Date = .now) {
+    func checkIn(_ habit: Habit, logs: [HabitLog], at date: Date = PlannerLogic.todayDate) {
         let counts = PlannerLogic.counts(habit, logs: logs), day = PlannerLogic.dayKey(date)
         let rule = habit.frequencyRule, target = habit.target
         guard HabitRules.checked(rule: rule, target: target, counts: counts, day: day),

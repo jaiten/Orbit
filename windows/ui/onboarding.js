@@ -164,9 +164,9 @@ function bindOnboarding() {
   document.querySelectorAll("[data-onboarding-skip]").forEach((b) => (b.onclick = () => $("#onboarding").close()));
   const form = $("#onboarding-capture");
   if (form) {
-    const parse = () => OrbitPlanning.parse(form.elements.text.value, null);
+    const parse = () => OrbitPlanning.parse(form.elements.text.value, null, plannerNow());
     form.elements.text.oninput = () => {
-      const text = OrbitPlanning.describe(parse());
+      const text = OrbitPlanning.describe(parse(), plannerNow());
       showChip($("#onboarding-preview"), text);
     };
     form.onsubmit = (e) => {

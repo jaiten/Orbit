@@ -22,6 +22,21 @@ final class SharedCaseTests: XCTestCase {
         XCTAssertEqual(Set(ItemIcons.all.map(\.id)).count, ItemIcons.all.count)
     }
 
+    func testDayStartCases() throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../../shared/test-cases/day-start.json").standardizedFileURL
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        XCTAssertEqual(DayStart.choices, object["choices"] as? [Int])
+        let parser = DateFormatter(); parser.locale = Locale(identifier: "en_US_POSIX"); parser.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        for row in try Self.cases("day-start") {
+            let time = try XCTUnwrap(parser.date(from: row["time"] as! String))
+            XCTAssertEqual(PlannerLogic.dayKey(DayStart.shifted(time, minutes: row["dayStart"] as? Int)), row["expect"] as? String, row["name"] as! String)
+        }
+        for row in object["labels"] as! [[String: Any]] {
+            XCTAssertEqual(DayStart.label(row["dayStart"] as! Int), row["expect"] as? String)
+        }
+    }
+
     func testStreakCases() throws {
         for row in try Self.cases("streaks") {
             let habit = row["habit"] as! [String: Any]

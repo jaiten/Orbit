@@ -40,7 +40,7 @@ struct AgendaView: View {
     private var tasks: [PlannerTask] { allTasks.filter { !$0.note } }
     /// A titled run of tasks: a day key, or a TaskDateGroup name for everything.
     private struct TaskRun: Identifiable { let id: String; let items: [PlannerTask] }
-    private var today: String { PlannerLogic.dayKey(.now) }
+    private var today: String { PlannerLogic.today }
 
     /// The local days in the week or month, in order.
     private var dayKeys: [String] {
@@ -140,7 +140,7 @@ struct AgendaView: View {
 
     /// Scheduled days in the period, up to today and not before the habit existed, and how many were checked.
     private func summary(_ habit: Habit) -> (done: Int, due: Int) {
-        let created = PlannerLogic.dayKey(habit.createdAt)
+        let created = PlannerLogic.plannerDay(habit.createdAt)
         var keys: [String]
         if scope == .all {
             keys = []
@@ -229,8 +229,8 @@ struct TasksView: View {
     @State private var showCompleted = false
     @State private var collapsedCategories: Set<String> = []
     private var visible: [PlannerTask] {
-        let today = PlannerLogic.dayKey(.now)
-        let interval = Calendar.current.dateInterval(of: .weekOfYear, for: .now)!
+        let today = PlannerLogic.today
+        let interval = Calendar.current.dateInterval(of: .weekOfYear, for: PlannerLogic.todayDate)!
         let start = PlannerLogic.dayKey(interval.start), end = PlannerLogic.dayKey(interval.end)
         return tasks.filter { task in
             guard !task.note, search.isEmpty || task.title.localizedCaseInsensitiveContains(search) || task.notes.localizedCaseInsensitiveContains(search) else { return false }
@@ -280,7 +280,7 @@ struct TasksView: View {
                 .padding(.horizontal, CGFloat(DesignTokens.screenPadding)).padding(.bottom, CGFloat(DesignTokens.spaceSection))
                 .frame(maxWidth: 760).frame(maxWidth: .infinity)
             }
-            .captureDock(scheme) { InlineCapture(defaultDay: scope == "Someday" || scope == "All tasks" ? .undated : scope == "Future" ? .day(HabitRules.addDays(PlannerLogic.dayKey(.now), 1)) : .today) }
+            .captureDock(scheme) { InlineCapture(defaultDay: scope == "Someday" || scope == "All tasks" ? .undated : scope == "Future" ? .day(HabitRules.addDays(PlannerLogic.today, 1)) : .today) }
             .background(DayTheme.canvas(scheme))
             .navigationTitle("Tasks").toolbar(.hidden, for: .navigationBar)
             .sheet(item: $editing) { TaskEditor(task: $0).presentationDragIndicator(.visible) }
@@ -300,7 +300,7 @@ struct TasksView: View {
     }
     private func dateGroup(_ task: PlannerTask) -> TaskDateGroup? {
         guard uncategorized(task) else { return nil }
-        return TaskDateGroup.group(day: task.day, someday: false, completed: false, today: PlannerLogic.dayKey(.now))
+        return TaskDateGroup.group(day: task.day, someday: false, completed: false, today: PlannerLogic.today)
     }
     private func rows(_ items: [PlannerTask]) -> some View {
         VStack(spacing: DayTheme.rowSpacing(compact: compactRows, typeSize: typeSize)) {

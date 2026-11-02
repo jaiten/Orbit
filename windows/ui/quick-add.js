@@ -29,7 +29,7 @@ function openQuickAdd(context = quickAddContext()) {
 }
 
 function parseCapture(text, date) {
-  const parsed = OrbitPlanning.parse(text, date);
+  const parsed = OrbitPlanning.parse(text, date, plannerNow());
   if (page === "habits" && parsed.kind !== "habit") return { ...parsed, kind: "habit", schedule: "DAILY" };
   return parsed;
 }
@@ -44,7 +44,7 @@ function contextListName() {
 
 function updateQuickPreview() {
   const result = quickParse();
-  let text = OrbitPlanning.describe(result);
+  let text = OrbitPlanning.describe(result, plannerNow());
   const listName = contextListName();
   if (text && result.kind === "task" && !result.someday && !result.list && listName) text += " · " + listName;
   if (text && quickContext.listID === SOMEDAY && result.kind === "task" && !result.date) text = "Someday";
@@ -221,7 +221,7 @@ function bindInlineCapture() {
       ? ""
       : page === "lists" || OrbitNotes.isNote(inlineDraft)
         ? "Note · " + (section ? sectionName(section) : "Notes")
-        : [OrbitPlanning.describe(parsed), suggestedCategory(parsed, quickAddContext().listID)?.name]
+        : [OrbitPlanning.describe(parsed, plannerNow()), suggestedCategory(parsed, quickAddContext().listID)?.name]
             .filter(Boolean)
             .join(" · ");
     showChip($("#inline-preview"), text);

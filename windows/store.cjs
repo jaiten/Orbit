@@ -49,7 +49,7 @@ class Store {
     }
   }
   put(key, payload, deleted = false) {
-    if (!/^(tasks|habits|habit_logs|lists|idea_prompts)\/[a-z0-9-]{1,100}$/.test(key))
+    if (!/^(tasks|habits|habit_logs|lists|idea_prompts|preferences)\/[a-z0-9-]{1,100}$/.test(key))
       throw Error("Invalid record key");
     if (!payload || typeof payload !== "object" || Array.isArray(payload) || JSON.stringify(payload).length > 100000)
       throw Error("Invalid record");

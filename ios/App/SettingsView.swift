@@ -123,18 +123,33 @@ private struct CalendarsSection: View {
 }
 
 private struct ProgressSection: View {
+    @Environment(\.modelContext) private var context
+    @State private var dayStart = DayStart.minutes
+    @State private var error: String?
     @AppStorage("progressIncludesTasks") private var includeTasks = true
     @AppStorage("showOverallProgress") private var showOverall = false
     @AppStorage("overallProgressRange") private var range = 30
     @AppStorage("consistencyRange") private var widgetRange = 7
     var body: some View {
         Section("Today & Progress") {
+            Picker("Day starts at", selection: $dayStart) {
+                ForEach(DayStart.choices, id: \.self) { Text(DayStart.label($0)).tag($0) }
+            }
+            .onChange(of: dayStart) { _, value in
+                guard value != DayStart.minutes else { return }
+                DayStart.choose(value)
+                // Saving records the setting for sync and refreshes Today and widgets.
+                do { try Mutations.save(context, undoable: false); Task { try? await refreshReminders(context) } } catch { self.error = error.localizedDescription }
+            }
+            .onAppear { dayStart = DayStart.minutes }
+            Text("Until then, check-ins and finished tasks count for the day before. Syncs to your other devices.").font(.footnote).foregroundStyle(.secondary)
             Toggle("Include tasks in daily progress", isOn: $includeTasks)
             Toggle("Show overall progress", isOn: $showOverall)
             Picker("Overall progress", selection: $range) { Text("Past week").tag(7); Text("Past month").tag(30) }
             Picker("Widget history", selection: $widgetRange) { Text("Past week").tag(7); Text("Past month").tag(30) }
             Text("Recent progress shows the last seven days. To correct a habit check-in, open Habits → History.").font(.footnote).foregroundStyle(.secondary)
         }
+        .modifier(MutationErrorModifier(error: $error))
     }
 }
 

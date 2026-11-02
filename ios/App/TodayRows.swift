@@ -216,7 +216,7 @@ struct TaskRow: View {
     @State private var suggestTimer = false
     @ObservedObject private var focus = FocusSession.shared
     private var timing: Bool { focus.taskID == task.id }
-    private var overdue: Bool { showMoves && TodayRules.isOverdue(TodayRules.item(task), today: PlannerLogic.dayKey(.now)) }
+    private var overdue: Bool { showMoves && TodayRules.isOverdue(TodayRules.item(task), today: PlannerLogic.today) }
     private var moves: [TileMove] {
         if progress == 2 && suggestTimer && !timing {
             return [TileMove(title: "Start a timer", action: {}, options: FocusSession.options(for: task).map { minutes in
@@ -225,8 +225,8 @@ struct TaskRow: View {
                     TileMove(title: "Not now") { suggestTimer = false }]
         }
         guard overdue else { return [] }
-        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: .now) ?? .now
-        var result = [TileMove(title: "Today") { change { TodayRules.moveToDay(task, day: .now); try Mutations.save(context) } },
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: PlannerLogic.todayDate) ?? .now
+        var result = [TileMove(title: "Today") { change { TodayRules.moveToDay(task, day: PlannerLogic.todayDate); try Mutations.save(context) } },
                       TileMove(title: "Tomorrow") { change { TodayRules.moveToDay(task, day: tomorrow); try Mutations.save(context) } },
                       TileMove(title: "Someday") { change { try TodayRules.moveToSomeday(task, in: context); try Mutations.save(context) } }]
         if !categories.isEmpty {
@@ -236,7 +236,7 @@ struct TaskRow: View {
         }
         return result
     }
-    private var progress: Int { Calendar.current.isDateInToday(completionDate) && task.completedAt == nil && task.progressTracking == true ? (task.startedAt == nil ? 1 : 2) : 0 }
+    private var progress: Int { PlannerLogic.plannerDay(completionDate) == PlannerLogic.today && task.completedAt == nil && task.progressTracking == true ? (task.startedAt == nil ? 1 : 2) : 0 }
     private var progressOptions: [TileMove] {
         guard task.completedAt == nil else { return [] }
         if task.progressTracking == true {
@@ -257,7 +257,7 @@ struct TaskRow: View {
     private var subtitle: String {
         // Progress shows in the ring and row tint, so the title keeps the room (no "In progress" text).
         var parts: [String] = []
-        if overdue, let day = task.day { parts.append(TodayRules.overdueLabel(day, today: PlannerLogic.dayKey(.now))) }
+        if overdue, let day = task.day { parts.append(TodayRules.overdueLabel(day, today: PlannerLogic.today)) }
         if task.hasTime, let date = task.dueDate { parts.append(date.formatted(date: .omitted, time: .shortened)) }
         if !task.subtasks.isEmpty { parts.append("\(task.subtasks.filter(\.completed).count)/\(task.subtasks.count) steps") }
         return parts.joined(separator: " · ")
@@ -298,7 +298,7 @@ struct HabitRow: View {
     @State private var error: String?
     @State private var feedback = 0
     private var checked: Bool { PlannerLogic.checkedToday(habit, logs: logs, at: date) }
-    private var canLog: Bool { Calendar.current.isDateInToday(date) }
+    private var canLog: Bool { PlannerLogic.dayKey(date) == PlannerLogic.today }
     var body: some View {
         CheckTile(title: habit.title, subtitle: PlannerLogic.detail(habit, logs: logs, at: date), done: checked, color: DayTheme.color(habit.color),
                   completionLabel: (checked ? "Undo " : "Log ") + habit.title,

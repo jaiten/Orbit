@@ -11,7 +11,19 @@ const fs = require("node:fs");
   const errors = [];
   p.on("pageerror", (e) => errors.push(e.message));
   await p.addInitScript(() => {
-    const data = { records: [], onboarded: true, configured: true, email: null, status: "Saved locally" };
+    // Midnight day start keeps "today" equal to the calendar day whenever the test runs.
+    const data = {
+      records: [
+        {
+          key: "preferences/00000000-0000-4000-8000-000000000002",
+          payload: { id: "00000000-0000-4000-8000-000000000002", dayStartMinutes: 0, updatedAt: 1 },
+        },
+      ],
+      onboarded: true,
+      configured: true,
+      email: null,
+      status: "Saved locally",
+    };
     window.authCalls = [];
     window.copiedTexts = [];
     let updateState = { status: "idle", currentVersion: "0.3.4", version: null, percent: 0 };
@@ -922,6 +934,16 @@ const fs = require("node:fs");
   );
   assert.equal(await p.locator("#calendar-completed").count(), 0, "Week view has no completed list below the grid");
   await p.locator('[data-scope="month"]').click();
+  // Day starts at is one synced preferences record.
+  await p.keyboard.press("Control+6");
+  await p.getByRole("combobox", { name: "Day starts at", exact: true }).click();
+  await p.getByRole("option", { name: "3:00 AM", exact: true }).click();
+  await p.waitForFunction(async () =>
+    (await window.orbit.read()).records.some(
+      (r) => r.key === "preferences/00000000-0000-4000-8000-000000000002" && r.payload.dayStartMinutes === 180,
+    ),
+  );
+  assert.equal(await p.locator("#day-start > span").innerText(), "3:00 AM");
   // After the first days, sidebar shortcut labels show only while Ctrl is held.
   await p.evaluate(() => localStorage.setItem("visitDays", "9"));
   await p.reload();

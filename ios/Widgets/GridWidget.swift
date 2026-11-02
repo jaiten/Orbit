@@ -20,7 +20,7 @@ struct ActivityGrid: View {
     var body: some View {
         GeometryReader { proxy in
             let rows = max(1, Int((proxy.size.height + spacing) / (cell + spacing)))
-            let shown = (rows - 1) * 7 + Self.weekdayIndex(.now) + 1
+            let shown = (rows - 1) * 7 + Self.weekdayIndex(PlannerLogic.todayDate) + 1
             let days = Array(repeating: 0.0, count: max(0, shown - values.count)) + values.suffix(shown)
             VStack(alignment: .leading, spacing: spacing) {
                 ForEach(0..<rows, id: \.self) { week in
@@ -101,7 +101,7 @@ struct MonthGrid: View {
     }
 
     /// Daily values (oldest first, ending today) placed on this month's days, with the 1st's weekday.
-    static func levels(_ values: [Double], now: Date = .now, calendar: Calendar = .current) -> (levels: [Double?], today: Int, leading: Int) {
+    static func levels(_ values: [Double], now: Date = PlannerLogic.todayDate, calendar: Calendar = .current) -> (levels: [Double?], today: Int, leading: Int) {
         let today = calendar.startOfDay(for: now)
         guard let month = calendar.dateInterval(of: .month, for: now),
               let count = calendar.range(of: .day, in: .month, for: now)?.count else { return ([], 0, 0) }

@@ -19,7 +19,10 @@ function decodeBackup(data) {
     if (seen.has(r.key) || !p || typeof p !== "object" || !uuid.test(p.id) || JSON.stringify(p).length > 100000)
       throw Error("Invalid backup record");
     seen.add(r.key);
-    if (entity === "habit_logs") {
+    if (entity === "preferences") {
+      if (r.key !== `preferences/${p.id.toLowerCase()}` || !Number.isInteger(p.dayStartMinutes))
+        throw Error("Invalid preferences");
+    } else if (entity === "habit_logs") {
       if (
         !uuid.test(p.habitID) ||
         !/^\d{4}-\d{2}-\d{2}$/.test(p.dayKey) ||

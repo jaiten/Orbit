@@ -86,3 +86,10 @@ test("category suggestions follow the shared cases", () => {
       c.name,
     );
 });
+
+test("day start follows the shared cases", () => {
+  const data = require("../../shared/test-cases/day-start.json");
+  assert.deepEqual(planner.DAY_START_CHOICES, data.choices);
+  for (const c of data.cases) assert.equal(planner.plannerDayKey(new Date(c.time), c.dayStart), c.expect, c.name);
+  for (const c of data.labels) assert.equal(planner.dayStartLabel(c.dayStart), c.expect);
+});

@@ -77,7 +77,7 @@ enum NoteRules {
         if note.title.isEmpty { let title = split(note.notes).title; note.title = title.isEmpty ? "Photo note" : title }
         note.isNote = nil
         if try !keepsList(note.listID, otherKind: "notes", in: context) { note.listID = nil }
-        TodayRules.moveToDay(note, day: .now)
+        TodayRules.moveToDay(note, day: PlannerLogic.todayDate)
         try Mutations.save(context)
     }
     /// Task → note: no date, reminders or progress, and out of a task-only category.
