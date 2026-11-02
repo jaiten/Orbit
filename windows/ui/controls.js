@@ -82,6 +82,18 @@ document.addEventListener("pointerdown", (event) => {
     if (!picker.contains(event.target)) picker.open = false;
   });
 });
+// Shortcut labels (Ctrl+1…) show for the first three days of use; after that, holding Ctrl shows them.
+const SHORTCUT_LABEL_DAYS = 3;
+if (Number(localStorage.getItem("visitDays") || 0) > SHORTCUT_LABEL_DAYS)
+  document.documentElement.dataset.shortcutLabels = "hidden";
+const setCtrlHeld = (held) => document.documentElement.classList.toggle("ctrl-held", held);
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Control") setCtrlHeld(true);
+});
+document.addEventListener("keyup", (event) => {
+  if (event.key === "Control") setCtrlHeld(false);
+});
+window.addEventListener("blur", () => setCtrlHeld(false));
 let shortcutHintTimer;
 function showShortcutHint() {
   const context = page === "note" || page === "lists" ? "notes" : page;

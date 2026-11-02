@@ -884,6 +884,24 @@ const fs = require("node:fs");
     ),
     false,
   );
+  // After the first days, sidebar shortcut labels show only while Ctrl is held.
+  await p.evaluate(() => localStorage.setItem("visitDays", "9"));
+  await p.reload();
+  await p.locator("h1").first().waitFor();
+  const label = p.locator('nav [data-page="today"] kbd');
+  const opacity = () => label.evaluate((element) => getComputedStyle(element).opacity);
+  await p.waitForFunction(
+    () => getComputedStyle(document.querySelector('nav [data-page="today"] kbd')).opacity === "0",
+  );
+  await p.keyboard.down("Control");
+  await p.waitForFunction(
+    () => getComputedStyle(document.querySelector('nav [data-page="today"] kbd')).opacity === "1",
+  );
+  await p.keyboard.up("Control");
+  await p.waitForTimeout(200);
+  assert.equal(await opacity(), "0");
+  // Completed tasks fold behind the arrow beside "N completed"; there is no separate menu.
+  assert.equal(await p.locator("#today-completed").count(), 0);
   assert.deepEqual(errors, []);
   console.log(
     "PASS: account keyboard/back, note sizing/scrolling, row actions/icons, settings races and planner flows",

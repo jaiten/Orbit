@@ -110,7 +110,6 @@ function renderToday(tasks, allHabits) {
   const done = (includeTasks ? complete.length : 0) + habitsDone,
     total = (includeTasks ? relevant.length : 0) + habits.length;
   const eyebrow = localDay(day).toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
-  const hideCompleted = localStorage.getItem("todayHideCompleted") === "true";
   const agenda = `      ${focusBanner()}
       ${conflictBanner()}
       ${overdue.length ? `<div class="overdue-heading">${sectionLabel("Overdue", `${overdue.length} to review`)}<div class="overdue-bulk" role="group" aria-label="Move all overdue tasks"><button data-overdue-all="today">All to Today</button><button data-overdue-all="someday">All to Someday</button>${taskCategories().length ? macPicker("overdue-all-move", "Move all overdue tasks to a category", categoryOptions(), "", { placeholder: "All to a category", className: "pill-picker" }) : ""}</div></div>` + checklist(overdue) : ""}
@@ -122,9 +121,9 @@ function renderToday(tasks, allHabits) {
           : `<div class="empty-state"><svg class="doc-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><p><strong>${complete.length ? "All done" : "Nothing planned"}</strong><br />Start typing to add a task.</p></div>`
       }
       ${
-        complete.length && !hideCompleted
+        complete.length
           ? `<details class="completed-items" ${completedOpen ? "open" : ""}>
-              <summary class="section-label"><h2>${complete.length} completed</h2><span>Done</span></summary>
+              <summary class="section-label" aria-label="${complete.length} completed"><h2>${complete.length} completed</h2><svg class="ui-icon completed-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></summary>
               ${checklist(complete)}
             </details>`
           : ""
@@ -132,15 +131,6 @@ function renderToday(tasks, allHabits) {
 `;
   return `<div class="today-layout">
     <header class="page-head"><div><div class="eyebrow">${eyebrow}</div><h1>Today</h1></div><div class="head-tools">
-      ${macPicker(
-        "today-completed",
-        "Completed tasks",
-        [
-          ["show", "Show completed"],
-          ["hide", "Hide completed"],
-        ],
-        hideCompleted ? "hide" : "show",
-      )}
       <button id="home-update" class="icon-button home-update" hidden aria-label="Update available" title="Update available"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg><i aria-hidden="true"></i></button>
       <button id="edit-today-layout" class="icon-button" aria-label="${editingTodayLayout ? "Finish editing layout" : "Edit layout"}" title="${editingTodayLayout ? "Finish editing layout" : "Edit layout"}" aria-pressed="${editingTodayLayout}"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${editingTodayLayout ? "m5 12 4 4L19 6" : "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"}"/></svg></button>
     </div></header>
@@ -288,10 +278,6 @@ function bindToday() {
   bindPickers({
     ...rowMoves,
     "overdue-all-move": (listID) => moveOverdue(overdueTasks(), listID),
-    "today-completed": (value) => {
-      localStorage.setItem("todayHideCompleted", String(value === "hide"));
-      render();
-    },
     "layout-overall-range": (value) => {
       localStorage.setItem("overallProgressRange", value);
       render();

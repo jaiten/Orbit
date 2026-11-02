@@ -32,10 +32,10 @@ html {
   --radius-row: var(--content-radius);
   --radius-input: var(--content-radius);
 
-  /* A lighter charcoal canvas, following the compact reference surfaces. */
-  --canvas: light-dark(#f5f5f7, #242526);
-  --surface: light-dark(#ffffff, #2d2e2f);
-  --line: light-dark(#e4e4e8, #3d3f40);
+  /* A deep charcoal canvas; cards and rows sit one step lighter. */
+  --canvas: light-dark(#f5f5f7, #18191a);
+  --surface: light-dark(#ffffff, #232425);
+  --line: light-dark(#e4e4e8, #333537);
   --muted: light-dark(#6d6d73, #b0b1b5);
 }
 @media (prefers-color-scheme: dark) {
@@ -147,6 +147,13 @@ kbd {
     Consolas,
     monospace;
   color: var(--muted);
+}
+/* After the first few days, sidebar shortcut labels appear only while Ctrl is held. */
+:root[data-shortcut-labels="hidden"]:not(.ctrl-held) :is(nav, .search-field, .sidebar-footer) kbd {
+  opacity: 0;
+}
+:is(nav, .search-field, .sidebar-footer) kbd {
+  transition: opacity 120ms ease;
 }
 .card {
   background: var(--surface);
@@ -779,6 +786,19 @@ main {
 .completed-items summary h2 {
   color: var(--muted);
   font-weight: 500;
+}
+/* The arrow beside "N completed" points down when folded and up when open. */
+.completed-items .completed-arrow {
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  transition: transform 160ms ease;
+}
+.completed-items[open] .completed-arrow {
+  transform: rotate(180deg);
+}
+.completed-items summary:hover .completed-arrow {
+  color: var(--ink);
 }
 .day-controls {
   display: flex;
