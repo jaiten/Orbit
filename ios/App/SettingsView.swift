@@ -38,7 +38,7 @@ struct SettingsView: View {
 
                     DataSection(message: $message)
                     Section("About") {
-                        Text("Works offline. Sync runs while Orbit is open; widget changes sync the next time you open it.")
+                        Text("Works offline. Sync runs while Orbit is open and from time to time in the background (Background App Refresh); widget changes sync with them.")
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                 }.contentMargins(.top, 0, for: .scrollContent).listSectionSpacing(CGFloat(DesignTokens.spaceL))

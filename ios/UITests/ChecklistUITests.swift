@@ -513,8 +513,10 @@ final class ChecklistUITests: XCTestCase {
         openSettings(app); reveal(app.buttons["Coral"], in: app); app.buttons["Coral"].tap()
         app.buttons["Appearance"].tap(); app.buttons["System"].tap()
         // Account has its own screen.
-        app.swipeDown(); app.swipeDown()
-        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Account")).firstMatch.tap()
+        // Scroll back to the top, however long Settings has grown.
+        let account = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Account")).firstMatch
+        for _ in 0..<6 where !(account.exists && account.isHittable) { app.swipeDown() }
+        account.tap()
         XCTAssertTrue(app.navigationBars["Account"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Sign in"].exists)
     }
