@@ -307,6 +307,9 @@ final class ChecklistUITests: XCTestCase {
         if app.keyboards.count > 0 {
             let hide = app.buttons["Hide keyboard"]
             XCTAssertTrue(hide.waitForExistence(timeout: 5)); hide.tap()
+            // Measure rows only after the keyboard has finished closing and the list has settled.
+            XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+            Thread.sleep(forTimeInterval: 0.5)
         }
         let errands = app.textFields.matching(NSPredicate(format: "value == %@", "Errands")).firstMatch
         let weekend = app.textFields.matching(NSPredicate(format: "value == %@", "Weekend")).firstMatch
