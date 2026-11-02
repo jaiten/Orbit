@@ -13,7 +13,8 @@ import UIKit
         task.schedule(day: "2026-10-26")
         var calendar = Calendar(identifier: .gregorian); calendar.timeZone = TimeZone(secondsFromGMT: 0)!
         let day = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 10, day: 27)))
-        task.completedAt = day
+        // Midday, so the completion lands on the 27th whatever the day start (before it counts for the day before).
+        task.completedAt = day.addingTimeInterval(12 * 3600)
         let note = PlannerTask(title: "A note"); note.isNote = true; note.schedule(day: "2026-10-27")
         XCTAssertEqual(PlannerLogic.consistencySeries(habits: [], logs: [], ending: day, days: 2, calendar: calendar, tasks: [task, note]), [0, 1])
         XCTAssertEqual(PlannerLogic.consistencySeries(habits: [], logs: [], ending: day, days: 1, calendar: calendar, tasks: [task], includeTasks: false), [0])
