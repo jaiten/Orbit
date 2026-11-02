@@ -109,7 +109,7 @@ function renderToday(tasks, allHabits) {
   const includeTasks = localStorage.getItem("progressIncludesTasks") !== "false";
   const done = (includeTasks ? complete.length : 0) + habitsDone,
     total = (includeTasks ? relevant.length : 0) + habits.length;
-  const eyebrow = localDay(day).toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+  const eyebrow = longDate(day);
   const agenda = `      ${focusBanner()}
       ${conflictBanner()}
       ${overdue.length ? `<div class="overdue-heading">${sectionLabel("Overdue", `${overdue.length} to review`)}<div class="overdue-bulk" role="group" aria-label="Move all overdue tasks"><button data-overdue-all="today">All to Today</button><button data-overdue-all="someday">All to Someday</button>${taskCategories().length ? macPicker("overdue-all-move", "Move all overdue tasks to a category", categoryOptions(), "", { placeholder: "All to a category", className: "pill-picker" }) : ""}</div></div>` + checklist(overdue) : ""}

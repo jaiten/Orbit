@@ -263,6 +263,14 @@ import UIKit
         try Conversions.toTask(stretch, in: context)
         XCTAssertEqual(try context.fetch(FetchDescriptor<PlannerTask>()).first { $0.id == open.id }?.recurrenceRule, "", "Make It a Task never brings the repeat back")
     }
+    func testTodayHeadingUsesOrdinalDates() throws {
+        var utc = Calendar(identifier: .gregorian); utc.timeZone = TimeZone(identifier: "UTC")!
+        let date = { (day: Int) in utc.date(from: DateComponents(year: 2026, month: 11, day: day))! }
+        XCTAssertEqual(DateText.long(date(2), calendar: utc), "Monday, November 2nd")
+        XCTAssertEqual(DateText.long(date(11), calendar: utc), "Wednesday, November 11th")
+        XCTAssertEqual(DateText.long(date(21), calendar: utc), "Saturday, November 21st")
+        XCTAssertEqual(DateText.long(date(23), calendar: utc), "Monday, November 23rd")
+    }
     func testQuickAddSaverMatchesQuickAddRules() throws {
         let context = ModelContext(try Persistence.makeContainer(inMemory: true))
         try QuickAddSaver.save(QuickAdd.parse("stretch weekdays 7am"), in: context)

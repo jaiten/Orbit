@@ -97,7 +97,7 @@ struct TodayView: View {
 
     /// The daily heading stays above the plan.
     private var header: some View {
-        PageHeader(eyebrow: day.formatted(.dateTime.weekday(.wide).month(.wide).day()), title: "Today",
+        PageHeader(eyebrow: DateText.long(day), title: "Today",
                    subtitle: "") {
             Button { showSettings = true } label: { Image(systemName: "gearshape").font(.system(size: 17)).frame(width: 44, height: 44) }.accessibilityLabel("Settings")
         }

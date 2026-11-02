@@ -85,8 +85,8 @@ function renderSchedule(tasks) {
   const start = dayView ? calendarDay : OrbitHabits.weekStartKey(calendarDay, weekStart);
   const days = Array.from({ length: dayView ? 1 : 7 }, (_, index) => OrbitHabits.addDays(start, index));
   const items = tasks.filter((task) => days.includes(taskDate(task)));
-  const open = items.filter((task) => !task.completedAt),
-    complete = items.filter((task) => task.completedAt);
+  // Completed tasks stay out of the week and day views, so the page never scrolls past the grid.
+  const open = items.filter((task) => !task.completedAt);
   const date = localDay(calendarDay),
     title = dayView
       ? date.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })
@@ -103,7 +103,7 @@ function renderSchedule(tasks) {
   const untimed = days
     .map(
       (key) =>
-        `<div class="schedule-all-day-column"><button class="schedule-all-day-add" data-add-day="${key}" aria-label="Add an untimed task on ${key}">${chevron("M12 5v14M5 12h14")}</button>${open
+        `<div class="schedule-all-day-column" data-anytime-day="${key}"><button class="schedule-all-day-add" data-add-day="${key}" aria-label="Add an untimed task on ${key}">${chevron("M12 5v14M5 12h14")}</button>${open
           .filter((task) => taskDate(task) === key && !task.hasTime)
           .map(
             (task) =>
@@ -130,7 +130,7 @@ function renderSchedule(tasks) {
       return `<div class="schedule-day"><div class="schedule-slots">${slots}</div>${blocks}</div>`;
     })
     .join("");
-  return `<div class="calendar-page timeline-page">${calendarHeader(title, subtitle)}<div id="calendar-timeline" class="calendar-timeline"><div class="schedule-header time-grid"><span></span>${headings}</div><div class="schedule-all-day time-grid"><span class="time-axis-label">Any time</span>${untimed}</div><div id="anytime-resizer" class="anytime-resizer" role="separator" aria-label="Anytime section height" aria-orientation="horizontal" tabindex="0" aria-valuemin="0" aria-valuemax="240"><span></span></div><div class="schedule-hours time-grid"><div class="time-axis">${axis}</div>${columns}</div></div>${calendarCompleted(complete)}<div class="capture-dock">${addField("Add a task for " + date.toLocaleDateString([], { month: "short", day: "numeric" }))}</div></div>`;
+  return `<div class="calendar-page timeline-page">${calendarHeader(title, subtitle)}<div id="calendar-timeline" class="calendar-timeline"><div class="schedule-header time-grid"><span></span>${headings}</div><div class="schedule-all-day time-grid"><span class="time-axis-label">Any time</span>${untimed}</div><div id="anytime-resizer" class="anytime-resizer" role="separator" aria-label="Anytime section height" aria-orientation="horizontal" tabindex="0" aria-valuemin="0" aria-valuemax="240"><span></span></div><div class="schedule-hours time-grid"><div class="time-axis">${axis}</div>${columns}</div></div><div class="capture-dock">${addField("Add a task for " + date.toLocaleDateString([], { month: "short", day: "numeric" }))}</div></div>`;
 }
 function bindCalendar() {
   if ($("#calendar-completed"))
@@ -154,9 +154,39 @@ function bindCalendar() {
     };
     button.ondblclick = () => openQuickAdd({ defaultDate: button.dataset.day, listID: null });
   });
-  document
-    .querySelectorAll("[data-add-day]")
-    .forEach((button) => (button.onclick = () => openTask(null, button.dataset.addDay)));
+  // Clicking an empty spot in Any time (or its +) starts typing a task for that day; Return adds it,
+  // Escape or clicking away cancels.
+  const typeAnytime = (column) => {
+    if (column.querySelector(".anytime-input")) return column.querySelector(".anytime-input").focus();
+    const input = document.createElement("input");
+    input.className = "anytime-input";
+    input.placeholder = "New task";
+    input.setAttribute("aria-label", "New task on " + column.dataset.anytimeDay);
+    input.maxLength = 500;
+    column.append(input);
+    input.focus();
+    // Leaving the field lets any queued render (including the new task) through.
+    const finish = () => input.remove();
+    input.onkeydown = (event) => {
+      if (event.key === "Escape") finish();
+      if (event.key !== "Enter" || event.isComposing) return;
+      event.preventDefault();
+      const result = parseCapture(input.value, column.dataset.anytimeDay);
+      if (!result.title) return finish();
+      quickContext = { defaultDate: column.dataset.anytimeDay, listID: null };
+      const records = quickRecords(result);
+      finish();
+      void action(() => (records.habit ? api.batch(records.changes) : saveTasks([records.task], records.extra)));
+    };
+    input.onblur = () => setTimeout(finish, 0);
+  };
+  document.querySelectorAll("[data-anytime-day]").forEach((column) => {
+    column.onclick = (event) => {
+      if (event.target.closest(".schedule-anytime, .anytime-input")) return;
+      event.preventDefault();
+      typeAnytime(column);
+    };
+  });
   document.querySelectorAll("[data-time-slot]").forEach(
     (button) =>
       (button.onclick = () => {

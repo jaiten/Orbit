@@ -11,7 +11,7 @@ struct TodayItem: Identifiable {
 struct TileMove { let title: String; let action: () -> Void; var options: [TileMove] = [] }
 
 /// Tasks and habits share the same controls: the check logs progress; the title opens details.
-/// Overdue tasks show Today / Someday / Category. A left swipe reveals Delete.
+/// Overdue tasks show Today / Tomorrow / Someday / Category. A left swipe reveals Delete.
 struct CheckTile: View {
     let title: String
     let subtitle: String
@@ -225,7 +225,9 @@ struct TaskRow: View {
                     TileMove(title: "Not now") { suggestTimer = false }]
         }
         guard overdue else { return [] }
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: .now) ?? .now
         var result = [TileMove(title: "Today") { change { TodayRules.moveToDay(task, day: .now); try Mutations.save(context) } },
+                      TileMove(title: "Tomorrow") { change { TodayRules.moveToDay(task, day: tomorrow); try Mutations.save(context) } },
                       TileMove(title: "Someday") { change { try TodayRules.moveToSomeday(task, in: context); try Mutations.save(context) } }]
         if !categories.isEmpty {
             result.append(TileMove(title: "Category", action: {}, options: categories.map { list in

@@ -46,6 +46,14 @@ function taskDate(t) {
 }
 const SOMEDAY = OrbitPlanner.SOMEDAY_LIST_ID;
 const today = () => dayKey(new Date());
+const tomorrow = () => OrbitHabits.addDays(today(), 1);
+/** "Monday, November 2nd", as on iPhone (DateText.long). */
+function longDate(key) {
+  const date = localDay(key),
+    day = date.getDate();
+  const suffix = day % 100 >= 11 && day % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][day % 10] || "th";
+  return date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }) + suffix;
+}
 function planItem(t) {
   return {
     day: taskDate(t) || null,
@@ -346,7 +354,7 @@ function taskRow(t) {
       : "";
   const moves = overdue
     ? `<div class="row-pills" role="group" aria-label="Move ${title}">
-        <button class="pill" data-today="${id}">Today</button><button class="pill" data-someday="${id}">Someday</button>${
+        <button class="pill" data-today="${id}">Today</button><button class="pill" data-tomorrow="${id}">Tomorrow</button><button class="pill" data-someday="${id}">Someday</button>${
           taskCategories().length
             ? macPicker(`overdue-move-${id}`, `Move ${t.title} to a category`, categoryOptions(), "", {
                 placeholder: "Category",
@@ -577,6 +585,7 @@ function bindTiles() {
     );
   move("today", (t) => OrbitPlanner.moveToDay(t, today()));
   move("someday", (t) => OrbitPlanner.moveToSomeday(t));
+  move("tomorrow", (t) => OrbitPlanner.moveToDay(t, tomorrow()));
 }
 
 // Focus timer: one at a time, kept across restarts. Finishing shows a Windows notification.
@@ -673,8 +682,13 @@ function openRowMenu(e) {
       entries.push(["Mark in progress", () => action(() => put("tasks", OrbitPlanner.setProgress(item, true, true)))]);
     if (focusTimer?.taskID === id) entries.push(["Stop timer", () => stopTimer()]);
     else if (!item.completedAt)
-      for (const [minutes, label] of timerOptions(item))
-        entries.push([`Start ${label} timer`, () => startTimer(id, Number(minutes))]);
+      entries.push([
+        "Start a timer",
+        null,
+        timerOptions(item).map(([minutes, label]) => [label, () => startTimer(id, Number(minutes))]),
+      ]);
+    if (!item.completedAt && taskDate(item) !== tomorrow())
+      entries.push(["Do tomorrow", () => action(() => saveTasks([OrbitPlanner.moveToDay(item, tomorrow())]))]);
     entries.push(["Make it a Note", () => action(() => put("tasks", taskToNote(item)))]);
   }
   if (kind === "task" || kind === "note") entries.push(["Delete", () => action(() => put("tasks", item, true))]);
@@ -686,17 +700,50 @@ function openRowMenu(e) {
     menu.setAttribute("role", "menu");
     document.body.append(menu);
   }
+  // An entry is [label, run] or [label, null, children]: a submenu that opens on hover or →.
+  const menuButton = (label, run) => {
+    const button = document.createElement("button");
+    button.setAttribute("role", "menuitem");
+    button.textContent = label;
+    if (label === "Delete") button.classList.add("danger");
+    button.onclick = () => {
+      closeRowMenu();
+      void Promise.resolve(run()).catch((error) => showNotice(error.message));
+    };
+    return button;
+  };
   menu.replaceChildren(
-    ...entries.map(([label, run]) => {
-      const button = document.createElement("button");
-      button.setAttribute("role", "menuitem");
-      button.textContent = label;
-      if (label === "Delete") button.classList.add("danger");
-      button.onclick = () => {
-        closeRowMenu();
-        void Promise.resolve(run()).catch((error) => showNotice(error.message));
+    ...entries.map(([label, run, children]) => {
+      if (!children) return menuButton(label, run);
+      const group = document.createElement("div");
+      group.className = "row-menu-group";
+      const parent = document.createElement("button");
+      parent.setAttribute("role", "menuitem");
+      parent.setAttribute("aria-haspopup", "menu");
+      parent.className = "row-menu-parent";
+      parent.textContent = label;
+      parent.setAttribute("aria-label", label);
+      const submenu = document.createElement("div");
+      submenu.className = "row-submenu";
+      submenu.setAttribute("role", "menu");
+      submenu.setAttribute("aria-label", label);
+      submenu.replaceChildren(...children.map(([childLabel, childRun]) => menuButton(childLabel, childRun)));
+      const openSubmenu = () => submenu.querySelector("button")?.focus({ preventScroll: true });
+      parent.onclick = openSubmenu;
+      parent.onkeydown = (event) => {
+        if (event.key === "ArrowRight") {
+          event.preventDefault();
+          openSubmenu();
+        }
       };
-      return button;
+      submenu.onkeydown = (event) => {
+        if (event.key === "ArrowLeft") {
+          event.preventDefault();
+          parent.focus();
+        }
+      };
+      group.append(parent, submenu);
+      return group;
     }),
   );
   const box = e.currentTarget.getBoundingClientRect();
@@ -705,6 +752,7 @@ function openRowMenu(e) {
   menu.hidden = false;
   menu.style.left = Math.min(x, window.innerWidth - menu.offsetWidth - 8) + "px";
   menu.style.top = Math.min(y, window.innerHeight - menu.offsetHeight - 8) + "px";
+  menu.classList.toggle("submenu-left", menu.getBoundingClientRect().right + 160 > window.innerWidth);
   menu.querySelector("button").focus({ preventScroll: true });
   rowMenuScrollPosition = { x: scrollX, y: scrollY };
 }

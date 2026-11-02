@@ -20,6 +20,9 @@ struct TaskActions: ViewModifier {
                 }
                 Button("Send to calendar", systemImage: "calendar.badge.plus") { Task { do { calendarDraft = try await CalendarBridge.shared.draft(for: task) } catch { self.error = error.localizedDescription } } }
                 Button("Add to Today", systemImage: "sun.max") { change { TodayRules.moveToDay(task, day: .now); try Mutations.save(context) } }
+                if task.completedAt == nil, let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: .now), task.day != PlannerLogic.dayKey(tomorrow) {
+                    Button("Do Tomorrow", systemImage: "sunrise") { change { TodayRules.moveToDay(task, day: tomorrow); try Mutations.save(context) } }
+                }
                 if task.listID != TodayRules.somedayID {
                     Button("Move to Someday", systemImage: "moon.zzz") { change { try TodayRules.moveToSomeday(task, in: context); try Mutations.save(context) } }
                 }

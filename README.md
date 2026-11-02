@@ -49,8 +49,10 @@ opens direct drag-and-drop editing: every panel, including tasks, can move betwe
 columns or above the task list. Today always shows the current day on both apps; Recent
 progress shows the last seven days, and earlier days are reviewed in Calendar. Habits on
 Today log with one click anywhere on the row. A menu hides or shows completed tasks.
-Overdue tasks move to Today, Someday or one of your categories, one at a time or all
-together. The calendar button beside the writing bar opens the full task editor. Tasks is
+Overdue tasks move to Today, Tomorrow, Someday or one of your categories, one at a time
+(Today, Someday or a category also all together). Touch and hold (right-click on Windows) any
+open task for **Do Tomorrow** and a timer of a chosen length. On Windows, clicking an empty spot
+in Calendar's Any time row starts typing a task for that day, and pages widen with the window. The calendar button beside the writing bar opens the full task editor. Tasks is
 grouped the same on both apps: Someday first, then tasks without a category by Overdue /
 Today / Upcoming, then each category. A new task with no category takes the category of
 earlier tasks with similar titles, shown in the chip before saving

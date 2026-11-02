@@ -884,6 +884,44 @@ const fs = require("node:fs");
     ),
     false,
   );
+  // Right-click: Start a timer opens a submenu of lengths; Do tomorrow moves the task.
+  await p.keyboard.press("Control+1");
+  await p.locator("#inline-task-input").fill("Submenu task");
+  await p.locator("#inline-task-input").press("Enter");
+  const menuRow = p.locator(".task-row").filter({ hasText: "Submenu task" });
+  await menuRow.click({ button: "right" });
+  await p.getByRole("menuitem", { name: "Start a timer", exact: true }).hover();
+  await p.getByRole("menuitem", { name: "1 hour", exact: true }).click();
+  await p.waitForFunction(() => JSON.parse(localStorage.getItem("focusTimer") || "null")?.title === "Submenu task");
+  await p.waitForFunction(() => {
+    const timer = JSON.parse(localStorage.getItem("focusTimer"));
+    return Math.round((timer.endsAt - timer.startedAt) / 60000) === 60;
+  });
+  await menuRow.click({ button: "right" });
+  await p.getByRole("menuitem", { name: "Stop timer", exact: true }).click();
+  await menuRow.click({ button: "right" });
+  await p.getByRole("menuitem", { name: "Do tomorrow", exact: true }).click();
+  await p.waitForFunction(async () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return (await window.orbit.read()).records.some(
+      (r) => r.payload.title === "Submenu task" && r.payload.localDate === d.toLocaleDateString("en-CA"),
+    );
+  });
+  // Clicking an empty spot in Any time starts typing a task for that day.
+  await p.keyboard.press("Control+2");
+  await p.locator('[data-scope="week"]').click();
+  await p
+    .locator(".schedule-all-day-column")
+    .first()
+    .click({ position: { x: 30, y: 45 } });
+  await p.keyboard.type("Typed in any time");
+  await p.keyboard.press("Enter");
+  await p.waitForFunction(async () =>
+    (await window.orbit.read()).records.some((r) => r.payload.title === "Typed in any time" && r.payload.localDate),
+  );
+  assert.equal(await p.locator("#calendar-completed").count(), 0, "Week view has no completed list below the grid");
+  await p.locator('[data-scope="month"]').click();
   // After the first days, sidebar shortcut labels show only while Ctrl is held.
   await p.evaluate(() => localStorage.setItem("visitDays", "9"));
   await p.reload();

@@ -4697,3 +4697,93 @@ body:is([data-view="history"], [data-view="habit-history"]) .page-head {
     display: none;
   }
 }
+/* Right-click submenus (Start a timer → lengths) open beside their item on hover or focus. */
+.row-menu-group {
+  position: relative;
+  display: grid;
+}
+.row-menu-parent::after {
+  content: "›";
+  float: right;
+  margin-left: 16px;
+  opacity: 0.7;
+}
+.row-submenu {
+  position: absolute;
+  top: -4px;
+  left: calc(100% + 4px);
+  display: none;
+  min-width: 140px;
+  padding: 4px;
+  border-radius: var(--radius-input);
+  background: var(--surface);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--line) 60%, transparent),
+    0 12px 32px rgb(0 0 0 / 0.18);
+}
+.row-menu-group:hover .row-submenu,
+.row-menu-group:focus-within .row-submenu {
+  display: grid;
+}
+.row-menu.submenu-left .row-submenu {
+  left: auto;
+  right: calc(100% + 4px);
+}
+/* The in-progress ring in Any time matches the plain tick there. */
+.schedule-anytime .progress-tick {
+  width: 10px;
+  height: 10px;
+}
+/* Typing straight into Any time after clicking an empty spot. */
+.schedule-all-day-column input.anytime-input {
+  margin: 1px 0;
+  outline: none;
+  box-shadow: none;
+  width: 100%;
+  min-height: 0;
+  height: 23px;
+  padding: 2px 6px;
+  border: 1px solid var(--accent-text);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 11px;
+}
+/* Window-scaled widths. Pages keep a comfortable minimum and grow with the window: a maximized
+   window gets wider columns, a wider writing bar and larger gutters instead of empty edges. */
+:root {
+  --content-inset: clamp(24px, 2.6vw, 64px);
+  --page-wide: clamp(720px, calc(100vw - var(--sidebar-width) - 2 * var(--content-inset)), 1840px);
+  --page-list: clamp(720px, 72vw, 1440px);
+  --side-column: clamp(300px, 22vw, 440px);
+  --capture-width: clamp(560px, 46vw, 1040px);
+}
+:root[data-sidebar-closed="true"] {
+  --content-inset: clamp(54px, 3.4vw, 80px);
+}
+.today-layout,
+body[data-view="today"] .today-layout,
+.calendar-page,
+:root[data-view="calendar"] .calendar-page {
+  max-width: var(--page-wide);
+}
+.today-board {
+  grid-template-columns: minmax(0, 1fr) var(--side-column);
+}
+.narrow,
+.narrow.wide {
+  max-width: var(--page-list);
+}
+.notes-overview {
+  max-width: var(--page-list);
+}
+.note-page {
+  max-width: clamp(760px, 48vw, 960px);
+}
+@media (min-width: 1101px) {
+  .cal-layout {
+    grid-template-columns: minmax(0, 1fr) var(--side-column);
+  }
+  .calendar-page > .capture-dock {
+    width: calc(var(--page-wide) - var(--side-column) - var(--space-xl));
+  }
+}
