@@ -492,6 +492,67 @@ const fs = require("node:fs");
   assert.equal(await p.locator("#main-pane-grip").getAttribute("aria-valuenow"), "258");
   assert.equal(await p.locator("#notes-pane-grip").getAttribute("aria-valuenow"), "296");
   assert.equal(await p.evaluate(() => window.noteFieldBeforeResize === document.querySelector("#note-body")), true);
+  // A long title must ellipsize inside the note pane, and reveal more as the pane grows.
+  const previousNoteTitle = await p.locator("#note-title").inputValue();
+  const longNoteTitle = "An intentionally long note title with enough words to overflow even the widest note sidebar";
+  await p.locator("#note-title").fill(longNoteTitle);
+  await p.getByRole("button", { name: "Change note icon", exact: true }).click();
+  const iconPicker = p.getByRole("dialog", { name: "Note icon", exact: true });
+  assert.equal(await iconPicker.locator("[data-pick-note-icon]").count(), 24);
+  await iconPicker.getByRole("button", { name: "Book", exact: true }).click();
+  await p.waitForFunction(async () =>
+    (await window.orbit.read()).records.some((record) => record.payload.noteIcon === "book.closed"),
+  );
+  const noteRow = p.locator(".notes-nav-page", { hasText: longNoteTitle }).first();
+  await noteRow.waitFor();
+  const editedNoteID = await noteRow.getAttribute("data-open-note");
+  assert.equal(await noteRow.getAttribute("title"), longNoteTitle);
+  assert.equal(await noteRow.locator(".doc-icon").getAttribute("data-note-icon"), "book.closed");
+  const noteGrip = p.locator("#notes-pane-grip");
+  await noteGrip.press("Home");
+  for (let i = 0; i < 5; i++) await noteGrip.press("ArrowLeft");
+  const narrowTitle = await noteRow.locator(".notes-nav-title").evaluate((title) => {
+    const nav = title.closest(".notes-nav").getBoundingClientRect();
+    const row = title.closest(".notes-nav-page").getBoundingClientRect();
+    return {
+      width: title.clientWidth,
+      clipped: title.scrollWidth > title.clientWidth,
+      overflow: getComputedStyle(title).textOverflow,
+      fits: row.right <= nav.right && title.getBoundingClientRect().right < nav.right,
+    };
+  });
+  assert.equal(narrowTitle.overflow, "ellipsis");
+  assert.equal(narrowTitle.clipped, true);
+  assert.equal(narrowTitle.fits, true, "The title and its ellipsis stay inside the sidebar");
+  for (let i = 0; i < 14; i++) await noteGrip.press("ArrowRight");
+  const wideTitle = await noteRow.locator(".notes-nav-title").evaluate((title) => title.clientWidth);
+  assert.ok(wideTitle > narrowTitle.width + 100, "A wider sidebar reveals more of the title");
+  // Restore the pane's earlier width (296px), then check icon-only edits and reopening.
+  await noteGrip.press("Home");
+  for (let i = 0; i < 3; i++) await noteGrip.press("ArrowRight");
+  await p.locator("#note-title").fill(previousNoteTitle);
+  await p.getByRole("button", { name: "Change note icon", exact: true }).click();
+  await iconPicker.getByRole("button", { name: "Fire", exact: true }).click();
+  await p.waitForFunction(async () =>
+    (await window.orbit.read()).records.some((record) => record.payload.noteIcon === "flame"),
+  );
+  await p.getByRole("button", { name: "Back to notes", exact: true }).click();
+  await p.locator(`.notes-nav-page[data-open-note="${editedNoteID}"]`).first().click();
+  assert.equal(await p.locator("#change-note-icon .doc-icon").getAttribute("data-note-icon"), "flame");
+  assert.equal(await p.locator("#note-body").evaluate((field) => field.value), noteBody);
+  await p.getByRole("button", { name: "Change note icon", exact: true }).click();
+  await p.keyboard.press("Escape");
+  assert.equal(await iconPicker.isVisible(), false);
+  assert.equal(await p.locator("#change-note-icon .doc-icon").getAttribute("data-note-icon"), "flame");
+  await p.getByRole("button", { name: "Change note icon", exact: true }).click();
+  await iconPicker.getByRole("button", { name: "Document", exact: true }).click();
+  await p.waitForFunction(
+    async (id) =>
+      (await window.orbit.read()).records.some(
+        (record) => record.payload.id === id && record.payload.noteIcon === null,
+      ),
+    editedNoteID,
+  );
   await p.getByRole("button", { name: "Hide note list", exact: true }).click();
   assert.equal(await p.locator(".notes-nav").isVisible(), false);
   await p.getByRole("button", { name: "Show note list", exact: true }).click();

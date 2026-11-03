@@ -9,10 +9,14 @@ let searchQuery = "",
   noteID = null,
   noteSection = null,
   notePhotoDraft = [],
+  noteIconDraft = "doc.text",
   notePageToken = 0,
   noteDisplayedEdited = null;
-const docIcon =
-  '<svg class="doc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>';
+function noteGlyph(value) {
+  const choice = OrbitNotes.resolveIcon(value);
+  return `<svg class="doc-icon" data-note-icon="${choice.id}" viewBox="0 0 24 24" aria-hidden="true"><path d="${choice.path}"/></svg>`;
+}
+const docIcon = noteGlyph(null);
 const icon = (d) => `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
 const ICONS = {
   compose: "M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z",
@@ -194,7 +198,7 @@ function notesNav() {
                 items
                   .map(
                     (n) =>
-                      `<button class="notes-nav-page ${n.id === openID ? "selected" : ""}" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" data-search="${esc([n.title, n.notes].join(" ").toLowerCase())}">${docIcon}<span>${esc(noteDisplayTitle(n))}</span></button>`,
+                      `<button class="notes-nav-page ${n.id === openID ? "selected" : ""}" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" title="${esc(noteDisplayTitle(n))}" data-search="${esc([n.title, n.notes].join(" ").toLowerCase())}">${noteGlyph(n.noteIcon)}<span class="notes-nav-title">${esc(noteDisplayTitle(n))}</span></button>`,
                   )
                   .join("") || `<p class="notes-nav-empty">No pages</p>`
               }</div>`
@@ -219,7 +223,7 @@ function notesNav() {
             .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
             .map(
               (n) =>
-                `<button class="notes-nav-page ${n.id === openID ? "selected" : ""}" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" data-search="${esc([n.title, n.notes].join(" ").toLowerCase())}">${docIcon}<span>${esc(noteDisplayTitle(n))}</span></button>`,
+                `<button class="notes-nav-page ${n.id === openID ? "selected" : ""}" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" title="${esc(noteDisplayTitle(n))}" data-search="${esc([n.title, n.notes].join(" ").toLowerCase())}">${noteGlyph(n.noteIcon)}<span class="notes-nav-title">${esc(noteDisplayTitle(n))}</span></button>`,
             )
             .join("")}</div>`
         : ""
@@ -232,8 +236,8 @@ function notesNav() {
 function noteCard(n) {
   const snippet = OrbitNotes.snippet(n.notes);
   const search = [n.title, n.notes].join(" ").toLowerCase();
-  return `<button class="note-card" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" data-search="${esc(search)}">
-    <span class="note-card-title">${docIcon}<span>${esc(noteDisplayTitle(n))}</span></span>
+  return `<button class="note-card" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" title="${esc(noteDisplayTitle(n))}" data-search="${esc(search)}">
+    <span class="note-card-title">${noteGlyph(n.noteIcon)}<span>${esc(noteDisplayTitle(n))}</span></span>
     <span class="note-card-text">${esc(snippet) || '<span class="muted">Empty page</span>'}</span>
     <span class="note-card-meta">${esc(n.listID ? sectionName(n.listID) : "All")} · ${esc(edited(n))}</span>
   </button>`;
@@ -273,6 +277,8 @@ function openNote(id, section = null, title = "") {
   notePageToken++;
   noteDisplayedEdited = notes().find((n) => n.id === id)?.updatedAt || null;
   notePhotoDraft = [...(notes().find((n) => n.id === id)?.photos || pendingNotes.get(id)?.photos || [])];
+  const opened = notes().find((n) => n.id === id) || pendingNotes.get(id);
+  noteIconDraft = OrbitNotes.resolveIcon(opened?.noteIcon).id;
   noteID = id;
   if (id) {
     lastNoteID = id;
@@ -330,7 +336,16 @@ function renderNoteEditor() {
         ${note ? `<button class="icon-button" data-note-to-task aria-label="Make it a Task" title="Make it a Task">${icon(ICONS.task)}</button><button class="icon-button danger" data-delete-note aria-label="Delete note" title="Delete note">${icon(ICONS.trash)}</button>` : ""}
       </div>
       <article class="note-page">
-        <div class="note-glyph">${docIcon}</div>
+        <button type="button" class="note-glyph" id="change-note-icon" aria-label="Change note icon" aria-haspopup="dialog" title="Change note icon (${esc(OrbitNotes.resolveIcon(noteIconDraft).name)})">${noteGlyph(noteIconDraft)}</button>
+        <dialog id="note-icon-picker" aria-labelledby="note-icon-picker-title">
+          <header><h2 id="note-icon-picker-title">Note icon</h2><button type="button" class="icon-button" data-close-note-icons aria-label="Close icon picker">${icon("m6 6 12 12M6 18 18 6")}</button></header>
+          <div class="note-icon-options">${OrbitNotes.icons
+            .map(
+              (choice) =>
+                `<button type="button" data-pick-note-icon="${choice.id}" aria-label="${esc(choice.name)}" title="${esc(choice.name)}" aria-pressed="${choice.id === noteIconDraft}">${noteGlyph(choice.id)}</button>`,
+            )
+            .join("")}</div>
+        </dialog>
         <textarea id="note-title" class="note-title-input" rows="1" maxlength="500" placeholder="Untitled" aria-label="Note title" spellcheck="true">${esc(titleValue)}</textarea>
         <dl class="note-props">
           <div><dt>${icon("M3 7h18M3 12h18M3 17h12")}Section</dt><dd><select id="note-section" aria-label="Section">${options}</select></dd></div>
@@ -360,6 +375,7 @@ function saveNote(rethrow = false) {
     title,
     notes: text,
     photos: [...notePhotoDraft],
+    noteIcon: noteIconDraft === "doc.text" ? null : noteIconDraft,
     listID: $("#note-section").value || null,
     updatedAt: Date.now(),
   };
@@ -372,6 +388,7 @@ function saveNote(rethrow = false) {
         current &&
         current.title === snapshot.title &&
         current.notes === snapshot.notes &&
+        (current.noteIcon || null) === snapshot.noteIcon &&
         JSON.stringify(current.photos || []) === JSON.stringify(snapshot.photos || []) &&
         (current.listID || null) === snapshot.listID
       )
@@ -391,11 +408,53 @@ function leaveNote(section) {
   noteID = null;
   render();
 }
+function bindNoteIcons() {
+  const trigger = $("#change-note-icon"),
+    picker = $("#note-icon-picker");
+  const buttons = [...picker.querySelectorAll("[data-pick-note-icon]")];
+  trigger.onclick = () => {
+    openDialog(picker);
+    (buttons.find((button) => button.dataset.pickNoteIcon === noteIconDraft) || buttons[0]).focus();
+  };
+  picker.querySelector("[data-close-note-icons]").onclick = () => picker.close();
+  picker.addEventListener("close", () => $("#change-note-icon")?.focus());
+  picker.onclick = (event) => {
+    if (event.target === picker) picker.close();
+  };
+  buttons.forEach((button, index) => {
+    button.onclick = () => {
+      noteIconDraft = OrbitNotes.resolveIcon(button.dataset.pickNoteIcon).id;
+      trigger.innerHTML = noteGlyph(noteIconDraft);
+      trigger.title = "Change note icon (" + OrbitNotes.resolveIcon(noteIconDraft).name + ")";
+      buttons.forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+      document.querySelectorAll(".notes-nav-page, .note-card").forEach((row) => {
+        if (row.dataset.openNote === noteID) row.querySelector(".doc-icon").outerHTML = noteGlyph(noteIconDraft);
+      });
+      picker.close();
+      void saveNote();
+    };
+    button.onkeydown = (event) => {
+      const steps = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 5, ArrowUp: -5 };
+      if (!(event.key in steps) && !["Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const next =
+        event.key === "Home"
+          ? 0
+          : event.key === "End"
+            ? buttons.length - 1
+            : (index + steps[event.key] + buttons.length) % buttons.length;
+      buttons[next].focus();
+    };
+  });
+}
+
 function bindNoteEditor() {
   if (!$("#note-title")) return;
   OrbitNoteDocument.bind($("#note-body"));
   resizeNoteFields();
   bindNotePhotos();
+  bindNoteIcons();
   const later = () => {
     resizeNoteFields();
     clearTimeout(noteSaveTimer);

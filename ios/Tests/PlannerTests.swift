@@ -83,8 +83,8 @@ import UIKit
     }
 
     func testNoteIconChoicesAreDistinctSupportedAndHaveASafeDefault() {
-        XCTAssertEqual(NoteIcons.choices.count, 20)
-        XCTAssertEqual(Set(NoteIcons.choices.map(\.symbol)).count, 20)
+        XCTAssertGreaterThanOrEqual(NoteIcons.choices.count, 20)
+        XCTAssertEqual(Set(NoteIcons.choices.map(\.symbol)).count, NoteIcons.choices.count)
         for choice in NoteIcons.choices { XCTAssertNotNil(UIImage(systemName: choice.symbol), choice.name) }
         XCTAssertEqual(NoteIcons.symbol(nil), "doc.text")
         XCTAssertEqual(NoteIcons.symbol("unknown-icon"), "doc.text")

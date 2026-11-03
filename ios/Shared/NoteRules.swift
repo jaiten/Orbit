@@ -18,7 +18,9 @@ enum NoteIcons {
         .init(symbol: "leaf", name: "Leaf"), .init(symbol: "sun.max", name: "Sun"),
         .init(symbol: "moon", name: "Moon"), .init(symbol: "cup.and.saucer", name: "Coffee"),
         .init(symbol: "airplane", name: "Travel"), .init(symbol: "map", name: "Map"),
-        .init(symbol: "music.note", name: "Music"), .init(symbol: "gift", name: "Gift")
+        .init(symbol: "music.note", name: "Music"), .init(symbol: "gift", name: "Gift"),
+        .init(symbol: "camera", name: "Camera"), .init(symbol: "globe", name: "Globe"),
+        .init(symbol: "flame", name: "Fire"), .init(symbol: "paintpalette", name: "Art")
     ]
     static func symbol(_ value: String?) -> String { choices.first { $0.symbol == value }?.symbol ?? defaultSymbol }
     static func name(_ value: String) -> String { choices.first { $0.symbol == value }?.name ?? "Document" }

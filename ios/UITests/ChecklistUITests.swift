@@ -342,7 +342,7 @@ final class ChecklistUITests: XCTestCase {
         app.buttons["Done"].firstMatch.tap()
         app.buttons["Change note icon"].tap()
         XCTAssertTrue(app.navigationBars["Note icon"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "note-icon-")).count, 20)
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "note-icon-")).count, 24)
         app.buttons["note-icon-book.closed"].tap()
         XCTAssertEqual(app.buttons["Change note icon"].value as? String, "Book")
         body.tap()
