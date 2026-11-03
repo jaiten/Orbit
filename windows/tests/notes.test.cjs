@@ -14,11 +14,17 @@ test("note icons use the same preset IDs on Windows and iOS", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const swift = fs.readFileSync(path.join(__dirname, "../../ios/Shared/NoteRules.swift"), "utf8");
-  const ids = [...swift.matchAll(/\.init\(symbol: "([^"]+)"/g)].map((match) => match[1]);
-  assert.ok(OrbitNotes.icons.length >= 20);
-  assert.deepEqual(OrbitNotes.icons.map((choice) => choice.id), ids);
-  assert.equal(new Set(OrbitNotes.icons.map((choice) => choice.path)).size, OrbitNotes.icons.length);
-  for (const choice of OrbitNotes.icons) assert.equal(OrbitNotes.resolveIcon(choice.id), choice);
+  const iosIDs = [];
+  for (const match of swift.matchAll(/\.init\(symbol: "([^"]+)"/g)) iosIDs.push(match[1]);
+  const windowsIDs = OrbitNotes.icons.map((choice) => choice.id);
+  assert.ok(windowsIDs.length >= 20);
+  assert.deepEqual(windowsIDs, iosIDs);
+  const paths = new Set();
+  for (const choice of OrbitNotes.icons) {
+    paths.add(choice.path);
+    assert.equal(OrbitNotes.resolveIcon(choice.id), choice);
+  }
+  assert.equal(paths.size, windowsIDs.length);
 });
 
 test("older notes and unknown icon IDs keep the document icon", () => {

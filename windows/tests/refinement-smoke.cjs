@@ -503,7 +503,7 @@ const fs = require("node:fs");
   await p.waitForFunction(async () =>
     (await window.orbit.read()).records.some((record) => record.payload.noteIcon === "book.closed"),
   );
-  const noteRow = p.locator(".notes-nav-page").filter({ hasText: longNoteTitle }).first();
+  const noteRow = p.locator(".notes-nav-page", { hasText: longNoteTitle }).first();
   await noteRow.waitFor();
   const editedNoteID = await noteRow.getAttribute("data-open-note");
   assert.equal(await noteRow.getAttribute("title"), longNoteTitle);
@@ -548,7 +548,9 @@ const fs = require("node:fs");
   await iconPicker.getByRole("button", { name: "Document", exact: true }).click();
   await p.waitForFunction(
     async (id) =>
-      (await window.orbit.read()).records.some((record) => record.payload.id === id && record.payload.noteIcon === null),
+      (await window.orbit.read()).records.some(
+        (record) => record.payload.id === id && record.payload.noteIcon === null,
+      ),
     editedNoteID,
   );
   await p.getByRole("button", { name: "Hide note list", exact: true }).click();
