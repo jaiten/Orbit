@@ -377,7 +377,7 @@ struct NoteEditor: View {
         .onChange(of: section) { _, _ in if loaded { save() } }
         .onChange(of: icon) { _, _ in if loaded { save() } }
         .sheet(isPresented: $choosingIcon) {
-            NoteIconPicker(selection: $icon).presentationDetents([.height(380), .medium]).presentationDragIndicator(.visible)
+            NoteIconPicker(selection: $icon).presentationDetents([.height(440), .large]).presentationDragIndicator(.visible)
         }
         .onChange(of: text) { old, new in if loaded { photos = NotePhotos.reanchor(photos, from: old, to: new) } }
         // Return in the title moves to the text, as in Notion.
