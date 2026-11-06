@@ -489,13 +489,13 @@ function bindNoteIcons() {
 
 /**
  * The chin: the line being typed never sits at the bottom edge of the window. When the caret comes
- * within a third of the window of the bottom, the page scrolls so there is room below it.
+ * within about a sixth of the window of the bottom, the page scrolls so there is room below it.
  */
 function keepCaretAboveChin() {
   const article = $(".note-page"),
     body = $("#note-body");
   if (!article || !body) return;
-  const chin = Math.max(160, innerHeight * 0.33);
+  const chin = Math.max(96, innerHeight * 0.16);
   // Measure the text itself (the page has a minimum height), in page coordinates.
   const contents = document.createRange();
   contents.selectNodeContents(body);

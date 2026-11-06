@@ -4826,7 +4826,7 @@ body[data-view="today"] .today-layout,
 /* A chin under a long note: you always see the lines you are about to type into. Short notes keep
    no scrollbar. */
 .note-page.with-chin {
-  padding-bottom: max(40vh, 240px);
+  padding-bottom: max(18vh, 120px);
 }
 .note-locked-mark {
   display: inline-flex;

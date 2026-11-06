@@ -237,7 +237,7 @@ const shots = process.env.ORBIT_SCREENSHOT_DIR;
   await p.keyboard.type("Still visible");
   await p.waitForTimeout(500);
   const caretBottom = await p.evaluate(() => getSelection().getRangeAt(0).getBoundingClientRect().bottom);
-  assert.ok(caretBottom < 800 - 150, `caret at ${caretBottom}px should sit above the chin`);
+  assert.ok(caretBottom < 800 - 90, `caret at ${caretBottom}px should sit above the chin`);
   if (shots) await p.screenshot({ path: path.join(shots, "note-chin.png") });
 
   // A long capture on Habits becomes a note too.
