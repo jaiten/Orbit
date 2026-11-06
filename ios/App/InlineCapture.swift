@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 /// Lets global transient controls (Undo) clear the docked capture bar, including Dynamic Type and chips.
 struct CaptureDockHeight: PreferenceKey {
@@ -72,6 +73,7 @@ struct InlineCapture: View {
             VStack(alignment: .leading, spacing: 0) {
                 if noteCard { noteHeader.transition(reduceMotion ? .opacity : .asymmetric(
                     insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity)) }
+                // Icons sit in the middle of the first line however tall the text grows.
                 HStack(alignment: .top, spacing: 8) {
                     Button {
                         if focused { dismissKeyboard() }
@@ -79,7 +81,7 @@ struct InlineCapture: View {
                         else { save() }
                     } label: {
                         // The arrow swaps quickly, so it never lingers after the bar has gone down.
-                        Image(systemName: focused ? "chevron.down" : "plus").font(.system(size: 20)).frame(width: 44, height: 44)
+                        Image(systemName: focused ? "chevron.down" : "plus").font(.system(size: 20)).frame(width: 44, height: lineHeight)
                             .contentTransition(.opacity)
                             .animation(.easeOut(duration: 0.1), value: focused)
                     }.accessibilityLabel(focused ? "Dismiss keyboard" : notesOnly ? "Add a note" : "Add a task").disabled(saving)
@@ -88,13 +90,22 @@ struct InlineCapture: View {
                                      placeholder: notesOnly ? "Write a note" : habitsOnly ? "Add a habit" : "Add a task · gym tomorrow 6pm",
                                      minimumHeight: noteCard ? 110 : 44, maximumLines: noteCard ? 10 : 6, allowsNewlines: noteCard,
                                      textStyle: noteCard ? .body : .title3) { save() }
-                    DictationButton(text: $text)
+                    DictationButton(text: $text).frame(height: lineHeight)
                     if !notesOnly && !noteCard {
-                        Button { options = true } label: { Image(systemName: "calendar.badge.clock").font(.system(size: 20)).frame(width: 44, height: 44) }
+                        Button { options = true } label: { Image(systemName: "calendar").font(.system(size: 20)).frame(width: 44, height: lineHeight) }
                             .accessibilityLabel("Task options").accessibilityHint("Choose a date or list before adding")
                     }
                 }
-            }.padding(.trailing, 6).padding(.vertical, 4).frame(minHeight: 52)
+                if noteCard {
+                    HStack {
+                        Spacer()
+                        Button("Save") { saveNote() }.font(.subheadline.weight(.semibold))
+                            .padding(.horizontal, 16).frame(minHeight: 36)
+                            .background(accent.fill.opacity(0.14), in: Capsule())
+                            .accessibilityIdentifier("save-capture-note")
+                    }.padding(.bottom, 6).transition(.opacity)
+                }
+            }.padding(.trailing, noteCard ? 6 : 0).padding(.vertical, 4).frame(minHeight: 52)
                 .orbitSurface(radius: noteCard ? 18 : CGFloat(DesignTokens.radiusInput))
                 .shadow(color: .black.opacity(noteCard ? 0.14 : 0.06), radius: noteCard ? 24 : 12, y: noteCard ? 8 : 3)
         }.tint(accent.text)
@@ -109,20 +120,33 @@ struct InlineCapture: View {
             } message: { Text(conflicts.joined(separator: ", ")) }
             .modifier(MutationErrorModifier(error: $error))
     }
-    /// Above a capture that has become a note: where it goes, an optional title and Save. Return in the
-    /// text is a new line once it is a note.
+    /// The height of one line of the field, so the icons beside it are centred on the first line.
+    private var lineHeight: CGFloat {
+        max(44, UIFont.preferredFont(forTextStyle: noteCard ? .body : .title3).lineHeight + 22)
+    }
+    /// Above a capture that has become a note: where it goes, an optional title and × to throw it away.
+    /// Save sits at the bottom right. Return in the text is a new line once it is a note.
     private var noteHeader: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack {
                 Label("New note · All notes", systemImage: "square.and.pencil").font(.caption.weight(.medium)).foregroundStyle(.secondary)
                 Spacer()
-                Button("Save") { saveNote() }.font(.subheadline.weight(.semibold)).frame(minHeight: 36)
-                    .accessibilityIdentifier("save-capture-note")
+                // Throws the draft away, for when the keyboard is down and the note isn't wanted.
+                Button { discardNote() } label: {
+                    Image(systemName: "xmark").font(.system(size: 14, weight: .semibold)).foregroundStyle(.secondary)
+                        .frame(width: 32, height: 32).background(Color.secondary.opacity(0.12), in: Circle())
+                        .frame(width: 44, height: 44)
+                }.buttonStyle(.plain).accessibilityLabel("Discard note").accessibilityIdentifier("discard-capture-note")
             }
             TextField("Title", text: $noteTitle).font(.title3.weight(.semibold))
                 .submitLabel(.next).onSubmit { focused = true }
                 .accessibilityIdentifier("capture-note-title")
         }.padding(.leading, 16).padding(.trailing, 4).padding(.top, 8)
+    }
+    private func discardNote() {
+        withAnimation(reduceMotion ? .easeOut(duration: 0.15) : .spring(response: 0.38, dampingFraction: 0.82)) {
+            text = ""; noteTitle = ""
+        }
     }
     private func dismissKeyboard() {
         focused = false

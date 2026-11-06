@@ -167,7 +167,8 @@
           <button type="button" id="save-overlap">Save anyway</button>
         </div>
         <footer>
-          <button type="button" id="move-task" hidden>Make it a Habit</button
+          <button type="button" id="task-to-calendar" hidden>Add to calendar…</button
+          ><button type="button" id="move-task" hidden>Make it a Habit</button
           ><button type="button" id="delete-task" class="danger" hidden>Delete</button
           ><button type="button" data-close>Cancel</button><button class="primary" type="submit">Save</button>
         </footer>
@@ -216,6 +217,9 @@
             <option value="honey">Honey</option>
             <option value="clay">Coral</option>
           </select></label
+        >
+        <label class="toggle" id="list-lock-row"
+          ><input type="checkbox" name="locked" /> Lock this section (opens with your notes password)</label
         >
         <div id="list-order-controls" class="fields">
           <button type="button" id="list-move-up">Move section up</button>

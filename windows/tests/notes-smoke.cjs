@@ -70,6 +70,7 @@ const shots = process.env.ORBIT_SCREENSHOT_DIR;
       desktopSettings: async () => ({ notifications: true, shortcut: "", shortcuts: [""] }),
       // A stand-in spell checker: knows "becuase" is a slip for "because".
       spell: (word) => ({ misspelled: word === "togther", suggestions: word === "togther" ? ["together"] : [] }),
+      addToCalendar: async (service, task) => (window.calendarAdds ||= []).push([service, task.title]),
       batch,
       put: (key, payload, deleted = false) => batch([{ key, payload, deleted }]),
     };
@@ -253,10 +254,30 @@ const shots = process.env.ORBIT_SCREENSHOT_DIR;
       (r) => r.payload.isNote && r.payload.notes.startsWith("remember to ask the coach"),
     ),
   );
+  // A new section can be locked as it is made (a password already exists here).
+  await p.keyboard.press("Control+4");
+  await p.locator("[data-new-list]").first().click();
+  await p.locator('#list-form input[name="name"]').fill("Vault");
+  assert.equal(await p.locator("#list-lock-row").isVisible(), true);
+  await p.locator('#list-form input[name="locked"]').check();
+  await p.locator("#list-form").getByRole("button", { name: "Save", exact: true }).click();
+  await until(async () =>
+    (await window.orbit.read()).records.some((r) => r.payload.name === "Vault" && r.payload.locked === true),
+  );
+  // Dated tasks can go to Google Calendar, Outlook or the calendar app.
+  await p.keyboard.press("Control+1");
+  await p.locator("#inline-task-input").fill("Dentist at 11:59pm");
+  await p.locator("#inline-task-input").press("Enter");
+  await p.locator(".task-row", { hasText: "Dentist" }).click({ button: "right" });
+  await p.getByRole("menuitem", { name: "Add to calendar", exact: true }).hover();
+  await p.getByRole("menuitem", { name: "Google Calendar", exact: true }).click();
+  assert.deepEqual(await p.evaluate(() => window.calendarAdds), [["google", "Dentist"]]);
   assert.equal(!!(await record("n1")).locked, true);
   assert.deepEqual(errors, []);
   await browser.close();
-  console.log("PASS: note menu, right-click to task, locks, hidden titles, chin, autocorrect, capture to note");
+  console.log(
+    "PASS: note menu, right-click to task, locks, locked new section, hidden titles, chin, autocorrect, capture to note, calendar export",
+  );
 })().catch((error) => {
   console.error(error);
   process.exit(1);

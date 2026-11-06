@@ -176,6 +176,7 @@ const shared = Object.fromEntries(
     "noteToTask",
     "timerOptions",
     "showMenu",
+    "calendarEntry",
     "OrbitAutocorrect",
     "captureBecomesNote",
     "captureNoteHead",

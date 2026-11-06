@@ -12,7 +12,9 @@ const {
   ClipboardItem,
   Notification,
   nativeImage,
+  shell,
 } = require("electron");
+const calendarExport = require("./calendar-export.cjs");
 const { confirmationNotice } = require("./auth-links.cjs");
 const { PlannerTools, encodeBackup, decodeBackup, planImport, encodeTasksCSV } = require("./planner-tools.cjs");
 const { SOMEDAY_LIST_ID } = require("./ui/planner.js");
@@ -288,6 +290,20 @@ app.whenReady().then(async () => {
     });
   });
   // Copy text from a row's menu or a note; plain text only.
+  // Adds a task to the user's own calendar. Only these two web addresses are ever opened; an .ics file
+  // is written to the temp folder and opened by the default calendar app.
+  handle("add-to-calendar", async ({ service, task } = {}) => {
+    const event = calendarExport.eventFor(task || {});
+    if (!event) throw Error("Give the task a date first, then add it to your calendar.");
+    if (service === "google") return shell.openExternal(calendarExport.googleURL(event));
+    if (service === "outlook") return shell.openExternal(calendarExport.outlookURL(event));
+    if (service !== "ics") throw Error("Unknown calendar.");
+    const name = "orbit-" + randomBytes(6).toString("hex") + ".ics";
+    const file = path.join(app.getPath("temp"), name);
+    fs.writeFileSync(file, calendarExport.ics(event, { uid: String(task.id || name) }), "utf8");
+    const problem = await shell.openPath(file);
+    if (problem) throw Error("No calendar app opened the event: " + problem);
+  });
   handle("copy", async (text) => {
     if (typeof text !== "string" || text.length > 200000) throw Error("Invalid text");
     await clipboard.writeText(text);

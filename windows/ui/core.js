@@ -655,6 +655,19 @@ function taskToNote(task) {
     startedAt: null,
   };
 }
+/** "Add to calendar" for a dated task: Google Calendar, Outlook, or the default calendar app (.ics). */
+function calendarEntry(task) {
+  const send = (service) => () => api.addToCalendar(service, clean(task));
+  return [
+    "Add to calendar",
+    null,
+    [
+      ["Google Calendar", send("google")],
+      ["Outlook", send("outlook")],
+      ["Calendar app (.ics)", send("ics")],
+    ],
+  ];
+}
 let rowMenuScrollPosition = null;
 /** Right-click (or the Menu key) on a row: copy its text and other quick actions. */
 function openRowMenu(e) {
@@ -684,6 +697,7 @@ function openRowMenu(e) {
       ]);
     if (!item.completedAt && taskDate(item) !== tomorrow())
       entries.push(["Do tomorrow", () => action(() => saveTasks([OrbitPlanner.moveToDay(item, tomorrow())]))]);
+    if (item.localDate || (item.hasTime && item.dueDate)) entries.push(calendarEntry(item));
     entries.push(["Make it a Note", () => action(() => put("tasks", taskToNote(item)))]);
   }
   if (kind === "task" || kind === "note") entries.push(["Delete", () => action(() => put("tasks", item, true))]);
@@ -701,8 +715,10 @@ function showMenu(entries, x, y) {
     menu.id = "row-menu";
     menu.className = "row-menu";
     menu.setAttribute("role", "menu");
-    document.body.append(menu);
   }
+  // Inside an open dialog the menu must live in the dialog, or the dialog's top layer covers it.
+  const host = document.querySelector("dialog[open]") || document.body;
+  if (menu.parentElement !== host) host.append(menu);
   // An entry is [label, run] or [label, null, children]: a submenu that opens on hover or →.
   const menuButton = (label, run) => {
     const button = document.createElement("button");

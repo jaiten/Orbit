@@ -657,6 +657,9 @@ function openList(id, kind = page === "tasks" ? "tasks" : "notes") {
   const f = $("#list-form");
   f.elements.name.value = editingList?.name || "";
   f.elements.color.value = editingList?.color || "sage";
+  // Note sections can be locked from the start; categories hold tasks, which are never locked.
+  $("#list-lock-row").hidden = listEditingKind !== "notes";
+  f.elements.locked.checked = editingList?.locked === true;
   $("#delete-list").hidden = !editingList;
   $("#list-order-controls").hidden = !editingList;
   const ordered = orderedLists(listEditingKind);
@@ -680,7 +683,15 @@ $("#list-form").onsubmit = (e) => {
   e.preventDefault();
   const f = e.target;
   if (!f.elements.name.value.trim()) return;
-  action(async () => {
+  void saveListForm(f);
+};
+async function saveListForm(f) {
+  const lockWanted = listEditingKind === "notes" && f.elements.locked.checked;
+  const wasLocked = editingList?.locked === true;
+  // Locking needs a password to exist; removing a lock needs it entered.
+  if (lockWanted && !wasLocked && !(await OrbitLocks.ensurePassword())) return;
+  if (!lockWanted && wasLocked && !(await OrbitLocks.unlock("Enter your password to unlock this section."))) return;
+  await action(async () => {
     await put("lists", {
       ...(rows("lists").find((list) => list.id === editingList?.id) || {
         id: crypto.randomUUID(),
@@ -689,11 +700,12 @@ $("#list-form").onsubmit = (e) => {
       }),
       name: f.elements.name.value.trim(),
       color: f.elements.color.value,
+      ...(listEditingKind === "notes" ? { locked: lockWanted ? true : null } : {}),
       updatedAt: Date.now(),
     });
     $("#list-editor").close();
   });
-};
+}
 $("#delete-list").onclick = () => {
   $("#list-delete-confirm").hidden = false;
 };

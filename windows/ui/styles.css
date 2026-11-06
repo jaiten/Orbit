@@ -5003,3 +5003,6 @@ body[data-view="today"] .today-layout,
 .quick-add-dialog .note-form .eyebrow {
   color: var(--accent-text);
 }
+#list-lock-row[hidden] {
+  display: none;
+}

@@ -28,6 +28,7 @@ function openTask(id, date, draft = null, { expanded = false } = {}) {
   $("#editor-title").textContent = editing ? "Edit Task" : "New Task";
   $("#delete-task").hidden = !editing;
   $("#move-task").hidden = !editing;
+  $("#task-to-calendar").hidden = !editing || !(editing.localDate || (editing.hasTime && editing.dueDate));
   f.querySelectorAll("details.capture-options").forEach((section, index) => {
     section.open = expanded || (index === 0 && !editing && page === "calendar");
   });
@@ -171,6 +172,12 @@ $("#delete-task").onclick = () =>
     await put("tasks", editing, true);
     $("#editor").close();
   });
+// The saved task goes to the calendar; save first to send changed dates.
+$("#task-to-calendar").onclick = (event) => {
+  event.stopPropagation();
+  const box = event.currentTarget.getBoundingClientRect();
+  showMenu(calendarEntry(editing)[2], box.left, box.bottom + 6);
+};
 $("#move-task").onclick = () => action(() => moveItem("tasks", editing));
 
 $("#habit-form").onsubmit = (e) => {

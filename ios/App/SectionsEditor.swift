@@ -10,6 +10,7 @@ struct ListsView: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
     @State private var name = ""
+    @State private var lockNew = false
     @FocusState private var naming: Bool
     @State private var error: String?
     @State private var pendingDelete: TaskList?
@@ -36,6 +37,11 @@ struct ListsView: View {
                             .buttonStyle(.plain).foregroundStyle(.white).background(accent.fill, in: Circle())
                             .accessibilityLabel(categoryMode ? "Add category" : "Add Section")
                             .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                    // A note section can be locked from the start: its pages open with Face ID or the passcode.
+                    if !categoryMode {
+                        Toggle(isOn: $lockNew) { Label("Lock this section", systemImage: "lock") }
+                            .accessibilityIdentifier("lock-new-section")
                     }
 
                 }
@@ -70,8 +76,10 @@ struct ListsView: View {
     private func addGroup() {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        context.insert(TaskList(name: trimmed, sortOrder: (editable.map(\.sortOrder).max() ?? -1) + 1, kind: categoryMode ? "tasks" : "notes"))
-        do { try Mutations.save(context); name = "" } catch { context.rollback(); self.error = error.localizedDescription }
+        let list = TaskList(name: trimmed, sortOrder: (editable.map(\.sortOrder).max() ?? -1) + 1, kind: categoryMode ? "tasks" : "notes")
+        if !categoryMode && lockNew { list.locked = true }
+        context.insert(list)
+        do { try Mutations.save(context); name = ""; lockNew = false } catch { context.rollback(); self.error = error.localizedDescription }
     }
     private func moveLists(from source: IndexSet, to destination: Int) {
         var ordered = editable

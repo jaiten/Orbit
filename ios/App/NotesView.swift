@@ -20,6 +20,9 @@ struct NotesView: View {
     @State private var search = ""
     @State private var path: [NoteRoute] = []
     @State private var managing = false
+    @State private var deletingSection: TaskList?
+    @Environment(\.modelContext) private var context
+    @State private var error: String?
     @AppStorage("collapsedNoteSections") private var collapsedStorage = ""
     @ObservedObject private var lock = NoteLock.shared
     private var collapsed: Set<String> { Set(collapsedStorage.split(separator: ",").map(String.init)) }
@@ -50,7 +53,11 @@ struct NotesView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
-                    PageHeader(eyebrow: "", title: "Notes")
+                    PageHeader(eyebrow: "", title: "Notes") {
+                        Button { managing = true } label: {
+                            Image(systemName: "folder.badge.gearshape").font(.system(size: 18)).frame(width: 44, height: 44).contentShape(Rectangle())
+                        }.accessibilityLabel("Manage sections").accessibilityIdentifier("edit-sections")
+                    }
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                         TextField("Search notes", text: $search).textInputAutocapitalization(.never)
@@ -77,11 +84,6 @@ struct NotesView: View {
                                 .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).contentShape(Rectangle())
                         }.buttonStyle(.plain).accessibilityIdentifier("lock-notes-now")
                     }
-                    Button { managing = true } label: {
-                        Label("Manage sections", systemImage: "folder.badge.gearshape")
-                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                            .contentShape(Rectangle())
-                    }.buttonStyle(.plain).accessibilityIdentifier("edit-sections")
                 }.padding(.horizontal, CGFloat(DesignTokens.screenPadding)).padding(.vertical, CGFloat(DesignTokens.spaceS))
                     .frame(maxWidth: 760).frame(maxWidth: .infinity)
             }
@@ -98,6 +100,11 @@ struct NotesView: View {
                 }
             }
             .sheet(isPresented: $managing) { ListsView().presentationDragIndicator(.visible) }
+            .confirmationDialog(deletingSection.map { "Delete \($0.name)?" } ?? "", isPresented: Binding(get: { deletingSection != nil }, set: { if !$0 { deletingSection = nil } }), titleVisibility: .visible) {
+                Button("Delete Section, Keep Notes", role: .destructive) { deleteSection(keepingNotes: true) }
+                Button("Delete Section and Notes", role: .destructive) { deleteSection(keepingNotes: false) }
+            } message: { Text("Kept notes move to All notes.") }
+            .modifier(MutationErrorModifier(error: $error))
         }
     }
 
@@ -121,7 +128,12 @@ struct NotesView: View {
                     }.frame(minHeight: 44).contentShape(Rectangle())
                 }.buttonStyle(.plain)
                     .accessibilityLabel(sealed ? "\(name), locked" : "\(name), \(pages.count) notes").accessibilityValue(open ? "Expanded" : "Collapsed")
-                    .contextMenu { if let list { SectionLockItems(list: list) } }
+                    .contextMenu {
+                        if let list {
+                            SectionLockItems(list: list)
+                            Button("Delete Section", systemImage: "trash", role: .destructive) { deletingSection = list }
+                        }
+                    }
                 // + always starts a page here; Manage sections adds, renames, reorders and deletes sections.
                 Button { withAnimation(.orbit) { path.append(.new(section: listID, token: UUID())) } } label: {
                     Image(systemName: "plus").font(.system(size: 16, weight: .medium)).frame(width: 44, height: 44)
@@ -137,8 +149,13 @@ struct NotesView: View {
                 } else if pages.isEmpty {
                     Text("No notes in \(name) yet.").font(.subheadline).foregroundStyle(.secondary).padding(.horizontal, 4)
                 } else {
+                    // Grouped by when each page was last edited, as in Apple Notes.
+                    ForEach(NoteDateGroup.groups(pages, date: \.updatedAt), id: \.title) { group in
+                    VStack(alignment: .leading, spacing: 6) {
+                    Text(group.title).font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
+                        .padding(.horizontal, 4).padding(.top, 2).accessibilityAddTraits(.isHeader)
                     VStack(spacing: 0) {
-                        ForEach(Array(pages.enumerated()), id: \.element.id) { index, note in
+                        ForEach(Array(group.items.enumerated()), id: \.element.id) { index, note in
                             if index > 0 { Divider().padding(.leading, 48) }
                             // The row opens the page; ⋯ (or touch and hold) shows Copy text, Move, Make It a Task, Delete.
                             HStack(spacing: 0) {
@@ -148,7 +165,7 @@ struct NotesView: View {
                                     .accessibilityElement(children: .ignore)
                                     .accessibilityAddTraits(.isButton)
                                     .accessibilityLabel(NoteRow.displayTitle(note, lists: lists))
-                                    .accessibilityValue(NoteLock.isLocked(note, lists: lists) || NoteLock.isHidden(note, lists: lists) ? "" : NoteRules.snippet(note.notes))
+                                    .accessibilityValue(NoteRow.detail(note, lists: lists))
                                     .accessibilityIdentifier("note-row")
                                     .accessibilityAction { withAnimation(.orbit) { path.append(.open(note.id)) } }
                                 NoteMenu(note: note)
@@ -158,10 +175,28 @@ struct NotesView: View {
                         }
                     }.orbitSurface(radius: CGFloat(DesignTokens.radiusCard))
                         .clipShape(RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusCard), style: .continuous))
+                    }
+                    }
                 }
             }
         }
         .animation(.orbit, value: open)
+    }
+
+    /// Deletes a note section; its notes move to All notes or go with it. A shared legacy group stays
+    /// as a task category, as in Manage sections.
+    private func deleteSection(keepingNotes: Bool) {
+        guard let list = deletingSection else { return }
+        deletingSection = nil
+        let id = list.id
+        do {
+            let pages = try context.fetch(FetchDescriptor<PlannerTask>(predicate: #Predicate { $0.listID == id })).filter(\.note)
+            for page in pages {
+                if keepingNotes { page.listID = nil; page.updatedAt = .now } else { context.delete(page) }
+            }
+            if list.kind == nil { list.kind = "tasks"; list.locked = nil; list.hidden = nil; list.updatedAt = .now } else { context.delete(list) }
+            try Mutations.save(context)
+        } catch { context.rollback(); self.error = error.localizedDescription }
     }
 
     private func toggle(_ id: String) {
@@ -177,23 +212,36 @@ struct NotesView: View {
 struct NoteRow: View {
     let note: PlannerTask
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
+    /// The first line of a page without a title stands in for one, as in Apple Notes.
+    private static func lines(_ text: String) -> (first: String, rest: String) {
+        let parts = text.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
+        return (parts.first.map { String($0).trimmingCharacters(in: .whitespaces) } ?? "",
+                parts.count > 1 ? NoteRules.snippet(String(parts[1])) : "")
+    }
     static func displayTitle(_ note: PlannerTask, lists: [TaskList]) -> String {
         if NoteLock.isHidden(note, lists: lists) { return "Hidden note" }
         if !note.title.isEmpty { return note.title }
         if NoteLock.isLocked(note, lists: lists) { return "Locked note" }
-        return note.notes.isEmpty ? "Photo note" : NoteRules.snippet(note.notes)
+        let first = lines(note.notes).first
+        return first.isEmpty ? (note.photos.isEmpty ? "New note" : "Photo note") : first
+    }
+    /// The line under the title: the start of the text, or "No additional text" when there is none.
+    static func detail(_ note: PlannerTask, lists: [TaskList]) -> String {
+        if NoteLock.isLocked(note, lists: lists) { return "Locked" }
+        if NoteLock.isHidden(note, lists: lists) { return "Hidden" }
+        let text = note.title.isEmpty ? lines(note.notes).rest : NoteRules.snippet(note.notes)
+        return text.isEmpty ? "No additional text" : text
     }
     var body: some View {
         let locked = NoteLock.isLocked(note, lists: lists), hidden = NoteLock.isHidden(note, lists: lists)
-        let snippet = locked ? "Locked" : hidden ? "Hidden" : note.title.isEmpty ? "" : NoteRules.snippet(note.notes)
+        let snippet = Self.detail(note, lists: lists)
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: locked ? "lock.fill" : NoteIcons.symbol(note.noteIcon)).font(.system(size: 17)).foregroundStyle(.secondary).frame(width: 24).padding(.top, 2)
             VStack(alignment: .leading, spacing: 3) {
                 Text(Self.displayTitle(note, lists: lists)).font(.body.weight(.medium)).foregroundStyle(hidden ? Color.secondary : Color.primary)
                     .italic(hidden).lineLimit(1)
-                // Always one line, even when empty, so every row matches.
-                Text(snippet.isEmpty ? " " : snippet).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-                    .accessibilityHidden(snippet.isEmpty)
+                // Always one line, so every row matches.
+                Text(snippet).font(.subheadline).foregroundStyle(snippet == "No additional text" ? HierarchicalShapeStyle.tertiary : HierarchicalShapeStyle.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
             Text(note.updatedAt.formatted(.relative(presentation: .named, unitsStyle: .abbreviated)))

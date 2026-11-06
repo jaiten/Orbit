@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer, webFrame } = require("electron");
 contextBridge.exposeInMainWorld("orbit", {
   dictate: () => ipcRenderer.invoke("dictate"),
   copy: (text) => ipcRenderer.invoke("copy", text),
+  addToCalendar: (service, task) => ipcRenderer.invoke("add-to-calendar", { service, task }),
   addNotePhoto: (bytes) => ipcRenderer.invoke("add-note-photo", bytes),
   copyNotePhoto: (id) => ipcRenderer.invoke("copy-note-photo", id),
   timerDone: (title) => ipcRenderer.invoke("timer-done", title),

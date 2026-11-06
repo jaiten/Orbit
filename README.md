@@ -131,6 +131,19 @@ when the app is minimised or leaves the screen, or with **Lock Now**. **Hide tit
 section shows its pages as "Hidden note", with no title or text in lists and search. Locks keep
 notes out of view on the device; note text is not encrypted separately in sync.
 
+**Adding tasks to your calendar.** Touch and hold a dated task on iPhone (or open it) and choose
+**Send to calendar**: the system event editor opens with it filled in, for any calendar on the phone,
+including Google or Outlook accounts added in iOS Settings. On Windows, right-click a dated task
+(or use **Add to calendar…** in its editor) for Google Calendar or Outlook in the browser, or an
+.ics file for the default calendar app (Windows Calendar, Outlook, Apple Calendar). It is a one-time
+copy: later changes in Orbit don't update the event.
+
+**Sections.** New note sections can be locked as they are made. On iPhone, Manage sections is the
+folder icon at the top right of Notes; touch and hold a section for Lock, Hide titles and Delete
+Section (keeping its notes in All notes, or deleting them too). Notes are grouped by when they were
+last edited (Today, Yesterday, Previous 7 Days, Previous 30 Days, then by month and year), and a
+page with only a title shows "No additional text".
+
 **Writing on Windows.** Notes autocorrect as you type: missing apostrophes (dont → don't,
 im → I'm), common typos (teh → the), your own rules (Settings → Notes & Writing, one
 `btw = by the way` per line), and one-letter slips Windows' spell checker is sure about.
