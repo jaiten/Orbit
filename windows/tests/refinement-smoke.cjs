@@ -432,7 +432,7 @@ const fs = require("node:fs");
   assert.equal(await p.locator(".progress-day").count(), 7);
   assert.equal(await p.getByRole("combobox", { name: "Progress range" }).count(), 0);
   await p.locator('[data-page="habits"]').click();
-  for (const title of ["Gym", "Read", "A longer habit title which needs the whole row"]) {
+  for (const title of ["Gym", "Read", "A much longer habit title needing the row"]) {
     await p.locator("#inline-task-input").fill(title);
     await p.locator("#inline-task-input").press("Enter");
     await p.getByRole("checkbox", { name: `Log ${title}`, exact: true }).waitFor();
@@ -774,8 +774,7 @@ const fs = require("node:fs");
   assert.equal(await p.locator("button[data-progress-day]").count(), 0);
   const pastKey = await p.locator("[data-progress-day]").nth(2).getAttribute("data-progress-day");
   const taskID = "a1111111-1111-4111-8111-111111111111",
-    habitID = "b1111111-1111-4111-8111-111111111111",
-    categoryID = "c1111111-1111-4111-8111-111111111111";
+    habitID = "b1111111-1111-4111-8111-111111111111";
   await p.evaluate(
     async ({ pastKey, taskID, habitID }) => {
       await window.orbit.batch([
@@ -853,36 +852,30 @@ const fs = require("node:fs");
   await p.getByRole("button", { name: "Back to History", exact: true }).click();
   await p.getByRole("button", { name: "Back to Habits", exact: true }).click();
   await p.locator('[data-page="today"]').click();
-  // Overdue tasks offer Today, Someday and the user's own categories; there is no Later.
-  assert.equal(await p.locator("[data-later], [data-overdue-all=later]").count(), 0);
+  // Tasks from earlier days simply stay on Today: no Overdue section, labels or move buttons.
+  await p.getByRole("checkbox", { name: "Complete Past task", exact: true }).waitFor();
+  assert.equal(
+    await p.locator(".overdue-heading, [data-overdue-all], [data-overdue-move], .task-row.overdue").count(),
+    0,
+  );
+  assert.equal(
+    await p
+      .locator(".task-row", { hasText: "Past task" })
+      .getByText(/^from /)
+      .count(),
+    0,
+  );
+  // The row menu still moves it (Do tomorrow); here it is filed in Someday for the rest of the run.
   await p.evaluate(async (id) => {
-    await window.orbit.put("lists/" + id, { id, name: "Errands", kind: "tasks", sortOrder: 5, updatedAt: Date.now() });
-  }, categoryID);
-  await p.getByRole("combobox", { name: "Move Past task to a category", exact: true }).click();
-  await p.getByRole("option", { name: "Errands", exact: true }).click();
-  await p.waitForFunction(
-    async ({ id, list }) => {
-      const task = (await window.orbit.read()).records.find((record) => record.payload.id === id).payload;
-      return task.listID === list && !task.localDate;
-    },
-    { id: taskID, list: categoryID },
-  );
-  await p.evaluate(
-    async ({ id, day }) => {
-      const record = (await window.orbit.read()).records.find((record) => record.payload.id === id);
-      await window.orbit.put(record.key, { ...record.payload, listID: null, localDate: day, updatedAt: Date.now() });
-    },
-    { id: taskID, day: pastKey },
-  );
-  // Bulk moves replace repeated per-row overdue handling.
-  await p.waitForFunction(() => !!document.querySelector('[data-overdue-all="someday"]'));
-  await p.getByRole("button", { name: "All to Someday", exact: true }).click();
-  await p.waitForFunction(
-    async (id) =>
-      (await window.orbit.read()).records.find((record) => record.payload.id === id).payload.listID ===
-      "00000000-0000-4000-8000-000000000001",
-    taskID,
-  );
+    const record = (await window.orbit.read()).records.find((record) => record.payload.id === id);
+    await window.orbit.put(record.key, {
+      ...record.payload,
+      listID: "00000000-0000-4000-8000-000000000001",
+      localDate: null,
+      updatedAt: Date.now(),
+    });
+  }, taskID);
+  await p.getByRole("checkbox", { name: "Complete Past task", exact: true }).waitFor({ state: "detached" });
   await p.keyboard.press("Control+2");
   await p.getByRole("separator", { name: "Anytime section height", exact: true }).focus();
   await p.keyboard.press("Home");

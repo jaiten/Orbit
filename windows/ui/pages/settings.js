@@ -74,6 +74,17 @@ function renderSettings() {
       <div class="settings-field"><span>Quick add from anywhere</span><div id="global-shortcut-wrap"></div></div>
       <button id="show-shortcuts">Keyboard Shortcuts</button>
     </section>
+    <section class="settings-block" id="writing-settings">
+      <h2>Notes & Writing</h2>
+      <label class="toggle"><input type="checkbox" id="autocorrect-toggle" ${OrbitAutocorrect.settings().enabled ? "checked" : ""} /> Correct as you type</label>
+      <label class="toggle"><input type="checkbox" id="autocorrect-apostrophes" ${OrbitAutocorrect.settings().apostrophes ? "checked" : ""} /> Add apostrophes (dont → don't, im → I'm)</label>
+      <label class="toggle"><input type="checkbox" id="autocorrect-spelling" ${OrbitAutocorrect.settings().spelling ? "checked" : ""} /> Fix one-letter typos the spell checker is sure about</label>
+      <label class="settings-stack" for="autocorrect-rules"><span>Your rules, one per line</span>
+        <textarea id="autocorrect-rules" rows="3" placeholder="btw = by the way" spellcheck="false">${esc(OrbitAutocorrect.customText())}</textarea></label>
+      <p class="secondary">Ctrl+Z right after a correction takes it back.</p>
+      <button id="notes-password">${OrbitLocks.hasPassword() ? "Change Notes Password" : "Set Notes Password"}</button>
+      <p class="secondary">One password unlocks locked notes and sections on this PC. Right-click a note or section to lock it.</p>
+    </section>
     <section class="settings-block">
       <h2>Data & Backup</h2>
       <button id="export-backup">Export Everything (JSON)</button><button id="export-csv">Export Tasks (CSV)</button
@@ -156,6 +167,18 @@ function bindSettings() {
   );
   if ($("#desktop-settings")) void loadDesktopSettings();
   if ($("#show-shortcuts")) $("#show-shortcuts").onclick = openShortcuts;
+  if ($("#writing-settings")) {
+    for (const [id, key] of [
+      ["#autocorrect-toggle", "enabled"],
+      ["#autocorrect-apostrophes", "apostrophes"],
+      ["#autocorrect-spelling", "spelling"],
+    ])
+      $(id).onchange = (event) => OrbitAutocorrect.saveSettings({ [key]: event.target.checked });
+    $("#autocorrect-rules").oninput = (event) => localStorage.setItem("autocorrectRules", event.target.value);
+    $("#notes-password").onclick = async () => {
+      if (await OrbitLocks.changePassword()) render();
+    };
+  }
   const exportAs = (mode) =>
     action(async () => {
       const message = await api.backup(mode);

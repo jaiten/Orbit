@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer, webFrame } = require("electron");
 contextBridge.exposeInMainWorld("orbit", {
   dictate: () => ipcRenderer.invoke("dictate"),
   copy: (text) => ipcRenderer.invoke("copy", text),
@@ -24,4 +24,13 @@ contextBridge.exposeInMainWorld("orbit", {
   onUpdateStatus: (callback) => ipcRenderer.on("update-status", (_, value) => callback(value)),
   finishOnboarding: () => ipcRenderer.invoke("onboarded"),
   reschedule: (zone) => ipcRenderer.invoke("reschedule", zone),
+  // Windows' own spell checker, for autocorrect: is the word misspelled, and what would it suggest.
+  spell: (word) => {
+    try {
+      const misspelled = webFrame.isWordMisspelled(word);
+      return { misspelled, suggestions: misspelled ? webFrame.getWordSuggestions(word) : [] };
+    } catch {
+      return null;
+    }
+  },
 });

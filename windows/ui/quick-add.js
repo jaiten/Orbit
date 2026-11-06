@@ -43,6 +43,15 @@ function contextListName() {
 }
 
 function updateQuickPreview() {
+  // Long text becomes a note here too; the dialog says so in its heading.
+  const asNote = OrbitNotes.isNote($("#quick-add-form").elements.text.value);
+  const eyebrow = $("#quick-add-form .eyebrow");
+  if (eyebrow.textContent !== (asNote ? "New note" : "Quick add")) {
+    eyebrow.textContent = asNote ? "New note" : "Quick add";
+    if (!reducedMotion()) eyebrow.animate([{ opacity: 0, transform: "translateY(4px)" }, { opacity: 1 }], spring());
+  }
+  $("#quick-add-form").classList.toggle("note-form", asNote);
+  if (asNote) return showChip($("#quick-add-preview"), "Note · Notes");
   const result = quickParse();
   let text = OrbitPlanning.describe(result, plannerNow());
   const listName = contextListName();
@@ -160,6 +169,15 @@ function quickRecords(result) {
 $("#quick-add-form").elements.text.oninput = updateQuickPreview;
 $("#quick-add-form").onsubmit = (e) => {
   e.preventDefault();
+  const text = $("#quick-add-form").elements.text.value;
+  if (OrbitNotes.isNote(text)) {
+    action(async () => {
+      await saveTasks([{ ...newTask("", null), isNote: true, notes: text.trim() }]);
+      inlineDraft = "";
+      $("#quick-add-dialog").close();
+    });
+    return;
+  }
   const result = quickParse();
   if (!result.title) return;
   action(async () => {
@@ -197,6 +215,52 @@ $("#quick-add-details").onclick = () => {
 
 // Preserve the current inline draft across sync renders and page changes.
 let inlineDraft = "";
+let inlineNoteTitle = "";
+/** Outside Notes, a long capture becomes a note (Notes' own bar always writes one). */
+const captureBecomesNote = (text) =>
+  page !== "lists" && (OrbitNotes.isNote(text) || (!!inlineNoteTitle && !!String(text).trim()));
+/** The header a capture grows when it becomes a note: where it goes, and an optional title. */
+function captureNoteHead(visible) {
+  const section = quickAddContext().listID;
+  const name =
+    section && rows("lists").some((l) => l.id === section && l.kind === "notes") ? sectionName(section) : "Notes";
+  return `<div class="capture-note-head" ${visible ? "" : "hidden"}><span class="capture-note-where">${icon(ICONS.compose)}New note · ${esc(name)}</span><input id="inline-note-title" class="capture-note-title" placeholder="Title" aria-label="Note title" maxlength="500" value="${esc(inlineNoteTitle)}" tabindex="${visible ? 0 : -1}" /><span class="capture-note-hint">Ctrl+Enter to save</span></div>`;
+}
+/**
+ * Switches the capture between a one-line task bar and a note card. The text field is never replaced,
+ * so focus, the caret and typing carry straight on; the card unfolds around it with a spring, as if the
+ * note page had been waiting underneath.
+ */
+function captureNoteMode(form, on) {
+  if (form.classList.contains("note-form") === on) return;
+  const field = form.querySelector(".add-field"),
+    head = form.querySelector(".capture-note-head");
+  const before = field.getBoundingClientRect().height;
+  form.classList.toggle("note-form", on);
+  head.hidden = !on;
+  form.querySelector("#inline-note-title").tabIndex = on ? 0 : -1;
+  form.querySelector("#inline-task-input").setAttribute("aria-label", on ? "Note text" : "New task");
+  const after = field.getBoundingClientRect().height;
+  if (reducedMotion() || Math.abs(after - before) < 2) return;
+  field.animate([{ height: before + "px" }, { height: after + "px" }], {
+    ...spring("ui"),
+    easing: "cubic-bezier(.2,.9,.25,1.12)",
+  });
+  field.animate(
+    on
+      ? [{ boxShadow: "0 0 0 0 transparent", transform: "translateY(4px)" }, { transform: "none" }]
+      : [{ transform: "translateY(-2px)" }, { transform: "none" }],
+    { duration: 260, easing: "ease-out" },
+  );
+  if (on)
+    head.animate(
+      [
+        { opacity: 0, transform: "translateY(10px)", filter: "blur(3px)" },
+        { opacity: 1, transform: "none", filter: "none" },
+      ],
+      { duration: 300, delay: 40, easing: "cubic-bezier(.2,.8,.2,1)", fill: "backwards" },
+    );
+}
 let inlineFocusGeneration = 0;
 document.addEventListener(
   "pointerdown",
@@ -216,21 +280,44 @@ function bindInlineCapture() {
     inlineDraft = input.value;
     const parsed = parseCapture(inlineDraft, quickAddContext().defaultDate);
     const section = quickAddContext().listID;
-    // On Notes, the bottom bar always writes a note.
-    const text = !inlineDraft.trim()
-      ? ""
-      : page === "lists" || OrbitNotes.isNote(inlineDraft)
-        ? "Note · " + (section ? sectionName(section) : "Notes")
-        : [OrbitPlanning.describe(parsed, plannerNow()), suggestedCategory(parsed, quickAddContext().listID)?.name]
-            .filter(Boolean)
-            .join(" · ");
+    const asNote = captureBecomesNote(inlineDraft);
+    captureNoteMode(form, asNote);
+    form.classList.toggle("has-text", !!inlineDraft.trim());
+    // On Notes, the bottom bar always writes a note; elsewhere the note card says so itself.
+    const text =
+      !inlineDraft.trim() || asNote
+        ? ""
+        : page === "lists"
+          ? "Note · " + (section ? sectionName(section) : "Notes")
+          : [OrbitPlanning.describe(parsed, plannerNow()), suggestedCategory(parsed, quickAddContext().listID)?.name]
+              .filter(Boolean)
+              .join(" · ");
     showChip($("#inline-preview"), text);
     $("#inline-receipt").textContent = "";
   };
   input.oninput = preview;
+  OrbitAutocorrect.attach(input);
+  const title = $("#inline-note-title");
+  OrbitAutocorrect.attach(title);
+  title.oninput = () => {
+    inlineNoteTitle = title.value;
+  };
+  title.onkeydown = (event) => {
+    if (event.key === "Enter" && !event.isComposing) {
+      event.preventDefault();
+      if (event.ctrlKey) form.requestSubmit();
+      else input.focus();
+    } else if (event.key === "ArrowDown") {
+      event.preventDefault();
+      input.focus();
+    }
+  };
   // Return adds; Shift+Return starts a new line (which makes a note); Return on an empty field leaves it.
+  // Once the capture is a note card, Return is a new line and Ctrl+Return saves.
   input.onkeydown = (event) => {
-    if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+    if (event.key !== "Enter" || event.isComposing) return;
+    if (form.classList.contains("note-form") && !event.ctrlKey) return;
+    if (event.shiftKey && !event.ctrlKey) return;
     event.preventDefault();
     inlineFocusGeneration++;
     if (!input.value.trim()) input.blur();
@@ -255,16 +342,20 @@ function bindInlineCapture() {
     const focusRequest = ++inlineFocusGeneration,
       capturePage = page;
     if (!input.value.trim()) return input.blur();
-    if (page === "lists" || (page !== "habits" && OrbitNotes.isNote(input.value))) {
+    if (page === "lists" || captureBecomesNote(input.value)) {
       const captured = input.value;
-      const title = "",
+      const title = inlineNoteTitle.trim(),
         body = captured.trim();
       const note = { ...newTask(title, null), isNote: true, notes: body };
-      note.listID = quickAddContext().listID;
+      // A note goes to the open note section, or to All; never into a task category.
+      const section = quickAddContext().listID;
+      note.listID = section && rows("lists").some((l) => l.id === section && l.kind !== "tasks") ? section : null;
       // Clear immediately, keeping a snapshot until local persistence acknowledges it.
       // A second Return can dismiss capture while the first save is still finishing.
       input.value = "";
       inlineDraft = "";
+      inlineNoteTitle = "";
+      $("#inline-note-title").value = "";
       preview();
       void (async () => {
         try {
@@ -272,6 +363,7 @@ function bindInlineCapture() {
           await load(true);
         } catch (error) {
           const current = $("#inline-task-input");
+          inlineNoteTitle ||= title;
           inlineDraft = [captured, current?.value].filter(Boolean).join("\n");
           if (current) {
             current.value = inlineDraft;

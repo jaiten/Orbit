@@ -4851,3 +4851,184 @@ body[data-view="today"] .today-layout,
     width: calc(var(--page-wide) - var(--side-column) - var(--space-xl));
   }
 }
+
+/* A chin under a long note: you always see the lines you are about to type into. Short notes keep
+   no scrollbar. */
+.note-page.with-chin {
+  padding-bottom: max(40vh, 240px);
+}
+.note-locked-mark {
+  display: inline-flex;
+  color: var(--muted);
+  margin-right: 2px;
+}
+.note-locked-mark .ui-icon,
+.section-mark {
+  width: 14px;
+  height: 14px;
+}
+.section-mark {
+  flex: none;
+  margin-left: 6px;
+  color: var(--muted);
+}
+.notes-nav-page.hidden-note .notes-nav-title,
+.notes-nav-page .note-lock-glyph {
+  color: var(--muted);
+}
+.notes-nav-page.hidden-note .notes-nav-title {
+  font-style: italic;
+}
+.locked-page {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  max-width: 360px;
+  margin: 18vh auto 0;
+  text-align: center;
+}
+.locked-page > .ui-icon {
+  width: 36px;
+  height: 36px;
+  color: var(--muted);
+}
+.locked-page h1 {
+  margin: 0;
+  font-size: 24px;
+}
+.lock-dialog {
+  width: min(380px, calc(100vw - 32px));
+}
+.lock-form {
+  display: grid;
+  gap: 10px;
+  justify-items: stretch;
+}
+.lock-form h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.lock-form p {
+  margin: 0;
+}
+.lock-glyph {
+  width: 28px;
+  height: 28px;
+  color: var(--muted);
+}
+.lock-error {
+  min-height: 1.2em;
+  font-size: 13px;
+  color: var(--danger, #c4473a);
+}
+.settings-stack {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
+  font-size: 14px;
+}
+.settings-stack textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-input);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  resize: vertical;
+}
+
+/* A long capture unfolds into a note card in place: header above, the text as its body. */
+.capture-note-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2px 12px;
+  flex: 0 0 100%;
+  order: -1;
+  padding: 12px 0 0;
+}
+.capture-note-head[hidden] {
+  display: none;
+}
+.capture-note-where {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+.capture-note-where .ui-icon {
+  width: 13px;
+  height: 13px;
+}
+.capture-note-hint {
+  grid-row: 1;
+  grid-column: 2;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.capture-note-title {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 4px 0 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font:
+    600 22px/1.3 "Segoe UI Variable Display",
+    "Segoe UI",
+    system-ui,
+    sans-serif;
+}
+.inline-capture input.capture-note-title,
+.inline-capture input.capture-note-title:focus {
+  height: auto;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  padding: 4px 0 0;
+  font:
+    600 22px/1.3 "Segoe UI Variable Display",
+    "Segoe UI",
+    system-ui,
+    sans-serif;
+  color: var(--ink);
+}
+.inline-capture.note-form [data-quick-add] {
+  display: none;
+}
+.capture-note-title::placeholder {
+  color: color-mix(in srgb, var(--muted) 70%, transparent);
+}
+.inline-capture.note-form .add-field {
+  flex-wrap: wrap;
+  overflow: clip;
+  border-radius: 14px;
+  padding: 0 8px 0 20px;
+  background: var(--canvas);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent),
+    0 18px 48px rgb(0 0 0 / 0.16);
+}
+.inline-capture.note-form textarea {
+  font:
+    16px/26px "Segoe UI Variable",
+    "Segoe UI",
+    system-ui,
+    sans-serif;
+  min-height: 120px;
+  max-height: 50vh;
+  padding: 6px 0 16px;
+}
+.inline-capture.note-form .capture-tools {
+  margin-top: 6px;
+}
+.quick-add-dialog .note-form .eyebrow {
+  color: var(--accent-text);
+}

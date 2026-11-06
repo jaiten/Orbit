@@ -31,14 +31,20 @@ const OrbitNotes = (() => {
   ].map(([id, name, path]) => ({ id, name, path }));
   const resolveIcon = (value) => icons.find((choice) => choice.id === value) || icons[0];
 
-  /** Captures longer than this, with more than WORD_LIMIT words, or with a line break become notes. */
+  /**
+   * Captures longer than THRESHOLD characters, with more than WORD_LIMIT words, or with a line break
+   * become notes. Date and time words ("on friday at 6pm") don't count: they belong to a task.
+   */
   const THRESHOLD = 120;
-  const WORD_LIMIT = 10;
+  const WORD_LIMIT = 8;
   const TITLE_LIMIT = 60;
+  const WHEN_WORD =
+    /^(today|tonight|tomorrow|tmrw|tmr|yesterday|mon|monday|tue|tues|tuesday|wed|wednesday|thu|thur|thurs|thursday|fri|friday|sat|saturday|sun|sunday|next|this|at|on|by|before|every|daily|weekly|morning|afternoon|evening|noon|midnight|am|pm|\d{1,2}(:\d{2})?(am|pm)?)[.,!?]?$/i;
+  const countedWords = (value) => value.split(/\s+/).filter((word) => word && !WHEN_WORD.test(word)).length;
 
   const isNote = (text) => {
     const value = String(text ?? "").trim();
-    return value.includes("\n") || value.length > THRESHOLD || value.split(/\s+/).length > WORD_LIMIT;
+    return value.includes("\n") || value.length > THRESHOLD || countedWords(value) > WORD_LIMIT;
   };
 
   /** Splits captured text into { title, body }: the first line, the first short sentence, or the opening words. */
@@ -67,6 +73,6 @@ const OrbitNotes = (() => {
       .trim()
       .slice(0, 140);
 
-  return { THRESHOLD, isNote, split, snippet, icons, resolveIcon };
+  return { THRESHOLD, WORD_LIMIT, isNote, split, snippet, icons, resolveIcon };
 })();
 if (typeof module !== "undefined") module.exports = OrbitNotes;

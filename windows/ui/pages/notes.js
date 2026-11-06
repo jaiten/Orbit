@@ -25,10 +25,33 @@ const ICONS = {
   task: "M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9",
   trash: "M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14",
   chevron: "m9 6 6 6-6 6",
+  more: "M5 12h.01M12 12h.01M19 12h.01",
+  photo: "M3 3h18v18H3zM3 17l6-6 4 4 3-3 5 5M8 7h.01",
 };
+const HIDDEN_PATH =
+  "M3 3l18 18M10.6 6.1A9.9 9.9 0 0 1 12 6c5 0 9 6 9 6a17 17 0 0 1-2.5 3.1M6.6 6.6C4.3 8.1 3 12 3 12s4 6 9 6c1.5 0 2.9-.4 4.1-1M9.9 9.9a3 3 0 0 0 4.2 4.2";
 const notes = () => rows("tasks").filter((t) => t.isNote);
 const noteDisplayTitle = (note) =>
-  note.title || OrbitNotes.snippet(note.notes).slice(0, 60) || (note.photos?.length ? "Photo note" : "Untitled");
+  OrbitLocks.isHidden(note)
+    ? "Hidden note"
+    : note.title ||
+      (OrbitLocks.isLocked(note) ? "" : OrbitNotes.snippet(note.notes).slice(0, 60)) ||
+      (note.photos?.length ? "Photo note" : OrbitLocks.isLocked(note) ? "Locked note" : "Untitled");
+/** What a find or search may match: nothing from a hidden page, only the title of a locked one. */
+const noteSearchText = (note) =>
+  OrbitLocks.isHidden(note)
+    ? ""
+    : (OrbitLocks.isLocked(note) ? note.title || "" : [note.title, note.notes].join(" ")).toLowerCase();
+/** A page in the notes list: its icon (a lock when locked) and title. */
+function noteNavButton(n, openID) {
+  const glyph = OrbitLocks.isLocked(n)
+    ? `<svg class="doc-icon note-lock-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="${LOCK_PATH}"/></svg>`
+    : noteGlyph(n.noteIcon);
+  const hidden = OrbitLocks.isHidden(n);
+  return `<button class="notes-nav-page ${n.id === openID ? "selected" : ""} ${hidden ? "hidden-note" : ""}" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" title="${esc(noteDisplayTitle(n))}" data-search="${esc(noteSearchText(n))}">${glyph}<span class="notes-nav-title">${esc(noteDisplayTitle(n))}</span></button>`;
+}
+/** Pages that may be listed: a locked section's pages stay out of view until unlocked. */
+const listedNotes = (items) => items.filter((n) => !OrbitLocks.sectionSealed(n.listID));
 
 /** Hides rows that don't match the search; the text includes notes and tags. Searching opens every group. */
 function applySearch() {
@@ -71,6 +94,10 @@ function bindLists() {
       }),
   );
   document.querySelectorAll("[data-new-list]").forEach((button) => (button.onclick = () => openList()));
+  document
+    .querySelectorAll("[data-unlock-notes]")
+    .forEach((button) => (button.onclick = async () => (await OrbitLocks.unlock()) && render()));
+  document.querySelectorAll("[data-lock-now]").forEach((button) => (button.onclick = () => OrbitLocks.lockNow()));
   if ($("#note-filter")) {
     $("#note-filter").oninput = async (e) => {
       const wasEmpty = !noteFilter;
@@ -115,28 +142,15 @@ function bindLists() {
       event.preventDefault();
       event.stopPropagation();
       const id = row.dataset.sectionMenu;
-      let menu = $("#row-menu");
-      if (!menu) {
-        menu = document.createElement("div");
-        menu.id = "row-menu";
-        menu.className = "row-menu";
-        menu.setAttribute("role", "menu");
-        document.body.append(menu);
-      }
-      menu.innerHTML =
-        '<button role="menuitem" data-section-rename>Rename section</button><button role="menuitem" class="danger" data-section-delete>Delete section</button>';
-      menu.hidden = false;
-      menu.style.left = `${Math.min(event.clientX, innerWidth - 200)}px`;
-      menu.style.top = `${Math.min(event.clientY, innerHeight - 90)}px`;
-      menu.querySelector("[data-section-rename]").onclick = () => {
-        closeRowMenu();
-        openList(id, "notes");
-      };
-      menu.querySelector("[data-section-delete]").onclick = () => {
-        closeRowMenu();
-        beginSectionDeletion(id);
-      };
-      menu.querySelector("button").focus();
+      showMenu(
+        [
+          ["Rename section", () => openList(id, "notes")],
+          ...sectionLockEntries(id),
+          ["Delete section", () => beginSectionDeletion(id)],
+        ],
+        event.clientX,
+        event.clientY,
+      );
     };
   });
   bindNoteEditor();
@@ -182,6 +196,9 @@ function notesNav() {
   const sections = noteSections()
     .map((s) => {
       const items = notesIn(s.id);
+      const sealed = OrbitLocks.sectionSealed(s.id);
+      const section = rows("lists").find((l) => l.id === s.id);
+      const marks = `${section?.locked ? `<svg class="ui-icon section-mark" viewBox="0 0 24 24" aria-label="Locked"><path d="${LOCK_PATH}"/></svg>` : ""}${section?.hidden ? `<svg class="ui-icon section-mark" viewBox="0 0 24 24" aria-label="Titles hidden"><path d="${HIDDEN_PATH}"/></svg>` : ""}`;
       if (!items.length && !s.own) return "";
       const key = s.id || "none";
       const open = !collapsedNoteSections.has(key) || !!noteFilter;
@@ -189,18 +206,15 @@ function notesNav() {
       return `<div class="notes-nav-group" ${s.own ? `draggable="true" data-drag-section="${esc(s.id)}"` : ""}>
         <div class="notes-nav-row ${selected ? "selected" : ""}" data-section-menu="${esc(s.id)}">
           <button class="notes-nav-toggle" data-note-section="${esc(key)}" aria-expanded="${open}" aria-label="${open ? "Collapse" : "Expand"} ${esc(s.name)}"><span class="chevron ${open ? "open" : ""}">${icon(ICONS.chevron)}</span></button>
-          <button class="notes-nav-name" data-notes-home="${esc(s.id)}" title="${esc(s.name)}"><span class="list-dot ${s.color}"></span>${esc(s.name)}<span class="note-count">${items.length || ""}</span></button>
+          <button class="notes-nav-name" data-notes-home="${esc(s.id)}" title="${esc(s.name)}"><span class="list-dot ${s.color}"></span>${esc(s.name)}${marks}<span class="note-count">${sealed ? "" : items.length || ""}</span></button>
           <button class="icon-button small" data-new-note="${esc(s.id)}" aria-label="New note in ${esc(s.name)}" title="New note in ${esc(s.name)}">${icon(ICONS.plus)}</button>
         </div>
         ${
           open
             ? `<div class="notes-nav-pages">${
-                items
-                  .map(
-                    (n) =>
-                      `<button class="notes-nav-page ${n.id === openID ? "selected" : ""}" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" title="${esc(noteDisplayTitle(n))}" data-search="${esc([n.title, n.notes].join(" ").toLowerCase())}">${noteGlyph(n.noteIcon)}<span class="notes-nav-title">${esc(noteDisplayTitle(n))}</span></button>`,
-                  )
-                  .join("") || `<p class="notes-nav-empty">No pages</p>`
+                sealed
+                  ? `<button class="notes-nav-page notes-unlock" data-unlock-notes>${icon(LOCK_PATH)}<span class="notes-nav-title">Locked · Unlock</span></button>`
+                  : items.map((n) => noteNavButton(n, openID)).join("") || `<p class="notes-nav-empty">No pages</p>`
               }</div>`
             : ""
         }
@@ -215,30 +229,29 @@ function notesNav() {
     <input id="note-filter" type="search" placeholder="Find a page" aria-label="Find a page" value="${esc(noteFilter)}" />
     <div class="notes-nav-row ${page === "lists" && selectedList === null ? "selected" : ""}">
       <button class="notes-nav-toggle" data-note-section="all" aria-expanded="${!collapsedNoteSections.has("all") || !!noteFilter}" aria-label="${collapsedNoteSections.has("all") && !noteFilter ? "Expand" : "Collapse"} All notes"><span class="chevron ${collapsedNoteSections.has("all") && !noteFilter ? "" : "open"}">${icon(ICONS.chevron)}</span></button>
-      <button class="notes-nav-name notes-nav-all" data-notes-home="all">All<span class="note-count">${notes().length}</span></button>
+      <button class="notes-nav-name notes-nav-all" data-notes-home="all">All<span class="note-count">${listedNotes(notes()).length}</span></button>
     </div>
     ${
       !collapsedNoteSections.has("all") || !!noteFilter
-        ? `<div class="notes-nav-pages">${notes()
+        ? `<div class="notes-nav-pages">${listedNotes(notes())
             .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
-            .map(
-              (n) =>
-                `<button class="notes-nav-page ${n.id === openID ? "selected" : ""}" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" title="${esc(noteDisplayTitle(n))}" data-search="${esc([n.title, n.notes].join(" ").toLowerCase())}">${noteGlyph(n.noteIcon)}<span class="notes-nav-title">${esc(noteDisplayTitle(n))}</span></button>`,
-            )
+            .map((n) => noteNavButton(n, openID))
             .join("")}</div>`
         : ""
     }
     <div class="notes-nav-sections">${sections}</div>
     <button class="notes-nav-add" data-new-list>${icon(ICONS.plus)}New section</button>
+    ${OrbitLocks.unlocked && OrbitLocks.anyLocks() ? `<button class="notes-nav-add" data-lock-now>${icon(LOCK_PATH)}Lock now</button>` : ""}
   </aside>`;
 }
 
 function noteCard(n) {
-  const snippet = OrbitNotes.snippet(n.notes);
-  const search = [n.title, n.notes].join(" ").toLowerCase();
+  const masked = OrbitLocks.isHidden(n) || OrbitLocks.isLocked(n);
+  const snippet = masked ? "" : OrbitNotes.snippet(n.notes);
+  const search = noteSearchText(n);
   return `<button class="note-card" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" title="${esc(noteDisplayTitle(n))}" data-search="${esc(search)}">
     <span class="note-card-title">${noteGlyph(n.noteIcon)}<span>${esc(noteDisplayTitle(n))}</span></span>
-    <span class="note-card-text">${esc(snippet) || '<span class="muted">Empty page</span>'}</span>
+    <span class="note-card-text">${esc(snippet) || `<span class="muted">${OrbitLocks.isLocked(n) ? "Locked" : OrbitLocks.isHidden(n) ? "Hidden" : "Empty page"}</span>`}</span>
     <span class="note-card-meta">${esc(n.listID ? sectionName(n.listID) : "All")} · ${esc(edited(n))}</span>
   </button>`;
 }
@@ -248,8 +261,8 @@ function renderNotes() {
   const heading = selectedList !== null && selectedList !== undefined ? sectionName(selectedList) || "All" : "Notes";
   const pages =
     selectedList === null || selectedList === undefined
-      ? notes().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
-      : notesIn(selectedList);
+      ? listedNotes(notes()).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+      : listedNotes(notesIn(selectedList));
   const title = selectedList === "" ? "All" : heading;
   return `<div class="notes-app">
     ${notesNav()}
@@ -272,8 +285,13 @@ function renderNotes() {
   </div>`;
 }
 
-/** Opens a page (or a new one in a section). */
+/** Opens a page (or a new one in a section). A locked page asks for the password first. */
 function openNote(id, section = null, title = "") {
+  const target = id && notes().find((n) => n.id === id);
+  if (target && OrbitLocks.isSealed(target)) {
+    void OrbitLocks.unlock().then((ok) => ok && openNote(id, section, title));
+    return;
+  }
   notePageToken++;
   noteDisplayedEdited = notes().find((n) => n.id === id)?.updatedAt || null;
   notePhotoDraft = [...(notes().find((n) => n.id === id)?.photos || pendingNotes.get(id)?.photos || [])];
@@ -314,6 +332,13 @@ function resizeNoteFields() {
 }
 function renderNoteEditor() {
   const note = notes().find((n) => n.id === noteID) || pendingNotes.get(noteID);
+  if (OrbitLocks.isSealed(note))
+    return `<div class="notes-app">
+    ${notesNav()}
+    <section class="notes-pane note-pane note-sealed" aria-label="Locked note">
+      <div class="locked-page">${icon(LOCK_PATH)}<h1>${esc(note.title || "Locked note")}</h1><p class="secondary">This note is locked.</p><button class="primary" data-unlock-notes>Unlock</button></div>
+    </section>
+  </div>`;
   const section = note ? note.listID || "" : noteSection || "";
   const options = [`<option value="">All</option>`]
     .concat(orderedLists("notes").map((l) => `<option value="${esc(l.id)}">${esc(l.name)}</option>`))
@@ -331,9 +356,10 @@ function renderNoteEditor() {
       <div class="note-toolbar"><button class="icon-button" data-toggle-notes aria-label="Hide note list"></button>
         <nav class="crumbs" aria-label="Location"><button data-back-notes>Back to notes</button><span>/</span><button data-notes-home="${esc(section)}">${esc(section ? sectionName(section) : "All")}</button></nav>
         <span id="note-status" class="note-status"></span>
-        <button class="icon-button" id="add-note-photo" aria-label="Add photo" title="Add photo">${icon("M3 3h18v18H3zM3 17l6-6 4 4 3-3 5 5M8 7h.01")}</button><input id="note-photo-file" type="file" accept="image/*" multiple hidden />
-        <button class="icon-button" data-copy-note aria-label="Copy text" title="Copy text">${icon(ICONS.copy)}</button>
-        ${note ? `<button class="icon-button" data-note-to-task aria-label="Make it a Task" title="Make it a Task">${icon(ICONS.task)}</button><button class="icon-button danger" data-delete-note aria-label="Delete note" title="Delete note">${icon(ICONS.trash)}</button>` : ""}
+        ${OrbitLocks.isLocked(note) ? `<span class="note-locked-mark" title="Locked">${icon(LOCK_PATH)}</span>` : ""}
+        <input id="note-photo-file" type="file" accept="image/*" multiple hidden />
+        <button class="icon-button" id="note-more" aria-label="More note options" aria-haspopup="menu" title="More">${icon(ICONS.more)}</button>
+        ${note ? `<button class="icon-button danger" data-delete-note aria-label="Delete note" title="Delete note">${icon(ICONS.trash)}</button>` : ""}
       </div>
       <article class="note-page">
         <button type="button" class="note-glyph" id="change-note-icon" aria-label="Change note icon" aria-haspopup="dialog" title="Change note icon (${esc(OrbitNotes.resolveIcon(noteIconDraft).name)})">${noteGlyph(noteIconDraft)}</button>
@@ -384,6 +410,18 @@ function saveNote(rethrow = false) {
     .catch(() => {})
     .then(async () => {
       const current = notes().find((note) => note.id === snapshot.id);
+      // Only the editor's own fields come from the page; anything changed meanwhile (a lock, say) stays.
+      const latest = current
+        ? {
+            ...clean(current),
+            title: snapshot.title,
+            notes: snapshot.notes,
+            photos: snapshot.photos,
+            noteIcon: snapshot.noteIcon,
+            listID: snapshot.listID,
+            updatedAt: snapshot.updatedAt,
+          }
+        : snapshot;
       if (
         current &&
         current.title === snapshot.title &&
@@ -394,7 +432,7 @@ function saveNote(rethrow = false) {
       )
         return;
 
-      await saveTasks([snapshot]);
+      await saveTasks([latest]);
     })
     .catch((error) => {
       showNotice(error.message);
@@ -449,9 +487,39 @@ function bindNoteIcons() {
   });
 }
 
+/**
+ * The chin: the line being typed never sits at the bottom edge of the window. When the caret comes
+ * within a third of the window of the bottom, the page scrolls so there is room below it.
+ */
+function keepCaretAboveChin() {
+  const article = $(".note-page"),
+    body = $("#note-body");
+  if (!article || !body) return;
+  const chin = Math.max(160, innerHeight * 0.33);
+  // Measure the text itself (the page has a minimum height), in page coordinates.
+  const contents = document.createRange();
+  contents.selectNodeContents(body);
+  const textBottom = (contents.getBoundingClientRect().bottom || body.getBoundingClientRect().top) + scrollY;
+  article.classList.toggle("with-chin", textBottom > innerHeight - chin);
+  const selection = getSelection();
+  if (!selection.rangeCount || !body.contains(selection.anchorNode)) return;
+  const range = selection.getRangeAt(0).cloneRange();
+  range.collapse(false);
+  let rect = range.getClientRects()[0] || range.getBoundingClientRect();
+  if (!rect || (!rect.bottom && !rect.top)) {
+    const node = selection.anchorNode;
+    rect = (node.nodeType === 1 ? node : node.parentElement)?.getBoundingClientRect();
+  }
+  if (!rect) return;
+  const over = rect.bottom - (innerHeight - chin);
+  if (over > 0) window.scrollBy({ top: over, behavior: reducedMotion() ? "auto" : "smooth" });
+}
 function bindNoteEditor() {
   if (!$("#note-title")) return;
   OrbitNoteDocument.bind($("#note-body"));
+  OrbitAutocorrect.attach($("#note-title"));
+  OrbitAutocorrect.attach($("#note-body"));
+  keepCaretAboveChin();
   resizeNoteFields();
   bindNotePhotos();
   bindNoteIcons();
@@ -462,7 +530,14 @@ function bindNoteEditor() {
     noteSaveTimer = setTimeout(() => void saveNote(), 600);
   };
   $("#note-title").oninput = later;
-  $("#note-body").oninput = later;
+  $("#note-body").oninput = () => {
+    later();
+    keepCaretAboveChin();
+  };
+  $("#note-body").addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === "ArrowDown" || event.key === "PageDown")
+      requestAnimationFrame(keepCaretAboveChin);
+  });
   $("#note-title").onkeydown = (e) => {
     if (
       e.key === "Enter" ||
@@ -496,25 +571,27 @@ function bindNoteEditor() {
         leaveNote(b.dataset.backNotes !== undefined ? null : b.dataset.notesHome);
       }),
   );
-  $("[data-copy-note]").onclick = () => {
-    const title = $("#note-title").value.trim(),
-      text = $("#note-body").value.trim();
-    void api.copy([title, text].filter(Boolean).join("\n\n"));
+  // Photo, copy, make-it-a-task and lock live behind ⋯ so the page stays quiet.
+  $("#note-more").onclick = (event) => {
+    // The document's click handler closes menus; this click opens one.
+    event.stopPropagation();
+    if ($("#row-menu") && !$("#row-menu").hidden) return closeRowMenu();
+    const box = $("#note-more").getBoundingClientRect();
+    const current = notes().find((item) => item.id === noteID);
+    const entries = [
+      ["Add photo", () => $("#note-photo-file").click()],
+      [
+        "Copy text",
+        () => {
+          const title = $("#note-title").value.trim(),
+            text = $("#note-body").value.trim();
+          return api.copy([title, text].filter(Boolean).join("\n\n"));
+        },
+      ],
+    ];
+    if (current) entries.push(["Make it a Task", () => noteMenuToTask(current)], ...lockEntries(current));
+    showMenu(entries, box.right - 180, box.bottom + 6);
   };
-  if ($("[data-note-to-task]"))
-    $("[data-note-to-task]").onclick = () =>
-      action(async () => {
-        await saveNote();
-        const n = notes().find((item) => item.id === noteID) || rows("tasks").find((item) => item.id === noteID);
-        if (!n) return;
-        await put("tasks", noteToTask(n));
-        pendingNotes.delete(n.id);
-        lastNoteID = null;
-        localStorage.removeItem("lastNoteID");
-        page = "tasks";
-        selectedList = null;
-        noteID = null;
-      });
   if ($("[data-delete-note]"))
     $("[data-delete-note]").onclick = () =>
       action(async () => {
@@ -744,8 +821,7 @@ function bindNotePhotos() {
       showNotice(error.message);
     }
   };
-  $("#add-note-photo").onmousedown = remember;
-  $("#add-note-photo").onclick = () => $("#note-photo-file").click();
+  $("#note-more").addEventListener("mousedown", remember);
   $("#note-photo-file").onchange = (event) => void attach([...event.target.files], lastRange);
   body.ondrop = (event) => {
     event.preventDefault();

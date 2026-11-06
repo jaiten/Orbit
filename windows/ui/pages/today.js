@@ -102,9 +102,9 @@ function renderToday(tasks, allHabits) {
     complete = relevant.filter((t) => t.completedAt);
   // Timed tasks first, in time order; then the rest as arranged.
   open.sort((a, b) => (a.hasTime ? a.dueDate : Infinity) - (b.hasTime ? b.dueDate : Infinity));
-  const overdue = open.filter((t) => OrbitPlanner.isOverdue(planItem(t), day));
-  const timed = open.filter((t) => t.hasTime && !overdue.includes(t)),
-    untimed = open.filter((t) => !t.hasTime && !overdue.includes(t));
+  // Tasks from earlier days simply stay on Today with the rest; the user moves them when they like.
+  const timed = open.filter((t) => t.hasTime),
+    untimed = open.filter((t) => !t.hasTime);
   const habitsDone = habits.filter((h) => checked(h)).length;
   const includeTasks = localStorage.getItem("progressIncludesTasks") !== "false";
   const done = (includeTasks ? complete.length : 0) + habitsDone,
@@ -112,7 +112,6 @@ function renderToday(tasks, allHabits) {
   const eyebrow = longDate(day);
   const agenda = `      ${focusBanner()}
       ${conflictBanner()}
-      ${overdue.length ? `<div class="overdue-heading">${sectionLabel("Overdue", `${overdue.length} to review`)}<div class="overdue-bulk" role="group" aria-label="Move all overdue tasks"><button data-overdue-all="today">All to Today</button><button data-overdue-all="someday">All to Someday</button>${taskCategories().length ? macPicker("overdue-all-move", "Move all overdue tasks to a category", categoryOptions(), "", { placeholder: "All to a category", className: "pill-picker" }) : ""}</div></div>` + checklist(overdue) : ""}
       ${timed.length ? sectionLabel("On the agenda", "Time blocks") + checklist(timed) : ""}
       ${untimed.length ? sectionLabel("At your own pace", "To-dos") + checklist(untimed) : ""}
       ${
@@ -191,7 +190,7 @@ function renderAgenda(tasks, allHabits, head = "") {
     !!a.completedAt - !!b.completedAt || (a.hasTime ? a.dueDate : Infinity) - (b.hasTime ? b.dueDate : Infinity);
   let body = "";
   if (todayScope === "all") {
-    body = ["Today", "Overdue", "Upcoming", "Someday", "Completed"]
+    body = ["Today", "Upcoming", "Someday", "Completed"]
       .map((group) => {
         const items = tasks.filter((task) => OrbitPlanner.dateGroup(planItem(task), t) === group).sort(order);
         if (!items.length) return "";
@@ -201,20 +200,17 @@ function renderAgenda(tasks, allHabits, head = "") {
       })
       .join("");
   } else {
-    const overdue = tasks.filter(
-      (task) => !task.completedAt && taskDate(task) && taskDate(task) < days[0] && task.listID !== SOMEDAY,
-    );
-    body =
-      (overdue.length ? sectionLabel("Overdue", `${overdue.length} to review`) + checklist(overdue) : "") +
-      days
-        .map((key) => {
-          const items = inRange.filter((task) => taskDate(task) === key).sort(order);
-          if (!items.length) return "";
-          const label = localDay(key).toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
-          const note = key === t ? "Today" : `${items.filter((i) => i.completedAt).length} of ${items.length} done`;
-          return sectionLabel(esc(label), note) + checklist(items);
-        })
-        .join("");
+    // Open tasks from earlier days are shown on today, like Today does.
+    const earlier = (task) => !task.completedAt && taskDate(task) && taskDate(task) < t && task.listID !== SOMEDAY;
+    body = days
+      .map((key) => {
+        const items = tasks.filter((task) => (earlier(task) ? key === t : taskDate(task) === key)).sort(order);
+        if (!items.length) return "";
+        const label = localDay(key).toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
+        const note = key === t ? "Today" : `${items.filter((i) => i.completedAt).length} of ${items.length} done`;
+        return sectionLabel(esc(label), note) + checklist(items);
+      })
+      .join("");
   }
   const title = { week: "This week", month: "This month", all: "Everything" }[todayScope];
   const empty = { week: "Nothing planned this week.", month: "Nothing planned this month.", all: "No tasks yet." }[
@@ -249,35 +245,7 @@ function bindToday() {
     };
   bindTodayBoard();
   document.querySelectorAll(".overall-day[data-o]").forEach((cell) => cell.style.setProperty("--o", cell.dataset.o));
-  // Overdue tasks move to Today, Someday or a category, one at a time or all together.
-  const overdueTasks = () =>
-    rows("tasks").filter((task) => !task.isNote && OrbitPlanner.isOverdue(planItem(task), today()));
-  const moveOverdue = (tasks, destination) =>
-    action(() =>
-      saveTasks(
-        tasks.map((task) =>
-          destination === "today"
-            ? OrbitPlanner.moveToDay(task, today())
-            : OrbitPlanner.moveToList(task, destination === "someday" ? SOMEDAY : destination),
-        ),
-      ),
-    );
-  const rowMoves = Object.fromEntries(
-    [...document.querySelectorAll("[data-overdue-move]")].map((picker) => [
-      picker.dataset.picker,
-      (listID) =>
-        moveOverdue(
-          rows("tasks").filter((task) => task.id === picker.dataset.overdueMove),
-          listID,
-        ),
-    ]),
-  );
-  document.querySelectorAll("[data-overdue-all]").forEach((button) => {
-    button.onclick = () => moveOverdue(overdueTasks(), button.dataset.overdueAll);
-  });
   bindPickers({
-    ...rowMoves,
-    "overdue-all-move": (listID) => moveOverdue(overdueTasks(), listID),
     "layout-overall-range": (value) => {
       localStorage.setItem("overallProgressRange", value);
       render();

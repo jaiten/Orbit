@@ -65,8 +65,7 @@ test("Tasks groups match iPhone: Someday first, uncategorized by day, then categ
     groups.map((g) => [g.name, g.items.map((e) => e.id)]),
     [
       ["Someday", ["loose", "someday", "noteSection"]],
-      ["Overdue", ["late"]],
-      ["Today", ["now"]],
+      ["Today", ["late", "now"]],
       ["Upcoming", ["soon"]],
       ["Errands", ["errand"]],
       ["Completed", ["done"]],

@@ -9,11 +9,11 @@ test("automatic icon matches use whole words and agree with iOS", () => {
   assert.equal(icons.resolve("unknown", "Gym").id, "checklist");
   assert.equal(new Set(icons.all.map((icon) => icon.id)).size, icons.all.length);
 });
-test("date groups keep completed and Someday tasks out of overdue", () => {
+test("date groups keep earlier open tasks on Today, and completed and Someday tasks apart", () => {
   const { dateGroup } = require("../ui/planner.js");
   const today = "2026-10-22";
   for (const [item, expected] of [
-    [{ day: "2026-10-20" }, "Overdue"],
+    [{ day: "2026-10-20" }, "Today"],
     [{ day: today }, "Today"],
     [{ day: "2026-10-24" }, "Upcoming"],
     [{ day: null }, "Someday"],

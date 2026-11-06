@@ -298,8 +298,10 @@ function sectionLabel(title, note = "") {
  * leaves it. The field grows as you type, and long text (OrbitNotes) becomes a note.
  */
 function addField(placeholder = "Add a task · gym tomorrow 6pm") {
-  return `<form id="inline-add-form" class="inline-capture">
-    <div class="add-field"><textarea id="inline-task-input" aria-label="New task" placeholder="${esc(placeholder)}" maxlength="5000" autocomplete="off" spellcheck="true" rows="1">${esc(inlineDraft)}</textarea>
+  // Long captures outside Notes turn into a note card in place (see captureNoteMode in quick-add.js).
+  const asNote = captureBecomesNote(inlineDraft);
+  return `<form id="inline-add-form" class="inline-capture ${asNote ? "note-form" : ""}">
+    <div class="add-field">${captureNoteHead(asNote)}<textarea id="inline-task-input" aria-label="New task" placeholder="${esc(placeholder)}" maxlength="5000" autocomplete="off" spellcheck="true" rows="1">${esc(inlineDraft)}</textarea>
       <span class="capture-tools">
         <button type="button" class="icon-button" id="inline-dictate" aria-label="Dictate task" title="Voice typing (Win+H)"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button
         ><button type="button" class="icon-button" data-quick-add aria-label="Task options" title="Date, time and section"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 10h18"/></svg></button
@@ -344,13 +346,10 @@ function rowActions(id, title, habit = false) {
 function taskRow(t) {
   const time =
     t.hasTime && t.dueDate ? new Date(t.dueDate).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
-  const overdue = page === "today" && OrbitPlanner.isOverdue(planItem(t), today());
   const length = time && t.durationMinutes ? `${t.durationMinutes} min` : "";
   const timing = focusTimer?.taskID === t.id;
   // Progress shows in the ring and the row tint, so the title keeps the room (no "In progress" text).
-  const detail = [overdue ? OrbitPlanner.overdueLabel(taskDate(t), today()) : "", time, length]
-    .filter(Boolean)
-    .join(" · ");
+  const detail = [time, length].filter(Boolean).join(" · ");
   const onToday = OrbitPlanner.onDay(planItem(t), today());
   const id = esc(t.id),
     title = esc(t.title);
@@ -358,19 +357,6 @@ function taskRow(t) {
     page === "tasks" && !t.completedAt && !onToday
       ? `<button class="pill today-action" data-today="${id}">Add to Today</button>`
       : "";
-  const moves = overdue
-    ? `<div class="row-pills" role="group" aria-label="Move ${title}">
-        <button class="pill" data-today="${id}">Today</button><button class="pill" data-tomorrow="${id}">Tomorrow</button><button class="pill" data-someday="${id}">Someday</button>${
-          taskCategories().length
-            ? macPicker(`overdue-move-${id}`, `Move ${t.title} to a category`, categoryOptions(), "", {
-                placeholder: "Category",
-                className: "pill-picker",
-                attributes: `data-overdue-move="${id}"`,
-              })
-            : ""
-        }
-      </div>`
-    : "";
   const tracking = !t.completedAt && t.progressTracking === true;
   const started = tracking && !!t.startedAt;
   const controlLabel = t.completedAt ? "Reopen" : tracking ? (started ? "Finish" : "Start") : "Complete";
@@ -395,13 +381,12 @@ function taskRow(t) {
         })
       : "";
   const search = [t.title, t.notes, ...(t.tags || [])].join(" ").toLowerCase();
-  return `<div class="row task-row check-tile ${t.completedAt ? "complete" : ""} ${overdue ? "overdue" : ""} ${started ? "in-progress" : ""}" data-flip="task-${id}" data-search="${esc(search)}" data-row-menu="task:${id}">
+  return `<div class="row task-row check-tile ${t.completedAt ? "complete" : ""} ${started ? "in-progress" : ""}" data-flip="task-${id}" data-search="${esc(search)}" data-row-menu="task:${id}">
     <div class="row-line">
       <button class="row-tick" role="checkbox" aria-label="${controlLabel} ${title}" aria-checked="${!!t.completedAt}" data-toggle="${id}">${control}</button
       ><div class="row-main"><button class="row-body" aria-label="Edit ${title}" data-edit="${id}"><span class="row-title">${title}</span>${detail ? `<span class="row-detail">${detail}</span>` : ""}</button
       >${rowActions(id, title)}</div>${timer}${addToToday}${options}
     </div>
-    ${moves}
   </div>`;
 }
 /** A habit on the Habits page: tick, title, colour dot and count. The tick logs a check-in; the title edits. */
@@ -659,7 +644,7 @@ function keepsList(listID, otherKind) {
 function noteToTask(note) {
   const title = note.title || OrbitNotes.split(note.notes).title || "Photo note";
   const listID = keepsList(note.listID, "notes") ? note.listID : null;
-  return OrbitPlanner.moveToDay({ ...note, title, listID, isNote: false }, today());
+  return OrbitPlanner.moveToDay({ ...note, title, listID, isNote: false, locked: null }, today());
 }
 /** Task → note: no date, reminders or progress, and out of a task-only category. */
 function taskToNote(task) {
@@ -681,7 +666,11 @@ function openRowMenu(e) {
   const entries = [["Copy text", () => api.copy(text)]];
   if (kind !== "habit") entries.push(["Select item", () => selectRow(kind, id)]);
   if (kind === "habit") entries.push(["Edit…", () => openHabit(id)]);
-  if (kind === "note") entries.push(["Open", () => openNote(id)]);
+  if (kind === "note") {
+    entries.push(["Open", () => openNote(id)]);
+    entries.push(["Make it a Task", () => noteMenuToTask(item)]);
+    entries.push(...lockEntries(item));
+  }
   if (kind === "task") {
     entries.push(["Edit…", () => openTask(id)]);
     if (!item.completedAt && !item.startedAt)
@@ -698,6 +687,14 @@ function openRowMenu(e) {
     entries.push(["Make it a Note", () => action(() => put("tasks", taskToNote(item)))]);
   }
   if (kind === "task" || kind === "note") entries.push(["Delete", () => action(() => put("tasks", item, true))]);
+  const box = e.currentTarget.getBoundingClientRect();
+  showMenu(entries, e.clientX || box.left + 24, e.clientY || box.bottom);
+}
+/**
+ * A small menu at (x, y). An entry is [label, run] or [label, null, children]: a submenu that opens on
+ * hover or →. Used by right-click on rows and notes, and by the note page's ⋯ button.
+ */
+function showMenu(entries, x, y) {
   let menu = $("#row-menu");
   if (!menu) {
     menu = document.createElement("div");
@@ -711,7 +708,7 @@ function openRowMenu(e) {
     const button = document.createElement("button");
     button.setAttribute("role", "menuitem");
     button.textContent = label;
-    if (label === "Delete") button.classList.add("danger");
+    if (/^Delete/.test(label)) button.classList.add("danger");
     button.onclick = () => {
       closeRowMenu();
       void Promise.resolve(run()).catch((error) => showNotice(error.message));
@@ -752,15 +749,13 @@ function openRowMenu(e) {
       return group;
     }),
   );
-  const box = e.currentTarget.getBoundingClientRect();
-  const x = e.clientX || box.left + 24,
-    y = e.clientY || box.bottom;
   menu.hidden = false;
   menu.style.left = Math.min(x, window.innerWidth - menu.offsetWidth - 8) + "px";
   menu.style.top = Math.min(y, window.innerHeight - menu.offsetHeight - 8) + "px";
   menu.classList.toggle("submenu-left", menu.getBoundingClientRect().right + 160 > window.innerWidth);
   menu.querySelector("button").focus({ preventScroll: true });
   rowMenuScrollPosition = { x: scrollX, y: scrollY };
+  return menu;
 }
 function closeRowMenu() {
   if ($("#row-menu")) $("#row-menu").hidden = true;

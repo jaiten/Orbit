@@ -319,7 +319,8 @@ const remove = (folder) => {
     await p.getByText("Nothing to review.", { exact: true }).waitFor();
     await p.locator('[data-page="today"]').click();
     await p.getByRole("checkbox", { name: "Complete Call Mum", exact: true }).waitFor();
-    // Overdue items offer Today / Later / Someday; Someday keeps them off Today until added back.
+    // Tasks from earlier days stay on Today with no overdue label or move buttons; Someday keeps
+    // them off Today until added back.
     await p.evaluate(async () => {
       const id = crypto.randomUUID(),
         d = new Date();
@@ -344,10 +345,17 @@ const remove = (folder) => {
         updatedAt: Date.now(),
       });
     });
-    const overdue = p.locator(".check-tile", { hasText: "Renew passport" });
-    await overdue.getByText(/^from /).waitFor();
-    await overdue.getByRole("button", { name: "Someday", exact: true }).click();
-    await overdue.waitFor({ state: "detached" });
+    const earlier = p.locator(".check-tile", { hasText: "Renew passport" });
+    await earlier.waitFor();
+    if (await earlier.getByText(/^from /).count()) throw Error("An earlier task showed an overdue label");
+    if (await earlier.locator(".row-pills").count()) throw Error("An earlier task showed move buttons");
+    // Filed in Someday the way the app files it (which also creates the Someday list).
+    // The page's own save, so the Someday list is created as it would be (app globals, not window props).
+    /* global saveTasks, OrbitPlanner, rows */
+    await p.evaluate(() =>
+      saveTasks([OrbitPlanner.moveToSomeday(rows("tasks").find((t) => t.title === "Renew passport"))]),
+    );
+    await earlier.waitFor({ state: "detached" });
     await p.locator(`[data-list="00000000-0000-4000-8000-000000000001"]`).click();
     await p.getByRole("heading", { name: "Someday", exact: true }).waitFor();
     // Add to Today appears when the row is hovered.
@@ -385,14 +393,19 @@ const remove = (folder) => {
     if (await p.getByRole("checkbox", { name: "Complete Learn the cello" }).count())
       throw Error("Someday item shown on Today");
     // Long text in the add field grows it and becomes a note, never a to-do; the page edits in place.
-    const capture = p.getByRole("textbox", { name: "New task", exact: true });
+    // It unfolds into a note card in place (title above, the text as its body) and keeps focus;
+    // Return is then a new line and Ctrl+Return saves.
+    const capture = p.locator("#inline-task-input");
     const shortHeight = (await capture.boundingBox()).height;
     await capture.fill(
       "Garden ideas. Plant tomatoes along the south fence and move the herbs closer to the kitchen door so they get used more often.",
     );
-    await p.locator("#inline-preview").getByText("Note", { exact: true }).waitFor();
+    await p.locator(".inline-capture.note-form #inline-note-title").waitFor();
+    await p.getByRole("textbox", { name: "Note text", exact: true }).waitFor();
+    if (!(await p.evaluate(() => document.activeElement?.id === "inline-task-input")))
+      throw Error("Becoming a note took focus from the text");
     if ((await capture.boundingBox()).height <= shortHeight + 10) throw Error("Add field did not grow");
-    await capture.press("Enter");
+    await capture.press("Control+Enter");
     await p.waitForFunction(async () =>
       (await window.orbit.read()).records.some(
         (r) => r.payload.isNote && r.payload.title === "" && r.payload.notes.startsWith("Garden ideas"),

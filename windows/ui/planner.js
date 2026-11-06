@@ -78,12 +78,12 @@
     if (item.completedDay) return "Completed";
     if (item.someday) return "Someday";
     if (!item.day) return "Someday";
-    if (item.day === today) return "Today";
-    return item.day < today ? "Overdue" : "Upcoming";
+    // Past-dated open tasks stay on Today; there is no separate Overdue group.
+    return item.day <= today ? "Today" : "Upcoming";
   }
   /**
    * The Tasks page groups, as on iPhone: Someday (the list, plus undated tasks with no category), then
-   * dated tasks with no category by Overdue / Today / Upcoming, then each category in order, then
+   * dated tasks with no category by Today (including earlier days) / Upcoming, then each category in order, then
    * Completed. Entries are { day, completedDay, listID }; a list that is not a category (a note
    * section, or deleted) counts as no category, so nothing disappears.
    */
@@ -94,7 +94,7 @@
     const someday = (e) => e.listID === SOMEDAY_LIST_ID || (uncategorized(e) && !e.day);
     return [
       { id: "someday", name: "Someday", items: open.filter(someday) },
-      ...["Overdue", "Today", "Upcoming"].map((name) => ({
+      ...["Today", "Upcoming"].map((name) => ({
         id: name.toLowerCase(),
         name,
         items: open.filter((e) => !someday(e) && uncategorized(e) && dateGroup({ day: e.day }, today) === name),
