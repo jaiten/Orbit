@@ -114,28 +114,13 @@ struct TodayView: View {
             if !habits.isEmpty || tasks.contains(where: { !$0.note }) { ConsistencyStrip(habits: habits, logs: logs).orbitCard() }
         case "overall": OverallProgressCard(habits: habits, logs: logs, tasks: tasks)
         case "today":
-            let today = PlannerLogic.today
+            // Tasks from earlier days simply stay on Today with the rest; move them whenever you like.
             let open = relevant.filter { $0.completedAt == nil }
-            let overdue = open.filter { TodayRules.isOverdue(TodayRules.item($0), today: today) }
-            let planned = open.filter { !overdue.contains($0) }.sorted { a, b in
+            let planned = open.sorted { a, b in
                 if a.hasTime != b.hasTime { return a.hasTime }
                 return a.hasTime ? (a.dueDate ?? .distantFuture) < (b.dueDate ?? .distantFuture) : a.sortOrder < b.sortOrder
             }
-            VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
-                checklistSection("Your day", note: "", items: planned.map { TodayItem(task: $0) }, empty: relevant.isEmpty ? "Nothing planned. Add a task to get started." : "No more tasks scheduled for today.")
-                if !overdue.isEmpty {
-                    HStack { SectionLabel(title: "Overdue", note: "\(overdue.count) to review"); Menu("Move all", systemImage: "arrow.turn.down.right") {
-                        Button("Move all to Today") { moveOverdue(overdue, to: .today) }
-                        Button("Move all to Someday") { moveOverdue(overdue, to: .someday) }
-                        if !categories.isEmpty {
-                            Section("Categories") {
-                                ForEach(categories) { list in Button("Move all to \(list.name)") { moveOverdue(overdue, to: .category(list.id)) } }
-                            }
-                        }
-                    }.frame(minHeight: 44) }
-                    checklist(overdue.map { TodayItem(task: $0) }, moves: true)
-                }
-            }
+            checklistSection("Your day", note: "", items: planned.map { TodayItem(task: $0) }, empty: relevant.isEmpty ? "Nothing planned. Add a task to get started." : "No more tasks scheduled for today.")
         case "routine":
             let open = dueHabits.filter { !PlannerLogic.checkedToday($0, logs: logs, at: day) }
             if dueHabits.isEmpty {
@@ -182,18 +167,17 @@ struct TodayView: View {
         }
     }
 
-    private var categories: [TaskList] { lists.filter(\.isUserCategory) }
 
-    /// Keep rows still during completion; only the check control animates. Overdue rows offer moves.
-    private func checklist(_ items: [TodayItem], moves: Bool = false) -> some View {
+    /// Keep rows still during completion; only the check control animates.
+    private func checklist(_ items: [TodayItem]) -> some View {
         VStack(spacing: rowSpacing) {
-            ForEach(items) { item in itemView(item, moves: moves) }
+            ForEach(items) { item in itemView(item) }
         }
     }
 
-    @ViewBuilder private func itemView(_ item: TodayItem, moves: Bool) -> some View {
+    @ViewBuilder private func itemView(_ item: TodayItem) -> some View {
         if let task = item.task {
-            TaskRow(task: task, showMoves: moves, categories: moves ? categories : []) { editing = task }
+            TaskRow(task: task) { editing = task }
         }
         if let habit = item.habit {
             HabitRow(habit: habit, logs: logs, date: day, edit: { editingHabit = habit })
@@ -203,19 +187,6 @@ struct TodayView: View {
     private func refresh() {
         day = PlannerLogic.todayDate
         calendars.reload(); FocusSession.shared.restore()
-    }
-    private enum OverdueDestination { case today, someday, category(UUID) }
-    private func moveOverdue(_ tasks: [PlannerTask], to destination: OverdueDestination) {
-        do {
-            for task in tasks {
-                switch destination {
-                case .today: TodayRules.moveToDay(task, day: PlannerLogic.todayDate)
-                case .someday: try TodayRules.moveToSomeday(task, in: context)
-                case .category(let id): TodayRules.moveToList(task, listID: id)
-                }
-            }
-            try Mutations.save(context); Task { try? await refreshReminders(context) }
-        } catch { self.error = error.localizedDescription }
     }
 
 }

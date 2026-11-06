@@ -8,6 +8,10 @@ import SwiftData
     var isTaskCategory: Bool { kind != "notes" }
     /// A category the user made (not the built-in Someday list).
     var isUserCategory: Bool { isTaskCategory && id != TodayRules.somedayID }
+    /// A note section whose pages need Face ID or the passcode (the password on Windows).
+    var locked: Bool? = nil
+    /// A note section whose pages show without their titles or text in lists and search.
+    var hidden: Bool? = nil
 
     @Attribute(.unique) var id: UUID
     var name: String
@@ -28,6 +32,8 @@ import SwiftData
     /// A note: a titled page of text in Notes, never a to-do. Nil on older records means a task.
     var isNote: Bool? = nil
     var noteIcon: String? = nil
+    /// A note that needs Face ID or the passcode (the password on Windows) to open. Nil means unlocked.
+    var locked: Bool? = nil
     var photoData: String? = nil
     @Attribute(.unique) var id: UUID
     var title: String

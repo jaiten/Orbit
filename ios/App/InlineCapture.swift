@@ -26,8 +26,10 @@ extension View {
     }
 }
 
-/// Capture docked at the bottom of Today; advanced options use the same parser and save path. The field
-/// grows as you type, and past `NoteRules.threshold` characters, `NoteRules.wordLimit` words or a line break the text becomes a note.
+/// Capture docked at the bottom of Today, Tasks and Habits; advanced options use the same parser and save
+/// path. The field grows as you type, and past `NoteRules.threshold` characters, `NoteRules.wordLimit` words
+/// (not counting date and time words) or a line break the text becomes a note: the bar unfolds into a note
+/// card in place, with a title above and the text as its body, without the keyboard or caret moving.
 /// With `notesOnly` (on Notes) everything typed becomes a note.
 struct InlineCapture: View {
     var notesOnly = false
@@ -38,6 +40,7 @@ struct InlineCapture: View {
     @Environment(\.orbitAccent) private var accent
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var text = ""
+    @State private var noteTitle = ""
     @State private var focused = false
     @State private var options = false
     @State private var saving = false
@@ -49,7 +52,9 @@ struct InlineCapture: View {
         if habitsOnly { parsed.kind = .habit; parsed.schedule = parsed.schedule ?? "DAILY" }
         return parsed
     }
-    private var isNote: Bool { notesOnly || (!habitsOnly && NoteRules.isNote(text)) }
+    private var isNote: Bool { notesOnly || NoteRules.isNote(text) || (!noteTitle.isEmpty && !text.isEmpty) }
+    /// Outside Notes, a capture that has become a note shows as a note card.
+    private var noteCard: Bool { !notesOnly && isNote }
     private var preview: String {
         if isNote { return "Note · All notes" }
         let value = QuickAdd.describe(result)
@@ -58,29 +63,44 @@ struct InlineCapture: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // The chip belongs to the keyboard: it leaves when the keyboard is swiped away.
-            if focused && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            // The chip belongs to the keyboard: it leaves when the keyboard is swiped away. The note card
+            // says what it is itself.
+            if focused && !noteCard && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Button { options = true } label: { PreviewChip(text: preview, identifier: "inline-preview-text") }.buttonStyle(.plain).accessibilityLabel(preview).accessibilityHint("Change date and time").accessibilityIdentifier("quick-add-preview")
                     .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
             }
-            HStack(alignment: .top, spacing: 8) {
-                Button {
-                    if focused { dismissKeyboard() }
-                    else if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { focused = true }
-                    else { save() }
-                } label: {
-                    Image(systemName: focused ? "chevron.down" : "plus").font(.system(size: 20)).frame(width: 44, height: 44)
-                }.accessibilityLabel(focused ? "Dismiss keyboard" : notesOnly ? "Add a note" : "Add a task").disabled(saving)
-                CaptureTextField(text: $text, focused: $focused, identifier: notesOnly ? "note-capture-input" : "inline-task-input", placeholder: notesOnly ? "Write a note" : habitsOnly ? "Add a habit" : "Add a task · gym tomorrow 6pm", minimumHeight: 44) { save() }
-                DictationButton(text: $text)
-                if !notesOnly {
-                    Button { options = true } label: { Image(systemName: "calendar.badge.clock").font(.system(size: 20)).frame(width: 44, height: 44) }
-                        .accessibilityLabel("Task options").accessibilityHint("Choose a date or list before adding")
+            VStack(alignment: .leading, spacing: 0) {
+                if noteCard { noteHeader.transition(reduceMotion ? .opacity : .asymmetric(
+                    insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity)) }
+                HStack(alignment: .top, spacing: 8) {
+                    Button {
+                        if focused { dismissKeyboard() }
+                        else if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { focused = true }
+                        else { save() }
+                    } label: {
+                        // The arrow swaps quickly, so it never lingers after the bar has gone down.
+                        Image(systemName: focused ? "chevron.down" : "plus").font(.system(size: 20)).frame(width: 44, height: 44)
+                            .contentTransition(.opacity)
+                            .animation(.easeOut(duration: 0.1), value: focused)
+                    }.accessibilityLabel(focused ? "Dismiss keyboard" : notesOnly ? "Add a note" : "Add a task").disabled(saving)
+                    // The same field throughout, so focus, the caret and the keyboard stay as the card unfolds.
+                    CaptureTextField(text: $text, focused: $focused, identifier: notesOnly ? "note-capture-input" : "inline-task-input",
+                                     placeholder: notesOnly ? "Write a note" : habitsOnly ? "Add a habit" : "Add a task · gym tomorrow 6pm",
+                                     minimumHeight: noteCard ? 110 : 44, maximumLines: noteCard ? 10 : 6, allowsNewlines: noteCard,
+                                     textStyle: noteCard ? .body : .title3) { save() }
+                    DictationButton(text: $text)
+                    if !notesOnly && !noteCard {
+                        Button { options = true } label: { Image(systemName: "calendar.badge.clock").font(.system(size: 20)).frame(width: 44, height: 44) }
+                            .accessibilityLabel("Task options").accessibilityHint("Choose a date or list before adding")
+                    }
                 }
-            }.padding(.trailing, 6).padding(.vertical, 4).frame(minHeight: 52).orbitSurface(radius: CGFloat(DesignTokens.radiusInput))
-                .shadow(color: .black.opacity(0.06), radius: 12, y: 3)
+            }.padding(.trailing, 6).padding(.vertical, 4).frame(minHeight: 52)
+                .orbitSurface(radius: noteCard ? 18 : CGFloat(DesignTokens.radiusInput))
+                .shadow(color: .black.opacity(noteCard ? 0.14 : 0.06), radius: noteCard ? 24 : 12, y: noteCard ? 8 : 3)
         }.tint(accent.text)
             .animation(reduceMotion ? .easeOut(duration: 0.15) : .orbit, value: focused)
+            .animation(reduceMotion ? .easeOut(duration: 0.15) : .spring(response: 0.38, dampingFraction: 0.82), value: noteCard)
+            .sensoryFeedback(.impact(weight: .light), trigger: noteCard) { _, now in now }
             .onDisappear { dismissKeyboard() }
             .sheet(isPresented: $options) { QuickCapture(listID: listID, fromList: listID != nil || defaultDay == .undated, initialText: text, habitsOnly: habitsOnly, onSaved: { text = "" }).presentationDragIndicator(.visible) }
             .confirmationDialog("This time overlaps another plan", isPresented: $confirmConflict, titleVisibility: .visible) {
@@ -88,6 +108,21 @@ struct InlineCapture: View {
                 Button("Change time", role: .cancel) {}
             } message: { Text(conflicts.joined(separator: ", ")) }
             .modifier(MutationErrorModifier(error: $error))
+    }
+    /// Above a capture that has become a note: where it goes, an optional title and Save. Return in the
+    /// text is a new line once it is a note.
+    private var noteHeader: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Label("New note · All notes", systemImage: "square.and.pencil").font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                Spacer()
+                Button("Save") { saveNote() }.font(.subheadline.weight(.semibold)).frame(minHeight: 36)
+                    .accessibilityIdentifier("save-capture-note")
+            }
+            TextField("Title", text: $noteTitle).font(.title3.weight(.semibold))
+                .submitLabel(.next).onSubmit { focused = true }
+                .accessibilityIdentifier("capture-note-title")
+        }.padding(.leading, 16).padding(.trailing, 4).padding(.top, 8)
     }
     private func dismissKeyboard() {
         focused = false
@@ -119,7 +154,7 @@ struct InlineCapture: View {
     private func saveNote() {
         guard !saving else { return }
         NotificationCenter.default.post(name: Notification.Name("orbitCaptureSubmitted"), object: nil)
-        do { try QuickAddSaver.saveNote(text, in: context); text = ""; focused = true }
+        do { try QuickAddSaver.saveNote(text, title: noteTitle, in: context); text = ""; noteTitle = ""; focused = true }
         catch { context.rollback(); self.error = error.localizedDescription }
     }
 }

@@ -141,13 +141,18 @@ final class ChecklistUITests: XCTestCase {
         let short = input.frame.height
         input.tap()
         input.typeText("Garden ideas. Plant tomatoes along the south fence, move the herbs closer to the kitchen door so they get used more often, and build a frame for the beans before the weekend")
-        let chip = app.descendants(matching: .any).matching(identifier: "quick-add-preview").firstMatch
-        XCTAssertTrue(chip.waitForExistence(timeout: 5))
-        XCTAssertTrue(chip.label.hasPrefix("Note"), chip.label)
+        // The bar unfolds into a note card in place: a title above, the text as its body, and Save.
+        let save = app.buttons["save-capture-note"]
+        XCTAssertTrue(save.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "capture-note-title").firstMatch.exists)
+        XCTAssertTrue(app.keyboards.firstMatch.exists, "The keyboard stays up as the card unfolds")
         XCTAssertGreaterThan(input.frame.height, short + 10)
         let typing = XCTAttachment(screenshot: app.screenshot())
         typing.name = "Long capture grows into a note"; typing.lifetime = .keepAlways; add(typing)
-        input.typeText("\n")
+        // Return is now a new line; Save adds the note.
+        input.typeText("\nBeans by the shed")
+        XCTAssertTrue((input.value as? String ?? "").contains("\nBeans by the shed"))
+        save.tap()
         XCTAssertEqual(input.value as? String, "")
         XCTAssertFalse(app.buttons["Complete Garden ideas"].waitForExistence(timeout: 2))
         app.buttons["Dismiss keyboard"].tap()

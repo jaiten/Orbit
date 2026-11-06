@@ -30,14 +30,21 @@ enum NoteIcons {
 /// Mirrors windows/ui/notes.js; cases in shared/test-cases/notes.json.
 enum NoteRules {
     /// Captures longer than this, with more than `wordLimit` words, or with a line break become notes.
+    /// Date and time words ("on friday at 6pm") don't count: they belong to a task.
     static let threshold = 120
-    static let wordLimit = 10
+    static let wordLimit = 8
     private static let titleLimit = 60
+    private static let whenWord = #"^(today|tonight|tomorrow|tmrw|tmr|yesterday|mon|monday|tue|tues|tuesday|wed|wednesday|thu|thur|thurs|thursday|fri|friday|sat|saturday|sun|sunday|next|this|at|on|by|before|every|daily|weekly|morning|afternoon|evening|noon|midnight|am|pm|\d{1,2}(:\d{2})?(am|pm)?)[.,!?]?$"#
+
+    static func countedWords(_ value: String) -> Int {
+        value.split(whereSeparator: \.isWhitespace).filter { word in
+            String(word).range(of: whenWord, options: [.regularExpression, .caseInsensitive]) == nil
+        }.count
+    }
 
     static func isNote(_ text: String) -> Bool {
         let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        return value.contains("\n") || value.count > threshold
-            || value.split(whereSeparator: \.isWhitespace).count > wordLimit
+        return value.contains("\n") || value.count > threshold || countedWords(value) > wordLimit
     }
 
     /// The first line, the first short sentence, or the opening words become the title.
@@ -77,7 +84,7 @@ enum NoteRules {
     /// Note → task: it lands on Today, so it is easy to find, and leaves a note-only section.
     static func makeTask(_ note: PlannerTask, in context: ModelContext) throws {
         if note.title.isEmpty { let title = split(note.notes).title; note.title = title.isEmpty ? "Photo note" : title }
-        note.isNote = nil
+        note.isNote = nil; note.locked = nil
         if try !keepsList(note.listID, otherKind: "notes", in: context) { note.listID = nil }
         TodayRules.moveToDay(note, day: PlannerLogic.todayDate)
         try Mutations.save(context)

@@ -81,8 +81,15 @@ timeline scheduling. Resolve observed failures before calling the prototype veri
   the target is met. Verify hiding Completed and customizing section order still work.
 - Long press tasks and habits on Today. Convert in both directions through their
   menus, then undo. Scrolling or dragging a row must never convert it.
-- Verify today's scheduled tasks appear before overdue items; Today, Someday and the
-  category menu move overdue tasks correctly, one at a time and all together. Check empty days and all-done days.
+- Verify open tasks from earlier days appear on Today with the rest (no Overdue section,
+  label or move buttons). Check empty days and all-done days.
+- Lock a note and a section; background the app and confirm Face ID or the passcode is
+  needed to see them again; Hide titles on a section hides titles and text in lists and search.
+- In a note, Return in the title moves to the text with the keyboard staying up; the list
+  buttons start a list on the current line with the caret after the marker; Undo leaves no
+  highlighted text; every note row in a section is the same height.
+- Type a long capture on Today and Habits: the bar unfolds into a note card without the
+  keyboard moving; Save adds the note. Close quick add: the arrow and bar leave together.
 - With long titles, accessibility text sizes and Reduce Motion, check row controls,
   scrolling, the compact summary and Completed disclosure. Verify the Add field
   remains near the top when progress is hidden or moved in Edit Today.

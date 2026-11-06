@@ -21,12 +21,23 @@ struct NotesView: View {
     @State private var path: [NoteRoute] = []
     @State private var managing = false
     @AppStorage("collapsedNoteSections") private var collapsedStorage = ""
+    @ObservedObject private var lock = NoteLock.shared
     private var collapsed: Set<String> { Set(collapsedStorage.split(separator: ",").map(String.init)) }
+    /// Search never matches a hidden page, and only the title of a locked one.
     private var notes: [PlannerTask] {
         items.filter { item in
-            item.note && (search.isEmpty || item.title.localizedCaseInsensitiveContains(search) || item.notes.localizedCaseInsensitiveContains(search))
+            guard item.note, !sealedSection(item.listID) else { return false }
+            if search.isEmpty { return true }
+            if NoteLock.isHidden(item, lists: lists) { return false }
+            return item.title.localizedCaseInsensitiveContains(search)
+                || (!NoteLock.isLocked(item, lists: lists) && item.notes.localizedCaseInsensitiveContains(search))
         }
     }
+    /// A locked section's pages stay out of every list until unlocked.
+    private func sealedSection(_ id: UUID?) -> Bool {
+        !lock.unlocked && id.flatMap { id in lists.first { $0.id == id } }?.locked == true
+    }
+    private var anyLocks: Bool { lists.contains { $0.locked == true } || items.contains { $0.note && $0.locked == true } }
     /// Your sections in order, then notes without one, then Someday.
     /// `color` is nil for All notes, which uses the accent chosen in Settings.
     private struct NoteSection: Identifiable { let id: String; let name: String; let color: String?; let listID: UUID? }
@@ -60,6 +71,12 @@ struct NotesView: View {
                             sectionView(section.id, name: section.name, color: section.color, listID: section.listID, pages: pages)
                         }
                     }
+                    if lock.unlocked && anyLocks {
+                        Button { lock.lock() } label: {
+                            Label("Lock Now", systemImage: "lock")
+                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).contentShape(Rectangle())
+                        }.buttonStyle(.plain).accessibilityIdentifier("lock-notes-now")
+                    }
                     Button { managing = true } label: {
                         Label("Manage sections", systemImage: "folder.badge.gearshape")
                             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
@@ -76,7 +93,7 @@ struct NotesView: View {
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: NoteRoute.self) { route in
                 switch route {
-                case .open(let id): NoteEditor(note: items.first { $0.id == id })
+                case .open(let id): LockedNoteGate(note: items.first { $0.id == id })
                 case .new(let section, _): NoteEditor(note: nil, sectionID: section)
                 }
             }
@@ -87,6 +104,8 @@ struct NotesView: View {
     /// A Notion-style toggle: chevron, coloured dot, name and count; pages sit in one quiet card below.
     private func sectionView(_ id: String, name: String, color: String?, listID: UUID?, pages: [PlannerTask]) -> some View {
         let open = !collapsed.contains(id) || !search.isEmpty
+        let list = listID.flatMap { id in lists.first { $0.id == id } }
+        let sealed = sealedSection(listID)
         return VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceS)) {
             HStack(spacing: 8) {
                 Button { toggle(id) } label: {
@@ -95,18 +114,27 @@ struct NotesView: View {
                             .rotationEffect(.degrees(open ? 90 : 0))
                         Circle().fill(color.map(DayTheme.color) ?? accent.fill).frame(width: 8, height: 8)
                         Text(name).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                        Text("\(pages.count)").font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                        if list?.locked == true { Image(systemName: "lock.fill").font(.caption2).foregroundStyle(.secondary).accessibilityLabel("Locked") }
+                        if list?.hidden == true { Image(systemName: "eye.slash").font(.caption2).foregroundStyle(.secondary).accessibilityLabel("Titles hidden") }
+                        if !sealed { Text("\(pages.count)").font(.caption).monospacedDigit().foregroundStyle(.secondary) }
                         Spacer(minLength: 0)
                     }.frame(minHeight: 44).contentShape(Rectangle())
                 }.buttonStyle(.plain)
-                    .accessibilityLabel("\(name), \(pages.count) notes").accessibilityValue(open ? "Expanded" : "Collapsed")
+                    .accessibilityLabel(sealed ? "\(name), locked" : "\(name), \(pages.count) notes").accessibilityValue(open ? "Expanded" : "Collapsed")
+                    .contextMenu { if let list { SectionLockItems(list: list) } }
                 // + always starts a page here; Manage sections adds, renames, reorders and deletes sections.
                 Button { withAnimation(.orbit) { path.append(.new(section: listID, token: UUID())) } } label: {
                     Image(systemName: "plus").font(.system(size: 16, weight: .medium)).frame(width: 44, height: 44)
                 }.foregroundStyle(.secondary).accessibilityLabel("New note in \(name)")
             }.padding(.horizontal, 4)
             if open {
-                if pages.isEmpty {
+                if sealed {
+                    Button { Task { await lock.unlock() } } label: {
+                        Label("Locked · Unlock", systemImage: "lock.fill").font(.subheadline)
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).padding(.horizontal, 12).contentShape(Rectangle())
+                    }.buttonStyle(.plain).foregroundStyle(.secondary)
+                        .orbitSurface(radius: CGFloat(DesignTokens.radiusCard)).accessibilityIdentifier("unlock-section")
+                } else if pages.isEmpty {
                     Text("No notes in \(name) yet.").font(.subheadline).foregroundStyle(.secondary).padding(.horizontal, 4)
                 } else {
                     VStack(spacing: 0) {
@@ -119,8 +147,8 @@ struct NotesView: View {
                                     .onTapGesture { withAnimation(.orbit) { path.append(.open(note.id)) } }
                                     .accessibilityElement(children: .ignore)
                                     .accessibilityAddTraits(.isButton)
-                                    .accessibilityLabel(note.title.isEmpty ? (note.notes.isEmpty ? "Photo note" : NoteRules.snippet(note.notes)) : note.title)
-                                    .accessibilityValue(NoteRules.snippet(note.notes))
+                                    .accessibilityLabel(NoteRow.displayTitle(note, lists: lists))
+                                    .accessibilityValue(NoteLock.isLocked(note, lists: lists) || NoteLock.isHidden(note, lists: lists) ? "" : NoteRules.snippet(note.notes))
                                     .accessibilityIdentifier("note-row")
                                     .accessibilityAction { withAnimation(.orbit) { path.append(.open(note.id)) } }
                                 NoteMenu(note: note)
@@ -143,16 +171,29 @@ struct NotesView: View {
     }
 }
 
-/// A page in a section: icon, title, the start of the text and when it last changed.
+/// A page in a section: icon, title, the start of the text and when it last changed. Every row is the
+/// same height: one line of title and one of text (left blank when there is none). A locked page shows
+/// a lock and no text; a page in a hidden section shows neither title nor text.
 struct NoteRow: View {
     let note: PlannerTask
+    @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
+    static func displayTitle(_ note: PlannerTask, lists: [TaskList]) -> String {
+        if NoteLock.isHidden(note, lists: lists) { return "Hidden note" }
+        if !note.title.isEmpty { return note.title }
+        if NoteLock.isLocked(note, lists: lists) { return "Locked note" }
+        return note.notes.isEmpty ? "Photo note" : NoteRules.snippet(note.notes)
+    }
     var body: some View {
+        let locked = NoteLock.isLocked(note, lists: lists), hidden = NoteLock.isHidden(note, lists: lists)
+        let snippet = locked ? "Locked" : hidden ? "Hidden" : note.title.isEmpty ? "" : NoteRules.snippet(note.notes)
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: NoteIcons.symbol(note.noteIcon)).font(.system(size: 17)).foregroundStyle(.secondary).frame(width: 24).padding(.top, 2)
+            Image(systemName: locked ? "lock.fill" : NoteIcons.symbol(note.noteIcon)).font(.system(size: 17)).foregroundStyle(.secondary).frame(width: 24).padding(.top, 2)
             VStack(alignment: .leading, spacing: 3) {
-                Text(note.title.isEmpty ? (note.notes.isEmpty ? "Photo note" : NoteRules.snippet(note.notes)) : note.title).font(.body.weight(.medium)).foregroundStyle(.primary).lineLimit(2)
-                let snippet = NoteRules.snippet(note.notes)
-                if !snippet.isEmpty && !note.title.isEmpty { Text(snippet).font(.subheadline).foregroundStyle(.secondary).lineLimit(2) }
+                Text(Self.displayTitle(note, lists: lists)).font(.body.weight(.medium)).foregroundStyle(hidden ? Color.secondary : Color.primary)
+                    .italic(hidden).lineLimit(1)
+                // Always one line, even when empty, so every row matches.
+                Text(snippet.isEmpty ? " " : snippet).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                    .accessibilityHidden(snippet.isEmpty)
             }
             Spacer(minLength: 8)
             Text(note.updatedAt.formatted(.relative(presentation: .named, unitsStyle: .abbreviated)))
@@ -171,14 +212,27 @@ struct NoteMenuItems: View {
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
     let note: PlannerTask
     @Binding var error: String?
+    /// Locked pages ask for Face ID or the passcode before their text is copied or moved.
+    private func mayOpen() async -> Bool { NoteLock.isLocked(note, lists: lists) ? await NoteLock.shared.unlock() : true }
     var body: some View {
-        Button("Copy text", systemImage: "doc.on.doc") { UIPasteboard.general.string = NoteActions.text(of: note) }
+        Button("Copy text", systemImage: "doc.on.doc") {
+            Task { if await mayOpen() { UIPasteboard.general.string = NoteActions.text(of: note) } }
+        }
+        if note.locked == true {
+            Button("Remove Lock", systemImage: "lock.open") {
+                Task { if await NoteLock.shared.unlock(reason: "Remove the lock from this note") { change { note.locked = nil; note.updatedAt = .now; try Mutations.save(context) } } }
+            }
+        } else {
+            Button("Lock Note", systemImage: "lock") { change { note.locked = true; note.updatedAt = .now; try Mutations.save(context) } }
+        }
         Menu("Move to section", systemImage: "folder") {
             Button("No section") { move(nil) }
             ForEach(lists.filter(\.isNoteSection)) { list in Button(list.name) { move(list.id) } }
             Button("Someday") { move(TodayRules.somedayID) }
         }
-        Button("Make It a Task", systemImage: "checklist") { change { try NoteRules.makeTask(note, in: context) } }
+        Button("Make It a Task", systemImage: "checklist") {
+            Task { if await mayOpen() { change { try NoteRules.makeTask(note, in: context) } } }
+        }
         Button("Delete", systemImage: "trash", role: .destructive) { change { context.delete(note); try Mutations.save(context) } }
     }
     private func move(_ id: UUID?) {
@@ -241,6 +295,42 @@ struct NoteActions: ViewModifier {
     }
     static func text(of note: PlannerTask) -> String {
         [note.title, note.notes].filter { !$0.isEmpty }.joined(separator: "\n\n")
+    }
+}
+
+/// Lock or unlock a note section, and hide or show its titles (touch and hold the section).
+struct SectionLockItems: View {
+    @Environment(\.modelContext) private var context
+    let list: TaskList
+    var body: some View {
+        if list.locked == true {
+            Button("Unlock Section", systemImage: "lock.open") {
+                Task { if await NoteLock.shared.unlock(reason: "Remove the lock from this section") { save { list.locked = nil } } }
+            }
+        } else {
+            Button("Lock Section", systemImage: "lock") { save { list.locked = true } }
+        }
+        Button(list.hidden == true ? "Show Titles" : "Hide Titles", systemImage: list.hidden == true ? "eye" : "eye.slash") {
+            save { list.hidden = list.hidden == true ? nil : true }
+        }
+    }
+    private func save(_ change: () -> Void) {
+        change(); list.updatedAt = .now
+        do { try Mutations.save(context) } catch { context.rollback() }
+    }
+}
+
+/// Opens a note, asking for Face ID or the passcode first when it is locked.
+struct LockedNoteGate: View {
+    let note: PlannerTask?
+    @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
+    @ObservedObject private var lock = NoteLock.shared
+    var body: some View {
+        if let note, lock.isSealed(note, lists: lists) {
+            LockedNotePlaceholder(title: note.title)
+        } else {
+            NoteEditor(note: note)
+        }
     }
 }
 

@@ -583,9 +583,7 @@ main {
   box-shadow: inset 0 0 0 var(--row-tick-ring) color-mix(in srgb, var(--accent) var(--tint-tick-ring), transparent);
   transition: box-shadow var(--motion);
 }
-.overdue .tick {
-  box-shadow: inset 0 0 0 var(--row-tick-ring) color-mix(in srgb, var(--clay) 70%, transparent);
-}
+
 .row-tick:hover .tick {
   box-shadow: inset 0 0 0 var(--row-tick-ring) var(--accent);
 }
@@ -3887,28 +3885,7 @@ body[data-view="today"] .today-layout {
   background: var(--surface);
   color: var(--ink);
 }
-.overdue-heading {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  margin-bottom: 8px;
-}
-.overdue-heading .section-label {
-  gap: 8px;
-  margin: 0 auto 0 0;
-}
-.overdue-bulk {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-.overdue-bulk button {
-  padding: 5px 8px;
-  font-size: 11px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-}
+
 .habits-compact-card {
   padding: 12px;
   background: color-mix(in srgb, var(--sage) 4%, var(--surface));
@@ -4646,13 +4623,7 @@ body:is([data-view="history"], [data-view="habit-history"]) .page-head {
   color: var(--accent-text);
   background: color-mix(in srgb, var(--accent) var(--tint-accent-fill), transparent);
 }
-.overdue-bulk .pill-picker summary {
-  height: auto;
-  min-width: 0;
-  gap: 6px;
-  padding: 5px 8px;
-  font-size: 11px;
-}
+
 /* Edit layout: "Overall progress [Past month]" on one line with the panel toggles. */
 .layout-range {
   display: flex;

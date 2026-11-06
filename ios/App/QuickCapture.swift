@@ -44,7 +44,7 @@ struct QuickCapture: View {
         if editedTime { parsed.time = hasTime ? Calendar.current.component(.hour, from: time) * 60 + Calendar.current.component(.minute, from: time) : nil }
         return parsed
     }
-    private var isNote: Bool { !habitsOnly && NoteRules.isNote(text) }
+    private var isNote: Bool { NoteRules.isNote(text) }
     private var preview: String {
         if isNote { return "Note · " + (contextListName ?? "Notes") }
         var value = QuickAdd.describe(result)
@@ -178,8 +178,7 @@ struct CaptureTextField: UIViewRepresentable {
         field.placeholder = placeholder
         field.accessibilityIdentifier = identifier
         field.accessibilityLabel = placeholder
-        let font = UIFont.preferredFont(forTextStyle: textStyle)
-        field.font = bold ? UIFont(descriptor: font.fontDescriptor.withSymbolicTraits(.traitBold) ?? font.fontDescriptor, size: 0) : font
+        field.apply(textStyle, bold: bold)
         field.adjustsFontForContentSizeCategory = true
         field.backgroundColor = .clear
         field.autocapitalizationType = .sentences
@@ -190,7 +189,9 @@ struct CaptureTextField: UIViewRepresentable {
         field.textContainerInset = UIEdgeInsets(top: 11, left: 0, bottom: 11, right: 0)
         field.textContainer.lineFragmentPadding = 0
         field.delegate = context.coordinator
-        if identifier == "note-body" { field.configureNoteToolbar() }
+        // The title and text of a note share one keyboard bar, so moving between them never changes the keyboard.
+        if identifier == "note-body" { field.configureNoteToolbar(); Input.noteBody = field }
+        if identifier == "note-title" { field.configureNoteToolbar(forwardsLists: true) }
         field.textChanged()
         field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         field.setContentHuggingPriority(.defaultLow, for: .horizontal)
@@ -209,7 +210,15 @@ struct CaptureTextField: UIViewRepresentable {
             field.selectedRange = NSRange(location: min(selection.location, (text as NSString).length), length: 0)
             field.textChanged()
         }
+        // A capture that becomes a note switches to body text, and Return then starts a new line.
+        if field.textStyle != textStyle || field.bold != bold { field.apply(textStyle, bold: bold) }
+        let returnKey: UIReturnKeyType = allowsNewlines ? .default : .next
+        if field.returnKeyType != returnKey {
+            field.returnKeyType = returnKey
+            if field.isFirstResponder { field.reloadInputViews() }
+        }
         field.wantsFocus = focused
+        if focused && !field.isFirstResponder { Input.focusRequest = field }
         field.scheduleFocusUpdate()
     }
 
@@ -227,9 +236,24 @@ struct CaptureTextField: UIViewRepresentable {
 
     final class Input: UITextView {
         var wantsFocus = false
+        private(set) var textStyle: UIFont.TextStyle = .title3
+        private(set) var bold = false
+        func apply(_ style: UIFont.TextStyle, bold: Bool) {
+            textStyle = style; self.bold = bold
+            let font = UIFont.preferredFont(forTextStyle: style)
+            self.font = bold ? UIFont(descriptor: font.fontDescriptor.withSymbolicTraits(.traitBold) ?? font.fontDescriptor, size: 0) : font
+            textChanged()
+        }
         var noteLists = false
-        func configureNoteToolbar() {
-            noteLists = true
+        /// The field that most recently asked for focus. A field giving up focus hands it straight over, so
+        /// Return in a note's title moves to its text without the keyboard closing and reopening.
+        weak static var focusRequest: Input?
+        /// The open note's text: list and indent buttons pressed in the title act there.
+        weak static var noteBody: Input?
+        private var forwardsLists = false
+        func configureNoteToolbar(forwardsLists: Bool = false) {
+            self.forwardsLists = forwardsLists
+            noteLists = !forwardsLists
             inputAccessoryView = NoteKeyboardBar(target: self, actions: [
                 ("Bullet list", "list.bullet", #selector(bulletNote)),
                 ("Numbered list", "list.number", #selector(numberNote)),
@@ -246,24 +270,59 @@ struct CaptureTextField: UIViewRepresentable {
             commands.forEach { $0.wantsPriorityOverSystemBehavior = true }
             return (super.keyCommands ?? []) + commands
         }
-        @objc private func bulletNote() { changeList(false) }
-        @objc private func numberNote() { changeList(true) }
-        private func changeList(_ numbered: Bool) {
+        /// The field list and indent buttons act on: the note's text when pressed in its title.
+        private var listEditor: Input {
+            guard forwardsLists, let body = Input.noteBody, body.window != nil else { return self }
+            if !body.isFirstResponder { Input.focusRequest = body; body.becomeFirstResponder() }
+            return body
+        }
+        @objc private func bulletNote() { listEditor.changeList(false) }
+        @objc private func numberNote() { listEditor.changeList(true) }
+        /// Starts (or ends) a list on the selected lines. The marker goes at the start of each line and the
+        /// caret keeps its place in the text: after the marker when it was at the start of the line.
+        fileprivate func changeList(_ numbered: Bool) {
             let source = (text ?? "") as NSString
-            let range = source.lineRange(for: selectedRange)
+            let selection = selectedRange
+            var range = source.lineRange(for: selection)
+            // Leave the line break alone, so the caret stays on this line.
+            if range.length > 0, source.character(at: NSMaxRange(range) - 1) == 10 { range.length -= 1 }
             let lines = source.substring(with: range).components(separatedBy: "\n")
             let pattern = numbered ? #"^[ \t]*\d+\. "# : #"^[ \t]*• "#
             let remove = lines.filter { !$0.isEmpty }.allSatisfy { $0.range(of: pattern, options: .regularExpression) != nil }
+                && lines.contains { !$0.isEmpty }
+            // Numbering carries on from a numbered line just above.
+            var number = 1
+            if numbered, range.location > 0 {
+                let previous = source.substring(with: source.lineRange(for: NSRange(location: range.location - 1, length: 0)))
+                if let match = previous.range(of: #"^[ \t]*\d+(?=\. )"#, options: .regularExpression),
+                   let value = Int(previous[match].trimmingCharacters(in: .whitespaces)) { number = value + 1 }
+            }
+            let marker = #"^(?:•|-|\d+\.) "#
+            var firstLine: (indent: Int, old: Int, new: Int) = (0, 0, 0)
             let value = lines.enumerated().map { index, line -> String in
-                if line.isEmpty && index > 0 { return line }
+                if line.isEmpty && lines.count > 1 { return line }
                 let indent = String(line.prefix { $0 == " " || $0 == "\t" })
-                let content = String(line.dropFirst(indent.count)).replacingOccurrences(of: #"^(?:•|-|\d+\.) "#, with: "", options: .regularExpression)
-                return indent + (remove ? "" : numbered ? "\(index + 1). " : "• ") + content
+                let rest = String(line.dropFirst(indent.count))
+                let oldMarker = rest.range(of: marker, options: .regularExpression).map { (String(rest[$0]) as NSString).length } ?? 0
+                let content = String((rest as NSString).substring(from: oldMarker))
+                let newMarker = remove ? "" : numbered ? "\(number). " : "• "
+                if numbered && !remove { number += 1 }
+                if index == 0 { firstLine = ((indent as NSString).length, oldMarker, (newMarker as NSString).length) }
+                return indent + newMarker + content
             }.joined(separator: "\n")
             replaceNote(range, with: value)
+            if selection.length == 0 && lines.count == 1 {
+                let column = selection.location - range.location
+                let markerEnd = firstLine.indent + firstLine.old
+                let caret = column <= markerEnd ? range.location + firstLine.indent + firstLine.new
+                    : selection.location + firstLine.new - firstLine.old
+                selectedRange = NSRange(location: min(max(range.location, caret), (self.text as NSString).length), length: 0)
+            } else {
+                selectedRange = NSRange(location: range.location, length: (value as NSString).length)
+            }
         }
-        @objc private func indentNote() { changeIndent(false) }
-        @objc private func outdentNote() { changeIndent(true) }
+        @objc private func indentNote() { listEditor.changeIndent(false) }
+        @objc private func outdentNote() { listEditor.changeIndent(true) }
         @objc private func undoNote() { undoManager?.undo() }
         @objc private func redoNote() { undoManager?.redo() }
         @objc private func doneNote() { resignFirstResponder() }
@@ -273,7 +332,7 @@ struct CaptureTextField: UIViewRepresentable {
             replace(selection, withText: replacement)
             delegate?.textViewDidChange?(self)
         }
-        private func changeIndent(_ outdent: Bool) {
+        fileprivate func changeIndent(_ outdent: Bool) {
             let source = (text ?? "") as NSString
             let selection = selectedRange
             let end = selection.length > 0 ? selection.location + selection.length - 1 : selection.location
@@ -307,6 +366,10 @@ struct CaptureTextField: UIViewRepresentable {
 
         override init(frame: CGRect, textContainer: NSTextContainer?) {
             super.init(frame: frame, textContainer: textContainer)
+            // Undo and redo put the caret after the change instead of highlighting the changed text.
+            for name in [Notification.Name.NSUndoManagerDidUndoChange, .NSUndoManagerDidRedoChange] {
+                NotificationCenter.default.addObserver(self, selector: #selector(placeCaretAfterUndo(_:)), name: name, object: nil)
+            }
             placeholderLabel.textColor = .placeholderText
             placeholderLabel.font = .preferredFont(forTextStyle: .title3)
             placeholderLabel.adjustsFontForContentSizeCategory = true
@@ -314,6 +377,14 @@ struct CaptureTextField: UIViewRepresentable {
             addSubview(placeholderLabel)
         }
         required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+        @objc private func placeCaretAfterUndo(_ notification: Notification) {
+            guard isFirstResponder, let manager = notification.object as? UndoManager, manager === undoManager else { return }
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.selectedRange.length > 0 else { return }
+                self.selectedRange = NSRange(location: NSMaxRange(self.selectedRange), length: 0)
+            }
+        }
 
         override func layoutSubviews() {
             super.layoutSubviews()
@@ -338,7 +409,14 @@ struct CaptureTextField: UIViewRepresentable {
                 self.focusUpdateScheduled = false
                 guard self.window != nil else { return }
                 if self.wantsFocus && !self.isFirstResponder { self.becomeFirstResponder() }
-                else if !self.wantsFocus && self.isFirstResponder { self.resignFirstResponder() }
+                else if !self.wantsFocus && self.isFirstResponder {
+                    // Another field is taking over: hand focus straight to it, keeping the keyboard up.
+                    if let next = Input.focusRequest, next !== self, next.wantsFocus, next.window != nil {
+                        next.becomeFirstResponder()
+                    } else {
+                        self.resignFirstResponder()
+                    }
+                }
             }
         }
 

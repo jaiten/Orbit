@@ -28,10 +28,10 @@ import SwiftData
 
     /// Saves long text as a note: an undated page in Notes, never a to-do.
     @discardableResult
-    static func saveNote(_ text: String, listID: UUID? = nil, in context: ModelContext) throws -> PlannerTask {
+    static func saveNote(_ text: String, title: String = "", listID: UUID? = nil, in context: ModelContext) throws -> PlannerTask {
         let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !body.isEmpty else { throw CocoaError(.validationMissingMandatoryProperty) }
-        let note = PlannerTask(title: "", listID: listID)
+        let note = PlannerTask(title: title.trimmingCharacters(in: .whitespacesAndNewlines), listID: listID)
         note.isNote = true; note.notes = body
         context.insert(note)
         if listID == TodayRules.somedayID { try TodayRules.ensureSomeday(context) }

@@ -43,7 +43,9 @@ struct RootView: View {
     @ObservedObject private var sync = SyncService.shared
     @State private var selectedTab = OrbitTab.today
     @AppStorage("tabOrder") private var tabOrder = OrbitTab.defaultOrder
-    @GestureState private var undoDrag: CGSize = .zero
+    /// Where the Undo toast has been dragged. It keeps going in that direction when swiped away, rather
+    /// than snapping back as it fades.
+    @State private var undoDrag: CGSize = .zero
     @State private var captureDockHeight: CGFloat = 0
     @State private var keyboardVisible = false
     @State private var errorMessage: String?
@@ -97,7 +99,8 @@ struct RootView: View {
             if value == .active { UsageSignals.recordVisit(); SyncService.shared.resumeRealtime(); Task { await refreshNotifications(); await SyncService.shared.run(context) } }
             else {
                 SyncService.shared.suspendRealtime()
-                if value == .background { BackgroundRefresh.schedule() }
+                // Locked notes lock again whenever Orbit leaves the screen.
+                if value == .background { BackgroundRefresh.schedule(); NoteLock.shared.lock() }
             }
         }
         .alert("Orbit", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
@@ -152,16 +155,32 @@ struct RootView: View {
                     .background(Color.orbitSurface, in: Capsule()).overlay(Capsule().strokeBorder(Color.orbitLine))
                     .shadow(color: .black.opacity(0.12), radius: 18, y: 8)
                     .offset(x: undoDrag.width, y: max(0, undoDrag.height))
-                    .opacity(max(0.25, 1 - Double(abs(undoDrag.width)) / 180))
-                    .gesture(DragGesture(minimumDistance: 12).updating($undoDrag) { value, state, _ in state = value.translation }.onEnded { value in
-                        if abs(value.translation.width) > 45 || value.translation.height > 30 { undo.dismiss() }
-                    })
+                    .opacity(max(0, 1 - Double(max(abs(undoDrag.width) / 220, max(0, undoDrag.height) / 120))))
+                    .gesture(DragGesture(minimumDistance: 12)
+                        .onChanged { value in undoDrag = value.translation }
+                        .onEnded { value in
+                            let sideways = abs(value.predictedEndTranslation.width) > 120 || abs(value.translation.width) > 60
+                            let down = value.predictedEndTranslation.height > 80 || value.translation.height > 36
+                            guard sideways || down else {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { undoDrag = .zero }
+                                return
+                            }
+                            // Carry on in the direction of the swipe, then remove it.
+                            let width = sideways ? (value.translation.width < 0 ? -1 : 1) * 420 : value.translation.width
+                            withAnimation(.easeOut(duration: 0.22)) { undoDrag = CGSize(width: width, height: down ? 140 : value.translation.height) } completion: {
+                                var quiet = Transaction(); quiet.disablesAnimations = true
+                                withTransaction(quiet) { undo.dismiss(); undoDrag = .zero }
+                            }
+                        })
                     .padding(.bottom, ([OrbitTab.today, .habits, .tasks].contains(selectedTab) ? captureDockHeight : 0) + (keyboardVisible ? 8 : 58))
-                    .transition(.opacity)
+                    // Arrives from below; leaves by fading and settling down slightly, never by jumping.
+                    .transition(reduceMotion ? .opacity : .asymmetric(
+                        insertion: .move(edge: .bottom).combined(with: .opacity),
+                        removal: .opacity.combined(with: .scale(scale: 0.96, anchor: .bottom)).combined(with: .offset(y: 12))))
                     .task(id: change.created) { try? await Task.sleep(for: .seconds(8)); if undo.change?.created == change.created { undo.dismiss() } }
                 }
             }
-            .animation(reduceMotion ? .easeOut(duration: 0.2) : .orbit, value: undo.change?.created)
+            .animation(reduceMotion ? .easeOut(duration: 0.2) : .spring(response: 0.32, dampingFraction: 0.86), value: undo.change?.created)
     }
 
     @ViewBuilder private func tabPage(_ tab: OrbitTab) -> some View {

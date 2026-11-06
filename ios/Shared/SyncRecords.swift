@@ -37,6 +37,7 @@ import SwiftData
             if let started = t.startedAt { payload["startedAt"] = stamp(started) }
             if t.isNote == true { payload["isNote"] = true }
             if let icon = t.noteIcon { payload["noteIcon"] = icon }
+            if t.locked == true { payload["locked"] = true }
             if !t.photos.isEmpty { payload["photos"] = t.photos.map { photo -> [String: String] in
                 var value = ["id": photo.id, "contentType": photo.contentType]
                 if let position = photo.position { value["position"] = position }
@@ -55,6 +56,8 @@ import SwiftData
         for l in try context.fetch(FetchDescriptor<TaskList>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) {
             var payload: [String: Any] = ["id": id(l.id), "name": l.name, "color": l.color, "sortOrder": l.sortOrder, "updatedAt": stamp(l.updatedAt)]
             if let kind = l.kind { payload["kind"] = kind }
+            if l.locked == true { payload["locked"] = true }
+            if l.hidden == true { payload["hidden"] = true }
             try add("lists", l.id.uuidString.lowercased(), payload)
         }
         // Day start syncs once someone has chosen it, so a new device never overrides it with the default.
@@ -108,6 +111,7 @@ import SwiftData
             t.subtasks = (p["subtasks"] as? [[String: Any]] ?? []).compactMap { s in guard let id = (s["id"] as? String).flatMap(UUID.init(uuidString:)), let title = s["title"] as? String else { return nil }; return Subtask(id: id, title: title, completed: s["completed"] as? Bool ?? false) }
             t.progressTracking = p["progressTracking"] as? Bool; t.startedAt = date("startedAt"); t.isNote = (p["isNote"] as? Bool) == true ? true : nil
             t.noteIcon = p["noteIcon"] as? String
+            t.locked = (p["locked"] as? Bool) == true ? true : nil
             t.photos = (p["photos"] as? [[String: String]] ?? []).compactMap { value in
                 guard let id = value["id"], UUID(uuidString: id) != nil else { return nil }
                 return NotePhoto(id: id.lowercased(), position: value["position"], wrap: value["wrap"])
@@ -125,7 +129,7 @@ import SwiftData
             let l = old ?? HabitLog(habitID: habitID, dayKey: day); if old == nil { context.insert(l) }; l.id = uuid; l.count = max(0, p["count"] as? Int ?? 0); l.updatedAt = date("updatedAt") ?? .now
         case "lists":
             let old = try context.fetch(FetchDescriptor<TaskList>()).first { $0.id == uuid }; if deleted { if let old { context.delete(old) }; return }
-            let l = old ?? TaskList(name: p["name"] as? String ?? "List"); if old == nil { l.id = uuid; context.insert(l) }; l.kind = p["kind"] as? String; l.name = p["name"] as? String ?? l.name; l.color = p["color"] as? String ?? "sage"; l.sortOrder = p["sortOrder"] as? Int ?? 0; l.updatedAt = date("updatedAt") ?? .now
+            let l = old ?? TaskList(name: p["name"] as? String ?? "List"); if old == nil { l.id = uuid; context.insert(l) }; l.kind = p["kind"] as? String; l.locked = (p["locked"] as? Bool) == true ? true : nil; l.hidden = (p["hidden"] as? Bool) == true ? true : nil; l.name = p["name"] as? String ?? l.name; l.color = p["color"] as? String ?? "sage"; l.sortOrder = p["sortOrder"] as? Int ?? 0; l.updatedAt = date("updatedAt") ?? .now
         case "preferences":
             guard uuid == DayStart.recordID else { return }
             if !deleted { DayStart.receive(minutes: p["dayStartMinutes"] as? Int, updatedAt: p["updatedAt"] as? Double ?? 0) }

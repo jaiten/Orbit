@@ -25,7 +25,7 @@ SwiftData app currently requires Xcode; WSL/xtool is not yet supported.
 
 | Area | Current behavior |
 | --- | --- |
-| Both apps | Today (today plus overdue) with the writing bar docked at the bottom, Calendar with a Week / Month / All overview, Calendar, Notes in sections with a built-in Someday section, Habits, Settings and Account; one growing quick add field with an opaque preview chip, where long text becomes a note; first-launch onboarding with optional examples; JSON and CSV export, JSON import with a preview |
+| Both apps | Today (today, plus anything still open from earlier days) with the writing bar docked at the bottom, Calendar with a Week / Month / All overview, Calendar, Notes in sections with a built-in Someday section, Habits, Settings and Account; one growing quick add field with an opaque preview chip, where long text becomes a note; first-launch onboarding with optional examples; JSON and CSV export, JSON import with a preview |
 | iOS | Checklist tiles, swipe actions, week/month calendar, notes, tags, subtasks, reminders, Shortcuts and Siri (Add to Orbit, Complete Item), share sheet extension |
 | Windows | Notion-style Notes (notes sidebar beside a full-page editor), a month Calendar with the chosen day beside it, start typing anywhere to add a task (or a page on Notes), a fixed-size onboarding with × to skip, Today with optional progress/history, compact rows, list reordering, Windows voice typing, keyboard shortcuts (Ctrl+N, Ctrl+1–5, Ctrl+F, Ctrl+/), reminders as Windows notifications, tray icon and a global quick add shortcut |
 | Sync | Separate Supabase backend, email/password accounts, durable outbox, tombstones, revision checks, conflict review, reconnect catch-up |
@@ -54,12 +54,12 @@ opens direct drag-and-drop editing: every panel, including tasks, can move betwe
 columns or above the task list. Today always shows the current day on both apps; Recent
 progress shows the last seven days, and earlier days are reviewed in Calendar. Habits on
 Today log with one click anywhere on the row. A menu hides or shows completed tasks.
-Overdue tasks move to Today, Tomorrow, Someday or one of your categories, one at a time
-(Today, Someday or a category also all together). Touch and hold (right-click on Windows) any
+Open tasks from earlier days simply stay on Today with the rest; there is no Overdue
+section, label or move prompt, so you move them yourself when you like. Touch and hold (right-click on Windows) any
 open task for **Do Tomorrow** and a timer of a chosen length. On Windows, clicking an empty spot
 in Calendar's Any time row starts typing a task for that day, and pages widen with the window. The calendar button beside the writing bar opens the full task editor. Tasks is
-grouped the same on both apps: Someday first, then tasks without a category by Overdue /
-Today / Upcoming, then each category. A new task with no category takes the category of
+grouped the same on both apps: Someday first, then tasks without a category by Today
+(including earlier days) / Upcoming, then each category. A new task with no category takes the category of
 earlier tasks with similar titles, shown in the chip before saving
 ([cases](shared/test-cases/category-suggestions.json)). In-progress tasks show only the
 ring, and their timer offers 15 minutes, 30 minutes, 1 hour, 2 hours or the task's own
@@ -106,8 +106,8 @@ TestFlight uploads follow successful iOS checks on main: [release guide](docs/te
 
 ## Planning a day
 
-**Today** shows tasks dated today, anything overdue, and habits due today. Overdue
-tasks offer **Today**, **Someday** and your own categories (which remove the date). Undated tasks
+**Today** shows tasks dated today, anything still open from earlier days (in with the
+rest, with no Overdue section), and habits due today. Undated tasks
 stay in their list until you add them to Today. Completed items move below the
 open ones in a collapsed Completed section. Task and habit titles open their details;
 use the separate check control to complete a task or log a habit. Touch and hold a
@@ -116,8 +116,27 @@ Edit Today.
 
 **Notes** replaces Lists. Notes are titled pages grouped into sections (Personal,
 Work, Someday…); open one to edit it as a page with a large title, a Section property and
-the text below. Type more than 10 words, about 120 characters, or a line break into Add a task and
-the chip changes to *Note*; Return saves it to Notes instead of Today. Notes are task
+the text below. Type more than 8 words (date and time words such as "friday at 6pm" don't
+count), about 120 characters, or a line break into the bar on Today, Tasks or Habits and it
+unfolds into a note card in place — a title above, your text as the body — without the
+keyboard or caret moving. Return is then a new line; Save (Ctrl+Enter on Windows) adds it to
+Notes instead of Today.
+
+**Locked notes and sections.** Touch and hold (right-click on Windows) a note to lock it, or a
+note section to lock all of its pages. iPhone unlocks with Face ID, Touch ID or the passcode;
+Windows uses one notes password (set it the first time you lock something, or in Settings →
+Notes & Writing; only a salted hash is kept on that PC). Locked pages show their title with a
+lock and no text; a locked section's pages are listed only once unlocked. Everything locks again
+when the app is minimised or leaves the screen, or with **Lock Now**. **Hide titles** on a
+section shows its pages as "Hidden note", with no title or text in lists and search. Locks keep
+notes out of view on the device; note text is not encrypted separately in sync.
+
+**Writing on Windows.** Notes autocorrect as you type: missing apostrophes (dont → don't,
+im → I'm), common typos (teh → the), your own rules (Settings → Notes & Writing, one
+`btw = by the way` per line), and one-letter slips Windows' spell checker is sure about.
+Ctrl+Z straight after takes a correction back. A long note keeps a chin of space below the
+line you are typing. Add photo, Copy text and Make it a Task sit behind the note's ⋯ button;
+right-click a note in the list for Make it a Task too. Notes are task
 records marked `isNote`, so they sync, back up and undo with everything else, and never
 appear as to-dos. New note sections and task categories are scoped independently; older shared groups stay readable. Calendar's **Overview** (iPhone) and **Month / Week / All** views (Windows) show
 every task in that period by day, and how each habit is going. Notes has the same bottom

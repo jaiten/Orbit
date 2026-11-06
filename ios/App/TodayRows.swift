@@ -7,11 +7,11 @@ struct TodayItem: Identifiable {
     var id: String { task.map { "task-" + $0.id.uuidString } ?? "habit-" + habit!.id.uuidString }
 }
 
-/// A move under an overdue row. With `options` it is a menu (for example, the user's categories).
+/// A choice under a row (such as starting a timer). With `options` it is a menu.
 struct TileMove { let title: String; let action: () -> Void; var options: [TileMove] = [] }
 
 /// Tasks and habits share the same controls: the check logs progress; the title opens details.
-/// Overdue tasks show Today / Tomorrow / Someday / Category. A left swipe reveals Delete.
+/// A left swipe reveals Delete.
 struct CheckTile: View {
     let title: String
     let subtitle: String
@@ -204,10 +204,7 @@ struct TaskRow: View {
     @Environment(\.orbitAccent) private var accent
     @Environment(\.modelContext) private var context
     let task: PlannerTask
-    /// Overdue tasks on Today offer Today / Someday / one of `categories`.
-    var showMoves = false
     var completionDate: Date = .now
-    var categories: [TaskList] = []
     var edit: () -> Void
     @State private var error: String?
     @State private var feedback = 0
@@ -216,7 +213,6 @@ struct TaskRow: View {
     @State private var suggestTimer = false
     @ObservedObject private var focus = FocusSession.shared
     private var timing: Bool { focus.taskID == task.id }
-    private var overdue: Bool { showMoves && TodayRules.isOverdue(TodayRules.item(task), today: PlannerLogic.today) }
     private var moves: [TileMove] {
         if progress == 2 && suggestTimer && !timing {
             return [TileMove(title: "Start a timer", action: {}, options: FocusSession.options(for: task).map { minutes in
@@ -224,17 +220,7 @@ struct TaskRow: View {
                     }),
                     TileMove(title: "Not now") { suggestTimer = false }]
         }
-        guard overdue else { return [] }
-        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: PlannerLogic.todayDate) ?? .now
-        var result = [TileMove(title: "Today") { change { TodayRules.moveToDay(task, day: PlannerLogic.todayDate); try Mutations.save(context) } },
-                      TileMove(title: "Tomorrow") { change { TodayRules.moveToDay(task, day: tomorrow); try Mutations.save(context) } },
-                      TileMove(title: "Someday") { change { try TodayRules.moveToSomeday(task, in: context); try Mutations.save(context) } }]
-        if !categories.isEmpty {
-            result.append(TileMove(title: "Category", action: {}, options: categories.map { list in
-                TileMove(title: list.name) { change { TodayRules.moveToList(task, listID: list.id); try Mutations.save(context) } }
-            }))
-        }
-        return result
+        return []
     }
     private var progress: Int { PlannerLogic.plannerDay(completionDate) == PlannerLogic.today && task.completedAt == nil && task.progressTracking == true ? (task.startedAt == nil ? 1 : 2) : 0 }
     private var progressOptions: [TileMove] {
@@ -257,7 +243,6 @@ struct TaskRow: View {
     private var subtitle: String {
         // Progress shows in the ring and row tint, so the title keeps the room (no "In progress" text).
         var parts: [String] = []
-        if overdue, let day = task.day { parts.append(TodayRules.overdueLabel(day, today: PlannerLogic.today)) }
         if task.hasTime, let date = task.dueDate { parts.append(date.formatted(date: .omitted, time: .shortened)) }
         if !task.subtasks.isEmpty { parts.append("\(task.subtasks.filter(\.completed).count)/\(task.subtasks.count) steps") }
         return parts.joined(separator: " · ")

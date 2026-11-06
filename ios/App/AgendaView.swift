@@ -72,11 +72,10 @@ struct AgendaView: View {
     }
 
     @ViewBuilder private var byDay: some View {
-        let first = dayKeys.first ?? today
-        let overdue = tasks.filter { $0.completedAt == nil && ($0.day ?? first) < first && $0.listID != TodayRules.somedayID }
-        if !overdue.isEmpty { section("Overdue", note: "\(overdue.count) to review", overdue) }
-        let days = dayKeys.map { key in TaskRun(id: key, items: inRange.filter { $0.day == key }) }.filter { !$0.items.isEmpty }
-        if days.isEmpty && overdue.isEmpty {
+        // Open tasks from earlier days are shown on today, as on Today.
+        let earlier = tasks.filter { $0.completedAt == nil && ($0.day ?? today) < today && $0.listID != TodayRules.somedayID }
+        let days = dayKeys.map { key in TaskRun(id: key, items: (key == today ? earlier : []) + inRange.filter { $0.day == key }) }.filter { !$0.items.isEmpty }
+        if days.isEmpty {
             Text(scope == .week ? "Nothing planned this week." : "Nothing planned this month.")
                 .font(.subheadline).foregroundStyle(.secondary).padding(.horizontal, 4)
         }
@@ -214,7 +213,7 @@ struct AgendaSheet: View {
     }
 }
 
-/// Tasks: Someday first, then tasks without a category by day (Overdue, Today, Upcoming), then each
+/// Tasks: Someday first, then tasks without a category by day (Today, including earlier days, then Upcoming), then each
 /// category. Groups and completed items can stay folded away. Rows match Today's spacing.
 struct TasksView: View {
     @Environment(\.colorScheme) private var scheme
@@ -235,7 +234,7 @@ struct TasksView: View {
         return tasks.filter { task in
             guard !task.note, search.isEmpty || task.title.localizedCaseInsensitiveContains(search) || task.notes.localizedCaseInsensitiveContains(search) else { return false }
             switch scope {
-            case "Today": return task.listID != TodayRules.somedayID && task.day == today
+            case "Today": return task.listID != TodayRules.somedayID && (task.day == today || (task.completedAt == nil && (task.day ?? "9999") < today))
             case "This week": return task.listID != TodayRules.somedayID && (task.day ?? "") >= start && (task.day ?? "9999") < end
             case "Future": return task.listID != TodayRules.somedayID && (task.day ?? "") > today
             case "Someday": return task.day == nil || task.listID == TodayRules.somedayID
@@ -263,7 +262,7 @@ struct TasksView: View {
                     if visible.isEmpty { ContentUnavailableView("No tasks in this view", systemImage: "checklist") }
                     let open = visible.filter { $0.completedAt == nil }
                     category("Someday", id: TodayRules.somedayID.uuidString, items: open.filter { someday($0) })
-                    ForEach([TaskDateGroup.overdue, .today, .upcoming]) { group in
+                    ForEach([TaskDateGroup.today, .upcoming]) { group in
                         category(group.rawValue, id: group.rawValue, items: open.filter { !someday($0) && dateGroup($0) == group })
                     }
                     ForEach(categories) { list in
