@@ -88,6 +88,8 @@ document.querySelectorAll("[data-page]").forEach(
       void goTo(b.dataset.page);
     }),
 );
+applyNavOrder();
+bindNavDrag();
 $("#sidebar-search").onclick = async () => {
   if (page === "note") await saveNote();
   page = "lists";

@@ -36,6 +36,16 @@ function renderSettings() {
       <div class="accent-options segmented" role="group" aria-label="Appearance">${choiceButtons("appearance", appearances, root.appearance)}</div>
       <h3>Accent</h3><div class="accent-options segmented" role="group" aria-label="Accent">${choiceButtons("accent", accents, root.accent)}</div>
     </section>
+    <section class="settings-block" id="sidebar-order"><h2>Sidebar order</h2>
+      <ol class="nav-order-list">${navOrder()
+        .map(
+          (name, index, all) =>
+            `<li><span>${NAV_NAMES[name]}</span><kbd>Ctrl+${index + 1}</kbd><button class="icon-button small" data-nav-move="${name}" data-step="-1" aria-label="Move ${NAV_NAMES[name]} up" ${index === 0 ? "disabled" : ""}>↑</button><button class="icon-button small" data-nav-move="${name}" data-step="1" aria-label="Move ${NAV_NAMES[name]} down" ${index === all.length - 1 ? "disabled" : ""}>↓</button></li>`,
+        )
+        .join("")}</ol>
+      <p class="secondary">You can also drag pages in the sidebar. Ctrl+1… follow this order.</p>
+      <button id="restore-nav-order" ${localStorage.getItem("tabOrder") ? "" : "disabled"}>Restore default order</button>
+    </section>
     <section class="settings-block" id="today-preferences"><h2>Today & Progress</h2>
       <div class="settings-field"><span>Day starts at</span>${macPicker(
         "day-start",
@@ -143,6 +153,23 @@ function bindSettings() {
       },
       $("#calendar-preferences"),
     );
+  document.querySelectorAll("[data-nav-move]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        const order = navOrder();
+        saveNavOrder(
+          OrbitNavOrder.move(order, b.dataset.navMove, order.indexOf(b.dataset.navMove) + Number(b.dataset.step)),
+        );
+        render();
+        $(`[data-nav-move="${b.dataset.navMove}"][data-step="${b.dataset.step}"]:not([disabled])`)?.focus();
+      }),
+  );
+  if ($("#restore-nav-order"))
+    $("#restore-nav-order").onclick = () => {
+      localStorage.removeItem("tabOrder");
+      applyNavOrder();
+      render();
+    };
   if ($("#compact-rows")) $("#compact-rows").onchange = (event) => applyCompact(event.target.checked);
   document.querySelectorAll("button[data-accent]").forEach(
     (b) =>

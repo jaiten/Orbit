@@ -1,9 +1,11 @@
 // Keyboard shortcuts. Ctrl+/ shows this list in the app.
-const SHORTCUT_PAGES = ["today", "calendar", "tasks", "lists", "habits", "settings"];
+/** Ctrl+1… follow the sidebar's order (see nav-order.js); Ctrl+6 is always Settings. */
+const shortcutPages = () => [...navOrder(), "settings"];
 const SHORTCUT_HELP = [
   ["Ctrl+N", "New note in Notes; quick add elsewhere"],
   ["Ctrl+Shift+V", "Switch Calendar between week and month"],
-  ["Ctrl+1 … Ctrl+6", "Today, Calendar, Tasks, Notes, Habits, Settings"],
+  ["Ctrl+1 … Ctrl+5", "Pages in sidebar order (drag to rearrange)"],
+  ["Ctrl+6", "Settings"],
   ["Ctrl+F", "Search notes and tasks"],
   ["Space or Enter", "Complete or check the focused item"],
   ["Shift+F10 or right-click", "Item menu: copy text, timer and more"],
@@ -60,7 +62,7 @@ document.addEventListener("keydown", (e) => {
     } else if (key === "v" && e.shiftKey && page === "calendar") {
       calendarView = calendarView === "week" ? "month" : "week";
       render();
-    } else if (/^[1-6]$/.test(key)) goTo(SHORTCUT_PAGES[Number(key) - 1]);
+    } else if (/^[1-6]$/.test(key)) goTo(shortcutPages()[Number(key) - 1]);
     else if (key === "f") {
       void (async () => {
         if (page === "note") await saveNote();

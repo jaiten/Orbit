@@ -247,6 +247,25 @@ nav button.selected svg {
 nav button span {
   flex: 1;
 }
+.nav-order-list {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 var(--space-s);
+  padding: 0;
+  list-style: none;
+}
+.nav-order-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nav-order-list li span {
+  flex: 1;
+}
+.nav-order-list kbd {
+  font-size: 12px;
+  color: var(--muted);
+}
 .list-heading {
   margin: var(--space-xxl) 12px var(--space-xs);
 }

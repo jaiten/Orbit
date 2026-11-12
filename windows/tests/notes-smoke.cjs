@@ -145,7 +145,7 @@ const shots = process.env.ORBIT_SCREENSHOT_DIR;
   await p.locator("#note-body").waitFor();
   assert.equal(await p.locator("#add-note-photo, [data-copy-note], [data-note-to-task]").count(), 0);
   await p.getByRole("button", { name: "More note options" }).click();
-  for (const label of ["Add photo", "Copy text", "Make it a Task", "Lock note"])
+  for (const label of ["Add photo", "Copy text", "Move to section", "Make it a Task", "Lock note"])
     await p.getByRole("menuitem", { name: label, exact: true }).waitFor();
   await p.getByRole("menuitem", { name: "Copy text", exact: true }).click();
   assert.equal((await p.evaluate(() => window.copiedTexts.at(-1))).startsWith("Groceries"), true);
@@ -157,6 +157,15 @@ const shots = process.env.ORBIT_SCREENSHOT_DIR;
   assert.match(await p.locator("#note-body").innerText(), /I don't think the shops are together $/);
   await p.keyboard.press("Control+z");
   assert.match(await p.locator("#note-body").innerText(), /togther $/, "Ctrl+Z takes the correction back");
+
+  // Right-click a note: move it to another section, as on iOS.
+  await p.locator(".notes-nav-page", { hasText: "Old recipe" }).first().click({ button: "right" });
+  await p.getByRole("menuitem", { name: "Move to section", exact: true }).hover();
+  await p.getByRole("menuitem", { name: "Journal", exact: true }).click();
+  await until(
+    async () => (await window.orbit.read()).records.find((r) => r.payload.id === "n4")?.payload.listID === "s1",
+  );
+  assert.ok((await record("n4")).updatedAt > Date.now() - 60000, "Moving counts as an edit");
 
   // Right-click a note: make it a task.
   await p.locator(".notes-nav-page", { hasText: "Diary entry" }).first().click({ button: "right" });
@@ -289,10 +298,28 @@ const shots = process.env.ORBIT_SCREENSHOT_DIR;
   await p.getByRole("menuitem", { name: "Google Calendar", exact: true }).click();
   assert.deepEqual(await p.evaluate(() => window.calendarAdds), [["google", "Dentist"]]);
   assert.equal(!!(await record("n1")).locked, true);
+
+  // Sidebar order, as iOS's Tab order: move Notes up in Settings; Ctrl+1 follows the new order.
+  const navOrder = () =>
+    p.locator("nav[aria-label='Planner'] button[data-page]").evaluateAll((b) => b.map((x) => x.dataset.page));
+  await p.keyboard.press("Control+6");
+  for (let i = 0; i < 2; i++) await p.locator('[data-nav-move="lists"][data-step="-1"]').click();
+  assert.deepEqual(await navOrder(), ["today", "lists", "calendar", "tasks", "habits"]);
+  assert.equal(await p.locator('nav button[data-page="lists"] kbd').innerText(), "Ctrl+2");
+  if (shots) await p.screenshot({ path: path.join(shots, "sidebar-order.png") });
+  await p.locator("#content").click({ position: { x: 5, y: 5 } });
+  await p.keyboard.press("Control+2");
+  await p.locator(".notes-nav").waitFor();
+  // Dragging in the sidebar works too.
+  await p.locator('nav button[data-page="habits"]').dragTo(p.locator('nav button[data-page="today"]'));
+  assert.deepEqual(await navOrder(), ["habits", "today", "lists", "calendar", "tasks"]);
+  await p.keyboard.press("Control+6");
+  await p.locator("#restore-nav-order").click();
+  assert.deepEqual(await navOrder(), ["today", "calendar", "tasks", "lists", "habits"]);
   assert.deepEqual(errors, []);
   await browser.close();
   console.log(
-    "PASS: note menu, right-click to task, locks, locked new section, hidden titles, chin, autocorrect, capture to note, calendar export",
+    "PASS: note menu, move to section, right-click to task, locks, locked new section, hidden titles, chin, autocorrect, capture to note, calendar export, sidebar order",
   );
 })().catch((error) => {
   console.error(error);

@@ -681,6 +681,7 @@ function openRowMenu(e) {
   if (kind === "habit") entries.push(["Edit…", () => openHabit(id)]);
   if (kind === "note") {
     entries.push(["Open", () => openNote(id)]);
+    entries.push(noteMoveEntry(item));
     entries.push(["Make it a Task", () => noteMenuToTask(item)]);
     entries.push(...lockEntries(item));
   }

@@ -606,7 +606,8 @@ function bindNoteEditor() {
         },
       ],
     ];
-    if (current) entries.push(["Make it a Task", () => noteMenuToTask(current)], ...lockEntries(current));
+    if (current)
+      entries.push(noteMoveEntry(current), ["Make it a Task", () => noteMenuToTask(current)], ...lockEntries(current));
     showMenu(entries, box.right - 180, box.bottom + 6);
   };
   if ($("[data-delete-note]"))

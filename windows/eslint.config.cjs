@@ -195,6 +195,14 @@ const shared = Object.fromEntries(
     "render",
     "openList",
     "beginSectionDeletion",
+    "noteMoveEntry",
+    "OrbitNavOrder",
+    "NAV_NAMES",
+    "navOrder",
+    "saveNavOrder",
+    "applyNavOrder",
+    "bindNavDrag",
+    "movePill",
   ].map((name) => [name, "writable"]),
 );
 
