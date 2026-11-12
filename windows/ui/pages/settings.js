@@ -8,7 +8,10 @@ function applyAppearance(name) {
   } catch {
     /* Storage can be unavailable; the choice still applies for this session. */
   }
+  void window.orbit?.setAppearance?.(name)?.catch?.(() => {});
 }
+// On Windows 11 the sidebar shows the window's Mica material (see polish.css).
+if (window.orbit?.mica) document.documentElement.dataset.mica = "";
 applyAppearance(localStorage.getItem("appearance") || "system");
 
 function choiceButtons(attribute, values, current) {

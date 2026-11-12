@@ -91,9 +91,9 @@
     "section": 32
   },
   "radii": {
-    "card": 28,
-    "row": 24,
-    "input": 26,
+    "card": 14,
+    "row": 12,
+    "input": 12,
     "chip": 999
   },
   "type": {

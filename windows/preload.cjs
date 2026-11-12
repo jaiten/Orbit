@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld("orbit", {
   onUpdateStatus: (callback) => ipcRenderer.on("update-status", (_, value) => callback(value)),
   finishOnboarding: () => ipcRenderer.invoke("onboarded"),
   reschedule: (zone) => ipcRenderer.invoke("reschedule", zone),
+  mica: process.argv.includes("--orbit-mica"),
+  setAppearance: (name) => ipcRenderer.invoke("appearance", name),
   // Windows' own spell checker, for autocorrect: is the word misspelled, and what would it suggest.
   spell: (word) => {
     try {

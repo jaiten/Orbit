@@ -238,7 +238,7 @@ struct NoteRow: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: locked ? "lock.fill" : NoteIcons.symbol(note.noteIcon)).font(.system(size: 17)).foregroundStyle(.secondary).frame(width: 24).padding(.top, 2)
             VStack(alignment: .leading, spacing: 3) {
-                Text(Self.displayTitle(note, lists: lists)).font(.body.weight(.medium)).foregroundStyle(hidden ? Color.secondary : Color.primary)
+                Text(Self.displayTitle(note, lists: lists)).font(.body.weight(.semibold)).foregroundStyle(hidden ? Color.secondary : Color.primary)
                     .italic(hidden).lineLimit(1)
                 // Always one line, so every row matches.
                 Text(snippet).font(.subheadline).foregroundStyle(snippet == "No additional text" ? HierarchicalShapeStyle.tertiary : HierarchicalShapeStyle.secondary).lineLimit(1)

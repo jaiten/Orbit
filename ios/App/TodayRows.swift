@@ -7,6 +7,34 @@ struct TodayItem: Identifiable {
     var id: String { task.map { "task-" + $0.id.uuidString } ?? "habit-" + habit!.id.uuidString }
 }
 
+/// Rows inside a grouped list (one card with hairline dividers) draw no card of their own.
+private struct GroupedRowsKey: EnvironmentKey { static let defaultValue = false }
+extension EnvironmentValues {
+    var groupedRows: Bool {
+        get { self[GroupedRowsKey.self] }
+        set { self[GroupedRowsKey.self] = newValue }
+    }
+}
+
+/// Tasks and habits in one card with hairline dividers inset past the tick, as in iOS Settings.
+struct GroupedRows<Content: View>: View {
+    @ViewBuilder var content: Content
+    var body: some View {
+        VStack(spacing: 0) { content }
+            .environment(\.groupedRows, true)
+            .orbitSurface(radius: CGFloat(DesignTokens.radiusRow))
+            .clipShape(RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusRow), style: .continuous))
+    }
+}
+
+/// The card behind a row that stands alone; a grouped row leaves it to its list.
+private struct RowSurface: ViewModifier {
+    let enabled: Bool
+    @ViewBuilder func body(content: Content) -> some View {
+        if enabled { content.orbitSurface() } else { content }
+    }
+}
+
 /// A choice under a row (such as starting a timer). With `options` it is a menu.
 struct TileMove { let title: String; let action: () -> Void; var options: [TileMove] = [] }
 
@@ -30,23 +58,26 @@ struct CheckTile: View {
     var allowsToggle = true
     @Environment(\.orbitAccent) private var accent
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.groupedRows) private var grouped
     @AppStorage("compactRows") private var compactRows = false
     @Environment(\.dynamicTypeSize) private var typeSize
-    private var rowHeight: CGFloat { compactRows && !typeSize.isAccessibilitySize ? 44 : 56 }
+    private var rowHeight: CGFloat { compactRows && !typeSize.isAccessibilitySize ? 44 : (grouped ? 50 : 56) }
     @State private var actionEdge = 0
     @State private var dragOffset: CGFloat = 0
     @State private var gestureMoved = false
     @GestureState private var gestureActive = false
     private var revealed: Bool { actionEdge == -1 || dragOffset < 0 }
-    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: DayTheme.rowRadius, style: .continuous) }
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: grouped ? 0 : DayTheme.rowRadius, style: .continuous) }
+    /// Standalone rows carry a faint tint of their colour; grouped rows only tint while in progress.
+    private var tint: Double { progress == 2 ? 0.16 : grouped ? 0 : done ? 0.04 : 0.07 }
 
     var body: some View {
         ZStack(alignment: .trailing) {
             deleteButton
             row
-                .background(color.opacity(progress == 2 ? 0.16 : done ? 0.04 : 0.07), in: shape)
-                .orbitSurface()
-                .overlay(shape.strokeBorder(color.opacity(progress == 2 ? 0.4 : 0), lineWidth: 1))
+                .background(color.opacity(tint), in: shape)
+                .modifier(RowSurface(enabled: !grouped))
+                .overlay(shape.strokeBorder(color.opacity(progress == 2 && !grouped ? 0.4 : 0), lineWidth: 1))
                 .offset(x: max(-76, min(0, CGFloat(actionEdge == -1 ? -70 : 0) + dragOffset)))
         }
         .background(revealed ? Color.red : Color.clear, in: shape).clipShape(shape)

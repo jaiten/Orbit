@@ -48,7 +48,10 @@ function noteNavButton(n, openID) {
     ? `<svg class="doc-icon note-lock-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="${LOCK_PATH}"/></svg>`
     : noteGlyph(n.noteIcon);
   const hidden = OrbitLocks.isHidden(n);
-  return `<button class="notes-nav-page ${n.id === openID ? "selected" : ""} ${hidden ? "hidden-note" : ""}" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" title="${esc(noteDisplayTitle(n))}" data-search="${esc(noteSearchText(n))}">${glyph}<span class="notes-nav-title">${esc(noteDisplayTitle(n))}</span></button>`;
+  // Under the title: when it was edited and the start of the text, as in Apple Notes. Locked and
+  // hidden pages show only the time.
+  const preview = hidden || OrbitLocks.isLocked(n) ? "" : OrbitNotes.snippet(n.notes);
+  return `<button class="notes-nav-page ${n.id === openID ? "selected" : ""} ${hidden ? "hidden-note" : ""}" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" title="${esc(noteDisplayTitle(n))}" data-search="${esc(noteSearchText(n))}">${glyph}<span class="notes-nav-title">${esc(noteDisplayTitle(n))}</span><span class="notes-nav-sub"><b>${esc(edited(n))}</b> ${esc(preview)}</span></button>`;
 }
 /** Pages under date headings (Today, Yesterday, Previous 7 Days…), as on iOS. `render` draws one page. */
 function datedPages(items, render, wrap = (inner) => inner) {

@@ -37,6 +37,7 @@ struct PageHeader<Trailing: View>: View {
     var subtitle = ""
     @ViewBuilder var trailing: Trailing
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.orbitAccent) private var accent
     init(eyebrow: String, title: String, subtitle: String = "", @ViewBuilder trailing: () -> Trailing) {
         self.eyebrow = eyebrow; self.title = title; self.subtitle = subtitle; self.trailing = trailing()
     }
@@ -51,7 +52,7 @@ struct PageHeader<Trailing: View>: View {
     }
     private var heading: some View {
         VStack(alignment: .leading, spacing: 2) {
-            if !eyebrow.isEmpty { Text(eyebrow).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+            if !eyebrow.isEmpty { Text(eyebrow).font(.footnote.weight(.semibold)).foregroundStyle(accent.text).fixedSize(horizontal: false, vertical: true) }
             Text(title).font(.largeTitle.bold()).tracking(-1).fixedSize(horizontal: true, vertical: true).accessibilityAddTraits(.isHeader)
             if !subtitle.isEmpty { Text(subtitle).font(.body).foregroundStyle(.secondary) }
         }
@@ -64,7 +65,7 @@ extension PageHeader where Trailing == EmptyView {
     init(eyebrow: String, title: String, subtitle: String = "") { self.init(eyebrow: eyebrow, title: title, subtitle: subtitle) { EmptyView() } }
 }
 
-/// A section title with a tiny uppercase note on the right ("Habits · REPEATS").
+/// A section title with a quiet note on the right ("Habits · Repeats").
 struct SectionLabel: View {
     let title: String
     var note = ""
@@ -72,7 +73,7 @@ struct SectionLabel: View {
         HStack(alignment: .firstTextBaseline) {
             Text(title).font(.subheadline.weight(.semibold))
             Spacer()
-            if !note.isEmpty { Text(note.uppercased()).font(.caption2.weight(.medium)).tracking(0.9).foregroundStyle(.secondary) }
+            if !note.isEmpty { Text(note).font(.footnote).foregroundStyle(.secondary) }
         }.padding(.horizontal, 4).accessibilityElement(children: .combine).accessibilityAddTraits(.isHeader)
     }
 }
@@ -97,8 +98,8 @@ struct OrbitSurface: ViewModifier {
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         content.background(Color.orbitSurface, in: shape)
-            .overlay(shape.strokeBorder(Color.orbitLine.opacity(contrast == .increased ? 1 : 0.45), lineWidth: 1))
-            .shadow(color: .black.opacity(radius >= CGFloat(DesignTokens.radiusCard) ? 0.035 : 0), radius: 10, y: 3)
+            .overlay(shape.strokeBorder(Color.orbitLine.opacity(contrast == .increased ? 1 : 0), lineWidth: 1))
+            .shadow(color: .black.opacity(0.03), radius: 2, y: 1)
     }
 }
 extension View {
@@ -176,26 +177,29 @@ struct CompletionBurst: View {
     }
 }
 
-/// "Your plan": the day's count at 22pt and a 6pt bar that fills with a soft spring.
+/// "Your plan": a progress ring that fills with a soft spring, beside the day's count.
 struct PlanCard: View {
     let done: Int
     let total: Int
     var accent: Color
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private var fraction: CGFloat { total == 0 ? 0 : CGFloat(done) / CGFloat(total) }
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Eyebrow(text: "Your plan")
-            Text("\(done) of \(total) done").font(.title2.weight(.medium)).tracking(-0.4).monospacedDigit()
-            Capsule().fill(Color.orbitTrack(DesignTokens.tintProgressTrack)).frame(height: 6)
-                .overlay(alignment: .leading) {
-                    GeometryReader { proxy in
-                        Capsule().fill(accent).frame(width: proxy.size.width)
-                            .scaleEffect(x: total == 0 ? 0 : CGFloat(done) / CGFloat(total), anchor: .leading)
-                    }
-                }.clipShape(Capsule()).padding(.top, 8)
-                .animation(reduceMotion ? nil : .orbitSoft, value: done)
+        HStack(spacing: 14) {
+            ZStack {
+                Circle().stroke(Color.orbitTrack(DesignTokens.tintProgressTrack), lineWidth: 5)
+                Circle().trim(from: 0, to: fraction)
+                    .stroke(accent, style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .animation(reduceMotion ? nil : .orbitSoft, value: done)
+            }.frame(width: 44, height: 44)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(done) of \(total) done").font(.headline).monospacedDigit()
+                Text("Your plan for today").font(.subheadline).foregroundStyle(.secondary)
+            }
         }
-        .orbitCard()
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+        .modifier(OrbitSurface(radius: CGFloat(DesignTokens.radiusCard)))
         .accessibilityElement(children: .ignore).accessibilityLabel("Your plan: \(done) of \(total) done")
     }
 }

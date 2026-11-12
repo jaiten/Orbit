@@ -22,10 +22,7 @@ struct TodayView: View {
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
     @AppStorage("homeSections") private var homeSections = HomeLayoutEditor.defaultSections
     @AppStorage("hiddenHomeSections") private var hiddenSections = HomeLayoutEditor.defaultHidden
-    @AppStorage("compactRows") private var compactRows = false
     @AppStorage("progressIncludesTasks") private var includeTasks = true
-    @Environment(\.dynamicTypeSize) private var typeSize
-    private var rowSpacing: CGFloat { DayTheme.rowSpacing(compact: compactRows, typeSize: typeSize) }
     @State private var editing: PlannerTask?
     @State private var editingHabit: Habit?
     @State private var addingHabit = false
@@ -168,10 +165,16 @@ struct TodayView: View {
     }
 
 
-    /// Keep rows still during completion; only the check control animates.
-    private func checklist(_ items: [TodayItem]) -> some View {
-        VStack(spacing: rowSpacing) {
-            ForEach(items) { item in itemView(item) }
+    /// One grouped card with hairline dividers. Rows stay still during completion; only the check
+    /// control animates.
+    @ViewBuilder private func checklist(_ items: [TodayItem]) -> some View {
+        if !items.isEmpty {
+            GroupedRows {
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                    if index > 0 { Divider().padding(.leading, 56) }
+                    itemView(item)
+                }
+            }
         }
     }
 

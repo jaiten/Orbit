@@ -13,7 +13,11 @@ const {
   Notification,
   nativeImage,
   shell,
+  nativeTheme,
 } = require("electron");
+const os = require("node:os");
+/** Windows 11 22H2 (build 22621) and later draw the Mica material behind a transparent page. */
+const mica = process.platform === "win32" && Number(os.release().split(".")[2]) >= 22621;
 const calendarExport = require("./calendar-export.cjs");
 const { confirmationNotice } = require("./auth-links.cjs");
 const { PlannerTools, encodeBackup, decodeBackup, planImport, encodeTasksCSV } = require("./planner-tools.cjs");
@@ -220,10 +224,12 @@ app.whenReady().then(async () => {
     minWidth: 820,
     minHeight: 620,
     title: "Orbit",
-    backgroundColor: "#EBEBEE",
+    backgroundColor: mica ? "#00000000" : "#EBEBEE",
+    ...(mica ? { backgroundMaterial: "mica" } : {}),
     icon: path.join(__dirname, "assets", "orbit.png"),
     autoHideMenuBar: true,
     webPreferences: {
+      additionalArguments: mica ? ["--orbit-mica"] : [],
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
@@ -303,6 +309,10 @@ app.whenReady().then(async () => {
     fs.writeFileSync(file, calendarExport.ics(event, { uid: String(task.id || name) }), "utf8");
     const problem = await shell.openPath(file);
     if (problem) throw Error("No calendar app opened the event: " + problem);
+  });
+  // Settings → Appearance also sets the window's own theme, so Mica and the title bar match it.
+  handle("appearance", async (name) => {
+    nativeTheme.themeSource = ["light", "dark"].includes(name) ? name : "system";
   });
   handle("copy", async (text) => {
     if (typeof text !== "string" || text.length > 200000) throw Error("Invalid text");
