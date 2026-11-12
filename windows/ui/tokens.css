@@ -1,12 +1,12 @@
 /* Generated from shared/design-tokens.json by windows/scripts/generate.cjs. Do not edit. */
 :root {
   color-scheme: light dark;
-  --canvas: light-dark(#F5F5F7, #141416);
-  --sidebar: light-dark(#EBEBEE, #1B1B1D);
-  --surface: light-dark(#FFFFFF, #1F1F21);
-  --ink: light-dark(#1D1D1F, #F5F5F7);
-  --muted: light-dark(#6D6D73, #A6A6AD);
-  --line: light-dark(#E4E4E8, #323236);
+  --canvas: light-dark(#F8F4ED, #1B1A19);
+  --sidebar: light-dark(#EFE9DF, #242220);
+  --surface: light-dark(#FFFDFA, #2B2927);
+  --ink: light-dark(#26221D, #F3EEE6);
+  --muted: light-dark(#6A6155, #B2ABA1);
+  --line: light-dark(#E7DFD3, #3A3733);
   --danger: light-dark(#C42B1C, #FF8A80);
   --sage: #6E8C78;
   --clay: #D97A66;
@@ -73,13 +73,13 @@
 }
 :root[data-accent="sage"] {
   --accent: #6E8C78;
-  --accent-text: light-dark(#5C7564, #6F8D79);
+  --accent-text: light-dark(#5C7564, #88A694);
   --accent-button: light-dark(#5C7564, #6E8C78);
   --on-accent: light-dark(#ffffff, #141416);
 }
 :root[data-accent="lavender"] {
   --accent: #8C85BF;
-  --accent-text: light-dark(#7067AF, #8C85BF);
+  --accent-text: light-dark(#7067AF, #A39DD8);
   --accent-button: light-dark(#7067AF, #8C85BF);
   --on-accent: light-dark(#ffffff, #141416);
 }

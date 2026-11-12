@@ -171,7 +171,6 @@ const OrbitLocks = (() => {
   };
 })();
 const LOCK_PATH = "M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4";
-const UNLOCK_PATH = "M6 11h12v10H6zM8 11V7a4 4 0 0 1 7.5-2";
 
 /** Lock / Remove lock for a note, for its menus. */
 function lockEntries(note) {

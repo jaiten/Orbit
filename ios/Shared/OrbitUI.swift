@@ -107,6 +107,17 @@ extension View {
     func orbitCard() -> some View { padding(18).frame(maxWidth: .infinity, alignment: .leading).modifier(OrbitSurface(radius: CGFloat(DesignTokens.radiusCard))) }
 }
 
+/// Forms and lists sit on the warm canvas instead of the system's cool grey.
+struct OrbitFormBackground: ViewModifier {
+    @Environment(\.colorScheme) private var scheme
+    func body(content: Content) -> some View {
+        content.scrollContentBackground(.hidden).background(DayTheme.canvas(scheme))
+    }
+}
+extension View {
+    func orbitFormBackground() -> some View { modifier(OrbitFormBackground()) }
+}
+
 /// Press feedback: a small spring scale.
 struct OrbitPress: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {

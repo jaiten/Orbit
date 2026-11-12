@@ -193,7 +193,7 @@ struct HabitEditor: View {
                     do { try Conversions.toTask(habit, in: context); finish() } catch { self.error = error.localizedDescription }
                 } } }
                 if habit != nil { Section { Button("Delete habit", role: .destructive) { confirmDelete = true } } }
-            }.tint(accent.fill).navigationTitle(habit == nil ? "New Habit" : "Edit Habit").navigationBarTitleDisplayMode(.inline)
+            }.orbitFormBackground().tint(accent.fill).navigationTitle(habit == nil ? "New Habit" : "Edit Habit").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Save", action: save).disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }

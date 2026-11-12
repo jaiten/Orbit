@@ -4,14 +4,14 @@ import Foundation
 enum DesignTokens {
     typealias Pair = (light: Int, dark: Int)
     static let accentFill: [String: Int] = ["coral": 0xE87359, "sage": 0x6E8C78, "lavender": 0x8C85BF, "honey": 0xD19E4D, "teal": 0x53AAA4, "blue": 0x729ED2]
-    static let accentText: [String: Pair] = ["coral": (light: 0xB74F38, dark: 0xE87359), "sage": (light: 0x5C7564, dark: 0x6F8D79), "lavender": (light: 0x7067AF, dark: 0x8C85BF), "honey": (light: 0x926826, dark: 0xD19E4D), "teal": (light: 0x236F6B, dark: 0x6CBDB8), "blue": (light: 0x315F96, dark: 0x8DB3E2)]
+    static let accentText: [String: Pair] = ["coral": (light: 0xB74F38, dark: 0xE87359), "sage": (light: 0x5C7564, dark: 0x88A694), "lavender": (light: 0x7067AF, dark: 0xA39DD8), "honey": (light: 0x926826, dark: 0xD19E4D), "teal": (light: 0x236F6B, dark: 0x6CBDB8), "blue": (light: 0x315F96, dark: 0x8DB3E2)]
     static let palette: [String: Int] = ["sage": 0x6E8C78, "clay": 0xD97A66, "lavender": 0x8C85BF, "honey": 0xD19E4D]
-    static let canvas: Pair = (light: 0xF5F5F7, dark: 0x141416)
-    static let sidebar: Pair = (light: 0xEBEBEE, dark: 0x1B1B1D)
-    static let surface: Pair = (light: 0xFFFFFF, dark: 0x1F1F21)
-    static let ink: Pair = (light: 0x1D1D1F, dark: 0xF5F5F7)
-    static let muted: Pair = (light: 0x6D6D73, dark: 0xA6A6AD)
-    static let line: Pair = (light: 0xE4E4E8, dark: 0x323236)
+    static let canvas: Pair = (light: 0xF8F4ED, dark: 0x1B1A19)
+    static let sidebar: Pair = (light: 0xEFE9DF, dark: 0x242220)
+    static let surface: Pair = (light: 0xFFFDFA, dark: 0x2B2927)
+    static let ink: Pair = (light: 0x26221D, dark: 0xF3EEE6)
+    static let muted: Pair = (light: 0x6A6155, dark: 0xB2ABA1)
+    static let line: Pair = (light: 0xE7DFD3, dark: 0x3A3733)
     static let danger: Pair = (light: 0xC42B1C, dark: 0xFF8A80)
     static let spaceXs: Double = 4
     static let spaceS: Double = 8

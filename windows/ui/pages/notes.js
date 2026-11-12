@@ -267,10 +267,9 @@ function notesNav() {
     <div class="notes-nav-head">
       <span>Notes</span>
       ${
-        OrbitLocks.anyLocks()
-          ? OrbitLocks.unlocked
-            ? `<button class="notes-lock-toggle" data-lock-now aria-label="Lock now" title="Lock notes again (Ctrl+L)">${icon(LOCK_PATH)}Lock</button>`
-            : `<button class="notes-lock-toggle locked" data-unlock-notes aria-label="Unlock notes" title="Unlock locked notes and sections">${icon(UNLOCK_PATH)}Unlock</button>`
+        // Lock appears while notes are unlocked; unlocking happens only by opening a locked page or section.
+        OrbitLocks.unlocked && OrbitLocks.anyLocks()
+          ? `<button class="notes-lock-toggle" data-lock-now aria-label="Lock now" title="Lock notes again (Ctrl+L)">${icon(LOCK_PATH)}Lock</button>`
           : ""
       }
       <button class="icon-button" data-new-note="${esc(selectedList || "")}" aria-label="New note" title="New note (Ctrl+N)">${icon(ICONS.compose)}</button>

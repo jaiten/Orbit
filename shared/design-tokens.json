@@ -12,14 +12,14 @@
       "fill": "#6E8C78",
       "text": {
         "light": "#5C7564",
-        "dark": "#6F8D79"
+        "dark": "#88A694"
       }
     },
     "lavender": {
       "fill": "#8C85BF",
       "text": {
         "light": "#7067AF",
-        "dark": "#8C85BF"
+        "dark": "#A39DD8"
       }
     },
     "honey": {
@@ -44,7 +44,7 @@
       }
     }
   },
-  "accentNotes": "Fill colours are used for ticks, progress, selection and buttons. Text colours meet WCAG AA (4.5:1) on the canvas and surface of each appearance: coral text is #B74F38 in light mode (5.0:1 on white, 4.6:1 on canvas) and #E87359 in dark mode (6.2:1). White text on a coral fill is only 3:1, so filled light-mode buttons use the text colour as their fill.",
+  "accentNotes": "Fill colours are used for ticks, progress, selection and buttons. Text colours meet WCAG AA (4.5:1) on the warm canvas and surface of each appearance (light #F8F4ED / #FFFDFA, dark #1B1A19 / #2B2927): coral text is #B74F38 in light mode (4.6:1 on the canvas) and #E87359 in dark mode (4.9:1 on cards). White text on a coral fill is only 3:1, so filled light-mode buttons use the text colour as their fill.",
   "palette": {
     "sage": "#6E8C78",
     "clay": "#D97A66",
@@ -53,28 +53,28 @@
   },
   "surfaces": {
     "canvas": {
-      "light": "#F5F5F7",
-      "dark": "#141416"
+      "light": "#F8F4ED",
+      "dark": "#1B1A19"
     },
     "sidebar": {
-      "light": "#EBEBEE",
-      "dark": "#1B1B1D"
+      "light": "#EFE9DF",
+      "dark": "#242220"
     },
     "surface": {
-      "light": "#FFFFFF",
-      "dark": "#1F1F21"
+      "light": "#FFFDFA",
+      "dark": "#2B2927"
     },
     "ink": {
-      "light": "#1D1D1F",
-      "dark": "#F5F5F7"
+      "light": "#26221D",
+      "dark": "#F3EEE6"
     },
     "muted": {
-      "light": "#6D6D73",
-      "dark": "#A6A6AD"
+      "light": "#6A6155",
+      "dark": "#B2ABA1"
     },
     "line": {
-      "light": "#E4E4E8",
-      "dark": "#323236"
+      "light": "#E7DFD3",
+      "dark": "#3A3733"
     },
     "danger": {
       "light": "#C42B1C",

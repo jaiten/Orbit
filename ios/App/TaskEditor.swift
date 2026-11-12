@@ -93,6 +93,7 @@ struct TaskEditor: View {
                 }
                 if task != nil { Section { Button("Delete task", role: .destructive) { confirmDelete = true } } }
             }
+            .orbitFormBackground()
             .navigationTitle(task == nil ? "New Task" : "Edit Task").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }

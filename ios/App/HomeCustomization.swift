@@ -54,6 +54,7 @@ struct HomeLayoutEditor: View {
                     Text("Pinned lists show their unfinished tasks. Hiding a section never deletes anything.").font(.footnote).foregroundStyle(.secondary)
                 }
             }.environment(\.editMode, .constant(.active))
+                .orbitFormBackground()
                 .navigationTitle("Edit Today").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }

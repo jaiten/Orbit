@@ -46,6 +46,7 @@ struct ListsView: View {
 
                 }
             }.environment(\.editMode, .constant(.active))
+                .orbitFormBackground()
                 .scrollDismissesKeyboard(.interactively)
                 .onAppear { if categoryMode { do { try TodayRules.ensureSomeday(context); try Mutations.save(context, undoable: false) } catch { self.error = error.localizedDescription } } }.tint(accent.fill).navigationTitle(categoryMode ? "Categories" : "Edit Sections")
                 .toolbar {

@@ -31,7 +31,7 @@ struct AccountView: View {
             } else {
                 SignInSection(message: $message)
             }
-        }.tint(accent.fill).navigationTitle("Account").navigationBarTitleDisplayMode(.inline)
+        }.orbitFormBackground().tint(accent.fill).navigationTitle("Account").navigationBarTitleDisplayMode(.inline)
             .alert("Orbit", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
                 Button("OK") { message = nil }
             } message: { Text(message ?? "") }
