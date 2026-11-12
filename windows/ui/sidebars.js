@@ -7,8 +7,14 @@ const paneState = {
   notes: {
     width: Number(localStorage.getItem("notesSidebarWidth")) || 248,
     open: localStorage.getItem("notesSidebarOpen") !== "false",
+    // Until it is dragged, the notes list grows with the window so titles and previews stay readable.
+    custom: localStorage.getItem("notesSidebarCustom") === "true",
   },
 };
+/** The notes list's width when it hasn't been set by hand: about a quarter of the room, 248–380px. */
+const autoNotesWidth = () =>
+  Math.round(Math.max(248, Math.min(380, (innerWidth - (paneState.main.open ? paneState.main.width : 0)) * 0.26)));
+const notesWidth = () => (paneState.notes.custom ? paneState.notes.width : autoNotesWidth());
 const sidebarIcon =
   '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>';
 function applyPaneLayout() {
@@ -19,11 +25,10 @@ function applyPaneLayout() {
   );
   root.style.setProperty(
     "--notes-width",
-    Math.max(
-      180,
-      Math.min(paneState.notes.width, 400, innerWidth - (paneState.main.open ? paneState.main.width : 0) - 320),
-    ) + "px",
+    Math.max(180, Math.min(notesWidth(), 400, innerWidth - (paneState.main.open ? paneState.main.width : 0) - 320)) +
+      "px",
   );
+  $("#notes-pane-grip")?.setAttribute("aria-valuenow", String(notesWidth()));
   root.dataset.sidebarClosed = String(!paneState.main.open);
   root.dataset.notesClosed = String(!paneState.notes.open);
   $(".sidebar").hidden = !paneState.main.open;
@@ -41,6 +46,7 @@ function savePanes() {
     localStorage.setItem(name + "SidebarWidth", String(pane.width));
     localStorage.setItem(name + "SidebarOpen", String(pane.open));
   }
+  localStorage.setItem("notesSidebarCustom", String(paneState.notes.custom));
   resizeNoteFields();
 }
 function bindPaneGrip(grip, name) {
@@ -48,10 +54,12 @@ function bindPaneGrip(grip, name) {
   const pane = paneState[name],
     min = 180,
     max = name === "main" ? 360 : 400;
-  grip.setAttribute("aria-valuenow", String(pane.width));
+  grip.setAttribute("aria-valuenow", String(name === "notes" ? notesWidth() : pane.width));
   grip.onpointerdown = (event) => {
     if (event.button !== 0) return;
     event.preventDefault();
+    if (name === "notes" && !pane.custom) pane.width = autoNotesWidth();
+    if (name === "notes") pane.custom = true;
     const x = event.clientX,
       width = pane.width;
     grip.setPointerCapture(event.pointerId);
@@ -70,6 +78,8 @@ function bindPaneGrip(grip, name) {
     grip.onpointercancel = finish;
   };
   grip.ondblclick = () => {
+    // Double-click returns to the default: for the notes list, growing with the window again.
+    if (name === "notes") pane.custom = false;
     pane.width = name === "main" ? 216 : 248;
     applyPaneLayout();
     savePanes();
@@ -78,6 +88,10 @@ function bindPaneGrip(grip, name) {
     if (!["ArrowLeft", "ArrowRight", "Home"].includes(event.key)) return;
     event.preventDefault();
     event.stopPropagation();
+    if (name === "notes") {
+      if (!pane.custom) pane.width = autoNotesWidth();
+      pane.custom = event.key !== "Home";
+    }
     pane.width =
       event.key === "Home"
         ? name === "main"

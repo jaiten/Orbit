@@ -214,7 +214,7 @@ function sectionLockEntries(id) {
     [section.hidden ? "Show titles" : "Hide titles", () => save({ hidden: section.hidden ? null : true })],
   ];
 }
-/** "Move to section" for a note's menus: All (no section), each note section, then Someday. As on iOS. */
+/** "Move to section" for a note's menus: General (no section), each note section, then Someday. As on iOS. */
 /** Moves a note to a section (null: no section). Saves an open page first. */
 async function moveNoteTo(id, listID) {
   if (page === "note" && noteID === id) await saveNote();
@@ -225,7 +225,7 @@ async function moveNoteTo(id, listID) {
 function noteMoveEntry(note) {
   const move = (listID) => moveNoteTo(note.id, listID);
   const here = note.listID || null;
-  const choices = [[null, "All"], ...orderedLists("notes").map((l) => [l.id, l.name]), [SOMEDAY, "Someday"]];
+  const choices = [[null, "General"], ...orderedLists("notes").map((l) => [l.id, l.name]), [SOMEDAY, "Someday"]];
   return ["Move to section", null, choices.map(([id, name]) => [id === here ? `${name} ✓` : name, () => move(id)])];
 }
 /** Opens a note's page as a task (from right-click), unlocking first if needed. */

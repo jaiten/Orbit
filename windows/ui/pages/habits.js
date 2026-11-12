@@ -34,11 +34,30 @@ function weekSegments(h, end = today()) {
   }).join("");
   return `<div class="week-segments fill-${colorName(h.color)}" role="group" aria-label="Last 7 days">${cells}</div>`;
 }
-/** The last 7 days and the last 12 weeks for one habit, in its colour. */
+/** The last 7 days and the last 12 weeks for one habit, in its colour, each with a small label. */
 function habitHistoryCharts(h) {
   const days = gridDays();
   const levels = days.map((key) => (key > today() ? -1 : Math.min(1, dailyCount(h, key) / OrbitHabits.dailyTarget(h))));
-  return `<div class="history-charts">${weekSegments(h)}${boxGrid(levels, colorName(h.color), h.title)}</div>`;
+  return `<div class="history-charts"><div class="history-chart"><span class="history-label">Last 7 days</span>${weekSegments(h)}</div><div class="history-chart"><span class="history-label">Last 12 weeks</span>${boxGrid(levels, colorName(h.color), h.title)}</div></div>`;
+}
+/** Streak, the last 7 days and the 12-week rate, as three quiet figures. */
+function habitStats(h, t) {
+  const weekly = OrbitHabits.schedule(h) === "WEEKLY";
+  // A streak still counts until today (or this week) is over: before today's check-in it runs to yesterday.
+  const run = Math.max(
+    OrbitHabits.streak(h, habitLogs(), t, weekStart),
+    OrbitHabits.streak(h, habitLogs(), OrbitHabits.addDays(t, weekly ? -7 : -1), weekStart),
+  );
+  const past = gridDays().filter((key) => key <= t);
+  const rate = past.length
+    ? Math.round(
+        (past.reduce((sum, key) => sum + Math.min(1, dailyCount(h, key) / OrbitHabits.dailyTarget(h)), 0) /
+          past.length) *
+          100,
+      )
+    : 0;
+  const stat = (value, label) => `<div class="history-stat"><b>${value}</b><span>${label}</span></div>`;
+  return `<div class="history-stats">${stat(run, weekly ? (run === 1 ? "week streak" : "weeks in a row") : run === 1 ? "day streak" : "days in a row")}${stat(`${OrbitHabits.checkedDays(h, habitLogs(), t, 7)}/7`, "last 7 days")}${stat(`${rate}%`, "12 weeks")}</div>`;
 }
 
 /** Every habit's history on one page, so there is nothing to open one by one. */
@@ -49,8 +68,8 @@ function renderHistoryIndex(habits) {
     <div class="history-list">${habits
       .map(
         (h) => `<section class="card habit-history" data-flip="history-${esc(h.id)}">
-      <button class="history-head" data-history="${esc(h.id)}"><span class="dot ${colorName(h.color)}" aria-hidden="true"></span><strong>${esc(h.title)}</strong><span>${OrbitHabits.checkedDays(h, habitLogs(), t, 7)} of the last 7 days <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span></button>
-      <p class="history-schedule">${OrbitHabits.label(h)} · ${habitDetail(h, t)}</p>
+      <div class="history-top"><div><button class="history-head" data-history="${esc(h.id)}" aria-label="${esc(h.title)} ${OrbitHabits.checkedDays(h, habitLogs(), t, 7)} of the last 7 days"><span class="dot ${colorName(h.color)}" aria-hidden="true"></span><strong>${esc(h.title)}</strong><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+      <p class="history-schedule">${OrbitHabits.label(h)} · ${habitDetail(h, t)}</p></div>${habitStats(h, t)}</div>
       ${habitHistoryCharts(h)}
     </section>`,
       )

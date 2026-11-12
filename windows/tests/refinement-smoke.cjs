@@ -479,10 +479,13 @@ const fs = require("node:fs");
   await p.locator('[data-page="lists"]').click();
   const noteBody = await p.locator("#note-body").evaluate((field) => field.value);
   await p.evaluate(() => (window.noteFieldBeforeResize = document.querySelector("#note-body")));
+  // The notes list starts at its automatic width (it grows with the window until dragged).
+  let notesStart = 0;
   for (const [selector, amount] of [
     ["#main-pane-grip", 42],
     ["#notes-pane-grip", 48],
   ]) {
+    if (selector === "#notes-pane-grip") notesStart = Number(await p.locator(selector).getAttribute("aria-valuenow"));
     const grip = await p.locator(selector).boundingBox();
     await p.mouse.move(grip.x + grip.width / 2, grip.y + 80);
     await p.mouse.down();
@@ -490,7 +493,7 @@ const fs = require("node:fs");
     await p.mouse.up();
   }
   assert.equal(await p.locator("#main-pane-grip").getAttribute("aria-valuenow"), "258");
-  assert.equal(await p.locator("#notes-pane-grip").getAttribute("aria-valuenow"), "296");
+  assert.equal(await p.locator("#notes-pane-grip").getAttribute("aria-valuenow"), String(notesStart + 48));
   assert.equal(await p.evaluate(() => window.noteFieldBeforeResize === document.querySelector("#note-body")), true);
   // A long title must ellipsize inside the note pane, and reveal more as the pane grows.
   const previousNoteTitle = await p.locator("#note-title").inputValue();
@@ -563,7 +566,8 @@ const fs = require("node:fs");
   await p.reload();
   await p.locator("h1").filter({ hasText: "Today" }).waitFor();
   assert.equal(await p.locator("#main-pane-grip").getAttribute("aria-valuenow"), "258");
-  assert.equal(await p.evaluate(() => localStorage.getItem("notesSidebarWidth")), "296");
+  assert.equal(await p.evaluate(() => localStorage.getItem("notesSidebarWidth")), String(notesStart + 48));
+  assert.equal(await p.evaluate(() => localStorage.getItem("notesSidebarCustom")), "true", "A dragged width is kept");
   // Notes keep photo anchors at the insertion point and preserve text through delete/undo.
   await p.keyboard.press("Control+4");
   await p.locator("#note-title").fill("Beta editor checks");
@@ -897,15 +901,15 @@ const fs = require("node:fs");
   await p.keyboard.press("Escape");
   await p.locator(`.notes-nav [data-section-menu="${sectionID}"]`).click({ button: "right" });
   await p.getByRole("menuitem", { name: "Delete section", exact: true }).click();
-  await p.getByRole("button", { name: "Move notes to All", exact: true }).click();
+  await p.getByRole("button", { name: "Move notes to General", exact: true }).click();
   await p.waitForFunction(async () =>
     (await window.orbit.read()).records.some(
       (record) => !record.deleted && record.payload.title === "Retain this page" && record.payload.listID == null,
     ),
   );
-  assert.equal(await p.getByRole("button", { name: "Collapse All notes", exact: true }).count(), 1);
-  await p.getByRole("button", { name: "Collapse All notes", exact: true }).click();
-  assert.equal(await p.getByRole("button", { name: "Expand All notes", exact: true }).count(), 1);
+  assert.equal(await p.getByRole("button", { name: "Collapse General", exact: true }).count(), 1);
+  await p.getByRole("button", { name: "Collapse General", exact: true }).click();
+  assert.equal(await p.getByRole("button", { name: "Expand General", exact: true }).count(), 1);
   // Expanding collapsed groups for search must keep sequential typing in the right order.
   await p.locator("#note-filter").pressSequentially("Retain");
   assert.equal(await p.locator("#note-filter").inputValue(), "Retain");

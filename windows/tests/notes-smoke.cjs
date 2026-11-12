@@ -128,7 +128,7 @@ const shots = process.env.ORBIT_SCREENSHOT_DIR;
   await p.keyboard.press("Control+4");
   await p.locator(".notes-nav-page", { hasText: "Groceries" }).first().click();
   // Pages sit under date headings, as on iOS: Today first, older pages after.
-  await p.locator('[data-notes-home="all"]').click();
+  await p.locator('.notes-nav-name[data-notes-home=""]').click();
   const headings = await p.locator(".notes-overview .note-date-heading").allInnerTexts();
   assert.deepEqual(headings, ["Today", "Previous 7 Days"]);
   const navHeadings = await p
@@ -184,6 +184,11 @@ const shots = process.env.ORBIT_SCREENSHOT_DIR;
     async () => (await window.orbit.read()).records.find((r) => r.payload.id === "n4")?.payload.listID === "s1",
   );
 
+  // General holds only notes without a section: a filed note is listed under its section alone.
+  assert.equal(
+    await p.locator('.notes-nav-group[data-note-drop=""] .notes-nav-page', { hasText: "Old recipe" }).count(),
+    0,
+  );
   // Right-click a note: make it a task.
   await p.locator(".notes-nav-page", { hasText: "Diary entry" }).first().click({ button: "right" });
   await p.getByRole("menuitem", { name: "Make it a Task", exact: true }).click();
@@ -242,7 +247,7 @@ const shots = process.env.ORBIT_SCREENSHOT_DIR;
     false,
     "A locked note's text is not on the page",
   );
-  await p.locator('[data-notes-home="all"]').click();
+  await p.locator('.notes-nav-name[data-notes-home=""]').click();
   const overview = await p.locator(".notes-overview").innerText();
   for (const secret of ["Secret plans", "Surprise party", "Hidden thoughts", "Very private", "Milk, eggs"])
     assert.equal(overview.includes(secret), false, secret);
@@ -268,6 +273,13 @@ const shots = process.env.ORBIT_SCREENSHOT_DIR;
   await p.getByRole("button", { name: "Lock now" }).click();
   await until(() => document.querySelector("#note-title")?.value === "" && !document.querySelector(".locked-page"));
   assert.equal(await p.locator(".notes-nav-page", { hasText: "Secret plans" }).count(), 0);
+  // Going to Notes from the sidebar never asks for the password, even when the last page was locked.
+  await p.evaluate(() => localStorage.setItem("lastNoteID", "n1"));
+  await p.locator('nav [data-page="today"]').click();
+  await p.locator('nav [data-page="lists"]').click();
+  await p.waitForTimeout(300);
+  assert.equal(await p.locator("#lock-dialog[open]").count(), 0, "Notes opened without a password prompt");
+  await p.locator("#note-title").waitFor();
 
   // The chin: typing at the end of a long note keeps the line well above the bottom edge.
   await p.evaluate(() =>
@@ -282,7 +294,7 @@ const shots = process.env.ORBIT_SCREENSHOT_DIR;
     }),
   );
   // An open page doesn't redraw the list under the writer; going to the overview does.
-  await p.locator('[data-notes-home="all"]').click();
+  await p.locator('.notes-nav-name[data-notes-home=""]').click();
   await p.locator(".notes-nav-page", { hasText: "Long" }).first().click();
   await p.locator("#note-body").click();
   await p.keyboard.press("Control+End");

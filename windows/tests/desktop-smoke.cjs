@@ -420,7 +420,7 @@ const remove = (folder) => {
     if (await p.locator("#inline-receipt").textContent()) throw Error("A success message appeared");
     await p.locator('[data-page="lists"]').click();
     await p.getByRole("button", { name: "Back to notes", exact: false }).click();
-    await p.getByRole("heading", { name: "Notes", exact: true, level: 1 }).waitFor();
+    await p.getByRole("heading", { name: "General", exact: true, level: 1 }).waitFor();
     await p.locator(".note-card", { hasText: "Garden ideas" }).click();
     await p.getByRole("textbox", { name: "Note text" }).fill("Tomatoes by the fence. Herbs by the door.");
     await p.getByRole("textbox", { name: "Note title" }).fill("Garden plan");

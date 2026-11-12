@@ -347,7 +347,7 @@ function bindInlineCapture() {
       const title = inlineNoteTitle.trim(),
         body = captured.trim();
       const note = { ...newTask(title, null), isNote: true, notes: body };
-      // A note goes to the open note section, or to All; never into a task category.
+      // A note goes to the open note section, or to General; never into a task category.
       const section = quickAddContext().listID;
       note.listID = section && rows("lists").some((l) => l.id === section && l.kind !== "tasks") ? section : null;
       // Clear immediately, keeping a snapshot until local persistence acknowledges it.

@@ -57,7 +57,7 @@ struct InlineCapture: View {
     /// Outside Notes, a capture that has become a note shows as a note card.
     private var noteCard: Bool { !notesOnly && isNote }
     private var preview: String {
-        if isNote { return "Note · All notes" }
+        if isNote { return "Note · General" }
         let value = QuickAdd.describe(result)
         guard !value.isEmpty, listID == nil, let suggested = CategorySuggestion.suggest(for: result, in: context) else { return value }
         return value + " · " + suggested.name
@@ -129,7 +129,7 @@ struct InlineCapture: View {
     private var noteHeader: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack {
-                Label("New note · All notes", systemImage: "square.and.pencil").font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                Label("New note · General", systemImage: "square.and.pencil").font(.caption.weight(.medium)).foregroundStyle(.secondary)
                 Spacer()
                 // Throws the draft away, for when the keyboard is down and the note isn't wanted.
                 Button { discardNote() } label: {

@@ -41,12 +41,12 @@ struct NotesView: View {
         !lock.unlocked && id.flatMap { id in lists.first { $0.id == id } }?.locked == true
     }
     private var anyLocks: Bool { lists.contains { $0.locked == true } || items.contains { $0.note && $0.locked == true } }
-    /// Your sections in order, then notes without one, then Someday.
-    /// `color` is nil for All notes, which uses the accent chosen in Settings.
+    /// General (notes without a section, the default spot) first, then your sections in order.
+    /// `color` is nil for General, which uses the accent chosen in Settings.
     private struct NoteSection: Identifiable { let id: String; let name: String; let color: String?; let listID: UUID? }
     private var sections: [NoteSection] {
-        lists.filter(\.isNoteSection).map { NoteSection(id: $0.id.uuidString, name: $0.name, color: $0.color, listID: $0.id) }
-            + [NoteSection(id: "none", name: "All notes", color: nil, listID: nil)]
+        [NoteSection(id: "none", name: "General", color: nil, listID: nil)]
+            + lists.filter(\.isNoteSection).map { NoteSection(id: $0.id.uuidString, name: $0.name, color: $0.color, listID: $0.id) }
     }
 
     var body: some View {
@@ -103,7 +103,7 @@ struct NotesView: View {
             .confirmationDialog(deletingSection.map { "Delete \($0.name)?" } ?? "", isPresented: Binding(get: { deletingSection != nil }, set: { if !$0 { deletingSection = nil } }), titleVisibility: .visible) {
                 Button("Delete Section, Keep Notes", role: .destructive) { deleteSection(keepingNotes: true) }
                 Button("Delete Section and Notes", role: .destructive) { deleteSection(keepingNotes: false) }
-            } message: { Text("Kept notes move to All notes.") }
+            } message: { Text("Kept notes move to General.") }
             .modifier(MutationErrorModifier(error: $error))
         }
     }
@@ -183,7 +183,7 @@ struct NotesView: View {
         .animation(.orbit, value: open)
     }
 
-    /// Deletes a note section; its notes move to All notes or go with it. A shared legacy group stays
+    /// Deletes a note section; its notes move to General or go with it. A shared legacy group stays
     /// as a task category, as in Manage sections.
     private func deleteSection(keepingNotes: Bool) {
         guard let list = deletingSection else { return }
@@ -274,7 +274,7 @@ struct NoteMenuItems: View {
             Button("Lock Note", systemImage: "lock") { change { note.locked = true; note.updatedAt = .now; try Mutations.save(context) } }
         }
         Menu("Move to section", systemImage: "folder") {
-            Button("No section") { move(nil) }
+            Button("General") { move(nil) }
             ForEach(lists.filter(\.isNoteSection)) { list in Button(list.name) { move(list.id) } }
             Button("Someday") { move(TodayRules.somedayID) }
         }

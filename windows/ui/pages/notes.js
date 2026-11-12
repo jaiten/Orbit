@@ -99,8 +99,8 @@ function bindLists() {
     (b) =>
       (b.onclick = () => {
         page = "lists";
-        // "all" is every note; "" is notes without a section.
-        selectedList = b.dataset.notesHome === "all" ? null : b.dataset.notesHome;
+        // "" is General: notes without a section.
+        selectedList = b.dataset.notesHome || "";
         noteID = null;
         render();
       }),
@@ -182,7 +182,15 @@ function bindLists() {
   bindNoteEditor();
   if (!$("#search")) return;
   $("#search").oninput = (e) => {
+    // Searching looks through every section (except locked ones); clearing it shows the section again.
+    const wasEmpty = !searchQuery.trim();
     searchQuery = e.target.value;
+    if (wasEmpty !== !searchQuery.trim() && page === "lists") {
+      render();
+      const field = $("#search");
+      field?.focus();
+      field?.setSelectionRange(field.value.length, field.value.length);
+    }
     applySearch();
   };
   document.querySelectorAll("[data-task-group]").forEach((group) => {
@@ -194,14 +202,22 @@ function bindLists() {
   applySearch();
 }
 
+/** Notes without a section live in General, the default spot (iPhone uses the same name). */
+const GENERAL = "General";
 function sectionName(id) {
   if (id === SOMEDAY) return "Someday";
-  return rows("lists").find((l) => l.id === id)?.name || "Notes";
+  if (!id) return GENERAL;
+  return rows("lists").find((l) => l.id === id)?.name || GENERAL;
 }
-/** Your sections in order, then notes without one, then Someday. */
+/** General first, then your sections in order, then Someday when it holds notes. */
 function noteSections() {
   const own = orderedLists("notes").map((l) => ({ id: l.id, name: l.name, color: colorName(l.color), own: true }));
-  return own;
+  return [
+    { id: "", name: GENERAL, color: "accent", own: false },
+    ...own,
+    // Notes filed in Someday get a group only while there are some.
+    { id: SOMEDAY, name: "Someday", color: "lavender", own: false, optional: true },
+  ];
 }
 function notesIn(id) {
   const known = new Set(rows("lists").map((l) => l.id));
@@ -216,7 +232,7 @@ const edited = (n) => {
     : d.toLocaleDateString([], { month: "short", day: "numeric" });
 };
 
-/** The notes sidebar: everything, then each section with its pages, then New section. */
+/** The notes sidebar: General, then each section with its pages, then New section. */
 function notesNav() {
   const openID = page === "note" ? noteID : null;
   const sections = noteSections()
@@ -225,10 +241,10 @@ function notesNav() {
       const sealed = OrbitLocks.sectionSealed(s.id);
       const section = rows("lists").find((l) => l.id === s.id);
       const marks = `${section?.locked ? `<svg class="ui-icon section-mark" viewBox="0 0 24 24" aria-label="Locked"><path d="${LOCK_PATH}"/></svg>` : ""}${section?.hidden ? `<svg class="ui-icon section-mark" viewBox="0 0 24 24" aria-label="Titles hidden"><path d="${HIDDEN_PATH}"/></svg>` : ""}`;
-      if (!items.length && !s.own) return "";
+      if (s.optional && !items.length) return "";
       const key = s.id || "none";
       const open = !collapsedNoteSections.has(key) || !!noteFilter;
-      const selected = page === "lists" && (selectedList || "") === s.id && selectedList !== null;
+      const selected = page === "lists" && (selectedList || "") === s.id;
       return `<div class="notes-nav-group" data-note-drop="${esc(s.id || "")}" ${s.own ? `draggable="true" data-drag-section="${esc(s.id)}"` : ""}>
         <div class="notes-nav-row ${selected ? "selected" : ""}" data-section-menu="${esc(s.id)}">
           <button class="notes-nav-toggle" data-note-section="${esc(key)}" aria-expanded="${open}" aria-label="${open ? "Collapse" : "Expand"} ${esc(s.name)}"><span class="chevron ${open ? "open" : ""}">${icon(ICONS.chevron)}</span></button>
@@ -254,18 +270,6 @@ function notesNav() {
       <button class="icon-button" data-new-note="${esc(selectedList || "")}" aria-label="New note" title="New note (Ctrl+N)">${icon(ICONS.compose)}</button>
     </div>
     <input id="note-filter" type="search" placeholder="Find a page" aria-label="Find a page" value="${esc(noteFilter)}" />
-    <div class="notes-nav-row ${page === "lists" && selectedList === null ? "selected" : ""}" data-note-drop="">
-      <button class="notes-nav-toggle" data-note-section="all" aria-expanded="${!collapsedNoteSections.has("all") || !!noteFilter}" aria-label="${collapsedNoteSections.has("all") && !noteFilter ? "Expand" : "Collapse"} All notes"><span class="chevron ${collapsedNoteSections.has("all") && !noteFilter ? "" : "open"}">${icon(ICONS.chevron)}</span></button>
-      <button class="notes-nav-name notes-nav-all" data-notes-home="all">All<span class="note-count">${listedNotes(notes()).length}</span></button>
-    </div>
-    ${
-      !collapsedNoteSections.has("all") || !!noteFilter
-        ? `<div class="notes-nav-pages">${datedPages(
-            listedNotes(notes()).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)),
-            (n) => noteNavButton(n, openID),
-          )}</div>`
-        : ""
-    }
     <div class="notes-nav-sections">${sections}</div>
     <button class="notes-nav-add" data-new-list>${icon(ICONS.plus)}New section</button>
   </aside>`;
@@ -278,18 +282,18 @@ function noteCard(n) {
   return `<button class="note-card" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" title="${esc(noteDisplayTitle(n))}" data-search="${esc(search)}">
     <span class="note-card-title">${noteGlyph(n.noteIcon)}<span>${esc(noteDisplayTitle(n))}</span></span>
     <span class="note-card-text">${esc(snippet) || `<span class="muted">${OrbitLocks.isLocked(n) ? "Locked" : OrbitLocks.isHidden(n) ? "Hidden" : "Empty page"}</span>`}</span>
-    <span class="note-card-meta">${esc(n.listID ? sectionName(n.listID) : "All")} · ${esc(edited(n))}</span>
+    <span class="note-card-meta">${esc(sectionName(n.listID))} · ${esc(edited(n))}</span>
   </button>`;
 }
 
-/** The overview: a section's (or every) page as cards, and the tasks filed there. */
+/** The overview: a section's pages as cards (General when none is chosen). A search looks through
+    every section that isn't locked. */
 function renderNotes() {
-  const heading = selectedList !== null && selectedList !== undefined ? sectionName(selectedList) || "All" : "Notes";
-  const pages =
-    selectedList === null || selectedList === undefined
-      ? listedNotes(notes()).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
-      : listedNotes(notesIn(selectedList));
-  const title = selectedList === "" ? "All" : heading;
+  const searching = !!searchQuery.trim();
+  const pages = searching
+    ? listedNotes(notes()).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+    : listedNotes(notesIn(selectedList || null));
+  const title = searching ? "Search" : sectionName(selectedList || null);
   return `<div class="notes-app">
     ${notesNav()}
     <section class="notes-pane notes-overview">
@@ -348,9 +352,8 @@ const pendingNotes = new Map();
 let noteSaveQueue = Promise.resolve();
 /** Back to the last page; if it is locked now, a blank page to write on instead of the lock screen. */
 function resumeNote() {
-  const last = notes().find((note) => note.id === lastNoteID);
-  const id = (last && !OrbitLocks.isSealed(last)) || pendingNotes.has(lastNoteID) ? lastNoteID : null;
-  openNote(id);
+  const last = notes().find((note) => note.id === lastNoteID) || pendingNotes.get(lastNoteID);
+  openNote(last && !OrbitLocks.isSealed(last) ? lastNoteID : null);
 }
 function resizeNoteFields() {
   for (const field of document.querySelectorAll("#note-title")) {
@@ -368,7 +371,7 @@ function renderNoteEditor() {
     </section>
   </div>`;
   const section = note ? note.listID || "" : noteSection || "";
-  const options = [`<option value="">All</option>`]
+  const options = [`<option value="">${GENERAL}</option>`]
     .concat(orderedLists("notes").map((l) => `<option value="${esc(l.id)}">${esc(l.name)}</option>`))
     .concat(`<option value="${SOMEDAY}">Someday</option>`)
     .join("")
@@ -382,7 +385,7 @@ function renderNoteEditor() {
     ${notesNav()}
     <section class="notes-pane note-pane" aria-label="Note">
       <div class="note-toolbar"><button class="icon-button" data-toggle-notes aria-label="Hide note list"></button>
-        <nav class="crumbs" aria-label="Location"><button data-back-notes>Back to notes</button><span>/</span><button data-notes-home="${esc(section)}">${esc(section ? sectionName(section) : "All")}</button></nav>
+        <nav class="crumbs" aria-label="Location"><button data-back-notes>Back to notes</button><span>/</span><button data-notes-home="${esc(section)}">${esc(sectionName(section))}</button></nav>
         <span id="note-status" class="note-status"></span>
         ${OrbitLocks.isLocked(note) ? `<span class="note-locked-mark" title="Locked">${icon(LOCK_PATH)}</span>` : ""}
         <input id="note-photo-file" type="file" accept="image/*" multiple hidden />
@@ -679,7 +682,7 @@ function renderLists() {
   bindNoteDrops();
 }
 
-/** Drag a page onto a section (in the notes list or the sidebar), or onto All, to move it there. */
+/** Drag a page onto a section (in the notes list or the sidebar), or onto General, to move it there. */
 function bindNoteDrops() {
   document.querySelectorAll("[data-drag-note]").forEach((page) => {
     page.ondragstart = (event) => {
@@ -793,7 +796,7 @@ async function beginSectionDeletion(id) {
     return;
   }
   $("#section-delete-description").textContent =
-    `${count} ${count === 1 ? "note is" : "notes are"} in this section. Move them to All, or delete them with the section.`;
+    `${count} ${count === 1 ? "note is" : "notes are"} in this section. Move them to General, or delete them with the section.`;
   openDialog($("#section-delete"));
 }
 async function deleteScopedGroup(list, kind, deleteContents) {
