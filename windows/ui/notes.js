@@ -73,6 +73,34 @@ const OrbitNotes = (() => {
       .trim()
       .slice(0, 140);
 
-  return { THRESHOLD, WORD_LIMIT, isNote, split, snippet, icons, resolveIcon };
+  /**
+   * Groups pages by when they were last edited, as Apple Notes does: Today, Yesterday, Previous 7 Days,
+   * Previous 30 Days, then each earlier month of this year, then each earlier year.
+   * Mirrors ios/App/NoteDateGroup.swift.
+   */
+  function dateGroupTitle(date, now = new Date()) {
+    const when = new Date(date);
+    const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const days = Math.round((startOfDay(now) - startOfDay(when)) / 86400000);
+    if (days <= 0) return "Today";
+    if (days === 1) return "Yesterday";
+    if (days <= 7) return "Previous 7 Days";
+    if (days <= 30) return "Previous 30 Days";
+    if (when.getFullYear() === now.getFullYear()) return when.toLocaleDateString("en-US", { month: "long" });
+    return String(when.getFullYear());
+  }
+
+  /** `items` newest first; consecutive items with the same title share a group. */
+  function dateGroups(items, dateOf, now = new Date()) {
+    const groups = [];
+    for (const item of items) {
+      const title = dateGroupTitle(dateOf(item), now);
+      if (groups.at(-1)?.title === title) groups.at(-1).items.push(item);
+      else groups.push({ title, items: [item] });
+    }
+    return groups;
+  }
+
+  return { THRESHOLD, WORD_LIMIT, isNote, split, snippet, icons, resolveIcon, dateGroupTitle, dateGroups };
 })();
 if (typeof module !== "undefined") module.exports = OrbitNotes;

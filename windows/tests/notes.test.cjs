@@ -32,3 +32,31 @@ test("older notes and unknown icon IDs keep the document icon", () => {
     assert.equal(OrbitNotes.resolveIcon(value).id, "doc.text");
   }
 });
+
+test("notes group by last edit the way iOS does", () => {
+  const now = new Date(2026, 10, 12, 15, 0);
+  const daysAgo = (n) => new Date(2026, 10, 12 - n, 9, 0);
+  assert.equal(OrbitNotes.dateGroupTitle(new Date(2026, 10, 12, 0, 5), now), "Today");
+  assert.equal(OrbitNotes.dateGroupTitle(new Date(2026, 10, 12, 23, 0), now), "Today");
+  assert.equal(OrbitNotes.dateGroupTitle(daysAgo(1), now), "Yesterday");
+  assert.equal(OrbitNotes.dateGroupTitle(daysAgo(2), now), "Previous 7 Days");
+  assert.equal(OrbitNotes.dateGroupTitle(daysAgo(7), now), "Previous 7 Days");
+  assert.equal(OrbitNotes.dateGroupTitle(daysAgo(8), now), "Previous 30 Days");
+  assert.equal(OrbitNotes.dateGroupTitle(daysAgo(30), now), "Previous 30 Days");
+  assert.equal(OrbitNotes.dateGroupTitle(new Date(2026, 8, 1), now), "September");
+  assert.equal(OrbitNotes.dateGroupTitle(new Date(2025, 11, 31), now), "2025");
+  const groups = OrbitNotes.dateGroups(
+    [daysAgo(0), daysAgo(0), daysAgo(1), daysAgo(3), new Date(2024, 1, 1)].map((d) => ({ updatedAt: d.getTime() })),
+    (n) => n.updatedAt,
+    now,
+  );
+  assert.deepEqual(
+    groups.map((g) => [g.title, g.items.length]),
+    [
+      ["Today", 2],
+      ["Yesterday", 1],
+      ["Previous 7 Days", 1],
+      ["2024", 1],
+    ],
+  );
+});

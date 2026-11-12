@@ -50,6 +50,21 @@ function noteNavButton(n, openID) {
   const hidden = OrbitLocks.isHidden(n);
   return `<button class="notes-nav-page ${n.id === openID ? "selected" : ""} ${hidden ? "hidden-note" : ""}" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" title="${esc(noteDisplayTitle(n))}" data-search="${esc(noteSearchText(n))}">${glyph}<span class="notes-nav-title">${esc(noteDisplayTitle(n))}</span></button>`;
 }
+/** Pages under date headings (Today, Yesterday, Previous 7 Days…), as on iOS. `render` draws one page. */
+function datedPages(items, render, wrap = (inner) => inner) {
+  return OrbitNotes.dateGroups(items, (n) => n.updatedAt || Date.now())
+    .map(
+      (g) =>
+        `<div class="note-date-group" data-note-date-group><h3 class="note-date-heading">${esc(g.title)}</h3>${wrap(g.items.map(render).join(""))}</div>`,
+    )
+    .join("");
+}
+/** Hides a date heading once a find or search has hidden every page under it. */
+function hideEmptyDateGroups(scope) {
+  document.querySelectorAll(`${scope} [data-note-date-group]`).forEach((group) => {
+    group.hidden = ![...group.querySelectorAll("[data-search]")].some((row) => !row.hidden);
+  });
+}
 /** Pages that may be listed: a locked section's pages stay out of view until unlocked. */
 const listedNotes = (items) => items.filter((n) => !OrbitLocks.sectionSealed(n.listID));
 
@@ -59,6 +74,7 @@ function applySearch() {
   document.querySelectorAll("#content .notes-pane [data-search]").forEach((row) => {
     row.hidden = !words.every((w) => row.dataset.search.includes(w));
   });
+  hideEmptyDateGroups("#content .notes-pane");
   if (words.length) document.querySelectorAll("#content details.task-date-group").forEach((d) => (d.open = true));
 }
 function applyNoteFilter() {
@@ -66,6 +82,7 @@ function applyNoteFilter() {
   document.querySelectorAll("#content .notes-nav [data-search]").forEach((row) => {
     row.hidden = !words.every((w) => row.dataset.search.includes(w));
   });
+  hideEmptyDateGroups("#content .notes-nav");
 }
 function bindLists() {
   document
@@ -214,7 +231,7 @@ function notesNav() {
             ? `<div class="notes-nav-pages">${
                 sealed
                   ? `<button class="notes-nav-page notes-unlock" data-unlock-notes>${icon(LOCK_PATH)}<span class="notes-nav-title">Locked · Unlock</span></button>`
-                  : items.map((n) => noteNavButton(n, openID)).join("") || `<p class="notes-nav-empty">No pages</p>`
+                  : datedPages(items, (n) => noteNavButton(n, openID)) || `<p class="notes-nav-empty">No pages</p>`
               }</div>`
             : ""
         }
@@ -233,10 +250,10 @@ function notesNav() {
     </div>
     ${
       !collapsedNoteSections.has("all") || !!noteFilter
-        ? `<div class="notes-nav-pages">${listedNotes(notes())
-            .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
-            .map((n) => noteNavButton(n, openID))
-            .join("")}</div>`
+        ? `<div class="notes-nav-pages">${datedPages(
+            listedNotes(notes()).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)),
+            (n) => noteNavButton(n, openID),
+          )}</div>`
         : ""
     }
     <div class="notes-nav-sections">${sections}</div>
@@ -276,7 +293,7 @@ function renderNotes() {
       </header>
       ${
         pages.length
-          ? `<div class="note-grid">${pages.map(noteCard).join("")}</div>`
+          ? `<div class="note-date-groups">${datedPages(pages, noteCard, (cards) => `<div class="note-grid">${cards}</div>`)}</div>`
           : `<div class="empty-state">${docIcon}<p><strong>No pages yet</strong><br />Start typing anywhere to begin a new page.</p></div>`
       }
 

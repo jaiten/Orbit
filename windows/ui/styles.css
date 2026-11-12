@@ -2192,6 +2192,35 @@ body[data-view="lists"] .page {
 .notes-nav-page[hidden] {
   display: none;
 }
+.note-date-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  gap: 1px;
+}
+.note-date-group[hidden] {
+  display: none;
+}
+.note-date-heading {
+  margin: 6px 8px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.note-date-group:first-child .note-date-heading {
+  margin-top: 2px;
+}
+.note-date-groups {
+  display: grid;
+  gap: 22px;
+}
+.note-date-groups .note-date-group {
+  gap: 10px;
+}
+.note-date-groups .note-date-heading {
+  margin: 0 2px;
+  font-size: 13px;
+}
 .notes-nav-empty {
   margin: 2px 8px 6px;
   font-size: 13px;

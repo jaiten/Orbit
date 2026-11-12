@@ -37,6 +37,7 @@ const shots = process.env.ORBIT_SCREENSHOT_DIR;
         note("n1", "Groceries", "Milk, eggs and bread for the weekend"),
         note("n2", "Diary entry", "Today I felt great about the run", { listID: "s1" }),
         note("n3", "Secret plans", "Surprise party on Saturday", { listID: "s2" }),
+        note("n4", "Old recipe", "Lentil soup", { updatedAt: now - 3 * 86400000 }),
       ],
       onboarded: true,
       configured: true,
@@ -125,6 +126,21 @@ const shots = process.env.ORBIT_SCREENSHOT_DIR;
 
   // Notes: the toolbar keeps photo, copy and make-a-task behind ⋯.
   await p.keyboard.press("Control+4");
+  await p.locator(".notes-nav-page", { hasText: "Groceries" }).first().click();
+  // Pages sit under date headings, as on iOS: Today first, older pages after.
+  await p.locator('[data-notes-home="all"]').click();
+  const headings = await p.locator(".notes-overview .note-date-heading").allInnerTexts();
+  assert.deepEqual(headings, ["Today", "Previous 7 Days"]);
+  const navHeadings = await p
+    .locator(".notes-nav .notes-nav-pages")
+    .first()
+    .locator(".note-date-heading")
+    .allInnerTexts();
+  assert.deepEqual(navHeadings, ["Today", "Previous 7 Days"], "The sidebar's All list is dated too");
+  if (shots) await p.screenshot({ path: path.join(shots, "notes-dated.png") });
+  await p.locator("#search").fill("lentil");
+  assert.deepEqual(await p.locator(".notes-overview .note-date-heading:visible").allInnerTexts(), ["Previous 7 Days"]);
+  await p.locator("#search").fill("");
   await p.locator(".notes-nav-page", { hasText: "Groceries" }).first().click();
   await p.locator("#note-body").waitFor();
   assert.equal(await p.locator("#add-note-photo, [data-copy-note], [data-note-to-task]").count(), 0);
