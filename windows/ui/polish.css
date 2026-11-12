@@ -1,17 +1,25 @@
 /* Orbit 0.4 polish: a calm, macOS-like finish over styles.css. Loaded last, so these rules win
    at equal specificity. Content sits on one clean pane; the sidebar is a translucent source list
    (Mica on Windows 11); lists are grouped into one card with hairline separators; side cards are
-   quiet grey wells; labels are sentence case. Mockups: docs/mockups/polish. */
+   quiet wells; labels are sentence case. Mockups: docs/mockups/polish.
+
+   Colour is layered so areas read apart: in light mode a warm cream page, a deeper oat sidebar, a
+   notes list between the two, white list cards that lift off the page and sand-coloured side cards;
+   in dark mode the same steps in warm charcoal, with the sidebar a shade lighter than the page. */
 
 :root {
-  --pane: light-dark(#ffffff, #1e1e20);
-  --well: light-dark(#f5f5f7, #2a2a2d);
-  --hair: light-dark(rgb(60 60 67 / 0.13), rgb(255 255 255 / 0.09));
-  --select: light-dark(rgb(0 0 0 / 0.065), rgb(255 255 255 / 0.09));
-  --field: light-dark(rgb(0 0 0 / 0.055), rgb(255 255 255 / 0.07));
-  --ring: light-dark(#c7c7cc, #5a5a60);
-  --side-bg: light-dark(#f0eff3, #252427);
-  --list-bg: light-dark(#ffffff, #2a2a2d);
+  --pane: light-dark(#fbf8f2, #1b1a19);
+  --well: light-dark(#f2ede3, #252321);
+  --hair: light-dark(rgb(74 58 36 / 0.14), rgb(255 246 230 / 0.09));
+  --select: light-dark(rgb(92 68 36 / 0.09), rgb(255 246 230 / 0.1));
+  --field: light-dark(rgb(92 68 36 / 0.07), rgb(255 246 230 / 0.07));
+  --ring: light-dark(#c9c1b4, #5e5a54);
+  --side-bg: light-dark(#efe9de, #242220);
+  --nav-bg: light-dark(#f6f1e8, #201f1d);
+  --list-bg: light-dark(#ffffff, #2b2927);
+  --ink: light-dark(#26221d, #f3eee6);
+  --muted: light-dark(#6a6155, #b2aba1);
+  --line: light-dark(#e4dccf, #3a3733);
   --soft-radius: 10px;
   --canvas: var(--pane);
   --surface: var(--list-bg);
@@ -22,7 +30,7 @@
   background: transparent;
 }
 :root[data-mica] {
-  --side-bg: light-dark(rgb(243 242 246 / 0.55), rgb(32 32 34 / 0.55));
+  --side-bg: light-dark(rgb(239 233 222 / 0.62), rgb(36 34 32 / 0.6));
 }
 :root[data-mica] main {
   background: var(--pane);
@@ -76,10 +84,6 @@ nav button.selected:hover {
   border-radius: 7px;
   background: var(--select);
   box-shadow: none;
-}
-/* Shortcut labels stay out of the way until Ctrl is held. */
-:root:not(.ctrl-held) :is(nav, .search-field) kbd {
-  opacity: 0;
 }
 .list-heading {
   margin: 18px 10px 4px;
@@ -241,7 +245,7 @@ h1 {
 /* Notes list: title, then when it was edited and the start of the text. The open page is filled
    with the accent, as in Apple Notes. */
 .notes-nav {
-  background: var(--pane);
+  background: var(--nav-bg);
   border-right: 0.5px solid var(--hair);
 }
 #note-filter {
@@ -382,7 +386,7 @@ h1 {
   color: var(--ink);
 }
 .scope-tabs button.selected {
-  background: light-dark(#ffffff, #4a4a4e);
+  background: light-dark(#ffffff, #57524c);
   box-shadow:
     0 1px 2px rgb(0 0 0 / 0.12),
     0 0 0 0.5px rgb(0 0 0 / 0.06);
@@ -433,9 +437,17 @@ h1 {
   font-weight: 600;
   color: var(--ink);
 }
-.cal-item.done em {
+/* Finished tasks in Calendar fade instead of being struck through. */
+.cal-item.done,
+.cal-item.done em,
+.cal-item.done b {
   color: var(--muted);
-  text-decoration: line-through;
+  text-decoration: none;
+  opacity: 0.6;
+}
+.calendar-page .complete .row-title {
+  text-decoration: none;
+  opacity: 0.55;
 }
 .cal-day.card {
   background: var(--well);
@@ -932,4 +944,116 @@ body[data-view="today"] .capture-dock {
   height: auto;
   aspect-ratio: 1;
   border-radius: 3px;
+}
+
+/* Day and week, simplified: hour lines only, no tint across today's column, events as light cards
+   with a colour bar whose tick appears on hover, and a quiet Any time band. Day view drops the
+   single-day header (the page title already names the day) and keeps events to a readable width. */
+.calendar-timeline {
+  --cal-head: 52px;
+}
+.calendar-timeline.day-view {
+  --cal-head: 0px;
+}
+.calendar-timeline.day-view .schedule-header {
+  display: none;
+}
+.schedule-header .day-tile {
+  min-height: 52px;
+  height: 52px;
+  padding: 5px;
+}
+.schedule-all-day {
+  top: var(--cal-head);
+  background: var(--well);
+}
+.anytime-resizer {
+  top: calc(var(--cal-head) + var(--anytime-height, 74px));
+  height: 6px;
+  background: var(--well);
+  border-bottom: 0.5px solid var(--hair);
+}
+.anytime-resizer span {
+  opacity: 0;
+}
+.anytime-resizer:hover span,
+.anytime-resizer:focus-visible span {
+  opacity: 0.6;
+}
+.schedule-all-day-column {
+  padding: 5px 4px;
+}
+.schedule-anytime {
+  background: var(--list-bg);
+  box-shadow: 0 0 0 0.5px var(--hair);
+}
+.time-slot:nth-child(4n + 3) {
+  border-top-color: transparent;
+}
+.schedule-day.is-today {
+  background: transparent;
+}
+.schedule-event {
+  background: color-mix(in srgb, var(--accent) 11%, var(--list-bg));
+  box-shadow: 0 0 0 0.5px color-mix(in srgb, var(--accent) 22%, transparent);
+  overflow: hidden;
+}
+.schedule-event::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  bottom: 3px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+.schedule-event:hover {
+  background: color-mix(in srgb, var(--accent) 16%, var(--list-bg));
+}
+.schedule-event-body {
+  padding: 4px 22px 3px 12px;
+}
+.schedule-check {
+  left: auto;
+  right: 3px;
+  top: 3px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.schedule-event:hover .schedule-check,
+.schedule-event:focus-within .schedule-check {
+  opacity: 1;
+}
+.calendar-timeline.day-view .schedule-event {
+  max-width: 720px;
+}
+
+/* Lock / Unlock sits beside New note at the top of the notes list, labelled so it's easy to find. */
+.notes-nav-head {
+  gap: 6px;
+}
+.notes-nav-head > span {
+  flex: 1;
+}
+.notes-lock-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px 0 7px;
+  border-radius: 7px;
+  background: var(--field);
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--ink);
+}
+.notes-lock-toggle:hover {
+  background: var(--select);
+}
+.notes-lock-toggle .ui-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--accent-text);
 }

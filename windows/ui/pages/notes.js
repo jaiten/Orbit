@@ -266,7 +266,13 @@ function notesNav() {
   return `<aside class="notes-nav" aria-label="Notes"><div id="notes-pane-grip" class="pane-grip" role="separator" aria-label="Note list width" aria-orientation="vertical" aria-valuemin="180" aria-valuemax="400" tabindex="0"></div>
     <div class="notes-nav-head">
       <span>Notes</span>
-      ${OrbitLocks.unlocked && OrbitLocks.anyLocks() ? `<button class="icon-button notes-lock-now" data-lock-now aria-label="Lock now" title="Lock notes again (Ctrl+L)">${icon(LOCK_PATH)}</button>` : ""}
+      ${
+        OrbitLocks.anyLocks()
+          ? OrbitLocks.unlocked
+            ? `<button class="notes-lock-toggle" data-lock-now aria-label="Lock now" title="Lock notes again (Ctrl+L)">${icon(LOCK_PATH)}Lock</button>`
+            : `<button class="notes-lock-toggle locked" data-unlock-notes aria-label="Unlock notes" title="Unlock locked notes and sections">${icon(UNLOCK_PATH)}Unlock</button>`
+          : ""
+      }
       <button class="icon-button" data-new-note="${esc(selectedList || "")}" aria-label="New note" title="New note (Ctrl+N)">${icon(ICONS.compose)}</button>
     </div>
     <input id="note-filter" type="search" placeholder="Find a page" aria-label="Find a page" value="${esc(noteFilter)}" />

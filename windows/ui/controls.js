@@ -86,8 +86,8 @@ document.addEventListener("pointerdown", (event) => {
 const SHORTCUT_LABEL_DAYS = 3;
 if (Number(localStorage.getItem("visitDays") || 0) > SHORTCUT_LABEL_DAYS)
   document.documentElement.dataset.shortcutLabels = "hidden";
-// Only Ctrl held on its own, briefly, and not while typing: Ctrl+Backspace and other editing chords
-// never flash the labels.
+// Only Ctrl held on its own shows them. In a text field it takes a little longer, so Ctrl+Backspace
+// and other quick editing chords never flash the labels, but holding Ctrl still works while writing.
 let ctrlHintTimer;
 const setCtrlHeld = (held) => {
   clearTimeout(ctrlHintTimer);
@@ -97,9 +97,12 @@ const typingTarget = (target) =>
   ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName) || !!target?.isContentEditable;
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Control") return setCtrlHeld(false);
-  if (event.repeat || typingTarget(event.target)) return;
+  if (event.repeat) return;
   clearTimeout(ctrlHintTimer);
-  ctrlHintTimer = setTimeout(() => document.documentElement.classList.add("ctrl-held"), 350);
+  ctrlHintTimer = setTimeout(
+    () => document.documentElement.classList.add("ctrl-held"),
+    typingTarget(event.target) ? 600 : 350,
+  );
 });
 document.addEventListener("keyup", (event) => {
   if (event.key === "Control") setCtrlHeld(false);

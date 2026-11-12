@@ -117,11 +117,14 @@ const shots = process.env.ORBIT_SCREENSHOT_DIR;
   assert.equal(await p.locator(".inline-capture.note-form").count(), 0);
   assert.equal(await capture.inputValue(), "");
 
-  // Holding Ctrl while typing never flashes the Ctrl+1… labels.
+  // A quick Ctrl chord while typing never flashes the Ctrl+1… labels…
   await capture.click();
   await p.keyboard.down("Control");
   await p.waitForTimeout(500);
   assert.equal(await p.evaluate(() => document.documentElement.classList.contains("ctrl-held")), false);
+  // …but holding Ctrl on its own a moment longer shows them, even while writing.
+  await p.waitForTimeout(400);
+  assert.equal(await p.evaluate(() => document.documentElement.classList.contains("ctrl-held")), true);
   await p.keyboard.up("Control");
 
   // Notes: the toolbar keeps photo, copy and make-a-task behind ⋯.
