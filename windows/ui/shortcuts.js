@@ -7,6 +7,7 @@ const SHORTCUT_HELP = [
   ["Ctrl+1 … Ctrl+5", "Pages in sidebar order (drag to rearrange)"],
   ["Ctrl+6", "Settings"],
   ["Ctrl+F", "Search notes and tasks"],
+  ["Ctrl+L", "Lock notes again"],
   ["Space or Enter", "Complete or check the focused item"],
   ["Shift+F10 or right-click", "Item menu: copy text, timer and more"],
   ["E", "Edit the focused item"],
@@ -63,6 +64,7 @@ document.addEventListener("keydown", (e) => {
       calendarView = calendarView === "week" ? "month" : "week";
       render();
     } else if (/^[1-6]$/.test(key)) goTo(shortcutPages()[Number(key) - 1]);
+    else if (key === "l" && !e.shiftKey) OrbitLocks.lockNow();
     else if (key === "f") {
       void (async () => {
         if (page === "note") await saveNote();

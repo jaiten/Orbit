@@ -167,6 +167,23 @@ const shots = process.env.ORBIT_SCREENSHOT_DIR;
   );
   assert.ok((await record("n4")).updatedAt > Date.now() - 60000, "Moving counts as an edit");
 
+  // Drag a page onto another section (here the sidebar's Private) to move it there.
+  await p
+    .locator(".notes-nav-page", { hasText: "Old recipe" })
+    .first()
+    .dragTo(p.locator('.sidebar-list[data-note-drop="s2"]'));
+  await until(
+    async () => (await window.orbit.read()).records.find((r) => r.payload.id === "n4")?.payload.listID === "s2",
+  );
+  // …and back again, onto a section in the notes list.
+  await p
+    .locator(".notes-nav-page", { hasText: "Old recipe" })
+    .first()
+    .dragTo(p.locator('.notes-nav-group[data-note-drop="s1"] .notes-nav-row'));
+  await until(
+    async () => (await window.orbit.read()).records.find((r) => r.payload.id === "n4")?.payload.listID === "s1",
+  );
+
   // Right-click a note: make it a task.
   await p.locator(".notes-nav-page", { hasText: "Diary entry" }).first().click({ button: "right" });
   await p.getByRole("menuitem", { name: "Make it a Task", exact: true }).click();
@@ -213,11 +230,18 @@ const shots = process.env.ORBIT_SCREENSHOT_DIR;
     document.dispatchEvent(new Event("visibilitychange"));
     Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
   });
-  await p.locator(".locked-page").waitFor();
+  // The open locked page is swapped for a blank page to write on, not a lock screen.
+  await until(() => document.querySelector("#note-title")?.value === "" && !document.querySelector(".locked-page"));
+  assert.equal(await p.locator(".notes-nav-page", { hasText: "Groceries" }).count(), 0, "Locked titles are hidden");
+  await p.locator(".notes-nav-page", { hasText: "Locked note" }).first().waitFor();
   const nav = await p.locator(".notes-nav").innerText();
   for (const secret of ["Secret plans", "Hidden thoughts", "Milk, eggs"])
     assert.equal(nav.includes(secret), false, secret);
-  assert.equal(await p.locator("#note-body").count(), 0, "A locked note's text is not on the page");
+  assert.equal(
+    (await p.locator("#note-body").innerText()).includes("Milk"),
+    false,
+    "A locked note's text is not on the page",
+  );
   await p.locator('[data-notes-home="all"]').click();
   const overview = await p.locator(".notes-overview").innerText();
   for (const secret of ["Secret plans", "Surprise party", "Hidden thoughts", "Very private", "Milk, eggs"])
@@ -229,7 +253,8 @@ const shots = process.env.ORBIT_SCREENSHOT_DIR;
   await p.locator("#search").fill("");
 
   // Opening a locked note asks for the password; a wrong one is refused.
-  await p.locator(".note-card", { hasText: "Groceries" }).click();
+  assert.equal(await p.locator(".note-card", { hasText: "Groceries" }).count(), 0, "No locked titles on cards");
+  await p.locator(".note-card", { hasText: "Locked note" }).first().click();
   await p.locator("#lock-dialog[open]").waitFor();
   await p.locator("#lock-dialog").getByLabel("Password", { exact: true }).fill("wrong");
   await p.locator("#lock-dialog").getByRole("button", { name: "Unlock" }).click();
@@ -241,7 +266,7 @@ const shots = process.env.ORBIT_SCREENSHOT_DIR;
   // Unlocked, the locked section's pages are listed again; Lock now hides them.
   await p.locator(".notes-nav-page", { hasText: "Secret plans" }).first().waitFor();
   await p.getByRole("button", { name: "Lock now" }).click();
-  await p.locator(".locked-page").waitFor();
+  await until(() => document.querySelector("#note-title")?.value === "" && !document.querySelector(".locked-page"));
   assert.equal(await p.locator(".notes-nav-page", { hasText: "Secret plans" }).count(), 0);
 
   // The chin: typing at the end of a long note keeps the line well above the bottom edge.
@@ -256,6 +281,8 @@ const shots = process.env.ORBIT_SCREENSHOT_DIR;
       updatedAt: Date.now(),
     }),
   );
+  // An open page doesn't redraw the list under the writer; going to the overview does.
+  await p.locator('[data-notes-home="all"]').click();
   await p.locator(".notes-nav-page", { hasText: "Long" }).first().click();
   await p.locator("#note-body").click();
   await p.keyboard.press("Control+End");

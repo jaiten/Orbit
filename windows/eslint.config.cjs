@@ -196,6 +196,8 @@ const shared = Object.fromEntries(
     "openList",
     "beginSectionDeletion",
     "noteMoveEntry",
+    "moveNoteTo",
+    "bindNoteDrops",
     "OrbitNavOrder",
     "NAV_NAMES",
     "navOrder",

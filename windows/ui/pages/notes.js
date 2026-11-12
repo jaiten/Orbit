@@ -31,15 +31,18 @@ const ICONS = {
 const HIDDEN_PATH =
   "M3 3l18 18M10.6 6.1A9.9 9.9 0 0 1 12 6c5 0 9 6 9 6a17 17 0 0 1-2.5 3.1M6.6 6.6C4.3 8.1 3 12 3 12s4 6 9 6c1.5 0 2.9-.4 4.1-1M9.9 9.9a3 3 0 0 0 4.2 4.2";
 const notes = () => rows("tasks").filter((t) => t.isNote);
+/** A note's name in lists. A locked page shows only "Locked note" until the password is entered. */
 const noteDisplayTitle = (note) =>
-  OrbitLocks.isHidden(note)
-    ? "Hidden note"
-    : note.title ||
-      (OrbitLocks.isLocked(note) ? "" : OrbitNotes.snippet(note.notes).slice(0, 60)) ||
-      (note.photos?.length ? "Photo note" : OrbitLocks.isLocked(note) ? "Locked note" : "Untitled");
+  OrbitLocks.isSealed(note)
+    ? "Locked note"
+    : OrbitLocks.isHidden(note)
+      ? "Hidden note"
+      : note.title ||
+        (OrbitLocks.isLocked(note) ? "" : OrbitNotes.snippet(note.notes).slice(0, 60)) ||
+        (note.photos?.length ? "Photo note" : OrbitLocks.isLocked(note) ? "Locked note" : "Untitled");
 /** What a find or search may match: nothing from a hidden page, only the title of a locked one. */
 const noteSearchText = (note) =>
-  OrbitLocks.isHidden(note)
+  OrbitLocks.isHidden(note) || OrbitLocks.isSealed(note)
     ? ""
     : (OrbitLocks.isLocked(note) ? note.title || "" : [note.title, note.notes].join(" ")).toLowerCase();
 /** A page in the notes list: its icon (a lock when locked) and title. */
@@ -51,7 +54,7 @@ function noteNavButton(n, openID) {
   // Under the title: when it was edited and the start of the text, as in Apple Notes. Locked and
   // hidden pages show only the time.
   const preview = hidden || OrbitLocks.isLocked(n) ? "" : OrbitNotes.snippet(n.notes);
-  return `<button class="notes-nav-page ${n.id === openID ? "selected" : ""} ${hidden ? "hidden-note" : ""}" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" title="${esc(noteDisplayTitle(n))}" data-search="${esc(noteSearchText(n))}">${glyph}<span class="notes-nav-title">${esc(noteDisplayTitle(n))}</span><span class="notes-nav-sub"><b>${esc(edited(n))}</b> ${esc(preview)}</span></button>`;
+  return `<button class="notes-nav-page ${n.id === openID ? "selected" : ""} ${hidden ? "hidden-note" : ""}" draggable="true" data-drag-note="${esc(n.id)}" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" title="${esc(noteDisplayTitle(n))}" data-search="${esc(noteSearchText(n))}">${glyph}<span class="notes-nav-title">${esc(noteDisplayTitle(n))}</span><span class="notes-nav-sub"><b>${esc(edited(n))}</b> ${esc(preview)}</span></button>`;
 }
 /** Pages under date headings (Today, Yesterday, Previous 7 Days…), as on iOS. `render` draws one page. */
 function datedPages(items, render, wrap = (inner) => inner) {
@@ -135,13 +138,15 @@ function bindLists() {
   }
   document.querySelectorAll("[data-drag-section]").forEach((group) => {
     group.ondragstart = (event) => event.dataTransfer.setData("text/orbit-section", group.dataset.dragSection);
-    group.ondragover = (event) => {
+    group.addEventListener("dragover", (event) => {
+      if (!event.dataTransfer.types.includes("text/orbit-section")) return;
       event.preventDefault();
       event.dataTransfer.dropEffect = "move";
-    };
-    group.ondrop = (event) => {
-      event.preventDefault();
+    });
+    group.addEventListener("drop", (event) => {
       const source = event.dataTransfer.getData("text/orbit-section");
+      if (!source) return;
+      event.preventDefault();
       const ordered = orderedLists("notes");
       const from = ordered.findIndex((list) => list.id === source);
       const to = ordered.findIndex((list) => list.id === group.dataset.dragSection);
@@ -155,8 +160,9 @@ function bindLists() {
           })),
         ),
       );
-    };
+    });
   });
+  bindNoteDrops();
   document.querySelectorAll("[data-section-menu]").forEach((row) => {
     row.oncontextmenu = (event) => {
       event.preventDefault();
@@ -223,7 +229,7 @@ function notesNav() {
       const key = s.id || "none";
       const open = !collapsedNoteSections.has(key) || !!noteFilter;
       const selected = page === "lists" && (selectedList || "") === s.id && selectedList !== null;
-      return `<div class="notes-nav-group" ${s.own ? `draggable="true" data-drag-section="${esc(s.id)}"` : ""}>
+      return `<div class="notes-nav-group" data-note-drop="${esc(s.id || "")}" ${s.own ? `draggable="true" data-drag-section="${esc(s.id)}"` : ""}>
         <div class="notes-nav-row ${selected ? "selected" : ""}" data-section-menu="${esc(s.id)}">
           <button class="notes-nav-toggle" data-note-section="${esc(key)}" aria-expanded="${open}" aria-label="${open ? "Collapse" : "Expand"} ${esc(s.name)}"><span class="chevron ${open ? "open" : ""}">${icon(ICONS.chevron)}</span></button>
           <button class="notes-nav-name" data-notes-home="${esc(s.id)}" title="${esc(s.name)}"><span class="list-dot ${s.color}"></span>${esc(s.name)}${marks}<span class="note-count">${sealed ? "" : items.length || ""}</span></button>
@@ -244,10 +250,11 @@ function notesNav() {
   return `<aside class="notes-nav" aria-label="Notes"><div id="notes-pane-grip" class="pane-grip" role="separator" aria-label="Note list width" aria-orientation="vertical" aria-valuemin="180" aria-valuemax="400" tabindex="0"></div>
     <div class="notes-nav-head">
       <span>Notes</span>
+      ${OrbitLocks.unlocked && OrbitLocks.anyLocks() ? `<button class="icon-button notes-lock-now" data-lock-now aria-label="Lock now" title="Lock notes again (Ctrl+L)">${icon(LOCK_PATH)}</button>` : ""}
       <button class="icon-button" data-new-note="${esc(selectedList || "")}" aria-label="New note" title="New note (Ctrl+N)">${icon(ICONS.compose)}</button>
     </div>
     <input id="note-filter" type="search" placeholder="Find a page" aria-label="Find a page" value="${esc(noteFilter)}" />
-    <div class="notes-nav-row ${page === "lists" && selectedList === null ? "selected" : ""}">
+    <div class="notes-nav-row ${page === "lists" && selectedList === null ? "selected" : ""}" data-note-drop="">
       <button class="notes-nav-toggle" data-note-section="all" aria-expanded="${!collapsedNoteSections.has("all") || !!noteFilter}" aria-label="${collapsedNoteSections.has("all") && !noteFilter ? "Expand" : "Collapse"} All notes"><span class="chevron ${collapsedNoteSections.has("all") && !noteFilter ? "" : "open"}">${icon(ICONS.chevron)}</span></button>
       <button class="notes-nav-name notes-nav-all" data-notes-home="all">All<span class="note-count">${listedNotes(notes()).length}</span></button>
     </div>
@@ -261,7 +268,6 @@ function notesNav() {
     }
     <div class="notes-nav-sections">${sections}</div>
     <button class="notes-nav-add" data-new-list>${icon(ICONS.plus)}New section</button>
-    ${OrbitLocks.unlocked && OrbitLocks.anyLocks() ? `<button class="notes-nav-add" data-lock-now>${icon(LOCK_PATH)}Lock now</button>` : ""}
   </aside>`;
 }
 
@@ -340,8 +346,10 @@ let noteDraftTitle = "";
 let lastNoteID = localStorage.getItem("lastNoteID") || null;
 const pendingNotes = new Map();
 let noteSaveQueue = Promise.resolve();
+/** Back to the last page; if it is locked now, a blank page to write on instead of the lock screen. */
 function resumeNote() {
-  const id = notes().some((note) => note.id === lastNoteID) || pendingNotes.has(lastNoteID) ? lastNoteID : null;
+  const last = notes().find((note) => note.id === lastNoteID);
+  const id = (last && !OrbitLocks.isSealed(last)) || pendingNotes.has(lastNoteID) ? lastNoteID : null;
   openNote(id);
 }
 function resizeNoteFields() {
@@ -356,7 +364,7 @@ function renderNoteEditor() {
     return `<div class="notes-app">
     ${notesNav()}
     <section class="notes-pane note-pane note-sealed" aria-label="Locked note">
-      <div class="locked-page">${icon(LOCK_PATH)}<h1>${esc(note.title || "Locked note")}</h1><p class="secondary">This note is locked.</p><button class="primary" data-unlock-notes>Unlock</button></div>
+      <div class="locked-page">${icon(LOCK_PATH)}<h1>Locked note</h1><p class="secondary">Enter your notes password to read it.</p><button class="primary" data-unlock-notes>Unlock</button></div>
     </section>
   </div>`;
   const section = note ? note.listID || "" : noteSection || "";
@@ -637,7 +645,7 @@ function renderLists() {
     own
       .map(
         (l) =>
-          `<div class="sidebar-list" data-section-menu="${esc(l.id)}"><button data-notes-section-link="${esc(l.id)}"><span class="list-dot ${colorName(l.color)}"></span>${esc(l.name)}</button><button data-edit-list="${esc(l.id)}" data-list-kind="notes" aria-label="Edit ${esc(l.name)} note section">⋯</button></div>`,
+          `<div class="sidebar-list" data-section-menu="${esc(l.id)}" data-note-drop="${esc(l.id)}"><button data-notes-section-link="${esc(l.id)}"><span class="list-dot ${colorName(l.color)}"></span>${esc(l.name)}</button><button data-edit-list="${esc(l.id)}" data-list-kind="notes" aria-label="Edit ${esc(l.name)} note section">⋯</button></div>`,
       )
       .join("") +
     `<div class="list-heading">Task categories</div>` +
@@ -668,6 +676,41 @@ function renderLists() {
   document
     .querySelectorAll("[data-edit-list]")
     .forEach((b) => (b.onclick = () => openList(b.dataset.editList, b.dataset.listKind || "tasks")));
+  bindNoteDrops();
+}
+
+/** Drag a page onto a section (in the notes list or the sidebar), or onto All, to move it there. */
+function bindNoteDrops() {
+  document.querySelectorAll("[data-drag-note]").forEach((page) => {
+    page.ondragstart = (event) => {
+      // The page, not its section group, is what moves.
+      event.stopPropagation();
+      event.dataTransfer.setData("text/orbit-note", page.dataset.dragNote);
+      event.dataTransfer.effectAllowed = "move";
+    };
+  });
+  document.querySelectorAll("[data-note-drop]").forEach((target) => {
+    if (target.dataset.noteDropBound) return;
+    target.dataset.noteDropBound = "1";
+    target.addEventListener("dragover", (event) => {
+      if (!event.dataTransfer.types.includes("text/orbit-note")) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = "move";
+      target.classList.add("note-drop-target");
+    });
+    target.addEventListener("dragleave", (event) => {
+      if (!target.contains(event.relatedTarget)) target.classList.remove("note-drop-target");
+    });
+    target.addEventListener("drop", (event) => {
+      const id = event.dataTransfer.getData("text/orbit-note");
+      target.classList.remove("note-drop-target");
+      if (!id) return;
+      event.preventDefault();
+      event.stopPropagation();
+      void moveNoteTo(id, target.dataset.noteDrop || null);
+    });
+  });
 }
 
 let listEditingKind = "notes";

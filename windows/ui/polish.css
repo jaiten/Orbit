@@ -496,3 +496,257 @@ body[data-view="settings"] .settings-block {
 .mac-picker > summary {
   border-radius: 8px;
 }
+
+/* Dragging a page onto a section highlights where it will land. */
+.note-drop-target,
+.note-drop-target > .notes-nav-row {
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* Calendar header controls: Today matches the Day / Week / Month control in height and shape. */
+.head-tools .today-button {
+  min-width: 64px;
+  min-height: 30px;
+  height: 30px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--field);
+  box-shadow: none;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.head-tools .today-button:hover {
+  background: var(--select);
+}
+.month-arrows .icon-button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+/* Day and week: a clean grid like Calendar. Today's date sits in an accent circle, half hours are
+   barely there, events are tinted cards with a colour bar, and a line marks the current time. */
+.calendar-timeline {
+  border: 0;
+  border-radius: 12px;
+  background: var(--pane);
+  box-shadow: 0 0 0 0.5px var(--hair);
+}
+.schedule-header {
+  background: var(--pane);
+  border-bottom: 0.5px solid var(--hair);
+}
+.schedule-header .day-tile {
+  gap: 2px;
+  min-height: 56px;
+  padding: 7px 5px;
+}
+.schedule-header .day-tile span {
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.schedule-header .day-tile strong {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 15px;
+  font-weight: 600;
+}
+.schedule-header .day-tile.selected strong {
+  background: var(--accent-button);
+  color: var(--on-accent);
+}
+.time-axis-label {
+  padding: 8px 10px 0 0;
+  font-size: 11px;
+  text-align: right;
+}
+.time-axis > div {
+  position: relative;
+  top: -7px;
+  padding-right: 10px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.schedule-all-day-column,
+.schedule-day {
+  border-left: 0.5px solid var(--hair);
+}
+.schedule-day.is-today {
+  background: color-mix(in srgb, var(--accent) 3%, transparent);
+}
+.time-slot {
+  border-top: 0.5px solid var(--hair);
+}
+.time-slot.half-hour {
+  border-top-color: transparent;
+}
+.time-slot:nth-child(4n + 3) {
+  border-top: 0.5px dashed color-mix(in srgb, var(--hair) 70%, transparent);
+}
+.schedule-event {
+  left: 2px;
+  border-left: 0;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--pane));
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.schedule-event:hover {
+  background: color-mix(in srgb, var(--accent) 20%, var(--pane));
+}
+.schedule-event-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 4px 6px 3px 26px;
+}
+.schedule-event-body strong {
+  flex: none;
+  max-width: 100%;
+  font-size: 12px;
+  line-height: 15px;
+  font-weight: 600;
+}
+.schedule-event-body span {
+  flex: none;
+  font-size: 11px;
+  line-height: 13px;
+}
+.schedule-check {
+  left: 5px;
+  top: 4px;
+  padding: 1px;
+}
+.schedule-check .tick {
+  width: 14px;
+  height: 14px;
+}
+.now-line {
+  position: absolute;
+  left: -4px;
+  right: 0;
+  height: 0;
+  border-top: 1.5px solid var(--danger);
+  z-index: 5;
+  pointer-events: none;
+}
+.now-line::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
+/* Any time: tasks without a time are small tinted labels, not full rows. */
+.schedule-all-day-column {
+  gap: 3px;
+  padding: 4px;
+}
+.schedule-anytime {
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+.schedule-anytime .row-line {
+  min-height: 24px;
+}
+.schedule-anytime .row-body {
+  padding: 1px 6px 1px 2px;
+  font-size: 12px;
+}
+.schedule-anytime .row-title {
+  font-size: 12px;
+}
+.schedule-all-day-column .row-tick {
+  padding: 0 4px 0 6px;
+  min-height: 24px;
+}
+
+/* Today with nothing open: a calm, centred state instead of a box. */
+.today-main .today-empty {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 0;
+  padding: 44px 24px 36px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  box-shadow: none;
+  text-align: center;
+}
+.today-empty-mark {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent-text);
+}
+.today-empty.done .today-empty-mark {
+  background: var(--accent-button);
+  color: var(--on-accent);
+}
+.today-empty-mark svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.today-empty p {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.today-empty strong {
+  font-size: 16px;
+  font-weight: 650;
+}
+
+/* Single-column pages (Tasks, Habits, the day and week schedule) centre their column in the window,
+   and the capture bar sits centred beneath it. */
+.narrow,
+.narrow.wide {
+  max-width: min(var(--page-list), 100%);
+  margin-inline: auto;
+}
+body:is([data-view="habits"], [data-view="tasks"]) .capture-dock,
+.calendar-page.timeline-page > .capture-dock {
+  left: calc(var(--sidebar-width) + (100vw - var(--sidebar-width)) / 2);
+  width: min(var(--capture-width), calc(100vw - var(--sidebar-width) - 2 * var(--content-inset)));
+  transform: translateX(-50%);
+}
+
+/* Month: the grid grows with the window, so a large window shows taller days, not empty space. */
+.cal-cell {
+  min-height: max(96px, calc((100vh - 230px) / 6));
+}
+
+/* The shortcut hint floats above the capture bar, never on top of it. */
+#shortcut-hint {
+  bottom: 84px;
+  border: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--pane) 85%, transparent);
+  backdrop-filter: blur(20px);
+  box-shadow:
+    0 0 0 0.5px var(--hair),
+    0 4px 16px rgb(0 0 0 / 0.08);
+}

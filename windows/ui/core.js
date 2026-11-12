@@ -676,7 +676,12 @@ function openRowMenu(e) {
   const item = rows(kind === "habit" ? "habits" : "tasks").find((r) => r.id === id);
   if (!item) return;
   const text = [item.title, item.notes?.trim()].filter(Boolean).join("\n\n");
-  const entries = [["Copy text", () => api.copy(text)]];
+  const entries = [
+    [
+      "Copy text",
+      async () => (kind !== "note" || !OrbitLocks.isSealed(item) || (await OrbitLocks.unlock())) && api.copy(text),
+    ],
+  ];
   if (kind !== "habit") entries.push(["Select item", () => selectRow(kind, id)]);
   if (kind === "habit") entries.push(["Edit…", () => openHabit(id)]);
   if (kind === "note") {

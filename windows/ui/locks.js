@@ -53,10 +53,18 @@ const OrbitLocks = (() => {
   const isHidden = (note) => !!note && list(note.listID)?.hidden === true;
   const anyLocks = () => rows("tasks").some((t) => t.isNote && t.locked) || rows("lists").some((l) => l.locked);
 
+  /** Locks again. An open locked page is saved and swapped for a blank page to write on. */
   function lockNow() {
     if (!unlocked) return;
+    if (page === "note" && isLocked(rows("tasks").find((t) => t.id === noteID))) {
+      void saveNote().then(() => {
+        unlocked = false;
+        if (page === "note" && isLocked(rows("tasks").find((t) => t.id === noteID))) openNote(null);
+        else render();
+      });
+      return;
+    }
     unlocked = false;
-    if (page === "note" && isLocked(rows("tasks").find((t) => t.id === noteID))) void saveNote();
     if (["note", "lists"].includes(page)) render();
   }
   // Minimising or hiding the window locks again.
@@ -207,13 +215,15 @@ function sectionLockEntries(id) {
   ];
 }
 /** "Move to section" for a note's menus: All (no section), each note section, then Someday. As on iOS. */
+/** Moves a note to a section (null: no section). Saves an open page first. */
+async function moveNoteTo(id, listID) {
+  if (page === "note" && noteID === id) await saveNote();
+  const current = rows("tasks").find((t) => t.id === id);
+  if (!current || (current.listID || null) === listID) return;
+  await action(() => put("tasks", { ...clean(current), listID, updatedAt: Date.now() }));
+}
 function noteMoveEntry(note) {
-  const move = async (listID) => {
-    if (page === "note" && noteID === note.id) await saveNote();
-    const current = rows("tasks").find((t) => t.id === note.id) || note;
-    if ((current.listID || null) === listID) return;
-    await action(() => put("tasks", { ...clean(current), listID, updatedAt: Date.now() }));
-  };
+  const move = (listID) => moveNoteTo(note.id, listID);
   const here = note.listID || null;
   const choices = [[null, "All"], ...orderedLists("notes").map((l) => [l.id, l.name]), [SOMEDAY, "Someday"]];
   return ["Move to section", null, choices.map(([id, name]) => [id === here ? `${name} ✓` : name, () => move(id)])];

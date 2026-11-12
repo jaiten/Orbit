@@ -9,6 +9,11 @@ const calendarTime = (stamp) =>
     minute: "2-digit",
     hour12: localStorage.getItem("calendarClock") !== "24",
   });
+/** Compact hour labels for the day and week grids: "8 AM" (or "08:00" with the 24-hour clock). */
+const calendarHour = (hour) =>
+  localStorage.getItem("calendarClock") === "24"
+    ? `${String(hour).padStart(2, "0")}:00`
+    : `${hour % 12 || 12} ${hour < 12 ? "AM" : "PM"}`;
 const chevron = (path) => `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${path}"/></svg>`;
 const calendarDragGrip = '<span class="calendar-drag-grip" aria-hidden="true">⠿</span>';
 const monthOf = (key) => key.slice(0, 8) + "01";
@@ -112,9 +117,7 @@ function renderSchedule(tasks) {
           .join("")}</div>`,
     )
     .join("");
-  const axis = Array.from({ length: 24 }, (_, hour) => `<div>${calendarTime(new Date(2000, 0, 1, hour))}</div>`).join(
-    "",
-  );
+  const axis = Array.from({ length: 24 }, (_, hour) => `<div>${hour ? calendarHour(hour) : ""}</div>`).join("");
   const columns = days
     .map((key) => {
       const slots = Array.from({ length: 96 }, (_, index) => {
@@ -127,7 +130,13 @@ function renderSchedule(tasks) {
             `<div draggable="true" data-drag-task="${esc(task.id)}" class="schedule-event check-tile" data-event-start="${start}" data-event-end="${end}" data-lane="${lane}" data-lanes="${lanes}" data-row-menu="task:${esc(task.id)}"><button class="schedule-check" role="checkbox" aria-checked="false" aria-label="Complete ${esc(task.title)}" data-toggle="${esc(task.id)}">${tick(false)}</button><button class="schedule-event-body" data-edit="${esc(task.id)}" aria-label="Edit ${esc(task.title)}" title="${esc(task.title)}"><strong>${esc(task.title)}</strong><span>${calendarTime(task.dueDate)}</span></button>${calendarDragGrip}<button class="calendar-resize" data-resize-task="${esc(task.id)}" aria-label="Change duration of ${esc(task.title)}" title="Drag to change duration; arrow keys adjust by 15 minutes"></button>${rowActions(esc(task.id), esc(task.title))}</div>`,
         )
         .join("");
-      return `<div class="schedule-day"><div class="schedule-slots">${slots}</div>${blocks}</div>`;
+      // A line at the current time across today's column, as in Calendar.
+      const now = new Date();
+      const nowLine =
+        key === dayKey(now)
+          ? `<div class="now-line" style="top:${((now.getHours() * 60 + now.getMinutes()) / 15) * 12}px" aria-hidden="true"></div>`
+          : "";
+      return `<div class="schedule-day ${key === dayKey(now) && !dayView ? "is-today" : ""}"><div class="schedule-slots">${slots}</div>${blocks}${nowLine}</div>`;
     })
     .join("");
   return `<div class="calendar-page timeline-page">${calendarHeader(title, subtitle)}<div id="calendar-timeline" class="calendar-timeline"><div class="schedule-header time-grid"><span></span>${headings}</div><div class="schedule-all-day time-grid"><span class="time-axis-label">Any time</span>${untimed}</div><div id="anytime-resizer" class="anytime-resizer" role="separator" aria-label="Anytime section height" aria-orientation="horizontal" tabindex="0" aria-valuemin="0" aria-valuemax="240"><span></span></div><div class="schedule-hours time-grid"><div class="time-axis">${axis}</div>${columns}</div></div><div class="capture-dock">${addField("Add a task for " + date.toLocaleDateString([], { month: "short", day: "numeric" }))}</div></div>`;
