@@ -34,19 +34,26 @@ struct HomeLayoutEditor: View {
         default: return lists.first { "list:" + $0.id.uuidString == id }?.name ?? "List"
         }
     }
+    /// Everything but Completed, which stays at the bottom of Today.
+    private var arranged: [String] { sections.filter { $0 != "completed" } }
+    private func visibility(_ id: String) -> some View {
+        Toggle(Self.title(id, lists: lists), isOn: Binding(get: { id == "overall" ? showOverall : !hidden.split(separator: ",").contains(Substring(id)) }, set: { visible in
+            if id == "overall" { showOverall = visible; return }
+            var values = Set(hidden.split(separator: ",").map(String.init))
+            if visible { values.remove(id) } else { values.insert(id) }
+            hidden = values.sorted().joined(separator: ",")
+        }))
+    }
     var body: some View {
         NavigationStack {
             List {
                 Section("Drag to arrange · switch off to hide") {
-                    ForEach(sections, id: \.self) { id in
-                        Toggle(Self.title(id, lists: lists), isOn: Binding(get: { id == "overall" ? showOverall : !hidden.split(separator: ",").contains(Substring(id)) }, set: { visible in
-                            if id == "overall" { showOverall = visible; return }
-                            var values = Set(hidden.split(separator: ",").map(String.init))
-                            if visible { values.remove(id) } else { values.insert(id) }
-                            hidden = values.sorted().joined(separator: ",")
-                        }))
-                    }.onMove { from, to in var values = sections; values.move(fromOffsets: from, toOffset: to); stored = values.joined(separator: ",") }
+                    ForEach(arranged, id: \.self) { id in visibility(id) }
+                        .onMove { from, to in var values = arranged; values.move(fromOffsets: from, toOffset: to); stored = (values + ["completed"]).joined(separator: ",") }
                 }
+                Section {
+                    visibility("completed").moveDisabled(true)
+                } footer: { Text("Always at the bottom of Today.") }
                 Section("Pin a list") {
                     ForEach(lists.filter { $0.isTaskCategory && !sections.contains("list:" + $0.id.uuidString) }) { list in
                         Button(list.name, systemImage: "plus") { stored += ",list:" + list.id.uuidString }

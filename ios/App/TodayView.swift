@@ -81,9 +81,11 @@ struct TodayView: View {
             ConflictBanner()
             // The plan, then the day's sections; capture is docked at the bottom.
             if sections.contains("progress") { PlanCard(done: planDone, total: (includeTasks ? relevant.count : 0) + dueHabits.count, accent: accent.fill) }
-            ForEach(sections.filter { $0 != "progress" }, id: \.self) { section in
+            ForEach(sections.filter { $0 != "progress" && $0 != "completed" }, id: \.self) { section in
                 homeSection(section)
             }
+            // Completed always sits at the bottom of Today, whatever order the other sections are in.
+            if sections.contains("completed") { homeSection("completed") }
         }
         .padding(.top, CGFloat(DesignTokens.spaceS))
         .padding(.horizontal, CGFloat(DesignTokens.screenPadding)).padding(.bottom, CGFloat(DesignTokens.spaceSection))
