@@ -348,8 +348,7 @@ function rowActions(id, title, habit = false) {
   return `<span class="row-actions"><button class="icon-button" ${habit ? "data-habit-edit" : "data-edit"}="${id}" aria-label="Edit ${habit ? "habit" : "task"}: ${title}" title="Edit (E)"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m16 3 5 5-12 12-6 1 1-6zM14 5l5 5"/></svg></button><button class="icon-button danger" data-delete-row="${id}" aria-label="Delete ${title}" title="Delete"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V3h8v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg></button></span>`;
 }
 function taskRow(t) {
-  const time =
-    t.hasTime && t.dueDate ? new Date(t.dueDate).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
+  const time = t.hasTime && t.dueDate ? calendarTime(t.dueDate) : "";
   const length = time && t.durationMinutes ? `${t.durationMinutes} min` : "";
   const timing = focusTimer?.taskID === t.id;
   // Progress shows in the ring and the row tint, so the title keeps the room (no "In progress" text).

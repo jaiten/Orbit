@@ -229,7 +229,7 @@ function notesIn(id) {
 const edited = (n) => {
   const d = new Date(n.updatedAt || Date.now());
   return d.toDateString() === new Date().toDateString()
-    ? d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+    ? calendarTime(d)
     : d.toLocaleDateString([], { month: "short", day: "numeric" });
 };
 
@@ -327,7 +327,7 @@ function renderNotes() {
           : `<div class="empty-state">${docIcon}<p><strong>No pages yet</strong><br />Start typing anywhere to begin a new page.</p></div>`
       }
 
-      <div class="capture-dock">${addField(selectedList ? `Write a note in ${title}` : "Write a note")}</div>
+      <!-- No capture bar on Notes: typing anywhere, or the pencil, starts a page. -->
     </section>
   </div>`;
 }
@@ -400,7 +400,7 @@ function renderNoteEditor() {
     .replace(`value="${esc(section)}"`, `value="${esc(section)}" selected`);
   noteDisplayedEdited ??= note?.updatedAt || null;
   const when = noteDisplayedEdited
-    ? new Date(noteDisplayedEdited).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })
+    ? `${new Date(noteDisplayedEdited).toLocaleDateString([], { dateStyle: "medium" })}, ${calendarTime(noteDisplayedEdited)}`
     : "Not saved yet";
   const titleValue = note ? (note.title === "Untitled" ? "" : note.title) : noteDraftTitle;
   return `<div class="notes-app">

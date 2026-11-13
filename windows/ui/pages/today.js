@@ -71,36 +71,55 @@ function todayLayoutOptions() {
   </div>`;
 }
 /** The next seven days from Calendar: scheduled tasks by day, so what's ahead shows on Today. */
+/**
+ * Coming up: the rest of today's calendar, then the next 7 days of tasks and calendar events, in time
+ * order. (Today's tasks are already in Your day, so only today's events are listed here.)
+ */
 function upcomingCard(tasks) {
   const t = today();
   const tomorrowKey = OrbitHabits.addDays(t, 1),
     end = OrbitHabits.addDays(t, 7);
-  const items = tasks
+  const now = Date.now();
+  const taskItems = tasks
     .filter((task) => !task.isNote && !task.completedAt && taskDate(task) > t && taskDate(task) <= end)
-    .sort(
-      (a, b) =>
-        taskDate(a).localeCompare(taskDate(b)) ||
-        (a.hasTime ? a.dueDate : Infinity) - (b.hasTime ? b.dueDate : Infinity),
-    );
-  const shown = items.slice(0, 8);
+    .map((task) => ({ key: taskDate(task), at: task.hasTime ? task.dueDate : null, task }));
+  const shared = calendarEvents();
+  const eventItems = [];
+  for (let offset = 0; offset <= 7; offset++) {
+    const key = OrbitHabits.addDays(t, offset);
+    for (const event of OrbitCalendarEvents.allDayOn(shared, key))
+      if (offset > 0 && event.startDay === key) eventItems.push({ key, at: null, event });
+    for (const { event } of OrbitCalendarEvents.timedOn(shared, key))
+      if (event.start >= dayStartOf(key) && (offset > 0 || event.end > now))
+        eventItems.push({ key, at: event.start, event });
+  }
+  const items = [...eventItems, ...taskItems].sort(
+    (a, b) => a.key.localeCompare(b.key) || (a.at ?? -Infinity) - (b.at ?? -Infinity),
+  );
+  const shown = items.slice(0, 10);
   let lastDay = "";
   const rows = shown
-    .map((task) => {
-      const key = taskDate(task);
+    .map(({ key, at, task, event }) => {
       const label =
-        key === tomorrowKey
-          ? "Tomorrow"
-          : localDay(key).toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
+        key === t
+          ? "Later today"
+          : key === tomorrowKey
+            ? "Tomorrow"
+            : localDay(key).toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
       const head = key !== lastDay ? `<div class="upcoming-day">${esc(label)}</div>` : "";
       lastDay = key;
-      return `${head}<button class="upcoming-row" data-edit="${esc(task.id)}" aria-label="Edit ${esc(task.title)}"><span class="upcoming-time">${task.hasTime ? esc(calendarTime(task.dueDate)) : ""}</span><span class="upcoming-title">${esc(task.title)}</span></button>`;
+      const time = `<span class="upcoming-time">${at != null ? esc(calendarTime(at)) : event ? "All day" : ""}</span>`;
+      return event
+        ? `${head}<button class="upcoming-row upcoming-event" data-event-color="${calendarColor(event)}" data-edit-event="${esc(event.id)}" aria-label="${esc(event.title)}">${time}<span class="upcoming-title"><i></i>${esc(event.title || "Event")}</span></button>`
+        : `${head}<button class="upcoming-row" data-edit="${esc(task.id)}" aria-label="Edit ${esc(task.title)}">${time}<span class="upcoming-title">${esc(task.title)}</span></button>`;
     })
     .join("");
   const more = items.length - shown.length;
-  return `<section class="card upcoming-card"><div class="recent-progress-head"><h2>Coming up</h2><span class="secondary">Next 7 days</span></div>${
-    rows || '<p class="upcoming-empty">Nothing scheduled for the next week.</p>'
+  return `<section class="card upcoming-card"><div class="recent-progress-head"><h2>Coming up</h2><span class="secondary">Today and the next 7 days</span></div>${
+    rows || '<p class="upcoming-empty">Nothing else today or in the next week.</p>'
   }${more > 0 ? `<button class="upcoming-more" data-open-calendar>${more} more in Calendar</button>` : ""}</section>`;
 }
+const dayStartOf = (key) => new Date(`${key}T00:00:00`).getTime();
 function overallProgressCard(tasks, habits) {
   const normalized = tasks.map((task) => ({
     day: taskDate(task),
@@ -279,6 +298,10 @@ function renderAgenda(tasks, allHabits, head = "") {
 }
 
 function bindToday() {
+  applyCalendarStyles();
+  document
+    .querySelectorAll(".upcoming-card [data-edit-event]")
+    .forEach((button) => (button.onclick = () => openEvent(button.dataset.editEvent)));
   document.querySelectorAll("[data-panel-visible]").forEach((toggle) => {
     toggle.onchange = () => {
       const visibility = { heatmap: false, ...JSON.parse(localStorage.getItem("todayPanelVisibility") || "{}") };
@@ -340,3 +363,15 @@ function recentProgressCard(tasks, habits) {
     })
     .join("")}</div></section>`;
 }
+
+// Editing Today's layout: changes save as they're made, so Return (or Escape) just finishes editing.
+document.addEventListener("keydown", (event) => {
+  if (!editingTodayLayout || page !== "today" || !["Enter", "Escape"].includes(event.key) || event.isComposing) return;
+  if (event.target.closest?.("input:not([type=checkbox]), textarea, select, [contenteditable=true], dialog[open]"))
+    return;
+  event.preventDefault();
+  event.stopPropagation();
+  editingTodayLayout = false;
+  render();
+  $("#edit-today-layout")?.focus();
+});

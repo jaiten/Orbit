@@ -1469,3 +1469,51 @@ body[data-view="today"] .capture-dock {
   font-size: 12px;
   font-weight: 500;
 }
+
+/* Coming up: calendar events carry their calendar's colour beside the title. */
+.upcoming-event .upcoming-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.upcoming-event .upcoming-title i {
+  flex: none;
+  width: 3px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--event-color);
+}
+
+/* History: the week stays compact on the left and the 12 weeks spread across the rest of the card in
+   short, wide cells, so each habit takes about half the height. */
+.history-charts {
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 32px;
+  align-items: end;
+}
+.history-chart .week-segments {
+  width: 300px;
+  max-width: 300px;
+}
+.history-charts .box-grid {
+  max-width: none;
+  gap: 3px 4px;
+}
+.history-charts .box-grid i {
+  aspect-ratio: auto;
+  height: 9px;
+  border-radius: 2px;
+}
+@media (max-width: 1000px) {
+  .history-charts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .history-chart .week-segments {
+    width: auto;
+  }
+}
+
+/* The main sidebar's hide button sits level with Search (both centred 29px from the top). */
+.sidebar-toggle {
+  top: 12px;
+}

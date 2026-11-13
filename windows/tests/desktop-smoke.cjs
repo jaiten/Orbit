@@ -469,11 +469,8 @@ const remove = (folder) => {
     await p.waitForFunction(async () =>
       (await window.orbit.read()).records.some((r) => r.payload.isNote && r.payload.title === "Packing list"),
     );
-    // The Notes bottom bar writes a note, even a short one.
-    await p.getByRole("textbox", { name: "New task", exact: true }).fill("Gift ideas");
-    await p.locator("#inline-preview").getByText("Note", { exact: true }).waitFor();
-    await p.getByRole("textbox", { name: "New task", exact: true }).press("Enter");
-    await p.locator(".note-card", { hasText: "Gift ideas" }).waitFor();
+    // Notes has no bottom capture bar: typing anywhere starts a page instead.
+    if (await p.locator(".notes-overview .capture-dock").count()) throw Error("Notes shows a capture bar");
     await p.locator('[data-page="today"]').click();
     await p.evaluate(() => document.activeElement?.blur());
     await p.keyboard.press("Control+2");

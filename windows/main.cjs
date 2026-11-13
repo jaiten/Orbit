@@ -665,6 +665,8 @@ app.whenReady().then(async () => {
   if (pendingRecoveryURL) void recoveryHandler();
   window.on("focus", () => {
     void sync.run();
+    // Coming back to Orbit checks for updates too, at most every 5 minutes.
+    void updates.checkIfDue(5 * 60000);
     void calendarAccounts.refreshIfStale(60000);
   });
   // Orbit lives in the tray, so opening or closing the window is when an update check is most useful.
