@@ -1427,3 +1427,35 @@ body[data-view="today"] .capture-dock {
 .calendar-connect {
   flex-wrap: wrap;
 }
+
+/* Settings → Sidebar order: rows drag to reorder; the arrows stay for the keyboard. */
+.nav-order-list li {
+  min-height: 36px;
+  padding: 0 6px 0 10px;
+  border-radius: 8px;
+  background: var(--list-bg);
+  box-shadow: 0 0 0 0.5px var(--hair);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.nav-order-list li.dragging {
+  position: relative;
+  z-index: 2;
+  cursor: grabbing;
+  box-shadow:
+    0 0 0 0.5px var(--hair),
+    0 6px 18px rgb(0 0 0 / 0.16);
+}
+.nav-order-grip {
+  flex: none !important;
+  color: var(--muted);
+  font-size: 13px;
+}
+.nav-order-list li .icon-button {
+  opacity: 0;
+}
+.nav-order-list li:hover .icon-button,
+.nav-order-list li:focus-within .icon-button {
+  opacity: 1;
+}

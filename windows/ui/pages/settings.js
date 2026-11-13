@@ -72,6 +72,44 @@ function calendarList() {
     }`;
 }
 
+/** Settings → Sidebar order: drag a row (anywhere but its buttons); the others slide out of the way. */
+function bindNavOrderDrag() {
+  const list = $(".nav-order-list");
+  if (!list) return;
+  list.querySelectorAll("li[data-nav-item]").forEach((item) => {
+    item.onpointerdown = (down) => {
+      if (down.button !== 0 || down.target.closest("button")) return;
+      down.preventDefault();
+      item.setPointerCapture(down.pointerId);
+      item.classList.add("dragging");
+      const offset = down.clientY - item.getBoundingClientRect().top;
+      let shift = 0;
+      item.onpointermove = (move) => {
+        // The row follows the pointer and trades places with a neighbour once it passes that neighbour's middle.
+        const top = move.clientY - offset;
+        const rows = [...list.querySelectorAll("li[data-nav-item]")];
+        const previous = rows[rows.indexOf(item) - 1],
+          next = rows[rows.indexOf(item) + 1];
+        if (previous && top < previous.getBoundingClientRect().top + previous.offsetHeight / 2) previous.before(item);
+        else if (next && top + item.offsetHeight > next.getBoundingClientRect().top + next.offsetHeight / 2)
+          next.after(item);
+        shift = top - (item.getBoundingClientRect().top - shift);
+        item.style.transform = `translateY(${shift}px)`;
+      };
+      const finish = () => {
+        item.onpointermove = item.onpointerup = item.onpointercancel = null;
+        item.classList.remove("dragging");
+        item.style.transform = "";
+        const order = [...list.querySelectorAll("li[data-nav-item]")].map((row) => row.dataset.navItem);
+        if (order.join(",") !== navOrder().join(",")) saveNavOrder(order);
+        render();
+      };
+      item.onpointerup = finish;
+      item.onpointercancel = finish;
+    };
+  });
+}
+
 function renderSettings() {
   const root = document.documentElement.dataset;
   return `<header class="page-head"><div><div class="eyebrow">Preferences</div><h1>Settings</h1></div></header>
@@ -86,10 +124,9 @@ function renderSettings() {
       <ol class="nav-order-list">${navOrder()
         .map(
           (name, index, all) =>
-            `<li><span>${NAV_NAMES[name]}</span><kbd>Ctrl+${index + 1}</kbd><button class="icon-button small" data-nav-move="${name}" data-step="-1" aria-label="Move ${NAV_NAMES[name]} up" ${index === 0 ? "disabled" : ""}>↑</button><button class="icon-button small" data-nav-move="${name}" data-step="1" aria-label="Move ${NAV_NAMES[name]} down" ${index === all.length - 1 ? "disabled" : ""}>↓</button></li>`,
+            `<li data-nav-item="${name}"><span class="nav-order-grip" aria-hidden="true">⠿</span><span>${NAV_NAMES[name]}</span><kbd>Ctrl+${index + 1}</kbd><button class="icon-button small" data-nav-move="${name}" data-step="-1" aria-label="Move ${NAV_NAMES[name]} up" ${index === 0 ? "disabled" : ""}>↑</button><button class="icon-button small" data-nav-move="${name}" data-step="1" aria-label="Move ${NAV_NAMES[name]} down" ${index === all.length - 1 ? "disabled" : ""}>↓</button></li>`,
         )
         .join("")}</ol>
-      <p class="secondary">You can also drag pages in the sidebar. Ctrl+1… follow this order.</p>
       <button id="restore-nav-order" ${localStorage.getItem("tabOrder") ? "" : "disabled"}>Restore default order</button>
     </section>
     <section class="settings-block" id="today-preferences"><h2>Today & Progress</h2>
@@ -99,7 +136,6 @@ function renderSettings() {
         OrbitPlanner.DAY_START_CHOICES.map((minutes) => [String(minutes), OrbitPlanner.dayStartLabel(minutes)]),
         String(dayStart()),
       )}</div>
-      <p class="secondary">Until then, check-ins and finished tasks count for the day before. Syncs to your other devices.</p>
       <label class="toggle"><input type="checkbox" id="progress-tasks" ${localStorage.getItem("progressIncludesTasks") !== "false" ? "checked" : ""} /> Include tasks in daily progress</label>
       <div class="settings-field"><span>Overall progress</span>${macPicker(
         "overall-range",
@@ -110,7 +146,6 @@ function renderSettings() {
         ],
         localStorage.getItem("overallProgressRange") === "7" ? "7" : "30",
       )}</div>
-      <p class="secondary">Recent progress always shows the last seven days; review earlier days in Calendar. Use the layout icon on Today to arrange or hide panels.</p>
     </section>
     <section class="settings-block" id="calendar-preferences"><h2>Calendar</h2>
       <div class="settings-field"><span>Clock format</span>${macPicker(
@@ -122,7 +157,6 @@ function renderSettings() {
         ],
         localStorage.getItem("calendarClock") === "24" ? "24" : "12",
       )}</div>
-      <p class="secondary">The Any time row grows to fit the day with the most untimed tasks and all-day events.</p>
       ${calendarList()}
     </section>
     <section class="settings-block" id="desktop-settings">
@@ -244,6 +278,7 @@ function bindSettings() {
         $(`[data-nav-move="${b.dataset.navMove}"][data-step="${b.dataset.step}"]:not([disabled])`)?.focus();
       }),
   );
+  bindNavOrderDrag();
   if ($("#restore-nav-order"))
     $("#restore-nav-order").onclick = () => {
       localStorage.removeItem("tabOrder");
