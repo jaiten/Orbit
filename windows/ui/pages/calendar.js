@@ -17,6 +17,16 @@ const calendarHour = (hour) =>
 const chevron = (path) => `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${path}"/></svg>`;
 const calendarDragGrip = '<span class="calendar-drag-grip" aria-hidden="true">⠿</span>';
 const monthOf = (key) => key.slice(0, 8) + "01";
+/** Events your iPhone shares through sync, with this PC's pending edits applied. */
+const calendarEvents = () => OrbitCalendarEvents.visible(rows("events"), rows("calendars"));
+const calendarColor = (event) => {
+  const color = rows("calendars").find((calendar) => calendar.id === event.calendarID)?.color;
+  return /^#[0-9a-f]{6}$/i.test(color || "") ? color : "var(--muted)";
+};
+/** A shared event in the Any time row or the month grid: opens the event editor. */
+function eventChip(event) {
+  return `<button class="schedule-anytime calendar-event-chip${event.pending ? " pending" : ""}" data-event-color="${calendarColor(event)}" data-edit-event="${esc(event.id)}" title="${esc(event.title)}"><i></i><span>${esc(event.title || "Event")}</span></button>`;
+}
 function shiftMonth(key, delta) {
   const date = localDay(key);
   return dayKey(new Date(date.getFullYear(), date.getMonth() + delta, 1));
@@ -50,6 +60,11 @@ function renderCalendar(tasks) {
     tasks
       .filter((task) => taskDate(task) === key)
       .sort((a, b) => !!a.completedAt - !!b.completedAt || (a.dueDate || 0) - (b.dueDate || 0));
+  const shared = calendarEvents();
+  const eventsOn = (key) => [
+    ...OrbitCalendarEvents.allDayOn(shared, key),
+    ...OrbitCalendarEvents.timedOn(shared, key).map((item) => item.event),
+  ];
   const month = first.toLocaleDateString([], { month: "long", year: "numeric" });
   const count = tasks.filter((task) => monthOf(taskDate(task) || "") === calendarStart).length;
   const weekday = days
@@ -59,23 +74,39 @@ function renderCalendar(tasks) {
   const cells = days
     .map((key) => {
       const date = localDay(key),
-        items = on(key);
-      const lines = items
+        items = on(key),
+        dayEvents = eventsOn(key);
+      const eventLines = dayEvents
         .slice(0, 3)
-        .map((task) => {
-          const time = task.hasTime ? calendarTime(task.dueDate) : "";
-          return `<span class="cal-item ${task.completedAt ? "done" : ""}"><i></i>${
-            time
-              ? `<b>${time
-                  .replace(/:00(?= )/, "")
-                  .replace(" ", "")
-                  .toLowerCase()}</b>`
-              : ""
-          }<em>${esc(task.title)}</em></span>`;
+        .map((event) => {
+          const time = event.allDay
+            ? ""
+            : calendarTime(event.start)
+                .replace(/:00(?= )/, "")
+                .replace(" ", "")
+                .toLowerCase();
+          return `<span class="cal-item cal-event" data-event-color="${calendarColor(event)}"><i></i>${time ? `<b>${time}</b>` : ""}<em>${esc(event.title || "Event")}</em></span>`;
         })
         .join("");
+      const total = items.length + dayEvents.length;
+      const lines =
+        eventLines +
+        items
+          .slice(0, Math.max(0, 3 - dayEvents.length))
+          .map((task) => {
+            const time = task.hasTime ? calendarTime(task.dueDate) : "";
+            return `<span class="cal-item ${task.completedAt ? "done" : ""}"><i></i>${
+              time
+                ? `<b>${time
+                    .replace(/:00(?= )/, "")
+                    .replace(" ", "")
+                    .toLowerCase()}</b>`
+                : ""
+            }<em>${esc(task.title)}</em></span>`;
+          })
+          .join("");
       const label = date.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
-      return `<button class="day-tile cal-cell ${key === calendarDay ? "selected" : ""} ${key === current ? "today" : ""} ${date.getMonth() !== first.getMonth() ? "outside" : ""}" data-day="${key}" aria-pressed="${key === calendarDay}" aria-label="${label}${items.length ? `, ${items.length} ${items.length === 1 ? "item" : "items"}` : ""}"><span class="cal-date">${date.getDate()}</span>${lines}${items.length > 3 ? `<span class="cal-more">${items.length - 3} more</span>` : ""}</button>`;
+      return `<button class="day-tile cal-cell ${key === calendarDay ? "selected" : ""} ${key === current ? "today" : ""} ${date.getMonth() !== first.getMonth() ? "outside" : ""}" data-day="${key}" aria-pressed="${key === calendarDay}" aria-label="${label}${total ? `, ${total} ${total === 1 ? "item" : "items"}` : ""}"><span class="cal-date">${date.getDate()}</span>${lines}${total > 3 ? `<span class="cal-more">${total - 3} more</span>` : ""}</button>`;
     })
     .join("");
   const chosen = localDay(calendarDay),
@@ -83,7 +114,7 @@ function renderCalendar(tasks) {
   const items = on(calendarDay),
     open = items.filter((task) => !task.completedAt),
     completed = items.filter((task) => task.completedAt);
-  return `<div class="calendar-page">${calendarHeader(month, count ? `${count} ${count === 1 ? "item" : "items"} this month` : "Nothing planned this month yet")}<div class="cal-layout"><div class="cal-month"><div class="cal-weekdays" aria-hidden="true">${weekday}</div><div class="day-tiles cal-grid" role="group" aria-label="Days">${cells}</div></div><aside class="cal-day card" aria-label="${heading}"><div class="cal-day-head"><h2>${heading}</h2><span>${chosen.toLocaleDateString([], { month: "long", day: "numeric" })}</span></div><div class="check-list">${open.map(taskRow).join("") || '<p class="empty">Nothing planned. Type to add a task.</p>'}</div>${calendarCompleted(completed)}</aside></div><div class="capture-dock">${addField(calendarDay === current ? "Add to today" : "Add to " + heading)}</div></div>`;
+  return `<div class="calendar-page">${calendarHeader(month, count ? `${count} ${count === 1 ? "item" : "items"} this month` : "Nothing planned this month yet")}<div class="cal-layout"><div class="cal-month"><div class="cal-weekdays" aria-hidden="true">${weekday}</div><div class="day-tiles cal-grid" role="group" aria-label="Days">${cells}</div></div><aside class="cal-day card" aria-label="${heading}"><div class="cal-day-head"><h2>${heading}</h2><span>${chosen.toLocaleDateString([], { month: "long", day: "numeric" })}</span></div>${eventsOn(calendarDay).length ? `<div class="cal-day-events">${eventsOn(calendarDay).map(eventChip).join("")}</div>` : ""}<div class="check-list">${open.map(taskRow).join("") || (eventsOn(calendarDay).length ? "" : '<p class="empty">Nothing planned. Type to add a task.</p>')}</div>${calendarCompleted(completed)}</aside></div><div class="capture-dock">${addField(calendarDay === current ? "Add to today" : "Add to " + heading)}</div></div>`;
 }
 function renderSchedule(tasks) {
   const dayView = calendarView === "day";
@@ -106,12 +137,20 @@ function renderSchedule(tasks) {
     )
     .join("");
   // Any time grows to fit the busiest day (22px labels, 2px apart, 4px padding above and below).
-  const anytimeMost = Math.max(0, ...days.map((key) => open.filter((task) => taskDate(task) === key && !task.hasTime).length));
+  const shared = calendarEvents();
+  const anytimeMost = Math.max(
+    0,
+    ...days.map(
+      (key) =>
+        open.filter((task) => taskDate(task) === key && !task.hasTime).length +
+        OrbitCalendarEvents.allDayOn(shared, key).length,
+    ),
+  );
   const anytimeHeight = Math.max(30, anytimeMost * 24 + 6);
   const untimed = days
     .map(
       (key) =>
-        `<div class="schedule-all-day-column" data-anytime-day="${key}"><button class="schedule-all-day-add" data-add-day="${key}" aria-label="Add an untimed task on ${key}">${chevron("M12 5v14M5 12h14")}</button>${open
+        `<div class="schedule-all-day-column" data-anytime-day="${key}"><button class="schedule-all-day-add" data-add-day="${key}" aria-label="Add an untimed task on ${key}">${chevron("M12 5v14M5 12h14")}</button>${OrbitCalendarEvents.allDayOn(shared, key).map(eventChip).join("")}${open
           .filter((task) => taskDate(task) === key && !task.hasTime)
           .map(
             (task) =>
@@ -127,24 +166,38 @@ function renderSchedule(tasks) {
         const time = `${String(Math.floor(index / 4)).padStart(2, "0")}:${String((index % 4) * 15).padStart(2, "0")}`;
         return `<button class="time-slot ${index % 4 ? "half-hour" : ""}" data-time-slot="${key}T${time}" aria-label="Add task on ${key} at ${time}"></button>`;
       }).join("");
-      const blocks = OrbitCalendarLayout.place(open.filter((task) => taskDate(task) === key && task.hasTime))
-        .map(
-          ({ task, start, end, lane, lanes }) =>
-            `<div draggable="true" data-drag-task="${esc(task.id)}" class="schedule-event check-tile" data-event-start="${start}" data-event-end="${end}" data-lane="${lane}" data-lanes="${lanes}" data-row-menu="task:${esc(task.id)}"><button class="schedule-check" role="checkbox" aria-checked="false" aria-label="Complete ${esc(task.title)}" data-toggle="${esc(task.id)}">${tick(false)}</button><button class="schedule-event-body" data-edit="${esc(task.id)}" aria-label="Edit ${esc(task.title)}" title="${esc(task.title)}"><strong>${esc(task.title)}</strong><span>${calendarTime(task.dueDate)}</span></button>${calendarDragGrip}<button class="calendar-resize" data-resize-task="${esc(task.id)}" aria-label="Change duration of ${esc(task.title)}" title="Drag to change duration; arrow keys adjust by 15 minutes"></button>${rowActions(esc(task.id), esc(task.title))}</div>`,
+      const blocks = OrbitCalendarLayout.place([
+        ...open.filter((task) => taskDate(task) === key && task.hasTime),
+        ...OrbitCalendarEvents.timedOn(shared, key),
+      ])
+        .map(({ task, start, end, lane, lanes }) =>
+          task.event
+            ? `<button class="schedule-event calendar-event${task.event.pending ? " pending" : ""}" data-event-color="${calendarColor(task.event)}" data-edit-event="${esc(task.event.id)}" data-event-start="${start}" data-event-end="${end}" data-lane="${lane}" data-lanes="${lanes}" title="${esc(task.event.title)}"><strong>${esc(task.event.title || "Event")}</strong><span>${calendarTime(task.event.start)}</span></button>`
+            : `<div draggable="true" data-drag-task="${esc(task.id)}" class="schedule-event check-tile" data-event-start="${start}" data-event-end="${end}" data-lane="${lane}" data-lanes="${lanes}" data-row-menu="task:${esc(task.id)}"><button class="schedule-check" role="checkbox" aria-checked="false" aria-label="Complete ${esc(task.title)}" data-toggle="${esc(task.id)}">${tick(false)}</button><button class="schedule-event-body" data-edit="${esc(task.id)}" aria-label="Edit ${esc(task.title)}" title="${esc(task.title)}"><strong>${esc(task.title)}</strong><span>${calendarTime(task.dueDate)}</span></button>${calendarDragGrip}<button class="calendar-resize" data-resize-task="${esc(task.id)}" aria-label="Change duration of ${esc(task.title)}" title="Drag to change duration; arrow keys adjust by 15 minutes"></button>${rowActions(esc(task.id), esc(task.title))}</div>`,
         )
         .join("");
       // A line at the current time across today's column, as in Calendar.
       const now = new Date();
       const nowLine =
         key === dayKey(now)
-          ? `<div class="now-line" style="top:${((now.getHours() * 60 + now.getMinutes()) / 15) * 12}px" aria-hidden="true"></div>`
+          ? `<div class="now-line" data-now-top="${((now.getHours() * 60 + now.getMinutes()) / 15) * 12}" aria-hidden="true"></div>`
           : "";
       return `<div class="schedule-day ${key === dayKey(now) && !dayView ? "is-today" : ""}"><div class="schedule-slots">${slots}</div>${blocks}${nowLine}</div>`;
     })
     .join("");
-  return `<div class="calendar-page timeline-page">${calendarHeader(title, subtitle)}<div id="calendar-timeline" class="calendar-timeline${dayView ? " day-view" : ""}" style="--anytime-height:${anytimeHeight}px"><div class="schedule-header time-grid"><span></span>${headings}</div><div class="schedule-all-day time-grid"><span class="time-axis-label">Any time</span>${untimed}</div><div class="anytime-resizer" aria-hidden="true"></div><div class="schedule-hours time-grid"><div class="time-axis">${axis}</div>${columns}</div></div><div class="capture-dock">${addField("Add a task for " + date.toLocaleDateString([], { month: "short", day: "numeric" }))}</div></div>`;
+  return `<div class="calendar-page timeline-page">${calendarHeader(title, subtitle)}<div id="calendar-timeline" class="calendar-timeline${dayView ? " day-view" : ""}" data-anytime-height="${anytimeHeight}"><div class="schedule-header time-grid"><span></span>${headings}</div><div class="schedule-all-day time-grid"><span class="time-axis-label">Any time</span>${untimed}</div><div class="anytime-resizer" aria-hidden="true"></div><div class="schedule-hours time-grid"><div class="time-axis">${axis}</div>${columns}</div></div><div class="capture-dock">${addField("Add a task for " + date.toLocaleDateString([], { month: "short", day: "numeric" }))}</div></div>`;
+}
+/** Inline styles are blocked by the page's security policy, so colours and sizes are set from here. */
+function applyCalendarStyles(root = document) {
+  root
+    .querySelectorAll("[data-event-color]")
+    .forEach((item) => item.style.setProperty("--event-color", item.dataset.eventColor));
+  root
+    .querySelectorAll("[data-anytime-height]")
+    .forEach((item) => item.style.setProperty("--anytime-height", `${item.dataset.anytimeHeight}px`));
 }
 function bindCalendar() {
+  applyCalendarStyles();
   if ($("#calendar-completed"))
     $("#calendar-completed").ontoggle = (event) => {
       calendarCompletedOpen = event.target.open;
@@ -157,6 +210,12 @@ function bindCalendar() {
         $(`[data-scope="${calendarView}"]`)?.focus();
       }),
   );
+  document.querySelectorAll("[data-edit-event]").forEach((button) => {
+    button.onclick = (event) => {
+      event.stopPropagation();
+      openEvent(button.dataset.editEvent);
+    };
+  });
   document.querySelectorAll("[data-day]").forEach((button) => {
     button.onclick = () => {
       calendarDay = button.dataset.day;
@@ -337,3 +396,77 @@ function bindCalendar() {
       }),
   );
 }
+
+// Editing a shared calendar event. This PC can't reach the calendar itself, so a change is saved as a
+// request on the event's record; Orbit on iPhone makes the change in the calendar when it next syncs.
+let editingEvent = null;
+const timeOf = (stamp) => {
+  const date = new Date(stamp);
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+};
+function openEvent(id) {
+  const record = rows("events").find((event) => event.id === id);
+  const event = record && OrbitCalendarEvents.effective(record);
+  if (!event) return;
+  editingEvent = record;
+  const calendar = rows("calendars").find((item) => item.id === event.calendarID);
+  const writable = calendar?.writable !== false;
+  const form = $("#event-form");
+  form.title.value = event.title || "";
+  form.allDay.checked = !!event.allDay;
+  form.day.value = event.allDay ? event.startDay : dayKey(new Date(event.start));
+  form.endDay.value = event.allDay
+    ? OrbitCalendarEvents.addDays(event.endDay || OrbitCalendarEvents.addDays(event.startDay, 1), -1)
+    : "";
+  form.startTime.value = event.allDay ? "09:00" : timeOf(event.start);
+  form.endTime.value = event.allDay ? "10:00" : timeOf(event.end || event.start + 30 * 60000);
+  $("#event-calendar").textContent = [calendar?.title, calendar?.account].filter(Boolean).join(" · ");
+  $("#event-note").textContent = !writable
+    ? "This calendar is read-only, so the event can't be changed from Orbit."
+    : event.recurring
+      ? "Changes apply to this occurrence only. They reach your calendar the next time Orbit syncs on your iPhone."
+      : event.pending
+        ? "Waiting for your iPhone to make this change in your calendar."
+        : "Changes reach your calendar the next time Orbit syncs on your iPhone.";
+  for (const field of form.querySelectorAll("input")) field.disabled = !writable;
+  $("#delete-event").hidden = !writable;
+  $("#save-event").hidden = !writable;
+  syncEventFields();
+  openDialog($("#event-editor"));
+}
+function syncEventFields() {
+  const allDay = $("#event-form").allDay.checked;
+  $("#event-end-day-row").hidden = !allDay;
+  $("#event-start-row").hidden = allDay;
+  $("#event-end-row").hidden = allDay;
+}
+$("#event-form").allDay.onchange = syncEventFields;
+$("#event-form").onsubmit = (submit) => {
+  submit.preventDefault();
+  const form = submit.target;
+  const record = editingEvent;
+  if (!record) return;
+  let changes;
+  if (form.allDay.checked) {
+    const last = form.endDay.value && form.endDay.value >= form.day.value ? form.endDay.value : form.day.value;
+    changes = {
+      title: form.title.value.trim(),
+      allDay: true,
+      startDay: form.day.value,
+      endDay: OrbitCalendarEvents.addDays(last, 1),
+    };
+  } else {
+    const start = new Date(`${form.day.value}T${form.startTime.value || "09:00"}:00`).getTime();
+    let end = new Date(`${form.day.value}T${form.endTime.value || form.startTime.value || "10:00"}:00`).getTime();
+    if (end <= start) end += 86400000;
+    changes = { title: form.title.value.trim(), allDay: false, start, end };
+  }
+  $("#event-editor").close();
+  void action(() => put("events", OrbitCalendarEvents.editRequest(record, changes)));
+};
+$("#delete-event").onclick = () => {
+  const record = editingEvent;
+  if (!record) return;
+  $("#event-editor").close();
+  void action(() => put("events", OrbitCalendarEvents.deleteRequest(record)));
+};

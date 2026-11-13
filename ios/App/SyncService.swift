@@ -152,12 +152,19 @@ import OSLog
                 else { try receive(record, context: context) }
                 uploaded += 1
             }
-            var offset = 0
+            var offset = 0, calendarRecords: [[String: Any]] = []
             while true {
                 guard let records = try await request("/rest/v1/orbit_records?select=*&order=key&limit=500&offset=\(offset)") as? [[String: Any]] else { throw CocoaError(.coderReadCorrupt) }
-                for record in records { try receive(record, context: context) }
+                for record in records {
+                    // Shared calendars are kept by CalendarShare, not in the planner.
+                    if CalendarShare.owns(record["key"] as? String ?? "") { calendarRecords.append(record) } else { try receive(record, context: context) }
+                }
                 pulled += records.count
                 if records.count < 500 { break }; offset += 500
+            }
+            try await CalendarShare.sync(calendarRecords) { key, payload, deleted, base in
+                // A refused write means another device changed the record first; the next sync looks again.
+                _ = try await self.request("/rest/v1/rpc/orbit_put", body: ["p_key": key, "p_payload": payload, "p_deleted": deleted, "p_base": base, "p_mutation": UUID().uuidString.lowercased()])
             }
             // Records from older devices may still contain repeating tasks.
             if try Migrations.run(context) > 0 { again = true }

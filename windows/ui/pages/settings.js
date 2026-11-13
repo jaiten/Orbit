@@ -29,6 +29,23 @@ function applyCompact(value) {
 }
 applyCompact(localStorage.getItem("compactRows") === "true");
 
+/** Calendars shared from Orbit on iPhone. Turning one off hides it here and on the iPhone. */
+function calendarList() {
+  const calendars = rows("calendars").sort(
+    (a, b) =>
+      String(a.account || "").localeCompare(String(b.account || "")) || String(a.title).localeCompare(String(b.title)),
+  );
+  if (!calendars.length)
+    return `<h3>Calendars</h3><p class="secondary">Your calendars come from Orbit on iPhone. Open Settings → Calendars there, connect your calendars, and they'll appear here after the iPhone syncs.</p>`;
+  return `<h3>Calendars</h3><p class="secondary">Shared from your iPhone. Turn a calendar off to hide it in Orbit on both devices; turn it back on to add it again. Edits you make here reach the calendar the next time Orbit syncs on your iPhone.</p>
+    <div class="calendar-toggles">${calendars
+      .map(
+        (calendar) =>
+          `<label class="toggle calendar-toggle" data-event-color="${/^#[0-9a-f]{6}$/i.test(calendar.color || "") ? calendar.color : "var(--muted)"}"><input type="checkbox" data-calendar-shown="${esc(calendar.id)}" ${calendar.shown === false ? "" : "checked"} /><span class="calendar-name"><i></i><span>${esc(calendar.title)}${calendar.account ? `<small>${esc(calendar.account)}</small>` : ""}</span></span></label>`,
+      )
+      .join("")}</div>`;
+}
+
 function renderSettings() {
   const root = document.documentElement.dataset;
   return `<header class="page-head"><div><div class="eyebrow">Preferences</div><h1>Settings</h1></div></header>
@@ -79,7 +96,8 @@ function renderSettings() {
         ],
         localStorage.getItem("calendarClock") === "24" ? "24" : "12",
       )}</div>
-      <p class="secondary">Drag the anytime section boundary to resize it or collapse it completely.</p>
+      <p class="secondary">The Any time row grows to fit the day with the most untimed tasks and all-day events.</p>
+      ${calendarList()}
     </section>
     <section class="settings-block" id="desktop-settings">
       <h2>Notifications & Keyboard</h2>
@@ -156,6 +174,13 @@ function bindSettings() {
       },
       $("#calendar-preferences"),
     );
+  applyCalendarStyles($("#calendar-preferences") || document);
+  document.querySelectorAll("[data-calendar-shown]").forEach((box) => {
+    box.onchange = () => {
+      const calendar = rows("calendars").find((item) => item.id === box.dataset.calendarShown);
+      if (calendar) void action(() => put("calendars", { ...calendar, shown: box.checked, shownAt: Date.now() }));
+    };
+  });
   document.querySelectorAll("[data-nav-move]").forEach(
     (b) =>
       (b.onclick = () => {

@@ -98,6 +98,8 @@ const shared = Object.fromEntries(
     "OrbitHabits",
     "OrbitRecentProgress",
     "OrbitCalendarLayout",
+    "OrbitCalendarEvents",
+    "applyCalendarStyles",
     "rowActions",
     "habitCards",
     "OrbitPlanner",

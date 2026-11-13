@@ -13,6 +13,8 @@ struct CalendarDraft: Identifiable {
     let store = EKEventStore()
     @Published var events: [EKEvent] = []
     @Published var connected = false
+    /// Calendars turned off in Settings (here or on another device), by calendar identifier.
+    @Published private(set) var hidden = Set(UserDefaults.standard.stringArray(forKey: "hiddenCalendars") ?? [])
     private var observer: NSObjectProtocol?
     private init() {
         observer = NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: nil, queue: .main) { _ in
@@ -28,11 +30,27 @@ struct CalendarDraft: Identifiable {
         reload()
     }
     func disconnect() { UserDefaults.standard.set(false, forKey: "calendarConnected"); reload() }
+    /// Every calendar on the iPhone, grouped by account, for the per-calendar switches in Settings.
+    var calendars: [EKCalendar] {
+        guard connected else { return [] }
+        return store.calendars(for: .event).sorted { ($0.source?.title ?? "", $0.title) < ($1.source?.title ?? "", $1.title) }
+    }
+    func isShown(_ calendar: EKCalendar) -> Bool { !hidden.contains(calendar.calendarIdentifier) }
+    func setShown(_ calendar: EKCalendar, _ shown: Bool) {
+        if shown { hidden.remove(calendar.calendarIdentifier) } else { hidden.insert(calendar.calendarIdentifier) }
+        UserDefaults.standard.set(Array(hidden), forKey: "hiddenCalendars")
+        reload()
+    }
+    /// The calendars Orbit shows; nil when every calendar is off.
+    private var shownCalendars: [EKCalendar]? {
+        let shown = store.calendars(for: .event).filter(isShown)
+        return shown.isEmpty ? nil : shown
+    }
     func reload() {
         connected = UserDefaults.standard.bool(forKey: "calendarConnected") && EKEventStore.authorizationStatus(for: .event) == .fullAccess
         guard connected else { events = []; return }
         let start = Calendar.current.startOfDay(for: .now), end = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: .now))!
-        events = store.events(matching: store.predicateForEvents(withStart: start, end: end, calendars: nil)).sorted { $0.startDate < $1.startDate }
+        events = events(from: start, to: end)
     }
     func events(on day: Date) -> [EKEvent] {
         guard connected else { return [] }
@@ -41,8 +59,8 @@ struct CalendarDraft: Identifiable {
         return events(from: start, to: end)
     }
     func events(from start: Date, to end: Date) -> [EKEvent] {
-        guard connected else { return [] }
-        return store.events(matching: store.predicateForEvents(withStart: start, end: end, calendars: nil)).sorted { $0.startDate < $1.startDate }
+        guard connected, let calendars = shownCalendars else { return [] }
+        return store.events(matching: store.predicateForEvents(withStart: start, end: end, calendars: calendars)).sorted { $0.startDate < $1.startDate }
     }
     func conflictTitles(start: Date, duration: Int, excluding id: UUID?, tasks: [PlannerTask]) -> [String] {
         let end = start.addingTimeInterval(Double(duration) * 60)

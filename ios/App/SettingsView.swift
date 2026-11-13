@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import EventKit
 
 /// Settings: appearance, accent, reminders, calendars, widgets and your data. Account has its own screen.
 struct SettingsView: View {
@@ -104,21 +105,35 @@ private struct RemindersSection: View {
 
 private struct CalendarsSection: View {
     @Environment(\.orbitAccent) private var accent
+    @Environment(\.modelContext) private var context
     @ObservedObject private var calendars = CalendarBridge.shared
     @AppStorage("calendarFirstWeekday") private var firstWeekday = Calendar.current.firstWeekday
+    @AppStorage("calendarShareEnabled") private var shareEnabled = true
     @Binding var message: String?
+    private func syncSoon() { Task { await SyncService.shared.run(context) } }
     var body: some View {
         Section {
             Picker("Start week on", selection: $firstWeekday) { Text("Sunday").tag(1); Text("Monday").tag(2) }
             if calendars.connected {
-                Label("Calendars connected", systemImage: "checkmark.circle")
-                Button("Disconnect Calendars") { calendars.disconnect() }
+                ForEach(calendars.calendars, id: \.calendarIdentifier) { calendar in
+                    Toggle(isOn: Binding(get: { calendars.isShown(calendar) }, set: { calendars.setShown(calendar, $0); syncSoon() })) {
+                        HStack(spacing: 10) {
+                            Circle().fill(Color(cgColor: calendar.cgColor)).frame(width: 10, height: 10)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(calendar.title)
+                                if let account = calendar.source?.title { Text(account).font(.caption).foregroundStyle(.secondary) }
+                            }
+                        }
+                    }
+                }
+                Toggle("Show on your other devices", isOn: Binding(get: { shareEnabled }, set: { shareEnabled = $0; syncSoon() }))
+                Button("Disconnect Calendars", role: .destructive) { calendars.disconnect(); syncSoon() }
             } else {
                 Button { Task { do { try await calendars.connect() } catch { message = error.localizedDescription } } } label: {
                     Label { Text("Connect Calendars") } icon: { Image(systemName: "calendar").foregroundStyle(accent.fill) }
                 }
             }
-        } header: { Text("Calendars") } footer: { Text("Shows events from Apple Calendar, including Google accounts added to your iPhone.") }
+        } header: { Text("Calendars") } footer: { Text("Shows events from Apple Calendar, including Google accounts added to your iPhone. Turn a calendar off to hide it here and on Windows. With Show on your other devices on, your signed-in devices see events from two weeks ago to four months ahead, and changes made there are saved to your calendar when Orbit syncs on this iPhone.") }
     }
 }
 

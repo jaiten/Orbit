@@ -1281,3 +1281,123 @@ body[data-view="today"] .capture-dock {
   background: color-mix(in srgb, var(--accent) 16%, var(--list-bg)) !important;
   box-shadow: inset 0 0 0 2px var(--accent-text) !important;
 }
+
+/* Events shared from the iPhone's calendars: tinted with the calendar's own colour, no tick. */
+.calendar-event-chip,
+.schedule-all-day .calendar-event-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 22px;
+  min-height: 0;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--event-color) 22%, var(--list-bg));
+  color: var(--ink);
+  font-size: 12px;
+  text-align: left;
+  box-shadow: none;
+  overflow: hidden;
+}
+.calendar-event-chip:hover,
+.schedule-all-day .calendar-event-chip:hover {
+  background: color-mix(in srgb, var(--event-color) 32%, var(--list-bg));
+}
+.cal-event i {
+  background: var(--event-color);
+}
+.calendar-event-chip i {
+  flex: none;
+  width: 3px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--event-color);
+}
+.calendar-event-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.schedule-event.calendar-event {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 1px;
+  padding: 3px 6px;
+  border: 0;
+  border-left: 3px solid var(--event-color);
+  background: color-mix(in srgb, var(--event-color) 18%, var(--list-bg));
+  box-shadow: none;
+  color: var(--ink);
+  font-size: 12px;
+  text-align: left;
+  overflow: hidden;
+}
+.schedule-event.calendar-event strong {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.schedule-event.calendar-event span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 11px;
+}
+.calendar-event.pending,
+.calendar-event-chip.pending {
+  opacity: 0.65;
+  outline: 1px dashed var(--event-color);
+  outline-offset: -1px;
+}
+.cal-day-events {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.cal-day-events .calendar-event-chip {
+  height: 28px;
+  font-size: 13px;
+}
+
+/* Settings → Calendar: one row per calendar shared from the iPhone. */
+.calendar-toggles {
+  display: grid;
+  gap: 6px;
+}
+.calendar-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.calendar-name i {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--event-color);
+}
+.calendar-name > span {
+  display: grid;
+}
+.calendar-name small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.schedule-event.calendar-event::before {
+  display: none;
+}
+.cal-item.cal-event {
+  background: color-mix(in srgb, var(--event-color) 18%, var(--list-bg));
+}
+#event-form [hidden] {
+  display: none !important;
+}

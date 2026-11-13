@@ -236,6 +236,28 @@
         </footer>
       </form>
     </dialog>
+    <dialog id="event-editor">
+      <form id="event-form">
+        <div class="dialog-head">
+          <h2>Calendar event</h2>
+          <button type="button" data-close aria-label="Close">×</button>
+        </div>
+        <p class="secondary" id="event-calendar"></p>
+        <label>Title<input name="title" required maxlength="500" /></label>
+        <label class="toggle"><input type="checkbox" name="allDay" /> All day</label>
+        <div class="fields">
+          <label>Date<input name="day" type="date" required /></label>
+          <label id="event-end-day-row">Last day<input name="endDay" type="date" /></label>
+          <label id="event-start-row">Starts<input name="startTime" type="time" step="300" /></label>
+          <label id="event-end-row">Ends<input name="endTime" type="time" step="300" /></label>
+        </div>
+        <p class="secondary" id="event-note"></p>
+        <footer>
+          <button type="button" class="danger" id="delete-event">Delete event</button
+          ><button class="primary" id="save-event">Save</button>
+        </footer>
+      </form>
+    </dialog>
     <div id="undo-toast" class="undo-toast" hidden>
       <span id="undo-label">Saved</span><button id="undo-change">Undo</button
       ><button id="dismiss-undo" aria-label="Dismiss Undo">×</button>
@@ -283,6 +305,7 @@
     <script src="habits.js"></script>
     <script src="recent-progress.js"></script>
     <script src="calendar-layout.js"></script>
+    <script src="calendar-events.js"></script>
     <script src="planner.js"></script>
     <script src="conversions.js"></script>
     <script src="onboarding-data.js"></script>
