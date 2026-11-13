@@ -38,10 +38,10 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertEqual(finish.frame.midY, app.buttons["Laundry"].frame.midY, accuracy: 2)
         XCTAssertEqual(app.buttons["Laundry"].frame.height, height, accuracy: 2)
         // Starting suggests a timer once (a menu of lengths); it can be declined.
-        let suggestion = app.buttons["Start a timer: Laundry"]
-        XCTAssertTrue(suggestion.waitForExistence(timeout: 5))
+        let timerSuggestion = app.buttons["Start a timer: Laundry"]
+        XCTAssertTrue(timerSuggestion.waitForExistence(timeout: 5))
         app.buttons["Not now"].tap()
-        XCTAssertTrue(suggestion.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(timerSuggestion.waitForNonExistence(timeout: 5))
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "Orbit inline task progress"; screenshot.lifetime = .keepAlways; add(screenshot)
         finish.tap()
