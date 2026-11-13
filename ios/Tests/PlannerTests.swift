@@ -42,7 +42,8 @@ import UIKit
     func testPastCompletionBelongsToTheEditedDay() throws {
         let context = ModelContext(try Persistence.makeContainer(inMemory: true))
         let task = PlannerTask(title: "Missed task"); context.insert(task)
-        let day = Calendar.current.date(byAdding: .day, value: -3, to: .now)!
+        // Midday, so the test means the same thing at any hour (the planner day starts at 2 am).
+        let day = Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: Calendar.current.date(byAdding: .day, value: -3, to: .now)!)!
         task.schedule(day: PlannerLogic.dayKey(day))
         try Mutations.toggle(task, at: day, in: context)
         XCTAssertEqual(task.completedAt.map { PlannerLogic.dayKey($0) }, PlannerLogic.dayKey(day))
