@@ -82,3 +82,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ORBIT_RELEASE_VERSION: ${{ needs.build-and-test.outputs.version }}
         run: node scripts/publish-release.cjs
+      # Running copies check for the new release right away; if this fails they find it within the hour.
+      - name: Announce the release to running apps
+        working-directory: windows
+        continue-on-error: true
+        env:
+          ORBIT_RELEASE_VERSION: ${{ needs.build-and-test.outputs.version }}
+        run: node scripts/announce-release.cjs

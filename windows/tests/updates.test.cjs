@@ -116,6 +116,13 @@ test("opening or hiding the window checks when the last check is old, and failur
   time += 15 * 60 * 1000;
   await f.manager.checkIfDue();
   assert.equal(f.checks(), 2);
+  // An announced release checks again sooner, but not more than once every 2 minutes.
+  time += 60 * 1000;
+  await f.manager.announced();
+  assert.equal(f.checks(), 2);
+  time += 60 * 1000;
+  await f.manager.announced();
+  assert.equal(f.checks(), 3);
   f.manager.start();
   f.updater.checkForUpdates = async () => {
     throw Error("offline");

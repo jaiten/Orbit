@@ -643,6 +643,12 @@ app.whenReady().then(async () => {
           if (status === "SUBSCRIBED") void sync.run();
         });
     };
+    // The Windows release workflow announces each new release on this public channel, so running
+    // copies check right away instead of at the next hourly check (scripts/announce-release.cjs).
+    client
+      .channel("orbit-releases")
+      .on("broadcast", { event: "release" }, () => void updates.announced())
+      .subscribe();
     client.auth.onAuthStateChange(() => setTimeout(() => void subscribeRealtime(), 0));
     void subscribeRealtime();
     void sync.run();

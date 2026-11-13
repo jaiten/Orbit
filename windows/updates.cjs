@@ -1,9 +1,11 @@
 // Own the update lifecycle in the main process. The renderer never chooses a feed or installer path.
 // Checks happen at launch, hourly, whenever the window is opened or closed to the tray (at most every
-// 15 minutes), and again 10 minutes after a failed check (for example, offline at sign-in).
+// 15 minutes), within seconds of a new release being announced (at most every 2 minutes; see
+// announce-release.cjs), and again 10 minutes after a failed check (for example, offline at sign-in).
 const HOUR = 60 * 60 * 1000;
 const MIN_GAP = 15 * 60 * 1000;
 const RETRY = 10 * 60 * 1000;
+const ANNOUNCED_GAP = 2 * 60 * 1000;
 class UpdateManager {
   constructor({ updater, version, enabled, onChange = () => {}, now = Date.now }) {
     this.updater = updater;
@@ -62,9 +64,14 @@ class UpdateManager {
   }
 
   /** Opening or hiding the window checks too, unless a check ran in the last 15 minutes. */
-  checkIfDue() {
-    if (this.now() - this.lastCheck < MIN_GAP) return Promise.resolve(this.snapshot());
+  checkIfDue(gap = MIN_GAP) {
+    if (this.now() - this.lastCheck < gap) return Promise.resolve(this.snapshot());
     return this.check();
+  }
+
+  /** A release was announced: check now, unless a check ran in the last 2 minutes. */
+  announced() {
+    return this.checkIfDue(ANNOUNCED_GAP);
   }
 
   install() {
