@@ -99,7 +99,7 @@ const OrbitPlanning = (() => {
   }
 
   /** Text for the preview chip, e.g. "Habit · Weekdays · 7:00 AM" or "Task · Tomorrow · 6:00 PM · #work". */
-  function describe(result, now = new Date(), locale) {
+  function describe(result, now = new Date(), locale, { hour12 } = {}) {
     if (!result.title) return "";
     const clock =
       result.time === null
@@ -108,6 +108,8 @@ const OrbitPlanning = (() => {
             .toLocaleTimeString(locale, {
               hour: "numeric",
               minute: "2-digit",
+              // The 12/24-hour Calendar setting; undefined follows the locale.
+              ...(hour12 === undefined ? {} : { hour12 }),
             })
             .replace(/\u202f/g, " "); // Some formats use a narrow no-break space before AM/PM.
     const labels = { DAILY: "Daily", WEEKDAYS: "Weekdays", WEEKENDS: "Weekends", WEEKLY: "Weekly" };

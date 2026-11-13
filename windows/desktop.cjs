@@ -23,11 +23,16 @@ function setupDesktop({ window, store, iconPath }) {
     notifications: store.setting("notifications") !== "off",
     shortcut: store.setting("globalShortcut") ?? DEFAULT_SHORTCUT,
     shortcuts: SHORTCUTS,
+    // Minutes after midnight for the evening check-in, or null when it is off (the default).
+    eveningCheckIn: /^\d+$/.test(store.setting("eveningCheckIn") || "")
+      ? Number(store.setting("eveningCheckIn"))
+      : null,
   });
 
   const scheduler = new ReminderScheduler({
     read: () => store.rows(),
     enabled: () => settings().notifications,
+    options: () => ({ eveningMinutes: settings().eveningCheckIn }),
     show: (reminder) => {
       if (!Notification.isSupported()) return;
       const notification = new Notification({ title: reminder.title, body: reminder.body, icon, silent: false });
@@ -47,8 +52,11 @@ function setupDesktop({ window, store, iconPath }) {
     }
   };
 
-  const update = ({ notifications, shortcut }) => {
+  const update = ({ notifications, shortcut, eveningCheckIn }) => {
     let message = null;
+    if (eveningCheckIn === null) store.setting("eveningCheckIn", "off");
+    else if (Number.isInteger(eveningCheckIn) && eveningCheckIn >= 0 && eveningCheckIn < 1440)
+      store.setting("eveningCheckIn", String(eveningCheckIn));
     if (typeof notifications === "boolean") store.setting("notifications", notifications ? "on" : "off");
     if (typeof shortcut === "string") {
       if (!SHORTCUTS.includes(shortcut)) throw Error("Choose one of the offered shortcuts");

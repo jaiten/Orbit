@@ -1,6 +1,7 @@
 // Generates platform files from the shared JSON sources, so both apps use one copy:
 // shared/design-tokens.json → windows/ui/tokens.css, ios/Shared/DesignTokens.swift
 // shared/onboarding.json → windows/ui/onboarding-data.js, ios/Shared/OnboardingData.swift
+// shared/rewards.json → windows/ui/rewards-data.js, ios/Shared/RewardsData.swift
 // Usage: npm run generate. tests/generated.test.cjs checks the files are current.
 const fs = require("node:fs");
 const path = require("node:path");
@@ -15,6 +16,8 @@ const files = {
   iconsSwift: path.join(root, "ios/Shared/ItemIcons.swift"),
   onboardingJS: path.join(root, "windows/ui/onboarding-data.js"),
   onboardingSwift: path.join(root, "ios/Shared/OnboardingData.swift"),
+  rewardsJS: path.join(root, "windows/ui/rewards-data.js"),
+  rewardsSwift: path.join(root, "ios/Shared/RewardsData.swift"),
 };
 
 /**
@@ -87,6 +90,8 @@ function generate(tokens = JSON.parse(fs.readFileSync(path.join(root, "shared/de
     `  --tick-draw: ${tokens.motion.tickDrawMilliseconds}ms;`,
     `  --tick-pop: ${tokens.motion.tickPop};`,
     `  --press-scale: ${tokens.motion.pressScale};`,
+    // Every accent's own colour, for swatches (the accent picker and milestone badges).
+    ...Object.entries(tokens.accents).map(([name, accent]) => `  --swatch-${name}: ${accent.fill};`),
     "}",
     ...Object.entries(tokens.accents).flatMap(([name, accent]) => [
       `${name === "coral" ? ":root,\n" : ""}:root[data-accent="${name}"] {`,
@@ -147,7 +152,7 @@ function generate(tokens = JSON.parse(fs.readFileSync(path.join(root, "shared/de
     "}",
     "",
   ].join("\n");
-  return { css, swift, ...generateOnboarding(), ...generateIcons() };
+  return { css, swift, ...generateOnboarding(), ...generateIcons(), ...generateRewards() };
 }
 
 function generateIcons() {
@@ -199,6 +204,31 @@ function generateOnboarding(data = JSON.parse(fs.readFileSync(path.join(root, "s
     "",
   ].join("\n");
   return { onboardingJS, onboardingSwift };
+}
+
+/** Milestone badges and the accents they unlock, for both apps. */
+function generateRewards(data = JSON.parse(fs.readFileSync(path.join(root, "shared/rewards.json"), "utf8"))) {
+  const header = "Generated from shared/rewards.json by windows/scripts/generate.cjs. Do not edit.";
+  const content = { freeAccents: data.freeAccents, badges: data.badges };
+  const rewardsJS = `// ${header}\nconst OrbitRewardsData = ${JSON.stringify(content, null, 2)};\nif (typeof module === "object") module.exports = OrbitRewardsData;\n`;
+  const str = (value) => (value === undefined || value === null ? "nil" : JSON.stringify(value));
+  const rewardsSwift = [
+    `// ${header}`,
+    "import Foundation",
+    "",
+    "enum RewardsData {",
+    "    struct Badge: Identifiable, Hashable { let id: String; let title: String; let detail: String; let metric: String; let goal: Int; let unlocks: String? }",
+    `    static let freeAccents = [${data.freeAccents.map(str).join(", ")}]`,
+    "    static let badges = [",
+    ...data.badges.map(
+      (b) =>
+        `        Badge(id: ${str(b.id)}, title: ${str(b.title)}, detail: ${str(b.detail)}, metric: ${str(b.metric)}, goal: ${b.goal}, unlocks: ${str(b.unlocks)}),`,
+    ),
+    "    ]",
+    "}",
+    "",
+  ].join("\n");
+  return { rewardsJS, rewardsSwift };
 }
 
 if (require.main === module) {

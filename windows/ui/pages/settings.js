@@ -110,6 +110,21 @@ function bindNavOrderDrag() {
   });
 }
 
+/** Accent choices: unlocked ones as buttons; locked ones show which badge opens them. */
+function accentButtons(current) {
+  const open = new Set(availableAccents());
+  return accents
+    .map((name) => {
+      const label = name[0].toUpperCase() + name.slice(1);
+      const swatch = `<i class="accent-swatch" data-swatch="${name}" aria-hidden="true"></i>`;
+      if (open.has(name))
+        return `<button data-accent="${name}" aria-pressed="${current === name}">${swatch}${label}</button>`;
+      const badge = OrbitRewards.unlockedBy(name);
+      return `<button class="locked-accent" disabled title="Unlocks with the ${esc(badge?.title || "")} badge (${esc(badge?.detail || "")})" aria-label="${label}, locked: ${esc(badge?.detail || "")}">${swatch}🔒 ${label}</button>`;
+    })
+    .join("");
+}
+
 function renderSettings() {
   const root = document.documentElement.dataset;
   return `<header class="page-head"><div><div class="eyebrow">Preferences</div><h1>Settings</h1></div></header>
@@ -117,9 +132,11 @@ function renderSettings() {
     <section class="settings-block">
       <h2>Appearance</h2>
       <label class="toggle"><input type="checkbox" id="compact-rows" ${root.compact === "true" ? "checked" : ""} /> Compact habits and tasks</label>
+      <label class="toggle"><input type="checkbox" id="sounds-toggle" ${OrbitSounds.enabled() ? "checked" : ""} /> Sounds when you finish things</label>
       <div class="accent-options segmented" role="group" aria-label="Appearance">${choiceButtons("appearance", appearances, root.appearance)}</div>
-      <h3>Accent</h3><div class="accent-options segmented" role="group" aria-label="Accent">${choiceButtons("accent", accents, root.accent)}</div>
+      <h3>Accent</h3><div class="accent-options segmented" role="group" aria-label="Accent">${accentButtons(root.accent)}</div>
     </section>
+    ${milestonesSection()}
     <section class="settings-block" id="sidebar-order"><h2>Sidebar order</h2>
       <ol class="nav-order-list">${navOrder()
         .map(
@@ -162,6 +179,8 @@ function renderSettings() {
     <section class="settings-block" id="desktop-settings">
       <h2>Notifications & Keyboard</h2>
       <label class="toggle"><input type="checkbox" id="notifications-toggle" /> Show reminders for tasks and habits</label>
+      <div class="settings-field"><span>Evening check-in</span><div id="evening-wrap"></div></div>
+      <p class="secondary">Only if something is still left that day.</p>
       <div class="settings-field"><span>Quick add from anywhere</span><div id="global-shortcut-wrap"></div></div>
       <button id="show-shortcuts">Keyboard Shortcuts</button>
     </section>
@@ -286,6 +305,12 @@ function bindSettings() {
       render();
     };
   if ($("#compact-rows")) $("#compact-rows").onchange = (event) => applyCompact(event.target.checked);
+  if ($("#sounds-toggle"))
+    $("#sounds-toggle").onchange = (event) => {
+      localStorage.setItem("sounds", event.target.checked ? "on" : "off");
+      if (event.target.checked) OrbitSounds.play("tick");
+    };
+  bindMilestones();
   document.querySelectorAll("button[data-accent]").forEach(
     (b) =>
       (b.onclick = () => {
@@ -335,6 +360,10 @@ function bindSettings() {
 const shortcutLabel = (accelerator) =>
   accelerator ? accelerator.replace("CommandOrControl", "Ctrl").replaceAll("+", " + ") : "Off";
 
+const EVENING_CHOICES = [
+  ["off", "Off"],
+  ...[19, 20, 21, 22].map((hour) => [String(hour * 60), calendarTime(new Date(2000, 0, 1, hour)).replace(":00", "")]),
+];
 async function loadDesktopSettings() {
   const show = (settings) => {
     const toggle = $("#notifications-toggle"),
@@ -356,6 +385,19 @@ async function loadDesktopSettings() {
     };
     toggle.onchange = (event) => void change({ notifications: event.target.checked });
     bindPickers({ "global-shortcut": (value) => void change({ shortcut: value }) }, wrap);
+    const evening = $("#evening-wrap");
+    if (evening) {
+      evening.innerHTML = macPicker(
+        "evening-check-in",
+        "Evening check-in",
+        EVENING_CHOICES,
+        String(settings.eveningCheckIn ?? "off"),
+      );
+      bindPickers(
+        { "evening-check-in": (value) => void change({ eveningCheckIn: value === "off" ? null : Number(value) }) },
+        evening,
+      );
+    }
     if (settings.message) showNotice(settings.message);
   };
   try {

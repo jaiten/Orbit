@@ -169,7 +169,7 @@ function bindOnboarding() {
   if (form) {
     const parse = () => OrbitPlanning.parse(form.elements.text.value, null, plannerNow());
     form.elements.text.oninput = () => {
-      const text = OrbitPlanning.describe(parse(), plannerNow());
+      const text = OrbitPlanning.describe(parse(), plannerNow(), undefined, { hour12: clockHour12() });
       showChip($("#onboarding-preview"), text);
     };
     form.onsubmit = (e) => {

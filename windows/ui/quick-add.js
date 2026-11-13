@@ -53,7 +53,7 @@ function updateQuickPreview() {
   $("#quick-add-form").classList.toggle("note-form", asNote);
   if (asNote) return showChip($("#quick-add-preview"), "Note · Notes");
   const result = quickParse();
-  let text = OrbitPlanning.describe(result, plannerNow());
+  let text = OrbitPlanning.describe(result, plannerNow(), undefined, { hour12: clockHour12() });
   const listName = contextListName();
   if (text && result.kind === "task" && !result.someday && !result.list && listName) text += " · " + listName;
   if (text && quickContext.listID === SOMEDAY && result.kind === "task" && !result.date) text = "Someday";
@@ -289,7 +289,10 @@ function bindInlineCapture() {
         ? ""
         : page === "lists"
           ? "Note · " + (section ? sectionName(section) : "Notes")
-          : [OrbitPlanning.describe(parsed, plannerNow()), suggestedCategory(parsed, quickAddContext().listID)?.name]
+          : [
+              OrbitPlanning.describe(parsed, plannerNow(), undefined, { hour12: clockHour12() }),
+              suggestedCategory(parsed, quickAddContext().listID)?.name,
+            ]
               .filter(Boolean)
               .join(" · ");
     showChip($("#inline-preview"), text);

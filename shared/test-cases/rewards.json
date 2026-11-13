@@ -1,0 +1,38 @@
+[
+  {
+    "name": "nothing yet",
+    "tasks": [],
+    "logs": [],
+    "expect": { "completions": 0, "activeDays": 0, "earned": [], "accents": ["coral", "sage", "lavender", "honey", "teal", "blue"] }
+  },
+  {
+    "name": "notes and open tasks don't count; check-in counts add up",
+    "tasks": [
+      { "completedDay": "2026-11-01" },
+      { "completedDay": "2026-11-01", "isNote": true },
+      { "completedDay": null }
+    ],
+    "logs": [
+      { "dayKey": "2026-11-01", "count": 2 },
+      { "dayKey": "2026-11-02", "count": 1 },
+      { "dayKey": "2026-11-03", "count": 0 }
+    ],
+    "expect": { "completions": 4, "activeDays": 2, "earned": ["first-step"], "accents": ["coral", "sage", "lavender", "honey", "teal", "blue"] }
+  },
+  {
+    "name": "ten things over three days unlocks rose",
+    "tasks": [
+      { "completedDay": "2026-11-01" }, { "completedDay": "2026-11-01" }, { "completedDay": "2026-11-02" },
+      { "completedDay": "2026-11-02" }, { "completedDay": "2026-11-03" }
+    ],
+    "logs": [
+      { "dayKey": "2026-11-01", "count": 1 }, { "dayKey": "2026-11-02", "count": 1 }, { "dayKey": "2026-11-03", "count": 3 }
+    ],
+    "expect": {
+      "completions": 10,
+      "activeDays": 3,
+      "earned": ["first-step", "showing-up", "getting-going"],
+      "accents": ["coral", "sage", "lavender", "honey", "teal", "blue", "rose"]
+    }
+  }
+]

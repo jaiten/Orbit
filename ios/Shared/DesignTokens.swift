@@ -3,8 +3,8 @@ import Foundation
 
 enum DesignTokens {
     typealias Pair = (light: Int, dark: Int)
-    static let accentFill: [String: Int] = ["coral": 0xE87359, "sage": 0x6E8C78, "lavender": 0x8C85BF, "honey": 0xD19E4D, "teal": 0x53AAA4, "blue": 0x729ED2]
-    static let accentText: [String: Pair] = ["coral": (light: 0xB74F38, dark: 0xE87359), "sage": (light: 0x5C7564, dark: 0x88A694), "lavender": (light: 0x7067AF, dark: 0xA39DD8), "honey": (light: 0x926826, dark: 0xD19E4D), "teal": (light: 0x236F6B, dark: 0x6CBDB8), "blue": (light: 0x315F96, dark: 0x8DB3E2)]
+    static let accentFill: [String: Int] = ["coral": 0xE87359, "sage": 0x6E8C78, "lavender": 0x8C85BF, "honey": 0xD19E4D, "teal": 0x53AAA4, "blue": 0x729ED2, "rose": 0xD9738F, "ocean": 0x3E8FB8, "forest": 0x4F8A5B, "plum": 0x9B6FA8, "gold": 0xC9A227, "midnight": 0x5966B5]
+    static let accentText: [String: Pair] = ["coral": (light: 0xB74F38, dark: 0xE87359), "sage": (light: 0x5C7564, dark: 0x88A694), "lavender": (light: 0x7067AF, dark: 0xA39DD8), "honey": (light: 0x926826, dark: 0xD19E4D), "teal": (light: 0x236F6B, dark: 0x6CBDB8), "blue": (light: 0x315F96, dark: 0x8DB3E2), "rose": (light: 0xA3445E, dark: 0xE890A8), "ocean": (light: 0x22678C, dark: 0x6DB1D6), "forest": (light: 0x3A6B45, dark: 0x7DB388), "plum": (light: 0x7A4B8C, dark: 0xBB97C8), "gold": (light: 0x7A600F, dark: 0xD6B23F), "midnight": (light: 0x4553A3, dark: 0x9AA3DD)]
     static let palette: [String: Int] = ["sage": 0x6E8C78, "clay": 0xD97A66, "lavender": 0x8C85BF, "honey": 0xD19E4D]
     static let canvas: Pair = (light: 0xF8F4ED, dark: 0x1B1A19)
     static let sidebar: Pair = (light: 0xEFE9DF, dark: 0x242220)

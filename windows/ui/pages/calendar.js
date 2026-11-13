@@ -7,7 +7,7 @@ const calendarTime = (stamp) =>
   new Date(stamp).toLocaleTimeString([], {
     hour: "numeric",
     minute: "2-digit",
-    hour12: localStorage.getItem("calendarClock") !== "24",
+    hour12: clockHour12(),
   });
 /** Compact hour labels for the day and week grids: "8 AM" (or "08:00" with the 24-hour clock). */
 const calendarHour = (hour) =>

@@ -42,6 +42,48 @@
         "light": "#315F96",
         "dark": "#8DB3E2"
       }
+    },
+    "rose": {
+      "fill": "#D9738F",
+      "text": {
+        "light": "#A3445E",
+        "dark": "#E890A8"
+      }
+    },
+    "ocean": {
+      "fill": "#3E8FB8",
+      "text": {
+        "light": "#22678C",
+        "dark": "#6DB1D6"
+      }
+    },
+    "forest": {
+      "fill": "#4F8A5B",
+      "text": {
+        "light": "#3A6B45",
+        "dark": "#7DB388"
+      }
+    },
+    "plum": {
+      "fill": "#9B6FA8",
+      "text": {
+        "light": "#7A4B8C",
+        "dark": "#BB97C8"
+      }
+    },
+    "gold": {
+      "fill": "#C9A227",
+      "text": {
+        "light": "#7A600F",
+        "dark": "#D6B23F"
+      }
+    },
+    "midnight": {
+      "fill": "#5966B5",
+      "text": {
+        "light": "#4553A3",
+        "dark": "#9AA3DD"
+      }
     }
   },
   "accentNotes": "Fill colours are used for ticks, progress, selection and buttons. Text colours meet WCAG AA (4.5:1) on the warm canvas and surface of each appearance (light #F8F4ED / #FFFDFA, dark #1B1A19 / #2B2927): coral text is #B74F38 in light mode (4.6:1 on the canvas) and #E87359 in dark mode (4.9:1 on cards). White text on a coral fill is only 3:1, so filled light-mode buttons use the text colour as their fill.",

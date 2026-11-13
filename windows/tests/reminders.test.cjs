@@ -80,3 +80,35 @@ test("turning reminders off clears the timer", () => {
   assert.equal(scheduler.reschedule(), null);
   assert.equal(scheduler.timer, null);
 });
+
+test("the evening check-in comes only on days with something left, and says what", () => {
+  const { eveningText } = require("../reminders.cjs");
+  const now = at("2026-10-20T09:00:00");
+  const log = (habitID, dayKey) => ({
+    key: `habit_logs/${habitID}-${dayKey}`,
+    deleted: false,
+    payload: { id: habitID + dayKey, habitID, dayKey, count: 1 },
+  });
+  const records = [
+    habit("read"),
+    habit("walk"),
+    log("walk", "2026-10-20"),
+    task("call", { localDate: "2026-10-19" }),
+    task("note", { localDate: "2026-10-20", isNote: true }),
+    task("someday", { localDate: "2026-10-20", listID: "00000000-0000-4000-8000-000000000001" }),
+  ];
+  const evening = upcoming(records, now, 2, { eveningMinutes: 20 * 60 }).filter((r) => r.id.startsWith("evening:"));
+  assert.deepEqual(
+    evening.map((r) => [r.id, new Date(r.at).getHours(), r.body]),
+    [
+      ["evening:2026-10-20", 20, "1 habit and 1 task left today. Even one small one counts."],
+      ["evening:2026-10-21", 20, "2 habits left today. Even one small one counts."],
+    ],
+  );
+  // Nothing left: no check-in. Off: none at all.
+  const done = [habit("read"), log("read", "2026-10-20"), log("read", "2026-10-21")];
+  assert.equal(upcoming(done, now, 2, { eveningMinutes: 1200 }).filter((r) => r.id.startsWith("evening:")).length, 0);
+  assert.equal(upcoming(records, now, 2).filter((r) => r.id.startsWith("evening:")).length, 0);
+  assert.equal(eveningText(0, 0), null);
+  assert.equal(eveningText(1, 2), "1 habit and 2 tasks left today. Even one small one counts.");
+});

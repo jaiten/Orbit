@@ -4,3 +4,4 @@ package-lock.json
 assets
 ui/tokens.css
 ui/onboarding-data.js
+ui/rewards-data.js

@@ -63,6 +63,18 @@
   --tick-draw: 280ms;
   --tick-pop: 1.14;
   --press-scale: 0.97;
+  --swatch-coral: #E87359;
+  --swatch-sage: #6E8C78;
+  --swatch-lavender: #8C85BF;
+  --swatch-honey: #D19E4D;
+  --swatch-teal: #53AAA4;
+  --swatch-blue: #729ED2;
+  --swatch-rose: #D9738F;
+  --swatch-ocean: #3E8FB8;
+  --swatch-forest: #4F8A5B;
+  --swatch-plum: #9B6FA8;
+  --swatch-gold: #C9A227;
+  --swatch-midnight: #5966B5;
 }
 :root,
 :root[data-accent="coral"] {
@@ -99,5 +111,41 @@
   --accent: #729ED2;
   --accent-text: light-dark(#315F96, #8DB3E2);
   --accent-button: light-dark(#315F96, #729ED2);
+  --on-accent: light-dark(#ffffff, #141416);
+}
+:root[data-accent="rose"] {
+  --accent: #D9738F;
+  --accent-text: light-dark(#A3445E, #E890A8);
+  --accent-button: light-dark(#A3445E, #D9738F);
+  --on-accent: light-dark(#ffffff, #141416);
+}
+:root[data-accent="ocean"] {
+  --accent: #3E8FB8;
+  --accent-text: light-dark(#22678C, #6DB1D6);
+  --accent-button: light-dark(#22678C, #3E8FB8);
+  --on-accent: light-dark(#ffffff, #141416);
+}
+:root[data-accent="forest"] {
+  --accent: #4F8A5B;
+  --accent-text: light-dark(#3A6B45, #7DB388);
+  --accent-button: light-dark(#3A6B45, #4F8A5B);
+  --on-accent: light-dark(#ffffff, #141416);
+}
+:root[data-accent="plum"] {
+  --accent: #9B6FA8;
+  --accent-text: light-dark(#7A4B8C, #BB97C8);
+  --accent-button: light-dark(#7A4B8C, #9B6FA8);
+  --on-accent: light-dark(#ffffff, #141416);
+}
+:root[data-accent="gold"] {
+  --accent: #C9A227;
+  --accent-text: light-dark(#7A600F, #D6B23F);
+  --accent-button: light-dark(#7A600F, #C9A227);
+  --on-accent: light-dark(#ffffff, #141416);
+}
+:root[data-accent="midnight"] {
+  --accent: #5966B5;
+  --accent-text: light-dark(#4553A3, #9AA3DD);
+  --accent-button: light-dark(#4553A3, #5966B5);
   --on-accent: light-dark(#ffffff, #141416);
 }

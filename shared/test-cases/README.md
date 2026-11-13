@@ -13,5 +13,6 @@ Both apps run these files, so the rules stay identical on iPhone and Windows:
 | `day-start.json` | `windows/tests/today.test.cjs` | `SharedCaseTests.testDayStartCases` |
 | `streaks.json` | `windows/tests/habits.test.cjs` | `SharedCaseTests.testStreakCases` |
 | `category-suggestions.json` | `windows/tests/today.test.cjs` | `SharedCaseTests.testCategorySuggestionCases` |
+| `rewards.json` | `windows/tests/rewards.test.cjs` | `SharedCaseTests.testRewardCases` |
 
 The export sample is evaluated in UTC (the CSV time column is local time).

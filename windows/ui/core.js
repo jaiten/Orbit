@@ -1,6 +1,10 @@
 // Shared renderer state and helpers. Loaded first; page scripts build on these globals.
 // Accent colours live in tokens.css, generated from shared/design-tokens.json.
-const accents = ["coral", "sage", "lavender", "honey", "teal", "blue"];
+// The six free accents, then those unlocked by milestone badges (shared/rewards.json).
+const accents = [
+  ...OrbitRewardsData.freeAccents,
+  ...OrbitRewardsData.badges.filter((b) => b.unlocks).map((b) => b.unlocks),
+];
 function applyAccent(name) {
   if (!accents.includes(name)) name = "coral";
   document.documentElement.dataset.accent = name;
@@ -27,6 +31,8 @@ let state = { records: [] },
   completedOpen = localStorage.getItem("todayCompletedExpanded") !== "false",
   historyHabitID = null;
 
+/** The 12/24-hour clock chosen in Settings → Calendar (12-hour unless 24 is chosen). */
+const clockHour12 = () => localStorage.getItem("calendarClock") !== "24";
 function dayKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
@@ -211,6 +217,11 @@ async function load(force = false) {
   state = next;
   updateSync(next);
   updateUndo(next);
+  try {
+    checkRewards();
+  } catch (error) {
+    console.warn("orbit.rewards", error);
+  }
   if (next.onboarded === false && !onboardingShown) {
     onboardingShown = true;
     showOnboarding();
@@ -454,6 +465,7 @@ async function toggle(id) {
   }
   poppedID = t.completedAt ? null : t.id;
   if (!t.completedAt && focusTimer?.taskID === t.id) stopTimer();
+  if (!t.completedAt) noteCompletion();
   await put("tasks", {
     ...t,
     startedAt: t.completedAt ? null : t.startedAt,
@@ -473,6 +485,7 @@ async function log(id, undo, date = today()) {
   poppedID = undo ? null : id;
   data.updatedAt = Date.now();
   data._key = `habit_logs/${id}-${date}`;
+  if (!undo) noteCompletion();
   await put("habit_logs", data);
   if (!undo && date === current) celebrateStreak(h, [...habitLogs().filter((l) => l.id !== data.id), data]);
 }
