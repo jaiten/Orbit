@@ -252,7 +252,7 @@ function bindSettings() {
       showNotice("Finish signing in in your browser, then come back to Orbit.");
       try {
         const account = await api.linkedCalendars({ command: "connect", provider: button.dataset.connectCalendar });
-        showNotice(`Connected ${account.email}.`);
+        showNotice(`Connected ${account.email}.`, { dismissAfter: 4000 });
       } catch (error) {
         showNotice(error.message);
       } finally {

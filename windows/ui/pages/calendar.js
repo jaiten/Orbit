@@ -28,8 +28,9 @@ const calendarColor = (event) => {
   return /^#[0-9a-f]{6}$/i.test(color || "") ? color : "var(--muted)";
 };
 /** A shared event in the Any time row or the month grid: opens the event editor. */
-function eventChip(event) {
-  return `<button class="schedule-anytime calendar-event-chip${event.pending ? " pending" : ""}" data-event-color="${calendarColor(event)}" data-edit-event="${esc(event.id)}" title="${esc(event.title)}"><i></i><span>${esc(event.title || "Event")}</span></button>`;
+function eventChip(event, withTime = false) {
+  const time = withTime ? `<b>${event.allDay ? "All day" : calendarTime(event.start).replace(/:00(?= )/, "")}</b>` : "";
+  return `<button class="schedule-anytime calendar-event-chip${event.pending ? " pending" : ""}" data-event-color="${calendarColor(event)}" data-edit-event="${esc(event.id)}" title="${esc(event.title)}"><i></i><span>${esc(event.title || "Event")}</span>${time}</button>`;
 }
 function shiftMonth(key, delta) {
   const date = localDay(key);
@@ -118,7 +119,14 @@ function renderCalendar(tasks) {
   const items = on(calendarDay),
     open = items.filter((task) => !task.completedAt),
     completed = items.filter((task) => task.completedAt);
-  return `<div class="calendar-page">${calendarHeader(month, count ? `${count} ${count === 1 ? "item" : "items"} this month` : "Nothing planned this month yet")}<div class="cal-layout"><div class="cal-month"><div class="cal-weekdays" aria-hidden="true">${weekday}</div><div class="day-tiles cal-grid" role="group" aria-label="Days">${cells}</div></div><aside class="cal-day card" aria-label="${heading}"><div class="cal-day-head"><h2>${heading}</h2><span>${chosen.toLocaleDateString([], { month: "long", day: "numeric" })}</span></div>${eventsOn(calendarDay).length ? `<div class="cal-day-events">${eventsOn(calendarDay).map(eventChip).join("")}</div>` : ""}<div class="check-list">${open.map(taskRow).join("") || (eventsOn(calendarDay).length ? "" : '<p class="empty">Nothing planned. Type to add a task.</p>')}</div>${calendarCompleted(completed)}</aside></div><div class="capture-dock">${addField(calendarDay === current ? "Add to today" : "Add to " + heading)}</div></div>`;
+  return `<div class="calendar-page">${calendarHeader(month, count ? `${count} ${count === 1 ? "item" : "items"} this month` : "Nothing planned this month yet")}<div class="cal-layout"><div class="cal-month"><div class="cal-weekdays" aria-hidden="true">${weekday}</div><div class="day-tiles cal-grid" role="group" aria-label="Days">${cells}</div></div><aside class="cal-day card" aria-label="${heading}"><div class="cal-day-head"><h2>${heading}</h2><span>${chosen.toLocaleDateString([], { month: "long", day: "numeric" })}</span></div>${
+    eventsOn(calendarDay).length
+      ? `<div class="cal-day-events">${eventsOn(calendarDay)
+          .sort((a, b) => !!b.allDay - !!a.allDay || (a.start || 0) - (b.start || 0))
+          .map((event) => eventChip(event, true))
+          .join("")}</div>`
+      : ""
+  }<div class="check-list">${open.map(taskRow).join("") || (eventsOn(calendarDay).length ? "" : '<p class="empty">Nothing planned. Type to add a task.</p>')}</div>${calendarCompleted(completed)}</aside></div><div class="capture-dock">${addField(calendarDay === current ? "Add to today" : "Add to " + heading)}</div></div>`;
 }
 function renderSchedule(tasks) {
   const dayView = calendarView === "day";
@@ -154,7 +162,12 @@ function renderSchedule(tasks) {
   const untimed = days
     .map(
       (key) =>
-        `<div class="schedule-all-day-column" data-anytime-day="${key}"><button class="schedule-all-day-add" data-add-day="${key}" aria-label="Add an untimed task on ${key}">${chevron("M12 5v14M5 12h14")}</button>${OrbitCalendarEvents.allDayOn(shared, key).map(eventChip).join("")}${open
+        `<div class="schedule-all-day-column" data-anytime-day="${key}"><button class="schedule-all-day-add" data-add-day="${key}" aria-label="Add an untimed task on ${key}">${chevron("M12 5v14M5 12h14")}</button>${OrbitCalendarEvents.allDayOn(
+          shared,
+          key,
+        )
+          .map((event) => eventChip(event))
+          .join("")}${open
           .filter((task) => taskDate(task) === key && !task.hasTime)
           .map(
             (task) =>

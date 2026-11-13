@@ -1459,3 +1459,13 @@ body[data-view="today"] .capture-dock {
 .nav-order-list li:focus-within .icon-button {
   opacity: 1;
 }
+
+/* Month view's day panel: each event shows its time on the right. */
+.calendar-event-chip b {
+  flex: none;
+  margin-left: auto;
+  padding-left: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}

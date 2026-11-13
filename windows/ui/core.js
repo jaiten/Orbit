@@ -90,7 +90,11 @@ function put(entity, data, deleted = false) {
   return api.put(_key || `${entity}/${payload.id}`, payload, deleted);
 }
 
-function showNotice(message) {
+let noticeTimer = null;
+/** A message at the top of the window; with dismissAfter (ms) it goes away by itself. */
+function showNotice(message, { dismissAfter = 0 } = {}) {
+  clearTimeout(noticeTimer);
+  if (dismissAfter) noticeTimer = setTimeout(() => ($("#notice").hidden = true), dismissAfter);
   const notice = $("#notice"),
     text = document.createElement("span"),
     close = document.createElement("button");
