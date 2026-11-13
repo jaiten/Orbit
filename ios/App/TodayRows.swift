@@ -299,7 +299,10 @@ struct TaskRow: View {
         }
         change {
             try Mutations.toggle(task, at: completionDate, in: context); feedback += 1
-            if task.completedAt != nil { Task { await FocusSession.shared.stopIfMatching(task.id) } }
+            if task.completedAt != nil {
+                Task { await FocusSession.shared.stopIfMatching(task.id) }
+                Celebration.shared.finished(context: context)
+            }
         }
     }
     private func startTimer(_ minutes: Int) {
@@ -337,6 +340,7 @@ struct HabitRow: View {
             else {
                 try Mutations.log(habit, at: date, in: context)
                 Celebration.shared.checkIn(habit, logs: try context.fetch(FetchDescriptor<HabitLog>()), at: date)
+                Celebration.shared.finished(context: context)
             }
             feedback += 1
         }

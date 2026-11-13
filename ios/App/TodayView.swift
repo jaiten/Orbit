@@ -79,6 +79,7 @@ struct TodayView: View {
             header
             FocusBanner()
             ConflictBanner()
+            EveningCheckInOffer()
             // The plan, then the day's sections; capture is docked at the bottom.
             if sections.contains("progress") { PlanCard(done: planDone, total: (includeTasks ? relevant.count : 0) + dueHabits.count, accent: accent.fill) }
             ForEach(sections.filter { $0 != "progress" && $0 != "completed" }, id: \.self) { section in

@@ -60,21 +60,32 @@ private struct AppearanceSection: View {
     @AppStorage("appearance") private var appearance = "system"
     @AppStorage("accentTheme") private var accentTheme = "coral"
     @AppStorage("compactRows") private var compactRows = false
+    @AppStorage("sounds") private var sounds = true
+    @Query private var tasks: [PlannerTask]
+    @Query private var logs: [HabitLog]
     var body: some View {
+        let open = Set(Rewards.accents(earned: Rewards.earnedBadges(Rewards.metrics(tasks: tasks, logs: logs))))
         Section("Appearance") {
             AccentPicker(title: "Appearance", selection: $appearance, choices: [("system", "System"), ("light", "Light"), ("dark", "Dark")])
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: typeSize.isAccessibilitySize ? 2 : 3), spacing: 12) {
                 ForEach(DayTheme.accents, id: \.self) { name in
+                    let locked = !open.contains(name)
                     Button { accentTheme = name } label: {
                         VStack(spacing: 8) {
-                            Circle().fill(DayTheme.accentColor(name)).frame(width: 34, height: 34)
-                                .overlay { if accentTheme == name { Image(systemName: "checkmark").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white) } }
-                            Text(name.capitalized).font(.caption2).foregroundStyle(.primary)
+                            Circle().fill(DayTheme.accentColor(name).opacity(locked ? 0.35 : 1)).frame(width: 34, height: 34)
+                                .overlay {
+                                    if accentTheme == name { Image(systemName: "checkmark").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white) }
+                                    else if locked { Image(systemName: "lock.fill").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white) }
+                                }
+                            Text(name.capitalized).font(.caption2).foregroundStyle(locked ? .secondary : .primary)
                         }.frame(maxWidth: .infinity)
-                    }.buttonStyle(.plain).accessibilityLabel(name.capitalized + (accentTheme == name ? ", selected" : ""))
+                    }.buttonStyle(.plain).disabled(locked)
+                        .accessibilityLabel(name.capitalized + (accentTheme == name ? ", selected" : locked ? ", locked: \(Rewards.unlockedBy(name)?.detail ?? "")" : ""))
                 }
             }.padding(.vertical, 6)
             Toggle("Compact habits and tasks", isOn: $compactRows)
+            Toggle("Sounds when you finish things", isOn: $sounds)
+            NavigationLink { MilestonesView() } label: { Label("Milestones", systemImage: "rosette") }
             Text("Fits more items by reducing spacing. Larger accessibility text keeps the room it needs.")
                 .font(.footnote).foregroundStyle(.secondary)
         }
@@ -85,11 +96,24 @@ private struct RemindersSection: View {
     @Environment(\.orbitAccent) private var accent
     @Environment(\.modelContext) private var context
     @Binding var message: String?
+    @AppStorage("eveningCheckIn") private var evening = -1
     var body: some View {
         Section {
             Button(action: allow) { Label { Text("Allow Notifications") } icon: { Image(systemName: "bell").foregroundStyle(accent.fill) } }
+            Picker("Evening check-in", selection: $evening) {
+                Text("Off").tag(-1)
+                ForEach([19, 20, 21, 22], id: \.self) { hour in
+                    Text(Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: .now)!.formatted(date: .omitted, time: .shortened)).tag(hour * 60)
+                }
+            }
+            .onChange(of: evening) { _, value in
+                Task {
+                    if value >= 0 { _ = await NotificationScheduler.shared.requestIfUndecided() }
+                    try? await refreshReminders(context)
+                }
+            }
         } header: { Text("Reminders") } footer: {
-            Text("Set reminders on individual tasks and habits. Orbit only sends the reminders you choose.")
+            Text("Set reminders on individual tasks and habits. The evening check-in only comes on days something is still left.")
         }
     }
     private func allow() {

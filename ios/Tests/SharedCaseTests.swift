@@ -176,4 +176,26 @@ final class SharedCaseTests: XCTestCase {
         XCTAssertEqual(HabitRules.addDays("2026-03-01", -1), "2026-02-28")
         XCTAssertEqual(HabitRules.weekday("2026-10-19"), 1, "Monday")
     }
+
+    /// shared/test-cases/rewards.json: things done, active days, badges and unlocked accents.
+    func testRewardCases() throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../../shared/test-cases/rewards.json").standardizedFileURL
+        let cases = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [[String: Any]])
+        for row in cases {
+            let name = row["name"] as? String ?? ""
+            let tasks = (row["tasks"] as? [[String: Any]] ?? []).map { (completedDay: $0["completedDay"] as? String, isNote: $0["isNote"] as? Bool ?? false) }
+            let logs = (row["logs"] as? [[String: Any]] ?? []).map { (dayKey: $0["dayKey"] as? String ?? "", count: $0["count"] as? Int ?? 0) }
+            let expect = try XCTUnwrap(row["expect"] as? [String: Any])
+            let metrics = Rewards.metrics(tasks: tasks, logs: logs)
+            XCTAssertEqual(metrics.completions, expect["completions"] as? Int, name)
+            XCTAssertEqual(metrics.activeDays, expect["activeDays"] as? Int, name)
+            let earned = Rewards.earned(metrics)
+            XCTAssertEqual(earned, expect["earned"] as? [String], name)
+            XCTAssertEqual(Rewards.accents(earned: earned), expect["accents"] as? [String], name)
+        }
+        XCTAssertEqual(Rewards.eveningText(habitsLeft: 1, tasksLeft: 2), "1 habit and 2 tasks left today. Even one small one counts.")
+        XCTAssertNil(Rewards.eveningText(habitsLeft: 0, tasksLeft: 0))
+        for accent in Rewards.allAccents { XCTAssertNotNil(DesignTokens.accentFill[accent], accent) }
+    }
 }

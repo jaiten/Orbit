@@ -62,6 +62,20 @@ actor NotificationScheduler {
                 }
             }
         }
+        // The evening check-in (Settings → Reminders): only on days something is still left, saying what.
+        let evening = UserDefaults.standard.object(forKey: "eveningCheckIn") as? Int ?? -1
+        if evening >= 0 {
+            let todayKey = PlannerLogic.today
+            for offset in 0..<7 {
+                let day = Calendar.current.date(byAdding: .day, value: offset, to: PlannerLogic.todayDate)!
+                let key = PlannerLogic.dayKey(day)
+                let habitsLeft = habits.filter { PlannerLogic.plannerDay($0.createdAt) <= key && PlannerLogic.isDue($0, logs: logs, at: day) && !PlannerLogic.checkedToday($0, logs: logs, at: day) }.count
+                let tasksLeft = tasks.filter { !$0.note && $0.completedAt == nil && TodayRules.onDay(TodayRules.item($0), day: key, today: todayKey) }.count
+                guard let body = Rewards.eveningText(habitsLeft: habitsLeft, tasksLeft: tasksLeft),
+                      let date = Calendar.current.date(bySettingHour: evening / 60, minute: evening % 60, second: 0, of: day) else { continue }
+                result.append(Reminder(id: "orbit.evening.\(key)", title: "Evening check-in", body: body, date: date, floating: true))
+            }
+        }
         return result
     }
 }

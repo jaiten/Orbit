@@ -125,6 +125,7 @@ struct RootView: View {
         // The toast stays quiet for routine edits; shake can undo the latest local mutation.
         .overlay(alignment: .bottom) { undoToast }
         .overlay(alignment: .top) { CelebrationToast().padding(.top, 8) }
+        .overlay { ConfettiOverlay() }
         .onReceive(NotificationCenter.default.publisher(for: .orbitShake)) { _ in
             if undo.shakeChange != nil && UIAccessibility.isShakeToUndoEnabled { confirmShakeUndo = true }
         }
