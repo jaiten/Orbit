@@ -133,7 +133,7 @@ const remove = (folder) => {
     await p.getByRole("heading", { name: "Tasks", exact: true }).waitFor();
     if ((await p.locator("#task-category > span").textContent()) !== "Personal")
       throw Error("Category selection did not follow the sidebar");
-    await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).waitFor();
+    await p.getByRole("button", { name: "Complete Read for twenty minutes", exact: true }).waitFor();
     await p.locator('[data-page="today"]').click();
     // Sync updates never close or clear an open quick add.
     await p.keyboard.press("Control+n");

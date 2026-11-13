@@ -531,9 +531,11 @@ function bindTiles() {
           else await put("tasks", OrbitPlanner.setProgress(t, kind !== "dismiss", kind === "start"));
         })),
   );
-  // On Today a click checks a task off, as it does for habits; right-click (or E) edits it.
+  // On Today and Tasks a click anywhere on a task row checks it off, as it does for habits; the pencil,
+  // right-click or E edits it. Elsewhere (Calendar) the title opens the editor.
+  const clickChecks = page === "today" || page === "tasks";
   document.querySelectorAll("[data-edit]").forEach((b) => {
-    const checks = page === "today" && b.classList.contains("row-body");
+    const checks = clickChecks && b.classList.contains("row-body");
     // Same words as the tick beside it: Complete, Reopen, Start or Finish.
     if (checks)
       b.setAttribute(
@@ -542,6 +544,15 @@ function bindTiles() {
       );
     b.onclick = () => (checks ? action(() => toggle(b.dataset.edit)) : openTask(b.dataset.edit));
   });
+  if (clickChecks)
+    document.querySelectorAll(".task-row[data-row-menu]").forEach((row) => {
+      row.onclick = (event) => {
+        // The row's own controls (tick, title, pencil, delete, timer, Add to Today) handle themselves.
+        if (event.target.closest("button, a, input, select, label, summary, [data-picker], .mac-picker")) return;
+        const id = row.dataset.rowMenu.split(":")[1];
+        void action(() => toggle(id));
+      };
+    });
   document.querySelectorAll("[data-toggle]").forEach((b) => (b.onclick = () => action(() => toggle(b.dataset.toggle))));
   document.querySelectorAll("[data-habit-toggle]").forEach(
     (b) =>
