@@ -447,7 +447,11 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(title.waitForExistence(timeout: 5)); title.tap(); title.typeText("Take a walk outside and get some fresh air")
         app.navigationBars.buttons["Save"].tap()
         let check = app.buttons["Log Take a walk outside and get some fresh air"]
-        XCTAssertTrue(check.waitForExistence(timeout: 5)); reveal(check, in: app)
+        XCTAssertTrue(check.waitForExistence(timeout: 5))
+        // Capture keeps the keyboard up after adding; at this size it covers the new row.
+        if app.buttons["Dismiss keyboard"].exists { app.buttons["Dismiss keyboard"].tap() }
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+        reveal(check, in: app)
         XCTAssertGreaterThanOrEqual(check.frame.width, 44)
         XCTAssertGreaterThanOrEqual(check.frame.height, 44)
         let screenshot = XCTAttachment(screenshot: app.screenshot())
