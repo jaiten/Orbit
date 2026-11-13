@@ -42,6 +42,15 @@ jobs:
       - run: npm run test:refinements
       - run: npm run test:notes
       - run: npm run test:desktop
+      # The Google sign-in client's secret stays out of the repository; release builds add it here.
+      - name: Add calendar sign-in secret
+        shell: bash
+        env:
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        run: |
+          if [ -n "$GOOGLE_CLIENT_SECRET" ]; then
+            node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync('config.json','utf8'));c.googleClientSecret=process.env.GOOGLE_CLIENT_SECRET;fs.writeFileSync('config.json',JSON.stringify(c,null,2)+'\n')"
+          fi
       - run: npm run pack
       - run: node scripts/check-update-feed.cjs
       - run: npm run test:installer
