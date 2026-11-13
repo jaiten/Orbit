@@ -1765,3 +1765,9 @@ body.closing-pane :is(.sidebar, .notes-nav) {
   border-radius: 8px;
   box-shadow: inset 0 2px 0 var(--accent);
 }
+
+/* The ⋯ (more) dots are single points; a thicker stroke makes them read like the icons beside them. */
+#note-more .ui-icon {
+  stroke-width: 3.2;
+  color: var(--ink);
+}

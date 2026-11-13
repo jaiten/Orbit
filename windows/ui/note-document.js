@@ -183,14 +183,30 @@ const OrbitNoteDocument = (() => {
       notePhotoDraft = read(root).photos;
     });
   }
+  /** Removes a photo (Remove, or Backspace/Delete while it is selected); Ctrl+Z brings it back. */
   function removePhoto(photo) {
+    const root = photo.closest("[contenteditable=true]");
+    // Focus first: focusing the text moves the selection to the caret, which deleted a character instead.
+    root.focus();
     const range = document.createRange();
     range.selectNode(photo);
     const selection = getSelection();
     selection.removeAllRanges();
     selection.addRange(range);
-    photo.closest("[contenteditable=true]").focus();
+    const before = read(root).text;
+    const at = Number(read(root).photos.find((p) => p.id === photo.dataset.photoId)?.position ?? before.length);
     document.execCommand("delete");
+    if (photo.isConnected) {
+      photo.remove();
+      root.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    // Chromium treats the photo as its own paragraph and joins the lines around it when it goes;
+    // put back the line break (or any other text) it took, so only the photo disappears.
+    const lost = before.length - read(root).text.length;
+    if (lost > 0) {
+      select(root, at - lost, at - lost);
+      document.execCommand("insertText", false, before.slice(at - lost, at));
+    }
   }
   return { read, markup, bind, figure };
 })();
