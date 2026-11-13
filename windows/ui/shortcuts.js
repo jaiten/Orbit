@@ -5,6 +5,7 @@ const SHORTCUT_HELP = [
   ["Ctrl+N", "New note in Notes; quick add elsewhere"],
   ["Ctrl+Shift+D / W / M", "Calendar: day, week or month"],
   ["Ctrl+Shift+T", "Calendar: back to today"],
+  ["Ctrl+B / Ctrl+Shift+B", "Show or hide the sidebar / the note list (or drag its edge closed)"],
   ["Ctrl+Shift+V", "Switch Calendar between week and month"],
   ["Ctrl+1 … Ctrl+5", "Pages in sidebar order (drag to rearrange)"],
   ["Ctrl+6", "Settings"],
@@ -71,6 +72,10 @@ document.addEventListener("keydown", (e) => {
       calendarView = { d: "day", w: "week", m: "month" }[key];
       if (page !== "calendar") void goTo("calendar");
       else render();
+    } else if (key === "b") {
+      e.preventDefault();
+      if (!e.shiftKey) togglePane("main");
+      else if (page === "lists" || page === "note") togglePane("notes");
     } else if (e.shiftKey && key === "t" && page === "calendar") {
       e.preventDefault();
       $('[data-month="0"]')?.click();

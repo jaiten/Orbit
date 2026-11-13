@@ -146,6 +146,7 @@ function fillCtrlHints() {
     settings: [["Ctrl+Z", "Undo"]],
   }[notes ? "notes" : page] || [["Ctrl+N", "Quick add"]];
   const everywhere = [
+    ["Ctrl+B", "Sidebar"],
     ["Ctrl+F", "Search"],
     ["Ctrl+/", "All shortcuts"],
   ].filter(([keys]) => !perPage.some(([k]) => k === keys));

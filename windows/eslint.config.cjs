@@ -206,6 +206,7 @@ const shared = Object.fromEntries(
     "clockHour12",
     "earnedBadges",
     "offerEveningCheckIn",
+    "togglePane",
     "todayProgress",
     "showMoment",
     "confetti",

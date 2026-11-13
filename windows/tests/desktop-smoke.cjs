@@ -109,14 +109,18 @@ const remove = (folder) => {
     await p.getByRole("button", { name: "New category", exact: true }).click();
     await p.locator("#list-form input[name=name]").fill("Personal");
     await p.getByRole("button", { name: "Save", exact: true }).click();
-    // The list order controls persist positions, including after saving the editor.
+    // Dragging a section onto another in the sidebar moves it there, and the order persists.
     await p.locator('[data-page="tasks"]').click();
     await p.getByRole("button", { name: "New category", exact: true }).click();
     await p.locator("#list-form input[name=name]").fill("Temporary list");
     await p.getByRole("button", { name: "Save", exact: true }).click();
-    await p.getByRole("button", { name: "Edit Temporary list section", exact: true }).click();
-    await p.getByRole("button", { name: "Move section up", exact: true }).click();
-    await p.getByRole("button", { name: "Save", exact: true }).click();
+    await p
+      .locator("[data-reorder-list]", { hasText: "Temporary list" })
+      .dragTo(p.locator("[data-reorder-list]", { hasText: "Personal" }));
+    await p.waitForFunction(() => {
+      const names = [...document.querySelectorAll("#sidebar-lists [data-list]")].map((b) => b.textContent);
+      return names.indexOf("Temporary list") < names.indexOf("Personal");
+    });
     const listOrder = await p.locator("#sidebar-lists [data-list]").allTextContents();
     if (listOrder.indexOf("Temporary list") > listOrder.indexOf("Personal")) throw Error("List order did not persist");
     await p.getByRole("button", { name: "Edit Temporary list section", exact: true }).click();

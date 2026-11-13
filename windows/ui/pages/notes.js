@@ -670,14 +670,14 @@ function renderLists() {
     own
       .map(
         (l) =>
-          `<div class="sidebar-list" data-section-menu="${esc(l.id)}" data-note-drop="${esc(l.id)}"><button data-notes-section-link="${esc(l.id)}"><span class="list-dot ${colorName(l.color)}"></span>${esc(l.name)}</button><button data-edit-list="${esc(l.id)}" data-list-kind="notes" aria-label="Edit ${esc(l.name)} note section">⋯</button></div>`,
+          `<div class="sidebar-list" draggable="true" data-reorder-list="${esc(l.id)}" data-reorder-kind="notes" data-section-menu="${esc(l.id)}" data-note-drop="${esc(l.id)}"><button data-notes-section-link="${esc(l.id)}"><span class="list-dot ${colorName(l.color)}"></span>${esc(l.name)}</button><button data-edit-list="${esc(l.id)}" data-list-kind="notes" aria-label="Edit ${esc(l.name)} note section">⋯</button></div>`,
       )
       .join("") +
     `<div class="list-heading">Task categories</div>` +
     orderedLists("tasks")
       .map(
         (l) =>
-          `<div class="sidebar-list"><button data-list="${esc(l.id)}" class="${page === "tasks" && selectedList === l.id ? "selected" : ""}"><span class="list-dot ${colorName(l.color)}"></span>${esc(l.name)}</button><button data-edit-list="${esc(l.id)}" aria-label="Edit ${esc(l.name)} section">⋯</button></div>`,
+          `<div class="sidebar-list" draggable="true" data-reorder-list="${esc(l.id)}" data-reorder-kind="tasks"><button data-list="${esc(l.id)}" class="${page === "tasks" && selectedList === l.id ? "selected" : ""}"><span class="list-dot ${colorName(l.color)}"></span>${esc(l.name)}</button><button data-edit-list="${esc(l.id)}" aria-label="Edit ${esc(l.name)} section">⋯</button></div>`,
       )
       .join("") +
     someday;
@@ -703,6 +703,44 @@ function renderLists() {
     .querySelectorAll("[data-edit-list]")
     .forEach((b) => (b.onclick = () => openList(b.dataset.editList, b.dataset.listKind || "tasks")));
   bindNoteDrops();
+  bindSectionReorder();
+}
+
+/** Drag a section in the sidebar onto another of the same kind to move it there. */
+function bindSectionReorder() {
+  const rowsOf = document.querySelectorAll("[data-reorder-list]");
+  rowsOf.forEach((row) => {
+    row.ondragstart = (event) => {
+      event.dataTransfer.setData("text/orbit-reorder", `${row.dataset.reorderKind}:${row.dataset.reorderList}`);
+      event.dataTransfer.effectAllowed = "move";
+    };
+    row.addEventListener("dragover", (event) => {
+      if (!event.dataTransfer.types.includes("text/orbit-reorder")) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      row.classList.add("reorder-target");
+    });
+    row.addEventListener("dragleave", () => row.classList.remove("reorder-target"));
+    row.addEventListener("drop", (event) => {
+      row.classList.remove("reorder-target");
+      const [kind, source] = event.dataTransfer.getData("text/orbit-reorder").split(":");
+      if (!source || kind !== row.dataset.reorderKind) return;
+      event.preventDefault();
+      const ordered = orderedLists(kind);
+      const from = ordered.findIndex((list) => list.id === source);
+      const to = ordered.findIndex((list) => list.id === row.dataset.reorderList);
+      if (from < 0 || to < 0 || from === to) return;
+      ordered.splice(to, 0, ordered.splice(from, 1)[0]);
+      void action(() =>
+        api.batch(
+          ordered.map((list, sortOrder) => ({
+            key: list._key,
+            payload: { ...clean(list), sortOrder, updatedAt: Date.now() },
+          })),
+        ),
+      );
+    });
+  });
 }
 
 /** Drag a page onto a section (in the notes list or the sidebar), or onto General, to move it there. */
@@ -751,11 +789,6 @@ function openList(id, kind = page === "tasks" ? "tasks" : "notes") {
   $("#list-lock-row").hidden = listEditingKind !== "notes";
   f.elements.locked.checked = editingList?.locked === true;
   $("#delete-list").hidden = !editingList;
-  $("#list-order-controls").hidden = !editingList;
-  const ordered = orderedLists(listEditingKind);
-  const index = ordered.findIndex((list) => list.id === id);
-  $("#list-move-up").disabled = index <= 0;
-  $("#list-move-down").disabled = index < 0 || index === ordered.length - 1;
   $("#list-editor-title").textContent =
     listEditingKind === "notes"
       ? editingList
@@ -870,25 +903,6 @@ function orderedLists(kind = "tasks") {
     .filter((list) => list.id !== SOMEDAY && (!list.kind || list.kind === kind))
     .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
 }
-function moveList(delta) {
-  void action(async () => {
-    const ordered = orderedLists(listEditingKind);
-    const index = ordered.findIndex((list) => list.id === editingList?.id);
-    const next = index + delta;
-    if (index < 0 || next < 0 || next >= ordered.length) return;
-    [ordered[index], ordered[next]] = [ordered[next], ordered[index]];
-    await api.batch(
-      ordered.map((list, sortOrder) => ({
-        key: list._key,
-        payload: { ...clean(list), sortOrder, updatedAt: Date.now() },
-      })),
-    );
-    $("#list-move-up").disabled = next === 0;
-    $("#list-move-down").disabled = next === ordered.length - 1;
-  });
-}
-$("#list-move-up").onclick = () => moveList(-1);
-$("#list-move-down").onclick = () => moveList(1);
 
 function bindNotePhotos() {
   let lastRange = null;

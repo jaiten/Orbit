@@ -64,14 +64,24 @@ function bindPaneGrip(grip, name) {
       width = pane.width;
     grip.setPointerCapture(event.pointerId);
     document.body.classList.add("resizing-pane");
+    // Dragging well past the narrowest width closes the sidebar (its show button then appears).
+    let closing = false;
     grip.onpointermove = (move) => {
-      pane.width = Math.max(min, Math.min(max, width + move.clientX - x));
+      const raw = width + move.clientX - x;
+      closing = raw < min - 70;
+      document.body.classList.toggle("closing-pane", closing);
+      pane.width = Math.max(min, Math.min(max, raw));
       grip.setAttribute("aria-valuenow", String(pane.width));
       applyPaneLayout();
     };
     const finish = () => {
       grip.onpointermove = null;
-      document.body.classList.remove("resizing-pane");
+      document.body.classList.remove("resizing-pane", "closing-pane");
+      if (closing) {
+        pane.open = false;
+        pane.width = Math.max(min, width);
+        applyPaneLayout();
+      }
       savePanes();
     };
     grip.onpointerup = finish;
@@ -107,21 +117,16 @@ function bindPaneLayout() {
   applyPaneLayout();
   bindPaneGrip($("#main-pane-grip"), "main");
   bindPaneGrip($("#notes-pane-grip"), "notes");
-  document.querySelectorAll("[data-toggle-notes]").forEach(
-    (button) =>
-      (button.onclick = () => {
-        paneState.notes.open = !paneState.notes.open;
-        applyPaneLayout();
-        savePanes();
-      }),
-  );
+  document.querySelectorAll("[data-toggle-notes]").forEach((button) => (button.onclick = () => togglePane("notes")));
 }
-$("#toggle-sidebar").innerHTML = sidebarIcon;
-$("#toggle-sidebar").onclick = () => {
-  paneState.main.open = !paneState.main.open;
+/** Shows or hides a sidebar ("main" or "notes"); also Ctrl+B and Ctrl+Shift+B. */
+function togglePane(name) {
+  paneState[name].open = !paneState[name].open;
   applyPaneLayout();
   savePanes();
-};
+}
+$("#toggle-sidebar").innerHTML = sidebarIcon;
+$("#toggle-sidebar").onclick = () => togglePane("main");
 window.addEventListener("resize", () => {
   applyPaneLayout();
   resizeNoteFields();

@@ -557,12 +557,18 @@ const fs = require("node:fs");
       ),
     editedNoteID,
   );
-  await p.getByRole("button", { name: "Hide note list", exact: true }).click();
+  // Open sidebars hide their show buttons; Ctrl+Shift+B (or dragging the edge closed) hides them.
+  assert.equal(await p.getByRole("button", { name: "Hide note list", exact: true }).isVisible(), false);
+  await p.keyboard.press("Control+Shift+B");
   assert.equal(await p.locator(".notes-nav").isVisible(), false);
   await p.getByRole("button", { name: "Show note list", exact: true }).click();
   assert.equal(await p.locator("#note-body").evaluate((field) => field.value), noteBody);
-  await p.getByRole("button", { name: "Hide main sidebar", exact: true }).click();
-  assert.equal(await p.locator(".sidebar").isVisible(), false);
+  const mainGrip = await p.locator("#main-pane-grip").boundingBox();
+  await p.mouse.move(mainGrip.x + mainGrip.width / 2, mainGrip.y + 200);
+  await p.mouse.down();
+  await p.mouse.move(20, mainGrip.y + 200, { steps: 8 });
+  await p.mouse.up();
+  assert.equal(await p.locator(".sidebar").isVisible(), false, "Dragging the edge closes the sidebar");
   await p.getByRole("button", { name: "Show main sidebar", exact: true }).click();
   await p.reload();
   await p.locator("h1").filter({ hasText: "Today" }).waitFor();
