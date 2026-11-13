@@ -2,7 +2,7 @@ import CryptoKit
 import EventKit
 import Foundation
 
-/// Shares the calendars Orbit reads on this iPhone with Orbit's other devices through sync, and applies
+/// Shares the Apple calendars (iCloud and On My iPhone) Orbit reads on this iPhone with Orbit's other devices through sync, and applies
 /// changes made there. Each calendar is a `calendars/<id>` record and each event occurrence in a window
 /// around today an `events/<id>` record. Windows can't reach the calendar itself, so it asks for an edit
 /// or a delete by adding a `request` to an event record; this device makes the change in the calendar,
@@ -13,6 +13,12 @@ import Foundation
     typealias Put = (_ key: String, _ payload: [String: Any], _ deleted: Bool, _ base: Int) async throws -> Void
     private struct Record { let payload: [String: Any]; let revision: Int; let deleted: Bool }
 
+    /// Only Apple calendars are shared: Google and Outlook calendars are linked on Windows directly, so
+    /// sharing them too would show every event twice.
+    static func isApple(_ calendar: EKCalendar) -> Bool {
+        guard let source = calendar.source else { return false }
+        return source.sourceType == .local || (source.sourceType == .calDAV && source.title == "iCloud")
+    }
     static func owns(_ key: String) -> Bool { key.hasPrefix("calendars/") || key.hasPrefix("events/") }
 
     /// This installation's id, so records shared by other devices are left alone.
@@ -28,7 +34,10 @@ import Foundation
 
     static func hash(_ text: String) -> String { String(SHA256.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined().prefix(32)) }
     static func calendarID(_ calendar: EKCalendar) -> String { hash("calendar|" + calendar.calendarIdentifier) }
-    static func occurrence(_ event: EKEvent) -> Date { (event.occurrenceDate as Date?) ?? event.startDate }
+    static func occurrence(_ event: EKEvent) -> Date {
+        let occurrence: Date? = event.occurrenceDate, start: Date? = event.startDate
+        return occurrence ?? start ?? .distantPast
+    }
     static func eventID(_ event: EKEvent) -> String {
         hash("event|" + (event.eventIdentifier ?? event.calendarItemIdentifier) + "|" + String(Int64(occurrence(event).timeIntervalSince1970 * 1000)))
     }
@@ -52,13 +61,14 @@ import Foundation
     }
     static func payload(_ event: EKEvent) -> [String: Any] {
         var value: [String: Any] = ["id": eventID(event), "device": device, "ref": event.eventIdentifier ?? event.calendarItemIdentifier, "occurrence": ms(occurrence(event)), "calendarID": calendarID(event.calendar), "title": event.title ?? "Event", "allDay": event.isAllDay, "recurring": event.hasRecurrenceRules]
+        let startDate: Date = event.startDate, endDate: Date = event.endDate ?? event.startDate
         if event.isAllDay {
             // EventKit ends an all-day event at the end of its last day; Orbit stores the day after.
-            let last = event.endDate.addingTimeInterval(-1) > event.startDate ? event.endDate.addingTimeInterval(-1) : event.startDate
-            value["startDay"] = dayKey(event.startDate)
+            let last: Date = max(startDate, endDate.addingTimeInterval(-1))
+            value["startDay"] = dayKey(startDate)
             value["endDay"] = dayKey(Calendar.current.date(byAdding: .day, value: 1, to: last) ?? last)
         } else {
-            value["start"] = ms(event.startDate); value["end"] = ms(max(event.endDate, event.startDate))
+            value["start"] = ms(startDate); value["end"] = ms(max(endDate, startDate))
         }
         return value
     }
@@ -86,7 +96,7 @@ import Foundation
         // Calendars, keeping a show/hide choice made on another device.
         var desired: [String: [String: Any]] = [:]
         var synced = UserDefaults.standard.dictionary(forKey: "calendarShownSynced") as? [String: Bool] ?? [:]
-        for calendar in bridge.store.calendars(for: .event) {
+        for calendar in bridge.store.calendars(for: .event) where isApple(calendar) {
             let id = calendarID(calendar), local = bridge.isShown(calendar), last = synced[id]
             var shown = local
             if let remote = server["calendars/" + id], !remote.deleted, let value = remote.payload["shown"] as? Bool, let last, local == last, value != last {
@@ -99,7 +109,7 @@ import Foundation
         // Events in the shared window, from the calendars that are shown.
         let start = Calendar.current.date(byAdding: .day, value: -daysBack, to: Calendar.current.startOfDay(for: .now))!
         let end = Calendar.current.date(byAdding: .day, value: daysAhead, to: start)!
-        for event in bridge.events(from: start, to: end) { desired["events/" + eventID(event)] = payload(event) }
+        for event in bridge.events(from: start, to: end) where isApple(event.calendar) { desired["events/" + eventID(event)] = payload(event) }
         for (key, value) in desired {
             if let current = server[key], !current.deleted, NSDictionary(dictionary: current.payload).isEqual(to: value) { continue }
             if let current = server[key], !current.deleted, (current.payload["device"] as? String) != device { continue }

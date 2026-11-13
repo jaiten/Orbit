@@ -13,13 +13,19 @@ Orbit's Supabase project so it can sync between your signed-in devices.
 - Operational service logs maintained by Supabase. Orbit's application diagnostics
   must not include planner titles, passwords, email links or session tokens.
 
-- If you connect calendars on iPhone and leave **Show on your other devices** on, the
-  calendars you have turned on in Orbit (their names, account names and colours) and
+- If you connect calendars on iPhone and leave **Show iCloud calendars on your other
+  devices** on, your iCloud and On My iPhone calendars that are turned on in Orbit (their
+  names, account names and colours) and
   their events from two weeks ago to four months ahead (title, time or days, and
   whether they repeat) are synced so your other signed-in devices can show them. Event
   notes, locations and attendees are not uploaded. Changes made to those events on
   another device are synced back and saved to the calendar by the iPhone. Turning the
   option off, or disconnecting calendars, removes them from sync.
+
+- On Windows you can connect Google Calendar or Outlook / Microsoft 365. Orbit signs in
+  through your browser, keeps the sign-in encrypted on that PC, and reads and changes
+  events directly with Google or Microsoft. These calendars are not sent to Orbit's sync
+  database. Disconnecting removes the sign-in from the PC.
 
 Speech audio and notification contents are handled on the device. Calendars are read
 on the iPhone; Orbit uploads only what is described above.

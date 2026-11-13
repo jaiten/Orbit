@@ -126,14 +126,14 @@ private struct CalendarsSection: View {
                         }
                     }
                 }
-                Toggle("Show on your other devices", isOn: Binding(get: { shareEnabled }, set: { shareEnabled = $0; syncSoon() }))
+                Toggle("Show iCloud calendars on your other devices", isOn: Binding(get: { shareEnabled }, set: { shareEnabled = $0; syncSoon() }))
                 Button("Disconnect Calendars", role: .destructive) { calendars.disconnect(); syncSoon() }
             } else {
                 Button { Task { do { try await calendars.connect() } catch { message = error.localizedDescription } } } label: {
                     Label { Text("Connect Calendars") } icon: { Image(systemName: "calendar").foregroundStyle(accent.fill) }
                 }
             }
-        } header: { Text("Calendars") } footer: { Text("Shows events from Apple Calendar, including Google accounts added to your iPhone. Turn a calendar off to hide it here and on Windows. With Show on your other devices on, your signed-in devices see events from two weeks ago to four months ahead, and changes made there are saved to your calendar when Orbit syncs on this iPhone.") }
+        } header: { Text("Calendars") } footer: { Text("Shows events from Apple Calendar, including Google accounts added to your iPhone. Turn a calendar off to hide it in Orbit. With Show on your other devices on, your iCloud calendars also appear in Orbit on Windows (events from two weeks ago to four months ahead), and changes made there are saved when Orbit syncs on this iPhone. Connect Google or Outlook in Orbit on Windows directly.") }
     }
 }
 

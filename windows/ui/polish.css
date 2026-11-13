@@ -1401,3 +1401,29 @@ body[data-view="today"] .capture-dock {
 #event-form [hidden] {
   display: none !important;
 }
+
+/* Settings → Calendar: a linked Google or Microsoft account and its calendars. */
+.linked-account {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.linked-account-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.linked-account-head span {
+  display: grid;
+}
+.linked-account-head small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.linked-account-error {
+  color: var(--danger, #c0392b);
+}
+.calendar-connect {
+  flex-wrap: wrap;
+}

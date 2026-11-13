@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld("orbit", {
   put: (key, payload, deleted) => ipcRenderer.invoke("put", { key, payload, deleted }),
   auth: (mode, email, password) => ipcRenderer.invoke("auth", { mode, email, password }),
   sync: () => ipcRenderer.invoke("sync"),
+  linkedCalendars: (request) => ipcRenderer.invoke("linked-calendars", request),
   resolve: (key, choice) => ipcRenderer.invoke("resolve", { key, choice }),
   onSyncStatus: (callback) => ipcRenderer.on("sync-status", (_, value) => callback(value)),
   onChange: (callback) => ipcRenderer.on("changed", () => callback()),

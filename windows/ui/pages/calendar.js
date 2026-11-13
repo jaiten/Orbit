@@ -18,9 +18,13 @@ const chevron = (path) => `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden=
 const calendarDragGrip = '<span class="calendar-drag-grip" aria-hidden="true">⠿</span>';
 const monthOf = (key) => key.slice(0, 8) + "01";
 /** Events your iPhone shares through sync, with this PC's pending edits applied. */
-const calendarEvents = () => OrbitCalendarEvents.visible(rows("events"), rows("calendars"));
+// Google and Microsoft calendars linked on this PC (read in the main process; hidden ones aren't loaded).
+const linked = () => state.linkedCalendars || { accounts: [], calendars: [], events: [] };
+const calendarEvents = () => [...OrbitCalendarEvents.visible(rows("events"), rows("calendars")), ...linked().events];
+const eventCalendar = (event) =>
+  (event.provider ? linked().calendars : rows("calendars")).find((calendar) => calendar.id === event.calendarID);
 const calendarColor = (event) => {
-  const color = rows("calendars").find((calendar) => calendar.id === event.calendarID)?.color;
+  const color = eventCalendar(event)?.color;
   return /^#[0-9a-f]{6}$/i.test(color || "") ? color : "var(--muted)";
 };
 /** A shared event in the Any time row or the month grid: opens the event editor. */
@@ -405,11 +409,12 @@ const timeOf = (stamp) => {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 };
 function openEvent(id) {
-  const record = rows("events").find((event) => event.id === id);
-  const event = record && OrbitCalendarEvents.effective(record);
+  const record = rows("events").find((event) => event.id === id) || linked().events.find((event) => event.id === id);
+  const event = record && (record.provider ? record : OrbitCalendarEvents.effective(record));
   if (!event) return;
   editingEvent = record;
-  const calendar = rows("calendars").find((item) => item.id === event.calendarID);
+  const calendar = eventCalendar(event);
+  const service = { google: "Google Calendar", microsoft: "Outlook" }[event.provider];
   const writable = calendar?.writable !== false;
   const form = $("#event-form");
   form.title.value = event.title || "";
@@ -420,14 +425,18 @@ function openEvent(id) {
     : "";
   form.startTime.value = event.allDay ? "09:00" : timeOf(event.start);
   form.endTime.value = event.allDay ? "10:00" : timeOf(event.end || event.start + 30 * 60000);
-  $("#event-calendar").textContent = [calendar?.title, calendar?.account].filter(Boolean).join(" · ");
+  $("#event-calendar").textContent = [calendar?.title, calendar?.email || calendar?.account]
+    .filter(Boolean)
+    .join(" · ");
   $("#event-note").textContent = !writable
     ? "This calendar is read-only, so the event can't be changed from Orbit."
-    : event.recurring
-      ? "Changes apply to this occurrence only. They reach your calendar the next time Orbit syncs on your iPhone."
-      : event.pending
-        ? "Waiting for your iPhone to make this change in your calendar."
-        : "Changes reach your calendar the next time Orbit syncs on your iPhone.";
+    : service
+      ? `Saved straight to ${service}${event.recurring ? ", for this occurrence only" : ""}.`
+      : event.recurring
+        ? "Changes apply to this occurrence only. They reach your calendar the next time Orbit syncs on your iPhone."
+        : event.pending
+          ? "Waiting for your iPhone to make this change in your calendar."
+          : "Changes reach your calendar the next time Orbit syncs on your iPhone.";
   for (const field of form.querySelectorAll("input")) field.disabled = !writable;
   $("#delete-event").hidden = !writable;
   $("#save-event").hidden = !writable;
@@ -462,11 +471,19 @@ $("#event-form").onsubmit = (submit) => {
     changes = { title: form.title.value.trim(), allDay: false, start, end };
   }
   $("#event-editor").close();
-  void action(() => put("events", OrbitCalendarEvents.editRequest(record, changes)));
+  void action(() =>
+    record.provider
+      ? api.linkedCalendars({ command: "update", event: record.id, changes })
+      : put("events", OrbitCalendarEvents.editRequest(record, changes)),
+  );
 };
 $("#delete-event").onclick = () => {
   const record = editingEvent;
   if (!record) return;
   $("#event-editor").close();
-  void action(() => put("events", OrbitCalendarEvents.deleteRequest(record)));
+  void action(() =>
+    record.provider
+      ? api.linkedCalendars({ command: "delete", event: record.id })
+      : put("events", OrbitCalendarEvents.deleteRequest(record)),
+  );
 };

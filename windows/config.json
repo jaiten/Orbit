@@ -1,4 +1,7 @@
 {
   "url": "https://uwcwnjwijvawvvffaxdr.supabase.co",
-  "publishableKey": "sb_publishable_m0nf1UT5Q2vLryIVocVbXA_-q5tDD53"
+  "publishableKey": "sb_publishable_m0nf1UT5Q2vLryIVocVbXA_-q5tDD53",
+  "googleClientId": "",
+  "googleClientSecret": "",
+  "microsoftClientId": ""
 }

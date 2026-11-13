@@ -24,6 +24,7 @@ const os = require("node:os");
 const mica =
   process.env.ORBIT_MICA === "1" && process.platform === "win32" && Number(os.release().split(".")[2]) >= 22621;
 const calendarExport = require("./calendar-export.cjs");
+const { CalendarAccounts } = require("./calendar-accounts.cjs");
 const { confirmationNotice } = require("./auth-links.cjs");
 const { PlannerTools, encodeBackup, decodeBackup, planImport, encodeTasksCSV } = require("./planner-tools.cjs");
 const { SOMEDAY_LIST_ID } = require("./ui/planner.js");
@@ -53,7 +54,8 @@ let window,
   pendingRecoveryURL,
   realtimeChannel,
   recoveryReady = false,
-  desktop;
+  desktop,
+  calendarAccounts;
 let recoveryHandler;
 const handleConfirmation = (raw) => {
   const notice = confirmationNotice(raw);
@@ -145,6 +147,22 @@ app.whenReady().then(async () => {
       auth: { storage, autoRefreshToken: true, persistSession: true, detectSessionInUrl: false },
     });
   sync = new Sync(store, client, notify);
+  // Google and Microsoft calendars linked on this PC; the account list (with its refresh tokens) is
+  // encrypted like the Orbit session.
+  const calendarAccountsPath = path.join(app.getPath("userData"), "calendar-accounts.enc");
+  calendarAccounts = new CalendarAccounts({
+    config,
+    load: () =>
+      fs.existsSync(calendarAccountsPath) ? safeStorage.decryptString(fs.readFileSync(calendarAccountsPath)) : null,
+    save: (text) => {
+      if (!safeStorage.isEncryptionAvailable()) throw Error("Windows credential encryption is unavailable");
+      fs.writeFileSync(calendarAccountsPath + ".tmp", safeStorage.encryptString(text));
+      fs.renameSync(calendarAccountsPath + ".tmp", calendarAccountsPath);
+    },
+    open: (url) => shell.openExternal(url),
+    onChange: () => notify(),
+  });
+  void calendarAccounts.refresh();
   const notePhotos = new NotePhotos(path.join(app.getPath("userData"), "note-photos"));
   sync.beforeUpload = (uid) => notePhotos.uploadPending(store.rows(), client, uid);
   plannerTools = new PlannerTools(store);
@@ -371,6 +389,7 @@ app.whenReady().then(async () => {
       onboarded: onboarded(),
       version: app.getVersion(),
       email: (await client?.auth.getSession())?.data?.session?.user?.email ?? null,
+      linkedCalendars: calendarAccounts.snapshot(),
     };
   });
   handle("put", ({ key, payload, deleted }) => {
@@ -384,6 +403,15 @@ app.whenReady().then(async () => {
     void sync.run();
   });
   handle("sync", () => sync.run());
+  handle("linked-calendars", async ({ command, provider, account, calendar, event, shown, changes } = {}) => {
+    if (command === "connect") return calendarAccounts.connect(provider);
+    if (command === "disconnect") return calendarAccounts.disconnect(account);
+    if (command === "show") return calendarAccounts.setShown(calendar, shown === true);
+    if (command === "update") return calendarAccounts.update(event, changes || {});
+    if (command === "delete") return calendarAccounts.remove(event);
+    if (command === "refresh") return calendarAccounts.refresh();
+    throw Error("Invalid calendar command");
+  });
   handle("onboarded", () => void store.setting("onboarded", "yes"));
   handle("resolve", ({ key, choice }) => {
     store.resolve(key, choice);
@@ -581,7 +609,10 @@ app.whenReady().then(async () => {
   await window.loadURL("orbit://app");
   updates.start();
   if (pendingRecoveryURL) void recoveryHandler();
-  window.on("focus", () => void sync.run());
+  window.on("focus", () => {
+    void sync.run();
+    void calendarAccounts.refreshIfStale(60000);
+  });
   // Orbit lives in the tray, so opening or closing the window is when an update check is most useful.
   for (const event of ["show", "hide"]) window.on(event, () => void updates.checkIfDue());
   // A sleeping PC can miss midnight; tell the page to re-check the day.
@@ -593,6 +624,7 @@ app.whenReady().then(async () => {
   // Realtime is the normal wake-up path. This slower poll repairs missed socket
   // events and reconnect gaps without downloading every record every 20 seconds.
   setInterval(() => void sync.run(), 120000).unref();
+  setInterval(() => void calendarAccounts.refresh(), 300000).unref();
   if (client) {
     const subscribeRealtime = async () => {
       const { data } = await client.auth.getSession();

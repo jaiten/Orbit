@@ -29,21 +29,47 @@ function applyCompact(value) {
 }
 applyCompact(localStorage.getItem("compactRows") === "true");
 
-/** Calendars shared from Orbit on iPhone. Turning one off hides it here and on the iPhone. */
+const calendarToggle = (calendar, attribute, subtitle) =>
+  `<label class="toggle calendar-toggle" data-event-color="${/^#[0-9a-f]{6}$/i.test(calendar.color || "") ? calendar.color : "var(--muted)"}"><input type="checkbox" ${attribute}="${esc(calendar.id)}" ${calendar.shown === false ? "" : "checked"} /><span class="calendar-name"><i></i><span>${esc(calendar.title)}${subtitle ? `<small>${esc(subtitle)}</small>` : ""}</span></span></label>`;
+
+/** Settings → Calendar: Google and Microsoft accounts linked on this PC, then Apple calendars from the iPhone. */
 function calendarList() {
-  const calendars = rows("calendars").sort(
+  const { accounts = [], calendars = [], available = {} } = state.linkedCalendars || {};
+  const service = { google: "Google", microsoft: "Outlook" };
+  const linkedAccounts = accounts
+    .map(
+      (account) => `<div class="linked-account">
+        <div class="linked-account-head"><span><strong>${esc(service[account.provider])}</strong><small>${esc(account.email)}</small></span><button data-disconnect-account="${esc(account.id)}">Disconnect</button></div>
+        ${account.error ? `<p class="secondary linked-account-error">${esc(account.error)}</p>` : ""}
+        <div class="calendar-toggles">${calendars
+          .filter((calendar) => calendar.account === account.id)
+          .sort((a, b) => !!b.primary - !!a.primary || String(a.title).localeCompare(String(b.title)))
+          .map((calendar) => calendarToggle(calendar, "data-linked-calendar", calendar.writable ? "" : "Read-only"))
+          .join("")}</div>
+      </div>`,
+    )
+    .join("");
+  const connect = ["google", "microsoft"]
+    .map(
+      (provider) =>
+        `<button data-connect-calendar="${provider}" ${available[provider] ? "" : "disabled"}>Connect ${provider === "google" ? "Google Calendar" : "Outlook / Microsoft 365"}</button>`,
+    )
+    .join("");
+  const apple = rows("calendars").sort(
     (a, b) =>
       String(a.account || "").localeCompare(String(b.account || "")) || String(a.title).localeCompare(String(b.title)),
   );
-  if (!calendars.length)
-    return `<h3>Calendars</h3><p class="secondary">Your calendars come from Orbit on iPhone. Open Settings → Calendars there, connect your calendars, and they'll appear here after the iPhone syncs.</p>`;
-  return `<h3>Calendars</h3><p class="secondary">Shared from your iPhone. Turn a calendar off to hide it in Orbit on both devices; turn it back on to add it again. Edits you make here reach the calendar the next time Orbit syncs on your iPhone.</p>
-    <div class="calendar-toggles">${calendars
-      .map(
-        (calendar) =>
-          `<label class="toggle calendar-toggle" data-event-color="${/^#[0-9a-f]{6}$/i.test(calendar.color || "") ? calendar.color : "var(--muted)"}"><input type="checkbox" data-calendar-shown="${esc(calendar.id)}" ${calendar.shown === false ? "" : "checked"} /><span class="calendar-name"><i></i><span>${esc(calendar.title)}${calendar.account ? `<small>${esc(calendar.account)}</small>` : ""}</span></span></label>`,
-      )
-      .join("")}</div>`;
+  return `<h3>Google & Outlook</h3>
+    <p class="secondary">Connect an account to see and edit its calendars here. Changes are saved straight to the calendar.</p>
+    ${linkedAccounts}
+    <div class="fields calendar-connect">${connect}</div>
+    ${available.google || available.microsoft ? "" : '<p class="secondary">Calendar sign-in isn\'t set up in this build of Orbit.</p>'}
+    <h3>Apple calendars</h3>
+    ${
+      apple.length
+        ? `<p class="secondary">Your iCloud calendars, shared by Orbit on iPhone. Turning one off hides it on both devices. Edits made here are saved to the calendar the next time Orbit syncs on your iPhone.</p><div class="calendar-toggles">${apple.map((calendar) => calendarToggle(calendar, "data-calendar-shown", calendar.account)).join("")}</div>`
+        : '<p class="secondary">To see iCloud calendars here, connect calendars in Orbit on iPhone (Settings → Calendars) and sign in to the same Orbit account.</p>'
+    }`;
 }
 
 function renderSettings() {
@@ -175,6 +201,32 @@ function bindSettings() {
       $("#calendar-preferences"),
     );
   applyCalendarStyles($("#calendar-preferences") || document);
+  document.querySelectorAll("[data-linked-calendar]").forEach((box) => {
+    box.onchange = () =>
+      void action(() =>
+        api.linkedCalendars({ command: "show", calendar: box.dataset.linkedCalendar, shown: box.checked }),
+      );
+  });
+  document.querySelectorAll("[data-disconnect-account]").forEach((button) => {
+    button.onclick = () =>
+      void action(() => api.linkedCalendars({ command: "disconnect", account: button.dataset.disconnectAccount }));
+  });
+  // Sign-in finishes in the browser, which can take a while, so it doesn't hold up other actions.
+  document.querySelectorAll("[data-connect-calendar]").forEach((button) => {
+    button.onclick = async () => {
+      button.disabled = true;
+      showNotice("Finish signing in in your browser, then come back to Orbit.");
+      try {
+        const account = await api.linkedCalendars({ command: "connect", provider: button.dataset.connectCalendar });
+        showNotice(`Connected ${account.email}.`);
+      } catch (error) {
+        showNotice(error.message);
+      } finally {
+        button.disabled = false;
+        await load(true);
+      }
+    };
+  });
   document.querySelectorAll("[data-calendar-shown]").forEach((box) => {
     box.onchange = () => {
       const calendar = rows("calendars").find((item) => item.id === box.dataset.calendarShown);
