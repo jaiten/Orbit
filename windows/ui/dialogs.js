@@ -23,7 +23,7 @@ function openTask(id, date, draft = null, { expanded = false } = {}) {
   f.elements.date.value = editing ? taskDate(editing) || "" : (date ?? (page === "today" ? today() : ""));
   f.elements.time.value = source?.hasTime && source.dueDate ? new Date(source.dueDate).toTimeString().slice(0, 5) : "";
   f.elements.progressTracking.checked = source?.progressTracking === true;
-  f.elements.duration.value = editing?.durationMinutes || 30;
+  f.elements.duration.value = (editing ?? source)?.durationMinutes || 60;
   f.elements.priority.value = editing?.priority || 0;
   $("#editor-title").textContent = editing ? "Edit Task" : "New Task";
   $("#delete-task").hidden = !editing;

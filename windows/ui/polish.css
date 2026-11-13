@@ -1636,3 +1636,112 @@ body[data-view="today"] .capture-dock {
 .accent-options {
   flex-wrap: wrap;
 }
+
+/* Wide row-like buttons never shrink when pressed (left or right click): scaling toward the centre
+   pulled their left-aligned text sideways. Small buttons keep the press. */
+:is(
+    .row-body,
+    .row-line,
+    .habit-log,
+    .schedule-event,
+    .schedule-event-body,
+    .schedule-anytime,
+    .calendar-event-chip,
+    .note-card,
+    .notes-nav-page,
+    .notes-nav-name,
+    .upcoming-row,
+    .day-tile,
+    .cal-cell,
+    .account-row,
+    .history-head,
+    .sidebar-list button,
+    nav button[data-page]
+  ):active {
+  transform: none !important;
+}
+
+/* Holding Ctrl: this page's shortcuts, in a quiet panel at the bottom right. */
+#ctrl-hints {
+  position: fixed;
+  right: 20px;
+  bottom: 96px;
+  z-index: 45;
+  display: none;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--pane) 92%, transparent);
+  backdrop-filter: blur(20px);
+  box-shadow:
+    0 0 0 0.5px var(--hair),
+    0 8px 28px rgb(0 0 0 / 0.14);
+  font-size: 12.5px;
+  pointer-events: none;
+}
+.ctrl-held #ctrl-hints {
+  display: grid;
+}
+#ctrl-hints div {
+  display: grid;
+  grid-template-columns: 120px auto;
+  align-items: center;
+  gap: 10px;
+}
+#ctrl-hints kbd {
+  justify-self: start;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  font-size: 11.5px;
+}
+
+/* Any time: no drag grip (the chip itself drags, with an ordinary arrow), tighter left edge, and the +
+   in its own gutter, centred in the row instead of on top of the first chip. */
+.schedule-all-day-column {
+  position: relative;
+  padding: 4px 24px 4px 2px;
+}
+.schedule-all-day .schedule-anytime,
+.schedule-event {
+  cursor: default;
+}
+.schedule-all-day .schedule-anytime .row-tick {
+  width: 16px;
+  padding: 0 0 0 3px;
+}
+.schedule-all-day .schedule-anytime .row-body {
+  padding: 0 4px 0 2px;
+}
+.schedule-all-day-add {
+  top: 50%;
+  right: 2px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  transform: translateY(-50%);
+}
+.schedule-all-day-add:active {
+  transform: translateY(-50%);
+}
+
+/* The hour-long bubble that follows the pointer over empty time (and stretches while dragging). */
+.slot-ghost {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  z-index: 2;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--accent) 16%, var(--list-bg));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--accent-text);
+  font-size: 11px;
+  font-weight: 600;
+  pointer-events: none;
+}
+.slot-ghost[hidden] {
+  display: none;
+}

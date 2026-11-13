@@ -56,7 +56,7 @@ import SwiftData
     var updatedAt: Date
     init(title: String, dueDate: Date? = nil, hasTime: Bool = false, listID: UUID? = nil) {
         id = UUID(); self.title = title; notes = ""; self.listID = listID
-        self.dueDate = dueDate; self.hasTime = hasTime; durationMinutes = 30
+        self.dueDate = dueDate; self.hasTime = hasTime; durationMinutes = 60
         if !hasTime { localDate = dueDate.map { PlannerLogic.dayKey($0) } }
         reminders = []; recurrenceRule = ""; priority = 0; tags = []; subtasks = []
         completedAt = nil; sortOrder = 0; updatedAt = .now

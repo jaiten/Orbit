@@ -3,6 +3,8 @@
 const shortcutPages = () => [...navOrder(), "settings"];
 const SHORTCUT_HELP = [
   ["Ctrl+N", "New note in Notes; quick add elsewhere"],
+  ["Ctrl+Shift+D / W / M", "Calendar: day, week or month"],
+  ["Ctrl+Shift+T", "Calendar: back to today"],
   ["Ctrl+Shift+V", "Switch Calendar between week and month"],
   ["Ctrl+1 … Ctrl+5", "Pages in sidebar order (drag to rearrange)"],
   ["Ctrl+6", "Settings"],
@@ -63,6 +65,15 @@ document.addEventListener("keydown", (e) => {
     } else if (key === "v" && e.shiftKey && page === "calendar") {
       calendarView = calendarView === "week" ? "month" : "week";
       render();
+    } else if (e.shiftKey && ["d", "w", "m"].includes(key)) {
+      // Day, week or month, from any page (plain letters stay free for typing a new task).
+      e.preventDefault();
+      calendarView = { d: "day", w: "week", m: "month" }[key];
+      if (page !== "calendar") void goTo("calendar");
+      else render();
+    } else if (e.shiftKey && key === "t" && page === "calendar") {
+      e.preventDefault();
+      $('[data-month="0"]')?.click();
     } else if (/^[1-6]$/.test(key)) goTo(shortcutPages()[Number(key) - 1]);
     else if (key === "l" && !e.shiftKey) OrbitLocks.lockNow();
     else if (key === "f") {

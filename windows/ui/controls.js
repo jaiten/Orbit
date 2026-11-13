@@ -100,7 +100,10 @@ document.addEventListener("keydown", (event) => {
   if (event.repeat) return;
   clearTimeout(ctrlHintTimer);
   ctrlHintTimer = setTimeout(
-    () => document.documentElement.classList.add("ctrl-held"),
+    () => {
+      fillCtrlHints();
+      document.documentElement.classList.add("ctrl-held");
+    },
     typingTarget(event.target) ? 600 : 350,
   );
 });
@@ -108,12 +111,54 @@ document.addEventListener("keyup", (event) => {
   if (event.key === "Control") setCtrlHeld(false);
 });
 window.addEventListener("blur", () => setCtrlHeld(false));
+/** Holding Ctrl lists what you can do on this page, beside the sidebar's Ctrl+1… labels. */
+function fillCtrlHints() {
+  const box = $("#ctrl-hints");
+  if (!box) return;
+  const notes = page === "lists" || page === "note";
+  const perPage = {
+    today: [
+      ["Ctrl+N", "Quick add"],
+      ["Ctrl+Click", "Select items"],
+      ["Ctrl+Z", "Undo"],
+    ],
+    tasks: [
+      ["Ctrl+N", "Quick add"],
+      ["Ctrl+Click", "Select items"],
+      ["Ctrl+Z", "Undo"],
+    ],
+    calendar: [
+      ["Ctrl+Shift+D", "Day"],
+      ["Ctrl+Shift+W", "Week"],
+      ["Ctrl+Shift+M", "Month"],
+      ["Ctrl+Shift+T", "Today"],
+      ["Ctrl+N", "Quick add"],
+    ],
+    habits: [
+      ["Ctrl+N", "Add a habit"],
+      ["Ctrl+Z", "Undo"],
+    ],
+    notes: [
+      ["Ctrl+N", "New note"],
+      ["Ctrl+L", "Lock notes"],
+      ["Ctrl+F", "Search notes"],
+    ],
+    settings: [["Ctrl+Z", "Undo"]],
+  }[notes ? "notes" : page] || [["Ctrl+N", "Quick add"]];
+  const everywhere = [
+    ["Ctrl+F", "Search"],
+    ["Ctrl+/", "All shortcuts"],
+  ].filter(([keys]) => !perPage.some(([k]) => k === keys));
+  box.innerHTML = [...perPage, ...everywhere]
+    .map(([keys, text]) => `<div><kbd>${keys}</kbd><span>${text}</span></div>`)
+    .join("");
+}
 let shortcutHintTimer;
 function showShortcutHint() {
   const context = page === "note" || page === "lists" ? "notes" : page;
   const hints = {
     notes: ["Ctrl+N", "New note"],
-    calendar: ["Ctrl+Shift+V", "Week / Month"],
+    calendar: ["Ctrl+Shift+D / W / M", "Day / Week / Month"],
     tasks: ["Ctrl+N", "Add a task"],
     habits: ["Ctrl+N", "Add a habit"],
   };

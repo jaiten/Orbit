@@ -443,7 +443,8 @@ function newTask(title, date) {
     dueDate: null,
     localDate: date,
     hasTime: false,
-    durationMinutes: 30,
+    // A task at a time takes an hour unless changed.
+    durationMinutes: 60,
     reminders: [],
     recurrenceRule: "",
     priority: 0,

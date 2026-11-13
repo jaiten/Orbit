@@ -15,7 +15,7 @@ struct TaskEditor: View {
     @State private var scheduled = false
     @State private var date = Date.now
     @State private var hasTime = false
-    @State private var duration = 30
+    @State private var duration = 60
     @State private var priority = 0
     @State private var tags = ""
     @State private var subtasks: [Subtask] = []

@@ -15,7 +15,6 @@ const calendarHour = (hour) =>
     ? `${String(hour).padStart(2, "0")}:00`
     : `${hour % 12 || 12} ${hour < 12 ? "AM" : "PM"}`;
 const chevron = (path) => `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${path}"/></svg>`;
-const calendarDragGrip = '<span class="calendar-drag-grip" aria-hidden="true">⠿</span>';
 const monthOf = (key) => key.slice(0, 8) + "01";
 /** Events your iPhone shares through sync, with this PC's pending edits applied. */
 // Google and Microsoft calendars linked on this PC (read in the main process; hidden ones aren't loaded).
@@ -171,7 +170,7 @@ function renderSchedule(tasks) {
           .filter((task) => taskDate(task) === key && !task.hasTime)
           .map(
             (task) =>
-              `<div class="schedule-anytime" draggable="true" data-drag-task="${esc(task.id)}" title="${esc(task.title)}">${taskRow(task)}${calendarDragGrip}</div>`,
+              `<div class="schedule-anytime" draggable="true" data-drag-task="${esc(task.id)}" title="${esc(task.title)}">${taskRow(task)}</div>`,
           )
           .join("")}</div>`,
     )
@@ -190,7 +189,7 @@ function renderSchedule(tasks) {
         .map(({ task, start, end, lane, lanes }) =>
           task.event
             ? `<button class="schedule-event calendar-event${task.event.pending ? " pending" : ""}" data-event-color="${calendarColor(task.event)}" data-edit-event="${esc(task.event.id)}" data-event-start="${start}" data-event-end="${end}" data-lane="${lane}" data-lanes="${lanes}" title="${esc(task.event.title)}"><strong>${esc(task.event.title || "Event")}</strong><span>${calendarTime(task.event.start)}</span></button>`
-            : `<div draggable="true" data-drag-task="${esc(task.id)}" class="schedule-event check-tile" data-event-start="${start}" data-event-end="${end}" data-lane="${lane}" data-lanes="${lanes}" data-row-menu="task:${esc(task.id)}"><button class="schedule-check" role="checkbox" aria-checked="false" aria-label="Complete ${esc(task.title)}" data-toggle="${esc(task.id)}">${tick(false)}</button><button class="schedule-event-body" data-edit="${esc(task.id)}" aria-label="Edit ${esc(task.title)}" title="${esc(task.title)}"><strong>${esc(task.title)}</strong><span>${calendarTime(task.dueDate)}</span></button>${calendarDragGrip}<button class="calendar-resize" data-resize-task="${esc(task.id)}" aria-label="Change duration of ${esc(task.title)}" title="Drag to change duration; arrow keys adjust by 15 minutes"></button>${rowActions(esc(task.id), esc(task.title))}</div>`,
+            : `<div draggable="true" data-drag-task="${esc(task.id)}" class="schedule-event check-tile" data-event-start="${start}" data-event-end="${end}" data-lane="${lane}" data-lanes="${lanes}" data-row-menu="task:${esc(task.id)}"><button class="schedule-check" role="checkbox" aria-checked="false" aria-label="Complete ${esc(task.title)}" data-toggle="${esc(task.id)}">${tick(false)}</button><button class="schedule-event-body" data-edit="${esc(task.id)}" aria-label="Edit ${esc(task.title)}" title="${esc(task.title)}"><strong>${esc(task.title)}</strong><span>${calendarTime(task.dueDate)}</span></button><button class="calendar-resize" data-resize-task="${esc(task.id)}" aria-label="Change duration of ${esc(task.title)}" title="Drag to change duration; arrow keys adjust by 15 minutes"></button>${rowActions(esc(task.id), esc(task.title))}</div>`,
         )
         .join("");
       // A line at the current time across today's column, as in Calendar.
@@ -275,16 +274,82 @@ function bindCalendar() {
       typeAnytime(column);
     };
   });
-  document.querySelectorAll("[data-time-slot]").forEach(
-    (button) =>
-      (button.onclick = () => {
-        const [key, time] = button.dataset.timeSlot.split("T"),
-          stamp = new Date(`${key}T${time}:00`).getTime();
-        calendarDay = key;
-        openTask(null, key, { ...newTask("", key), hasTime: true, dueDate: stamp, localDate: null });
-        $("#task-form input[name=title]").focus();
-      }),
-  );
+  // A new task at a time, as in Google Calendar: hovering an empty slot shows an hour from there;
+  // click to start it, or drag to choose how long it runs (15-minute steps).
+  const slotDate = (key, slot) =>
+    new Date(`${key}T${String(Math.floor(slot / 4)).padStart(2, "0")}:${String((slot % 4) * 15).padStart(2, "0")}:00`);
+  const createAt = (key, slot, slots = 4) => {
+    calendarDay = key;
+    openTask(null, key, {
+      ...newTask("", key),
+      hasTime: true,
+      dueDate: slotDate(key, slot).getTime(),
+      localDate: null,
+      durationMinutes: slots * 15,
+    });
+    $("#task-form input[name=title]").focus();
+  };
+  document.querySelectorAll("[data-time-slot]").forEach((button) => {
+    // Keyboard only (Enter/Space on a focused slot); the pointer goes through the column below.
+    button.onclick = (event) => {
+      if (event.detail !== 0) return;
+      const [key, time] = button.dataset.timeSlot.split("T");
+      const [hours, minutes] = time.split(":").map(Number);
+      createAt(key, hours * 4 + minutes / 15);
+    };
+  });
+  document.querySelectorAll(".schedule-day").forEach((column) => {
+    const first = column.querySelector("[data-time-slot]");
+    if (!first) return;
+    const key = first.dataset.timeSlot.split("T")[0];
+    const ghost = document.createElement("div");
+    ghost.className = "slot-ghost";
+    ghost.hidden = true;
+    ghost.setAttribute("aria-hidden", "true");
+    column.append(ghost);
+    const slotAt = (y) => Math.max(0, Math.min(95, Math.floor((y - column.getBoundingClientRect().top) / 12)));
+    const time = (slot) =>
+      slot >= 96 ? calendarTime(slotDate(key, 95).getTime() + 15 * 60000) : calendarTime(slotDate(key, slot));
+    const show = (start, end) => {
+      ghost.hidden = false;
+      ghost.style.top = `${start * 12}px`;
+      ghost.style.height = `${(end - start) * 12 - 2}px`;
+      ghost.textContent = `${time(start)} – ${time(end)}`;
+    };
+    let drag = null;
+    column.onpointermove = (event) => {
+      if (drag) {
+        drag.end = Math.max(drag.start + 1, Math.min(96, slotAt(event.clientY) + 1));
+        drag.moved = true;
+        return show(drag.start, drag.end);
+      }
+      if (!event.target.closest("[data-time-slot]")) return void (ghost.hidden = true);
+      const start = slotAt(event.clientY);
+      show(start, Math.min(96, start + 4));
+    };
+    column.onpointerleave = () => {
+      if (!drag) ghost.hidden = true;
+    };
+    column.onpointerdown = (event) => {
+      if (event.button !== 0 || !event.target.closest("[data-time-slot]")) return;
+      event.preventDefault();
+      const start = slotAt(event.clientY);
+      drag = { start, end: Math.min(96, start + 4), moved: false };
+      column.setPointerCapture(event.pointerId);
+      show(drag.start, drag.end);
+    };
+    column.onpointerup = () => {
+      if (!drag) return;
+      const { start, end, moved } = drag;
+      drag = null;
+      ghost.hidden = true;
+      createAt(key, start, moved ? end - start : 4);
+    };
+    column.onpointercancel = () => {
+      drag = null;
+      ghost.hidden = true;
+    };
+  });
   document.querySelectorAll("[data-drag-task]").forEach((block) => {
     block.ondragstart = (event) => {
       event.dataTransfer.setData("text/orbit-task", block.dataset.dragTask);
