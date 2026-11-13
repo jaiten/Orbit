@@ -1268,3 +1268,8 @@ body[data-view="today"] .capture-dock {
   padding: 2px 4px;
   font-size: 12px;
 }
+
+/* An icon button beside a header search drops by the search's top margin so the two line up. */
+.head-tools:has(> input[type="search"]) > .icon-button {
+  margin-top: var(--space-l);
+}
