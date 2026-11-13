@@ -350,6 +350,11 @@ function bindInlineCapture() {
       // A note goes to the open note section, or to General; never into a task category.
       const section = quickAddContext().listID;
       note.listID = section && rows("lists").some((l) => l.id === section && l.kind !== "tasks") ? section : null;
+      // Never write into a locked section without its password; the text stays in the field meanwhile.
+      if (note.listID && OrbitLocks.sectionSealed(note.listID)) {
+        void OrbitLocks.unlock().then((ok) => ok && form.requestSubmit());
+        return;
+      }
       // Clear immediately, keeping a snapshot until local persistence acknowledges it.
       // A second Return can dismiss capture while the first save is still finishing.
       input.value = "";

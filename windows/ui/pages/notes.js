@@ -103,6 +103,7 @@ function bindLists() {
         selectedList = b.dataset.notesHome || "";
         noteID = null;
         render();
+        unlockSelectedSection();
       }),
   );
   document.querySelectorAll("[data-note-section]").forEach(
@@ -252,11 +253,10 @@ function notesNav() {
           <button class="icon-button small" data-new-note="${esc(s.id)}" aria-label="New note in ${esc(s.name)}" title="New note in ${esc(s.name)}">${icon(ICONS.plus)}</button>
         </div>
         ${
-          open
+          // A locked section lists nothing until unlocked; clicking its name asks for the password.
+          open && !sealed
             ? `<div class="notes-nav-pages">${
-                sealed
-                  ? `<button class="notes-nav-page notes-unlock" data-unlock-notes>${icon(LOCK_PATH)}<span class="notes-nav-title">Locked · Unlock</span></button>`
-                  : datedPages(items, (n) => noteNavButton(n, openID)) || `<p class="notes-nav-empty">No pages</p>`
+                datedPages(items, (n) => noteNavButton(n, openID)) || `<p class="notes-nav-empty">No pages</p>`
               }</div>`
             : ""
         }
@@ -293,8 +293,20 @@ function noteCard(n) {
 
 /** The overview: a section's pages as cards (General when none is chosen). A search looks through
     every section that isn't locked. */
+/** Opening a locked section asks for the password straight away. */
+function unlockSelectedSection() {
+  if (selectedList && OrbitLocks.sectionSealed(selectedList)) void OrbitLocks.unlock().then((ok) => ok && render());
+}
 function renderNotes() {
   const searching = !!searchQuery.trim();
+  // A locked section shows only its lock until the password is entered: no pages and no capture bar.
+  if (!searching && selectedList && OrbitLocks.sectionSealed(selectedList))
+    return `<div class="notes-app">
+    ${notesNav()}
+    <section class="notes-pane note-pane note-sealed" aria-label="Locked section">
+      <div class="locked-page">${icon(LOCK_PATH)}<h1>${esc(sectionName(selectedList))} is locked</h1><p class="secondary">Enter your notes password to see its pages.</p><button class="primary" data-unlock-notes>Unlock</button></div>
+    </section>
+  </div>`;
   const pages = searching
     ? listedNotes(notes()).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
     : listedNotes(notesIn(selectedList || null));
@@ -322,6 +334,11 @@ function renderNotes() {
 
 /** Opens a page (or a new one in a section). A locked page asks for the password first. */
 function openNote(id, section = null, title = "") {
+  // A new page in a locked section waits for the password, however it was started.
+  if (!id && section && OrbitLocks.sectionSealed(section)) {
+    void OrbitLocks.unlock().then((ok) => ok && openNote(id, section, title));
+    return;
+  }
   const target = id && notes().find((n) => n.id === id);
   if (target && OrbitLocks.isSealed(target)) {
     void OrbitLocks.unlock().then((ok) => ok && openNote(id, section, title));
@@ -670,6 +687,7 @@ function renderLists() {
       selectedList = button.dataset.notesSectionLink;
       page = "lists";
       render();
+      unlockSelectedSection();
     };
   });
   document.querySelectorAll("[data-list]").forEach(

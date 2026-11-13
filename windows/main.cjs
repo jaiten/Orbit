@@ -25,6 +25,9 @@ const mica =
   process.env.ORBIT_MICA === "1" && process.platform === "win32" && Number(os.release().split(".")[2]) >= 22621;
 const calendarExport = require("./calendar-export.cjs");
 const { CalendarAccounts } = require("./calendar-accounts.cjs");
+const { correctedZone, parseWindowsZone, WINDOWS_ZONE_SCRIPT } = require("./time-zone.cjs");
+// The zone the engine chose from Windows, before Orbit corrects anything.
+const engineZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const { confirmationNotice } = require("./auth-links.cjs");
 const { PlannerTools, encodeBackup, decodeBackup, planImport, encodeTasksCSV } = require("./planner-tools.cjs");
 const { SOMEDAY_LIST_ID } = require("./ui/planner.js");
@@ -410,7 +413,18 @@ app.whenReady().then(async () => {
   });
   handle("sync", () => sync.run());
   handle("linked-calendars", async ({ command, provider, account, calendar, event, shown, changes } = {}) => {
-    if (command === "connect") return calendarAccounts.connect(provider);
+    if (command === "connect") {
+      try {
+        return await calendarAccounts.connect(provider);
+      } finally {
+        // Sign-in ends in the browser; bring Orbit back in front either way.
+        if (!window.isDestroyed()) {
+          if (window.isMinimized()) window.restore();
+          window.show();
+          window.focus();
+        }
+      }
+    }
     if (command === "disconnect") return calendarAccounts.disconnect(account);
     if (command === "show") return calendarAccounts.setShown(calendar, shown === true);
     if (command === "update") return calendarAccounts.update(event, changes || {});
@@ -612,9 +626,41 @@ app.whenReady().then(async () => {
   app.setAppUserModelId("com.orbit.planner");
   desktop = setupDesktop({ window, store, iconPath: path.join(__dirname, "assets", "orbit.png") });
   if (process.env.ORBIT_TEST_DATA) global.orbitTestDesktop = desktop;
+  // When Windows knows the time zone better than the engine (British Columbia's UTC−7 all year), the
+  // page uses Windows' zone. The last answer applies at once; Windows is asked again on every start.
+  // The engine only takes the override once the page has loaded; earlier it stalls.
+  let pageLoaded;
+  const loaded = new Promise((resolve) => (pageLoaded = resolve));
+  const useZone = async (zone) => {
+    await loaded;
+    try {
+      if (!window.webContents.debugger.isAttached()) window.webContents.debugger.attach("1.3");
+      await window.webContents.debugger.sendCommand("Emulation.setTimezoneOverride", { timezoneId: zone || "" });
+      process.env.TZ = zone || process.env.TZ;
+      if (!window.isDestroyed()) window.webContents.send("changed");
+    } catch (error) {
+      console.warn("orbit.timezone", error.message);
+    }
+  };
+  const savedZone = store.setting("timeZoneOverride");
+  if (savedZone) void useZone(savedZone);
+  if (process.platform === "win32")
+    require("node:child_process").execFile(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-Command", WINDOWS_ZONE_SCRIPT],
+      { windowsHide: true, timeout: 15000 },
+      async (error, stdout) => {
+        if (error) return;
+        const zone = correctedZone(parseWindowsZone(stdout), engineZone);
+        if ((zone || "") === (savedZone || "")) return;
+        store.setting("timeZoneOverride", zone || "");
+        await useZone(zone);
+      },
+    );
   window.once("ready-to-show", () => window.show());
   setTimeout(() => !window.isDestroyed() && !window.isVisible() && window.show(), 3000).unref?.();
   await window.loadURL("orbit://app");
+  pageLoaded();
   updates.start();
   if (pendingRecoveryURL) void recoveryHandler();
   window.on("focus", () => {

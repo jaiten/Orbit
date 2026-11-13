@@ -393,7 +393,8 @@ function taskRow(t) {
     </div>
   </div>`;
 }
-/** A habit on the Habits page: tick, title, colour dot and count. The tick logs a check-in; the title edits. */
+/** A habit on the Habits page: tick, title, colour dot and count. A click logs a check-in (as on Today);
+    the pencil that appears on hover, right-click or E edits it. */
 function habitCard(h, { fullWidth = false } = {}) {
   const date = today();
   const done = checked(h, date);
@@ -402,7 +403,7 @@ function habitCard(h, { fullWidth = false } = {}) {
   return `<div class="row habit-row habit-${colorName(h.color)} check-tile ${done ? "complete" : ""} ${fullWidth ? "wide-habit" : ""}" data-flip="habit-${id}" data-row-menu="habit:${id}">
     <div class="row-line">
       <button class="row-tick" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-day="${date}" data-habit-menu="${id}">${tick(done, poppedID === h.id)}</button>
-      <div class="row-main"><button class="row-body" aria-label="Edit ${title}" data-habit-edit="${id}"><span class="row-title">${title}</span><span class="dot ${colorName(h.color)}" aria-hidden="true"></span><span class="row-detail ${done ? "met" : ""}">${habitDetail(h, date)}</span></button>
+      <div class="row-main"><button class="row-body" aria-label="${done ? "Undo" : "Log"} ${title}" data-habit-toggle="${id}" data-habit-day="${date}"><span class="row-title">${title}</span><span class="dot ${colorName(h.color)}" aria-hidden="true"></span><span class="row-detail ${done ? "met" : ""}">${habitDetail(h, date)}</span></button>
       ${rowActions(id, title, true)}</div>
     </div>
   </div>`;

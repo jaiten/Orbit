@@ -368,7 +368,7 @@ class CalendarAccounts {
     }
     const name = { google: "Google Calendar", microsoft: "Outlook" }[service] || "Your calendar";
     const [title, body] = {
-      ok: [`${name} is connected`, "Switch back to Orbit. You can close this tab."],
+      ok: [`${name} is connected`, "Your calendars are now in Orbit."],
       calendar: ["Orbit needs calendar access", "Connect again in Orbit and allow it to see and edit your calendars."],
       cancelled: ["Sign-in was cancelled", "Nothing was connected. You can try again from Settings in Orbit."],
       error: ["Couldn't connect", "Switch back to Orbit and try again from Settings."],
@@ -378,9 +378,11 @@ class CalendarAccounts {
 <style>:root{color-scheme:light dark;--bg:#f5f5f7;--card:#fff;--ink:#1d1d1f;--muted:#6d6d73}@media(prefers-color-scheme:dark){:root{--bg:#141416;--card:#1f1f21;--ink:#f5f5f7;--muted:#a6a6ad}}
 body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--ink);font:16px/1.5 "Segoe UI",system-ui,sans-serif}
 main{max-width:400px;margin:24px;padding:40px 32px;border-radius:18px;background:var(--card);text-align:center;box-shadow:0 24px 48px -16px rgb(0 0 0/.22)}
-h1{margin:20px 0 8px;font-size:26px;line-height:1.2}p{margin:0;color:var(--muted)}</style>
+h1{margin:20px 0 8px;font-size:26px;line-height:1.2}p{margin:0;color:var(--muted)}
+.open{display:inline-block;margin:24px 0 10px;padding:11px 22px;border-radius:999px;background:#b74f38;color:#fff;font-weight:600;text-decoration:none}
+@media(prefers-color-scheme:dark){.open{background:#e87359;color:#141416}}.small{font-size:13px}</style>
 <main><svg width="64" height="64" viewBox="0 0 128 128" fill="none" aria-hidden="true"><path d="M93 64a29 29 0 1 1-29-29" stroke="#e87359" stroke-width="12" stroke-linecap="round"/><circle cx="87" cy="41" r="8" fill="#e87359"/></svg>
-<h1>${title}</h1><p>${body}</p></main></html>`);
+<h1>${title}</h1><p>${body}</p><a class="open" href="orbit://open">Open Orbit</a><p class="small">You can close this tab.</p></main></html>`);
   }
   async tokenRequest(provider, fields) {
     const body = new URLSearchParams({ client_id: this.clientID(provider), ...fields });
