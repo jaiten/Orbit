@@ -1484,8 +1484,8 @@ body[data-view="today"] .capture-dock {
   background: var(--event-color);
 }
 
-/* History: the week stays compact on the left and the 12 weeks spread across the rest of the card in
-   short, wide cells, so each habit takes about half the height. */
+/* History: the week stays compact on the left; the 12 weeks run beside it as a timeline of three rows,
+   four weeks (28 days) each, read left to right. Square cells. */
 .history-charts {
   grid-template-columns: auto minmax(0, 1fr);
   gap: 32px;
@@ -1496,13 +1496,18 @@ body[data-view="today"] .capture-dock {
   max-width: 300px;
 }
 .history-charts .box-grid {
-  max-width: none;
-  gap: 3px 4px;
+  grid-template-columns: repeat(28, minmax(0, 1fr));
+  grid-template-rows: none;
+  grid-auto-rows: auto;
+  grid-auto-flow: row;
+  gap: 4px 3px;
+  width: 100%;
+  max-width: 640px;
 }
 .history-charts .box-grid i {
-  aspect-ratio: auto;
-  height: 9px;
-  border-radius: 2px;
+  aspect-ratio: 1;
+  height: auto;
+  border-radius: 3px;
 }
 @media (max-width: 1000px) {
   .history-charts {
