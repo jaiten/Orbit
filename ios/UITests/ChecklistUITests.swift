@@ -451,7 +451,9 @@ final class ChecklistUITests: XCTestCase {
         // Capture keeps the keyboard up after adding; at this size it covers the new row.
         if app.buttons["Dismiss keyboard"].exists { app.buttons["Dismiss keyboard"].tap() }
         XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
-        reveal(check, in: app)
+        // The floating capture bar overlaps the bottom of the page; scroll the row clear of it.
+        let capture = app.textViews["inline-task-input"]
+        for _ in 0..<6 where capture.exists && check.frame.maxY > capture.frame.minY - 12 { app.swipeUp() }
         XCTAssertGreaterThanOrEqual(check.frame.width, 44)
         XCTAssertGreaterThanOrEqual(check.frame.height, 44)
         let screenshot = XCTAttachment(screenshot: app.screenshot())
