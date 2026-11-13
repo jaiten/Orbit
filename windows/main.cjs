@@ -74,7 +74,10 @@ const handleConfirmation = (raw) => {
     window.webContents.send("changed");
   }
 };
-if (!app.requestSingleInstanceLock()) app.quit();
+// A second copy (Orbit opened again while it runs in the tray) only hands its arguments to the first
+// one, which shows its window. It exits at once, before creating a window that would flash and close.
+const primaryInstance = app.requestSingleInstanceLock();
+if (!primaryInstance) app.exit(0);
 else {
   app.on("second-instance", (_, argv) => {
     for (const arg of argv) handleConfirmation(arg);
@@ -89,8 +92,9 @@ else {
     handleConfirmation(url);
   });
 }
-for (const arg of process.argv) handleConfirmation(arg);
+if (primaryInstance) for (const arg of process.argv) handleConfirmation(arg);
 app.whenReady().then(async () => {
+  if (!primaryInstance) return;
   if (app.isPackaged && !process.env.ORBIT_TEST_DATA)
     app.setAsDefaultProtocolClient("orbit", process.env.PORTABLE_EXECUTABLE_FILE || process.execPath);
   store = new Store(path.join(app.getPath("userData"), "orbit.sqlite"));
@@ -247,7 +251,9 @@ app.whenReady().then(async () => {
     minWidth: 820,
     minHeight: 620,
     title: "Orbit",
-    backgroundColor: mica ? "#00000000" : "#EBEBEE",
+    // Shown once the page has painted, on a background that matches the theme, so opening doesn't flash.
+    show: false,
+    backgroundColor: mica ? "#00000000" : nativeTheme.shouldUseDarkColors ? "#1E1E20" : "#EBEBEE",
     ...(mica ? { backgroundMaterial: "mica" } : {}),
     icon: path.join(__dirname, "assets", "orbit.png"),
     autoHideMenuBar: true,
@@ -606,6 +612,8 @@ app.whenReady().then(async () => {
   app.setAppUserModelId("com.orbit.planner");
   desktop = setupDesktop({ window, store, iconPath: path.join(__dirname, "assets", "orbit.png") });
   if (process.env.ORBIT_TEST_DATA) global.orbitTestDesktop = desktop;
+  window.once("ready-to-show", () => window.show());
+  setTimeout(() => !window.isDestroyed() && !window.isVisible() && window.show(), 3000).unref?.();
   await window.loadURL("orbit://app");
   updates.start();
   if (pendingRecoveryURL) void recoveryHandler();

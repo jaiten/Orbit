@@ -149,6 +149,15 @@ function microsoftBody(changes) {
   return body;
 }
 
+/** Whether a token grants calendar access. A missing scope list (some Microsoft answers) counts as granted. */
+function calendarGranted(provider, scope) {
+  if (typeof scope !== "string" || !scope) return true;
+  const granted = scope.split(/\s+/);
+  return provider === "google"
+    ? granted.includes("https://www.googleapis.com/auth/calendar")
+    : granted.some((item) => /calendars\.readwrite$/i.test(item));
+}
+
 class CalendarAccounts {
   /**
    * @param {object} options
@@ -225,7 +234,8 @@ class CalendarAccounts {
       throw Error("This build of Orbit isn't set up to connect that calendar.");
     const verifier = base64url(randomBytes(48)),
       state = base64url(randomBytes(24));
-    const { code, redirect } = await this.listen(settings.host, state, async (redirectURI) => {
+    this.signingIn = provider;
+    const { code, redirect, answer } = await this.listen(settings.host, state, async (redirectURI) => {
       const url = new URL(settings.auth);
       const params = {
         client_id: this.clientID(provider),
@@ -240,13 +250,31 @@ class CalendarAccounts {
       for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
       await this.open(url.toString());
     });
-    const token = await this.tokenRequest(provider, {
-      grant_type: "authorization_code",
-      code,
-      redirect_uri: redirect,
-      code_verifier: verifier,
-    });
-    if (!token.refresh_token) throw Error("The sign-in didn't allow Orbit to stay connected. Please try again.");
+    let token;
+    try {
+      token = await this.tokenRequest(provider, {
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: redirect,
+        code_verifier: verifier,
+      });
+      if (!token.refresh_token) throw Error("The sign-in didn't allow Orbit to stay connected. Please try again.");
+      // Google lets people untick calendar access on its consent screen; without it nothing would load.
+      if (!calendarGranted(provider, token.scope)) {
+        answer("calendar");
+        if (provider === "google")
+          await this.fetch("https://oauth2.googleapis.com/revoke?token=" + encodeURIComponent(token.refresh_token), {
+            method: "POST",
+          }).catch(() => {});
+        throw Error(
+          "Orbit needs permission to see and edit your calendars. Connect again and tick the calendar box on the permissions screen.",
+        );
+      }
+    } catch (error) {
+      answer("error");
+      throw error;
+    }
+    answer("ok");
     const email =
       claims(token.id_token).email ||
       claims(token.id_token).preferred_username ||
@@ -278,44 +306,81 @@ class CalendarAccounts {
       let redirect = "";
       const server = http.createServer((request, response) => {
         const url = new URL(request.url, redirect);
-        if (url.pathname !== "/") {
+        if (url.pathname !== "/" || done) {
           response.writeHead(404).end();
           return;
         }
         const ok = url.searchParams.get("state") === state && url.searchParams.get("code");
-        response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-        response.end(
-          `<!doctype html><meta charset="utf-8"><title>Orbit</title><body style="font:16px system-ui;margin:48px">${
-            ok
-              ? "Your calendar is connected. You can close this tab and return to Orbit."
-              : "Orbit couldn't connect your calendar. Close this tab and try again."
-          }</body>`,
-        );
-        finish(
-          ok
-            ? null
-            : Error(
-                url.searchParams.get("error_description") || url.searchParams.get("error") || "Sign-in was cancelled.",
-              ),
-          url.searchParams.get("code"),
-        );
+        // The browser waits on this answer until sign-in has finished, so its page can say how it went.
+        let answered = false;
+        const answer = (status) => {
+          if (answered) return;
+          answered = true;
+          server.close();
+          this.answerBrowser(response, status);
+        };
+        if (!ok) {
+          answer(url.searchParams.get("error") === "access_denied" ? "cancelled" : "error");
+          const error = Error(
+            url.searchParams.get("error") === "access_denied"
+              ? "Sign-in was cancelled."
+              : url.searchParams.get("error_description") || "Sign-in was cancelled.",
+          );
+          finish(error);
+          return;
+        }
+        finish(null, { code: url.searchParams.get("code"), redirect, answer });
       });
-      const timer = setTimeout(() => finish(Error("Sign-in timed out. Please try again.")), timeout);
+      const timer = setTimeout(() => {
+        server.close();
+        finish(Error("Sign-in timed out. Please try again."));
+      }, timeout);
       let done = false;
-      const finish = (error, code) => {
+      const finish = (error, result) => {
         if (done) return;
         done = true;
         clearTimeout(timer);
-        server.close();
         if (error) reject(error);
-        else resolve({ code, redirect });
+        else resolve(result);
       };
       server.on("error", (error) => finish(error));
       server.listen(0, "127.0.0.1", () => {
         redirect = `http://${host}:${server.address().port}/`;
-        start(redirect).catch((error) => finish(error));
+        start(redirect).catch((error) => {
+          server.close();
+          finish(error);
+        });
       });
     });
+  }
+  /**
+   * Sends the browser to the Orbit website's "connected" page with the result, or shows a small page
+   * of its own when no website is configured.
+   */
+  answerBrowser(response, status) {
+    const service = this.signingIn || "";
+    if (this.config.connectedURL) {
+      const page = new URL(this.config.connectedURL);
+      page.searchParams.set("service", service);
+      page.searchParams.set("status", status);
+      response.writeHead(302, { Location: page.toString(), "Cache-Control": "no-store" }).end();
+      return;
+    }
+    const name = { google: "Google Calendar", microsoft: "Outlook" }[service] || "Your calendar";
+    const [title, body] = {
+      ok: [`${name} is connected`, "Switch back to Orbit. You can close this tab."],
+      calendar: ["Orbit needs calendar access", "Connect again in Orbit and allow it to see and edit your calendars."],
+      cancelled: ["Sign-in was cancelled", "Nothing was connected. You can try again from Settings in Orbit."],
+      error: ["Couldn't connect", "Switch back to Orbit and try again from Settings."],
+    }[status] || ["Couldn't connect", "Switch back to Orbit and try again."];
+    response.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
+    response.end(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Orbit</title>
+<style>:root{color-scheme:light dark;--bg:#f5f5f7;--card:#fff;--ink:#1d1d1f;--muted:#6d6d73}@media(prefers-color-scheme:dark){:root{--bg:#141416;--card:#1f1f21;--ink:#f5f5f7;--muted:#a6a6ad}}
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--ink);font:16px/1.5 "Segoe UI",system-ui,sans-serif}
+main{max-width:400px;margin:24px;padding:40px 32px;border-radius:18px;background:var(--card);text-align:center;box-shadow:0 24px 48px -16px rgb(0 0 0/.22)}
+h1{margin:20px 0 8px;font-size:26px;line-height:1.2}p{margin:0;color:var(--muted)}</style>
+<main><svg width="64" height="64" viewBox="0 0 128 128" fill="none" aria-hidden="true"><path d="M93 64a29 29 0 1 1-29-29" stroke="#e87359" stroke-width="12" stroke-linecap="round"/><circle cx="87" cy="41" r="8" fill="#e87359"/></svg>
+<h1>${title}</h1><p>${body}</p></main></html>`);
   }
   async tokenRequest(provider, fields) {
     const body = new URLSearchParams({ client_id: this.clientID(provider), ...fields });
@@ -517,6 +582,7 @@ class CalendarAccounts {
 }
 
 module.exports = {
+  calendarGranted,
   CalendarAccounts,
   googleEvent,
   microsoftEvent,

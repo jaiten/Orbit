@@ -200,3 +200,59 @@ test("Microsoft and Google events become Orbit events; edits become each service
     end: { date: "2026-11-22" },
   });
 });
+
+test("a Google sign-in without calendar access is refused, and the browser page says why", async () => {
+  let page = "",
+    revoked = false;
+  const accounts = new CalendarAccounts({
+    config: { googleClientId: "client" },
+    load: () => null,
+    save: () => assert.fail("nothing is saved"),
+    open: async (url) => {
+      const back = new URL(new URL(url).searchParams.get("redirect_uri"));
+      back.searchParams.set("code", "the-code");
+      back.searchParams.set("state", new URL(url).searchParams.get("state"));
+      setTimeout(async () => (page = await (await globalThis.fetch(back)).text()), 10);
+    },
+    fetch: async (url) => {
+      if (String(url).includes("/revoke")) {
+        revoked = true;
+        return json({});
+      }
+      return json({
+        access_token: "a",
+        refresh_token: "r",
+        expires_in: 3600,
+        scope: "openid https://www.googleapis.com/auth/userinfo.email",
+        id_token: jwt({ email: "me@gmail.com" }),
+      });
+    },
+  });
+  await assert.rejects(accounts.connect("google"), /permission to see and edit your calendars/);
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.match(page, /Orbit needs calendar access/);
+  assert.doesNotMatch(page, /is connected/);
+  assert.ok(revoked, "the partial sign-in is revoked");
+  assert.equal(accounts.snapshot().accounts.length, 0);
+});
+
+test("with a website configured, the browser is sent to its connected page", async () => {
+  let location = "";
+  const accounts = new CalendarAccounts({
+    config: { googleClientId: "client", connectedURL: "https://orbit.example/connected/" },
+    load: () => null,
+    save: () => {},
+    open: async (url) => {
+      const back = new URL(new URL(url).searchParams.get("redirect_uri"));
+      back.searchParams.set("error", "access_denied");
+      back.searchParams.set("state", new URL(url).searchParams.get("state"));
+      setTimeout(async () => {
+        location = (await globalThis.fetch(back, { redirect: "manual" })).headers.get("location");
+      }, 10);
+    },
+    fetch: async () => json({}),
+  });
+  await assert.rejects(accounts.connect("google"), /cancelled/);
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(location, "https://orbit.example/connected/?service=google&status=cancelled");
+});
