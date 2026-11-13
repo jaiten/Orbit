@@ -40,6 +40,7 @@ struct NotesView: View {
     private func sealedSection(_ id: UUID?) -> Bool {
         !lock.unlocked && id.flatMap { id in lists.first { $0.id == id } }?.locked == true
     }
+    private var noteSectionIDs: Set<UUID> { Set(lists.filter(\.isNoteSection).map(\.id)) }
     private var anyLocks: Bool { lists.contains { $0.locked == true } || items.contains { $0.note && $0.locked == true } }
     /// General (notes without a section, the default spot) first, then your sections in order.
     /// `color` is nil for General, which uses the accent chosen in Settings.
@@ -70,8 +71,10 @@ struct NotesView: View {
                         }.orbitCard()
                     }
                     ForEach(sections) { section in
+                        // General holds notes without a section (or whose section is gone); a note in a
+                        // section, locked or not, shows only there.
                         let pages = notes.filter { note in
-                            section.listID == nil ? true : note.listID == section.listID
+                            section.listID == nil ? !noteSectionIDs.contains(note.listID ?? UUID()) : note.listID == section.listID
                         }
                         // Your own sections always show, so a new one has somewhere to start.
                         if !pages.isEmpty || (section.listID != nil && section.listID != TodayRules.somedayID && search.isEmpty) {
@@ -110,12 +113,13 @@ struct NotesView: View {
 
     /// A Notion-style toggle: chevron, coloured dot, name and count; pages sit in one quiet card below.
     private func sectionView(_ id: String, name: String, color: String?, listID: UUID?, pages: [PlannerTask]) -> some View {
-        let open = !collapsed.contains(id) || !search.isEmpty
         let list = listID.flatMap { id in lists.first { $0.id == id } }
         let sealed = sealedSection(listID)
+        // A locked section stays closed until Face ID or the passcode opens it.
+        let open = !sealed && (!collapsed.contains(id) || !search.isEmpty)
         return VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceS)) {
             HStack(spacing: 8) {
-                Button { toggle(id) } label: {
+                Button { openSection(id, sealed: sealed) } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                             .rotationEffect(.degrees(open ? 90 : 0))
@@ -140,13 +144,7 @@ struct NotesView: View {
                 }.foregroundStyle(.secondary).accessibilityLabel("New note in \(name)")
             }.padding(.horizontal, 4)
             if open {
-                if sealed {
-                    Button { Task { await lock.unlock() } } label: {
-                        Label("Locked · Unlock", systemImage: "lock.fill").font(.subheadline)
-                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).padding(.horizontal, 12).contentShape(Rectangle())
-                    }.buttonStyle(.plain).foregroundStyle(.secondary)
-                        .orbitSurface(radius: CGFloat(DesignTokens.radiusCard)).accessibilityIdentifier("unlock-section")
-                } else if pages.isEmpty {
+                if pages.isEmpty {
                     Text("No notes in \(name) yet.").font(.subheadline).foregroundStyle(.secondary).padding(.horizontal, 4)
                 } else {
                     // Grouped by when each page was last edited, as in Apple Notes.
@@ -199,6 +197,14 @@ struct NotesView: View {
         } catch { context.rollback(); self.error = error.localizedDescription }
     }
 
+    /// A locked section asks for Face ID or the passcode, then opens with its pages; others just toggle.
+    private func openSection(_ id: String, sealed: Bool) {
+        guard sealed else { toggle(id); return }
+        Task {
+            guard await lock.unlock(reason: "Open this locked section") else { return }
+            var values = collapsed; values.remove(id); collapsedStorage = values.sorted().joined(separator: ",")
+        }
+    }
     private func toggle(_ id: String) {
         var values = collapsed
         if values.contains(id) { values.remove(id) } else { values.insert(id) }
