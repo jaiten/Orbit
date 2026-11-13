@@ -63,29 +63,43 @@ function todayLayoutOptions() {
           )
           .join("")}</span>`
       : "";
+  const ahead = upcomingDays();
+  const upcomingControl =
+    visibility.upcoming !== false
+      ? `<span class="scope-tabs layout-range" role="group" aria-label="Coming up covers">${UPCOMING_CHOICES.map(
+          (days) =>
+            `<button type="button" data-upcoming-days="${days}" class="${ahead === days ? "selected" : ""}" aria-pressed="${ahead === days}">${days} ${days === 1 ? "day" : "days"}</button>`,
+        ).join("")}</span>`
+      : "";
   return `<div class="today-layout-options" role="group" aria-label="Visible panels">
     <span class="layout-heading">Show on Today</span>
-    ${["upcoming", "recent", "plan", "habits"].map(toggle).join("")}
+    <span class="layout-group">${toggle("upcoming")}${upcomingControl}</span>
+    ${["recent", "plan", "habits"].map(toggle).join("")}
     <span class="layout-group">${toggle("heatmap")}${rangeControl}</span>
-    <span class="layout-hint">Drag panels to move them</span>
   </div>`;
 }
-/** The next seven days from Calendar: scheduled tasks by day, so what's ahead shows on Today. */
 /**
- * Coming up: the rest of today's calendar, then the next 7 days of tasks and calendar events, in time
+ * Coming up: the rest of today's calendar, then the chosen number of days of tasks and calendar events, in time
  * order. (Today's tasks are already in Your day, so only today's events are listed here.)
  */
+const UPCOMING_CHOICES = [1, 3, 7, 14];
+/** How many days after today Coming up covers (chosen while editing Today's layout). */
+const upcomingDays = () => {
+  const days = Number(localStorage.getItem("upcomingDays"));
+  return UPCOMING_CHOICES.includes(days) ? days : 7;
+};
 function upcomingCard(tasks) {
   const t = today();
+  const ahead = upcomingDays();
   const tomorrowKey = OrbitHabits.addDays(t, 1),
-    end = OrbitHabits.addDays(t, 7);
+    end = OrbitHabits.addDays(t, ahead);
   const now = Date.now();
   const taskItems = tasks
     .filter((task) => !task.isNote && !task.completedAt && taskDate(task) > t && taskDate(task) <= end)
     .map((task) => ({ key: taskDate(task), at: task.hasTime ? task.dueDate : null, task }));
   const shared = calendarEvents();
   const eventItems = [];
-  for (let offset = 0; offset <= 7; offset++) {
+  for (let offset = 0; offset <= ahead; offset++) {
     const key = OrbitHabits.addDays(t, offset);
     for (const event of OrbitCalendarEvents.allDayOn(shared, key))
       if (offset > 0 && event.startDay === key) eventItems.push({ key, at: null, event });
@@ -115,8 +129,9 @@ function upcomingCard(tasks) {
     })
     .join("");
   const more = items.length - shown.length;
-  return `<section class="card upcoming-card"><div class="recent-progress-head"><h2>Coming up</h2><span class="secondary">Today and the next 7 days</span></div>${
-    rows || '<p class="upcoming-empty">Nothing else today or in the next week.</p>'
+  return `<section class="card upcoming-card"><div class="recent-progress-head"><h2>Coming up</h2><span class="secondary">${ahead === 1 ? "Today and tomorrow" : `Today and the next ${ahead} days`}</span></div>${
+    rows ||
+    `<p class="upcoming-empty">Nothing else ${ahead === 1 ? "today or tomorrow" : `in the next ${ahead} days`}.</p>`
   }${more > 0 ? `<button class="upcoming-more" data-open-calendar>${more} more in Calendar</button>` : ""}</section>`;
 }
 const dayStartOf = (key) => new Date(`${key}T00:00:00`).getTime();
@@ -318,6 +333,13 @@ function bindToday() {
     };
   bindTodayBoard();
   document.querySelectorAll(".overall-day[data-o]").forEach((cell) => cell.style.setProperty("--o", cell.dataset.o));
+  document.querySelectorAll("[data-upcoming-days]").forEach(
+    (button) =>
+      (button.onclick = () => {
+        localStorage.setItem("upcomingDays", button.dataset.upcomingDays);
+        render();
+      }),
+  );
   document.querySelectorAll("[data-overall-range]").forEach(
     (button) =>
       (button.onclick = () => {
