@@ -31,9 +31,10 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertEqual(start.frame.midY, app.buttons["Laundry"].frame.midY, accuracy: 2)
         let height = app.buttons["Laundry"].frame.height
         start.tap()
-        XCTAssertEqual(app.buttons["Laundry"].value as? String, "In progress")
         let finish = app.buttons["Finish Laundry"]
         XCTAssertTrue(finish.waitForExistence(timeout: 5))
+        // The tick reports progress; the row keeps its title.
+        XCTAssertEqual(finish.value as? String, "In progress")
         XCTAssertEqual(finish.frame.midY, app.buttons["Laundry"].frame.midY, accuracy: 2)
         XCTAssertEqual(app.buttons["Laundry"].frame.height, height, accuracy: 2)
         // Starting suggests a timer once; it can be declined.
@@ -450,7 +451,9 @@ final class ChecklistUITests: XCTestCase {
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "Today at largest text size"; screenshot.lifetime = .keepAlways; add(screenshot)
         check.tap()
-        XCTAssertTrue(app.buttons["Completed (1)"].waitForExistence(timeout: 5))
+        // Completed sits at the bottom of Today, below the fold at this text size.
+        let completed = app.buttons["Completed (1)"]; reveal(completed, in: app)
+        XCTAssertTrue(completed.waitForExistence(timeout: 5))
         selectTab("Habits", in: app)
         let history = app.buttons["History"]; reveal(history, in: app); history.tap()
         let historyImage = XCTAttachment(screenshot: app.screenshot())
