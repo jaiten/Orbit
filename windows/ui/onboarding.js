@@ -23,9 +23,12 @@ function newHabit(fields, now = Date.now()) {
   };
 }
 
-/** Example records with fixed IDs, dated today. Records that already exist (from another device) are left alone. */
+/**
+ * Example records with fixed IDs, dated today: the planner's day, so between midnight and the day's start
+ * (2 am by default) they still land on Today. Records that already exist (from another device) are left alone.
+ */
 function exampleChanges(now = new Date()) {
-  const day = dayKey(now),
+  const day = dayKey(OrbitPlanner.plannerDate(now, dayStart())),
     stamp = now.getTime();
   const live = new Set(state.records.filter((r) => !r.deleted).map((r) => r.key));
   const lists = examples.lists.map((l, i) => ({

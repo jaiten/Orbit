@@ -30,6 +30,7 @@ function scopeTabs() {
 let editingTodayLayout = false;
 const todayPanelNames = {
   tasks: "Your day",
+  upcoming: "Coming up",
   recent: "Recent progress",
   plan: "Your plan",
   habits: "Habits",
@@ -42,17 +43,63 @@ function todayPanel(id, content, defaultColumn = "side") {
   const visible = id === "tasks" || visibility[id] !== false;
   return `<section class="today-panel" data-today-panel="${id}" data-panel-column="${column}" ${!visible ? "hidden" : ""} ${editingTodayLayout ? 'draggable="true"' : ""}>${editingTodayLayout ? `<div class="panel-tools"><button class="panel-grip" data-move-panel="${id}" aria-label="Move ${todayPanelNames[id]}" title="Drag to move; arrow keys also move panels">⠿ <span>${todayPanelNames[id]}</span></button></div>` : ""}${content}</section>`;
 }
+/** Edit layout: which panels show, with Overall progress's range beside its own toggle. */
 function todayLayoutOptions() {
   const visibility = { heatmap: false, ...JSON.parse(localStorage.getItem("todayPanelVisibility") || "{}") };
-  return `<div class="today-layout-options" role="group" aria-label="Visible panels">${["recent", "plan", "habits", "heatmap"].map((id) => `<label><input type="checkbox" data-panel-visible="${id}" ${visibility[id] !== false ? "checked" : ""} /> ${todayPanelNames[id]}</label>`).join("")}<div class="layout-range"><span>Timeline</span>${macPicker(
-    "layout-overall-range",
-    "Overall progress range",
-    [
-      ["7", "Past week"],
-      ["30", "Past month"],
-    ],
-    localStorage.getItem("overallProgressRange") === "7" ? "7" : "30",
-  )}</div></div>`;
+  const range = localStorage.getItem("overallProgressRange") === "7" ? "7" : "30";
+  const toggle = (id) => {
+    const on = visibility[id] !== false;
+    return `<label class="layout-toggle ${on ? "on" : ""}"><input type="checkbox" data-panel-visible="${id}" ${on ? "checked" : ""} /><span class="layout-check" aria-hidden="true"></span>${todayPanelNames[id]}</label>`;
+  };
+  const rangeControl =
+    visibility.heatmap !== false
+      ? `<span class="scope-tabs layout-range" role="group" aria-label="Overall progress covers">${[
+          ["7", "Week"],
+          ["30", "Month"],
+        ]
+          .map(
+            ([value, label]) =>
+              `<button type="button" data-overall-range="${value}" class="${range === value ? "selected" : ""}" aria-pressed="${range === value}">${label}</button>`,
+          )
+          .join("")}</span>`
+      : "";
+  return `<div class="today-layout-options" role="group" aria-label="Visible panels">
+    <span class="layout-heading">Show on Today</span>
+    ${["upcoming", "recent", "plan", "habits"].map(toggle).join("")}
+    <span class="layout-group">${toggle("heatmap")}${rangeControl}</span>
+    <span class="layout-hint">Drag panels to move them</span>
+  </div>`;
+}
+/** The next seven days from Calendar: scheduled tasks by day, so what's ahead shows on Today. */
+function upcomingCard(tasks) {
+  const t = today();
+  const tomorrowKey = OrbitHabits.addDays(t, 1),
+    end = OrbitHabits.addDays(t, 7);
+  const items = tasks
+    .filter((task) => !task.isNote && !task.completedAt && taskDate(task) > t && taskDate(task) <= end)
+    .sort(
+      (a, b) =>
+        taskDate(a).localeCompare(taskDate(b)) ||
+        (a.hasTime ? a.dueDate : Infinity) - (b.hasTime ? b.dueDate : Infinity),
+    );
+  const shown = items.slice(0, 8);
+  let lastDay = "";
+  const rows = shown
+    .map((task) => {
+      const key = taskDate(task);
+      const label =
+        key === tomorrowKey
+          ? "Tomorrow"
+          : localDay(key).toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
+      const head = key !== lastDay ? `<div class="upcoming-day">${esc(label)}</div>` : "";
+      lastDay = key;
+      return `${head}<button class="upcoming-row" data-edit="${esc(task.id)}" aria-label="Edit ${esc(task.title)}"><span class="upcoming-time">${task.hasTime ? esc(calendarTime(task.dueDate)) : ""}</span><span class="upcoming-title">${esc(task.title)}</span></button>`;
+    })
+    .join("");
+  const more = items.length - shown.length;
+  return `<section class="card upcoming-card"><div class="recent-progress-head"><h2>Coming up</h2><span class="secondary">Next 7 days</span></div>${
+    rows || '<p class="upcoming-empty">Nothing scheduled for the next week.</p>'
+  }${more > 0 ? `<button class="upcoming-more" data-open-calendar>${more} more in Calendar</button>` : ""}</section>`;
 }
 function overallProgressCard(tasks, habits) {
   const normalized = tasks.map((task) => ({
@@ -140,6 +187,7 @@ function renderToday(tasks, allHabits) {
       ${editingTodayLayout ? `<div id="today-column-resizer" role="separator" tabindex="0" aria-label="Today column widths" aria-orientation="vertical" aria-valuemin="35" aria-valuemax="75" title="Drag to resize columns; arrow keys also adjust"></div>` : ""}
       <section class="today-main today-panel-column" data-panel-drop="main">${todayPanel("tasks", agenda, "main")}</section>
       <aside class="today-side today-panel-column" data-panel-drop="side" aria-label="Plan and progress">
+        ${todayPanel("upcoming", upcomingCard(tasks))}
         ${todayPanel("recent", recentProgressCard(tasks, allHabits))}
         ${todayPanel("plan", planCard(done, total))}
         ${todayPanel("habits", `<section class="card habits-compact-card">${sectionLabel("Habits", `${habitsDone} of ${habits.length}`)}<div class="check-list compact-habits">${habits.map(compactHabit).join("")}</div></section>`, habits.length > 6 ? "main" : "side")}
@@ -247,12 +295,14 @@ function bindToday() {
     };
   bindTodayBoard();
   document.querySelectorAll(".overall-day[data-o]").forEach((cell) => cell.style.setProperty("--o", cell.dataset.o));
-  bindPickers({
-    "layout-overall-range": (value) => {
-      localStorage.setItem("overallProgressRange", value);
-      render();
-    },
-  });
+  document.querySelectorAll("[data-overall-range]").forEach(
+    (button) =>
+      (button.onclick = () => {
+        localStorage.setItem("overallProgressRange", button.dataset.overallRange);
+        render();
+      }),
+  );
+  document.querySelectorAll("[data-open-calendar]").forEach((button) => (button.onclick = () => goTo("calendar")));
   if ($(".completed-items"))
     $(".completed-items").ontoggle = (e) => {
       completedOpen = e.target.open;

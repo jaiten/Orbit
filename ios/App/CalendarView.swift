@@ -38,65 +38,69 @@ struct CalendarView: View {
             ScrollView {
                 let visibleEvents = calendars.events(from: days[0], to: calendar.date(byAdding: .day, value: 1, to: days.last!)!)
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
-                    PageHeader(eyebrow: "", title: "Calendar") {
-                        Button { selected = .now } label: { Text("Today").font(.subheadline).foregroundStyle(.secondary).padding(.horizontal, 14).frame(minWidth: 76, minHeight: 44).fixedSize(horizontal: true, vertical: false) }
+                    // The month is the title; Today and + sit at the top right, as in Calendar.
+                    PageHeader(eyebrow: selected.formatted(.dateTime.year()), title: selected.formatted(.dateTime.month(.wide))) {
+                        Button { selected = .now } label: { Text("Today").font(.subheadline.weight(.medium)).padding(.horizontal, 14).frame(minHeight: 44).fixedSize(horizontal: true, vertical: false) }
+                        Button { adding = true } label: { Image(systemName: "plus").font(.system(size: 17, weight: .semibold)).frame(width: 44, height: 44) }
+                            .accessibilityLabel("Add task for " + selected.formatted(.dateTime.month(.abbreviated).day()))
+                            .accessibilityIdentifier("calendar-add-task")
                     }
-                    Picker("Calendar view", selection: $mode) { Text("Week").tag("Week"); Text("Month").tag("Month") }.pickerStyle(.segmented)
-                    HStack {
-                        Button { move(-1) } label: { Image(systemName: "chevron.left").font(.system(size: 18)).frame(width: 44, height: 44) }.accessibilityLabel("Previous \(mode.lowercased())")
-                        Spacer()
-                        Text(selected.formatted(.dateTime.month(.wide).year())).font(.title2)
-                        Spacer()
-                        Button { move(1) } label: { Image(systemName: "chevron.right").font(.system(size: 18)).frame(width: 44, height: 44) }.accessibilityLabel("Next \(mode.lowercased())")
+                    HStack(spacing: 4) {
+                        Button { move(-1) } label: { Image(systemName: "chevron.left").font(.system(size: 16, weight: .semibold)).frame(width: 44, height: 44) }.accessibilityLabel("Previous \(mode.lowercased())")
+                        Picker("Calendar view", selection: $mode) { Text("Week").tag("Week"); Text("Month").tag("Month") }.pickerStyle(.segmented)
+                        Button { move(1) } label: { Image(systemName: "chevron.right").font(.system(size: 16, weight: .semibold)).frame(width: 44, height: 44) }.accessibilityLabel("Next \(mode.lowercased())")
                     }
                     if typeSize.isAccessibilitySize {
                         DatePicker("Selected day", selection: $selected, displayedComponents: .date)
                     } else {
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 8) {
-                            ForEach(days, id: \.self) { day in
-                                Button { selected = day } label: {
-                                    let isSelected = calendar.isDate(day, inSameDayAs: selected)
-                                    let outside = mode == "Month" && !calendar.isDate(day, equalTo: selected, toGranularity: .month)
-                                    let busy = tasks.contains { $0.day == PlannerLogic.dayKey(day) } || visibleEvents.contains { $0.startDate < calendar.date(byAdding: .day, value: 1, to: day)! && $0.endDate > day }
-                                    // Day tiles as on the website: surface with a line; the selected day is filled.
-                                    VStack(spacing: 6) {
-                                        Text(day.formatted(.dateTime.weekday(.narrow))).font(.caption2).opacity(0.75)
-                                        Text(day.formatted(.dateTime.day())).font(.subheadline.weight(.semibold)).monospacedDigit()
-                                        Circle().fill(busy ? (isSelected ? Color.white : accent.fill) : .clear).frame(width: 4, height: 4)
-                                    }.frame(maxWidth: .infinity).padding(.vertical, 10)
-                                        .foregroundStyle(isSelected ? Color.white : outside ? Color.secondary.opacity(0.45) : Color.primary)
-                                        .background(isSelected ? accent.text : Color.orbitSurface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                                        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(isSelected ? .clear : Color.orbitLine))
-                                        .animation(.orbit, value: isSelected)
-                                }.buttonStyle(.plain).accessibilityLabel(day.formatted(date: .complete, time: .omitted))
-                                    .dropDestination(for: String.self) { ids, _ in reschedule(ids, to: day) }
+                        VStack(spacing: 4) {
+                            if mode == "Month" {
+                                HStack(spacing: 4) {
+                                    ForEach(Array(days.prefix(7)), id: \.self) { day in
+                                        Text(day.formatted(.dateTime.weekday(.narrow))).font(.caption2.weight(.semibold)).foregroundStyle(.secondary).frame(maxWidth: .infinity)
+                                    }
+                                }
+                            }
+                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 4) {
+                                ForEach(days, id: \.self) { day in
+                                    Button { selected = day } label: { dayCell(day, events: visibleEvents) }
+                                        .buttonStyle(.plain).accessibilityLabel(day.formatted(date: .complete, time: .omitted))
+                                        .dropDestination(for: String.self) { ids, _ in reschedule(ids, to: day) }
+                                }
                             }
                         }
                     }
-                    SectionLabel(title: selected.formatted(.dateTime.weekday(.wide).month().day()), note: calendar.isDateInToday(selected) ? "Today" : "")
-                    Button("Add task for " + selected.formatted(.dateTime.month(.abbreviated).day()), systemImage: "plus.circle.fill") { adding = true }
-                        .frame(minHeight: 44).accessibilityIdentifier("calendar-add-task")
+                    let linked = Set(selectedTasks.filter(\.hasTime).compactMap { UserDefaults.standard.string(forKey: "calendarEvent." + $0.id.uuidString) })
+                    let events = calendars.events(on: selected).filter { !linked.contains($0.eventIdentifier ?? "") }
+                    let agenda = agendaEntries(events)
+                    SectionLabel(title: selected.formatted(.dateTime.weekday(.wide).month().day()),
+                                 note: calendar.isDateInToday(selected) ? "Today" : agenda.isEmpty ? "" : "\(agenda.count) \(agenda.count == 1 ? "item" : "items")")
                     if !calendars.connected {
                         Button("Connect Calendars", systemImage: "calendar.badge.plus") { Task { do { try await calendars.connect() } catch { self.error = error.localizedDescription } } }
                     }
-                    let linked = Set(selectedTasks.filter(\.hasTime).compactMap { UserDefaults.standard.string(forKey: "calendarEvent." + $0.id.uuidString) })
-                    let events = calendars.events(on: selected).filter { !linked.contains($0.eventIdentifier ?? "") }
                     if selectedTasks.isEmpty && events.isEmpty { ContentUnavailableView("Nothing Planned", systemImage: "sun.horizon") }
-                    VStack(spacing: CGFloat(DesignTokens.spaceS)) {
-                        ForEach(events.filter(\.isAllDay), id: \.calendarItemIdentifier) { event in CalendarEventRow(event: event) }
-                        ForEach(selectedTasks.filter { !$0.hasTime && $0.completedAt == nil }) { task in TaskRow(task: task) { editing = task }.draggable(task.id.uuidString) }
-                        ForEach(timeline(events), id: \.id) { entry in
-                            if let task = entry.task { TaskRow(task: task) { editing = task }.draggable(task.id.uuidString) }
-                            if let event = entry.event { CalendarEventRow(event: event) }
+                    // The day's events and tasks in one grouped card, all-day items first, then by time.
+                    if !agenda.isEmpty {
+                        GroupedRows {
+                            ForEach(Array(agenda.enumerated()), id: \.element.id) { index, entry in
+                                if index > 0 { Divider().padding(.leading, 16) }
+                                if let task = entry.task { TaskRow(task: task) { editing = task }.draggable(task.id.uuidString) }
+                                if let event = entry.event { CalendarEventRow(event: event) }
+                            }
                         }
                     }
                     let completed = selectedTasks.filter { $0.completedAt != nil }
                     if !completed.isEmpty {
                         DisclosureGroup(isExpanded: $showCompleted) {
-                            VStack(spacing: 8) { ForEach(completed) { task in TaskRow(task: task) { editing = task } } }.padding(.top, 8)
+                            GroupedRows {
+                                ForEach(Array(completed.enumerated()), id: \.element.id) { index, task in
+                                    if index > 0 { Divider().padding(.leading, 56) }
+                                    TaskRow(task: task) { editing = task }
+                                }
+                            }.padding(.top, 8)
                         } label: { Text("Completed (\(completed.count))").font(.subheadline).foregroundStyle(.secondary) }
                     }
-                    Text("Choose a day, then tap Add task. You can also drag a task onto another day.").font(.caption).foregroundStyle(.secondary)
+                    Text("Choose a day, then tap +. You can also drag a task onto another day.").font(.caption).foregroundStyle(.secondary)
                 }.padding(.horizontal, CGFloat(DesignTokens.screenPadding)).padding(.vertical, CGFloat(DesignTokens.spaceS)).frame(maxWidth: 760).frame(maxWidth: .infinity)
             }.background(DayTheme.canvas(scheme)).tint(accent.fill).navigationTitle("Calendar").navigationBarTitleDisplayMode(.inline)
                 .toolbar(.hidden, for: .navigationBar)
@@ -106,6 +110,32 @@ struct CalendarView: View {
                 .sheet(isPresented: $overview) { AgendaSheet(day: selected).presentationDragIndicator(.visible) }
                 .modifier(MutationErrorModifier(error: $error))
         }
+    }
+    /// A day in the strip: weekday letter (week view), the date in a circle (filled when chosen, accent
+    /// text for today) and a dot when anything is planned.
+    @ViewBuilder private func dayCell(_ day: Date, events: [EKEvent]) -> some View {
+        let isSelected = calendar.isDate(day, inSameDayAs: selected)
+        let isToday = calendar.isDateInToday(day)
+        let outside = mode == "Month" && !calendar.isDate(day, equalTo: selected, toGranularity: .month)
+        let busy = tasks.contains { $0.day == PlannerLogic.dayKey(day) } || events.contains { $0.startDate < calendar.date(byAdding: .day, value: 1, to: day)! && $0.endDate > day }
+        VStack(spacing: 5) {
+            if mode == "Week" {
+                Text(day.formatted(.dateTime.weekday(.narrow))).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+            }
+            Text(day.formatted(.dateTime.day())).font(.body.weight(isSelected || isToday ? .semibold : .regular)).monospacedDigit()
+                .foregroundStyle(isSelected ? Color.white : isToday ? accent.text : outside ? Color.secondary.opacity(0.45) : Color.primary)
+                .frame(width: 36, height: 36)
+                .background(Circle().fill(isSelected ? accent.text : Color.clear))
+            Circle().fill(busy ? accent.fill : Color.clear).frame(width: 5, height: 5)
+        }
+        .frame(maxWidth: .infinity).padding(.vertical, 2).contentShape(Rectangle())
+        .animation(.orbit, value: isSelected)
+    }
+    /// All-day events, then tasks without a time, then timed tasks and events in order.
+    private func agendaEntries(_ events: [EKEvent]) -> [Entry] {
+        let allDay: [Entry] = events.filter(\.isAllDay).map { Entry(id: $0.calendarItemIdentifier, date: selected, event: $0) }
+        let untimed: [Entry] = selectedTasks.filter { !$0.hasTime && $0.completedAt == nil }.map { Entry(id: $0.id.uuidString, date: selected, task: $0) }
+        return allDay + untimed + timeline(events)
     }
     private struct Entry: Identifiable {
         let id: String

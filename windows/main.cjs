@@ -16,8 +16,13 @@ const {
   nativeTheme,
 } = require("electron");
 const os = require("node:os");
-/** Windows 11 22H2 (build 22621) and later draw the Mica material behind a transparent page. */
-const mica = process.platform === "win32" && Number(os.release().split(".")[2]) >= 22621;
+/**
+ * Windows 11 22H2 (build 22621) and later can draw the Mica material behind a transparent page. It is
+ * off unless ORBIT_MICA=1: when Windows doesn't draw it (transparency effects off, some GPUs) the window
+ * shows the desktop through the sidebar, so the solid sidebar is the default.
+ */
+const mica =
+  process.env.ORBIT_MICA === "1" && process.platform === "win32" && Number(os.release().split(".")[2]) >= 22621;
 const calendarExport = require("./calendar-export.cjs");
 const { confirmationNotice } = require("./auth-links.cjs");
 const { PlannerTools, encodeBackup, decodeBackup, planImport, encodeTasksCSV } = require("./planner-tools.cjs");
