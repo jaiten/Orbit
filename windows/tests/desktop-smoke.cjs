@@ -23,6 +23,11 @@ const remove = (folder) => {
     const p = await app.firstWindow();
     if (process.env.ORBIT_SMALL_SCREEN)
       await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1200, 700));
+    // On Today a click checks a task off; the editor opens from the row's right-click menu.
+    const editOnToday = async (title) => {
+      await p.getByRole("button", { name: `Complete ${title}`, exact: true }).click({ button: "right" });
+      await p.getByRole("menuitem", { name: "Edit…", exact: true }).click();
+    };
     const quickAdd = async (text, preview) => {
       // Ctrl+N opens Quick add; the calendar button beside the writing bar opens the full editor.
       await p.keyboard.press("Control+n");
@@ -48,7 +53,7 @@ const remove = (folder) => {
     if (await p.locator("dialog[open]").count()) throw Error("Inline capture opened a dialog");
     if (await p.getByRole("textbox", { name: "New task", exact: true }).inputValue())
       throw Error("Inline draft did not clear");
-    await p.getByRole("button", { name: "Edit Inline walk", exact: true }).click();
+    await editOnToday("Inline walk");
     await p.getByRole("button", { name: "Delete", exact: true }).click();
     const weekly = "22222222-2222-4222-8222-222222222222";
     await p.evaluate(async (id) => {
@@ -119,7 +124,7 @@ const remove = (folder) => {
     await p.getByRole("button", { name: "Delete Section, Keep Items", exact: true }).click();
     await p.locator('[data-page="today"]').click();
     await quickAdd("Read for twenty minutes", "Task · Today");
-    await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).click();
+    await editOnToday("Read for twenty minutes");
     await p.getByText("More options", { exact: true }).click();
     await p.getByLabel("Notes", { exact: true }).fill("A small, clear commitment");
     await p.getByLabel("Section", { exact: true }).selectOption({ label: "Personal" });
@@ -154,14 +159,14 @@ const remove = (folder) => {
       .getByRole("checkbox", { name: "Log Morning walk", exact: true })
       .getByText("0 of 1", { exact: true })
       .waitFor();
-    await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).click();
+    await editOnToday("Read for twenty minutes");
     await p.getByRole("button", { name: "Make it a Habit", exact: true }).click();
     // A queued scroll from layout must not close the newly opened context menu.
     await p.getByRole("checkbox", { name: "Log Read for twenty minutes", exact: true }).click({ button: "right" });
     await p.evaluate(() => document.dispatchEvent(new Event("scroll")));
     await p.getByRole("menuitem", { name: "Edit…", exact: true }).click();
     await p.getByRole("button", { name: "Make it a Task", exact: true }).click();
-    await p.getByRole("button", { name: "Edit Read for twenty minutes", exact: true }).click();
+    await editOnToday("Read for twenty minutes");
     if ((await p.getByLabel("Notes", { exact: true }).inputValue()) !== "A small, clear commitment")
       throw Error("Conversion lost notes");
     await p.getByRole("button", { name: "Save", exact: true }).click();
@@ -637,9 +642,7 @@ const remove = (folder) => {
       // Progress stays in the existing row, survives restart, and only Finish completes it.
       await w.getByRole("textbox", { name: "New task", exact: true }).fill("Laundry");
       await w.getByRole("textbox", { name: "New task", exact: true }).press("Enter");
-      const laundryRow = w
-        .locator(".task-row")
-        .filter({ has: w.getByRole("button", { name: "Edit Laundry", exact: true }) });
+      const laundryRow = w.locator(".task-row").filter({ hasText: "Laundry" });
       await laundryRow.waitFor();
       const ordinaryHeight = (await laundryRow.boundingBox()).height;
       await w.getByLabel("Progress options for Laundry", { exact: true }).click();

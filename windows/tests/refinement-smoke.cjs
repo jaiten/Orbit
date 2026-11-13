@@ -390,16 +390,17 @@ const fs = require("node:fs");
   for (const title of ["First selection", "Second selection"]) {
     await p.locator("#inline-task-input").fill(title);
     await p.locator("#inline-task-input").press("Enter");
-    await p.getByRole("button", { name: `Edit ${title}`, exact: true }).waitFor();
+    await p.getByRole("button", { name: `Complete ${title}`, exact: true }).waitFor();
   }
-  await p.getByRole("button", { name: "Edit First selection", exact: true }).click({ modifiers: ["Control"] });
-  await p.getByRole("button", { name: "Edit Second selection", exact: true }).click({ modifiers: ["Control"] });
+  // On Today a click on the title checks the task off; Ctrl-click still selects it.
+  await p.getByRole("button", { name: "Complete First selection", exact: true }).click({ modifiers: ["Control"] });
+  await p.getByRole("button", { name: "Complete Second selection", exact: true }).click({ modifiers: ["Control"] });
   await p.locator("#copy-selected").click();
   const copied = await p.evaluate(() => window.copiedTexts.at(-1));
   assert.ok(copied.includes("First selection") && copied.includes("Second selection"));
   assert.equal(await p.locator("#notice").isVisible(), false, "Copying should stay silent");
   await p.locator("#clear-selection").click();
-  await p.getByRole("button", { name: "Edit First selection", exact: true }).click({ button: "right" });
+  await p.getByRole("button", { name: "Complete First selection", exact: true }).click({ button: "right" });
   const copyItem = p.locator("#row-menu").getByRole("menuitem", { name: "Copy text", exact: true });
   await copyItem.hover();
   await p.waitForFunction(
@@ -704,19 +705,15 @@ const fs = require("node:fs");
   // A real drop reschedules a task to a quarter-hour and retains reminder offsets.
   await p.locator("#inline-task-input").fill("Drag calendar task");
   await p.locator("#inline-task-input").press("Enter");
-  await p.getByRole("button", { name: "Edit Drag calendar task", exact: true }).waitFor();
+  await p.getByRole("button", { name: "Complete Drag calendar task", exact: true }).waitFor();
   await p.keyboard.press("Control+2");
   await p.getByRole("tab", { name: "Week", exact: true }).click();
   const dragSource = p.locator(".schedule-anytime", { hasText: "Drag calendar task" });
   assert.equal(await p.locator("#toggle-anytime").count(), 0);
   assert.ok((await dragSource.boundingBox()).height <= 25, "Anytime rows stay one compact line");
-  const anytimeDivider = p.getByRole("separator", { name: "Anytime section height", exact: true });
-  await anytimeDivider.focus();
-  await p.keyboard.press("Home");
-  assert.equal(await anytimeDivider.getAttribute("aria-valuenow"), "0");
-  await p.keyboard.press("ArrowDown");
-  await p.keyboard.press("ArrowDown");
-
+  // Any time sizes itself to the busiest day: one task here, so one compact row.
+  const anytimeHeight = await p.locator(".schedule-all-day").evaluate((row) => row.getBoundingClientRect().height);
+  assert.ok(anytimeHeight >= 28 && anytimeHeight <= 34, `Any time fits one row (${anytimeHeight}px)`);
   const targetSlot = p.locator('[data-time-slot$="T10:15"]').first();
   const expectedDay = (await targetSlot.getAttribute("data-time-slot")).slice(0, 10);
   await targetSlot.scrollIntoViewIfNeeded();
@@ -880,12 +877,9 @@ const fs = require("node:fs");
     });
   }, taskID);
   await p.getByRole("checkbox", { name: "Complete Past task", exact: true }).waitFor({ state: "detached" });
+  // Any time has no drag handle any more: it sizes itself to the busiest day.
   await p.keyboard.press("Control+2");
-  await p.getByRole("separator", { name: "Anytime section height", exact: true }).focus();
-  await p.keyboard.press("Home");
-  assert.equal(await p.locator(".schedule-all-day").evaluate((element) => element.getBoundingClientRect().height), 0);
-  await p.keyboard.press("End");
-  assert.equal(await p.locator(".schedule-all-day").evaluate((element) => element.getBoundingClientRect().height), 240);
+  assert.equal(await p.getByRole("separator", { name: "Anytime section height", exact: true }).count(), 0);
   // New note groups stay out of task categories; nonempty deletion offers explicit outcomes.
   await p.keyboard.press("Control+4");
   await p.getByRole("button", { name: "New section", exact: true }).click();
@@ -984,7 +978,7 @@ const fs = require("node:fs");
   await p
     .locator(".schedule-all-day-column")
     .first()
-    .click({ position: { x: 30, y: 45 } });
+    .click({ position: { x: 30, y: 15 } });
   await p.keyboard.type("Typed in any time");
   await p.keyboard.press("Enter");
   await p.waitForFunction(async () =>

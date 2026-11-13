@@ -530,10 +530,11 @@ function bindTiles() {
   // On Today a click checks a task off, as it does for habits; right-click (or E) edits it.
   document.querySelectorAll("[data-edit]").forEach((b) => {
     const checks = page === "today" && b.classList.contains("row-body");
+    // Same words as the tick beside it: Complete, Reopen, Start or Finish.
     if (checks)
       b.setAttribute(
         "aria-label",
-        `${b.closest(".complete") ? "Reopen" : "Complete"} ${b.querySelector(".row-title")?.textContent || ""}`,
+        b.closest(".row-line")?.querySelector("[data-toggle]")?.getAttribute("aria-label") || "",
       );
     b.onclick = () => (checks ? action(() => toggle(b.dataset.edit)) : openTask(b.dataset.edit));
   });
