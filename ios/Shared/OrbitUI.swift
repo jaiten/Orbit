@@ -226,8 +226,11 @@ struct BoxGrid: View {
     /// History stays compact; widgets pass nil to expand into their available space.
     var maximumCell: CGFloat? = 14
     var horizontal = false
-    private var columns: Int { horizontal ? weeks : 7 }
-    private var rows: Int { horizontal ? 7 : weeks }
+    /// A timeline: this many days a row, oldest first, read left to right (history uses 21: three
+    /// weeks a row, four rows for 12 weeks), so the grid fills the width and stays short.
+    var timeline: Int? = nil
+    private var columns: Int { timeline ?? (horizontal ? weeks : 7) }
+    private var rows: Int { timeline.map { (levels.count + $0 - 1) / $0 } ?? (horizontal ? 7 : weeks) }
     @ViewBuilder var body: some View {
         if let maximumCell {
             grid.frame(width: maximumCell * CGFloat(columns) + gap * CGFloat(columns - 1),
@@ -243,7 +246,7 @@ struct BoxGrid: View {
                 ForEach(0..<rows, id: \.self) { row in
                     HStack(spacing: gap) {
                         ForEach(0..<columns, id: \.self) { column in
-                            let index = horizontal ? column * 7 + row : row * 7 + column
+                            let index = timeline != nil ? row * columns + column : horizontal ? column * 7 + row : row * 7 + column
                             let level = index < levels.count ? levels[index] : nil
                             RoundedRectangle(cornerRadius: min(CGFloat(DesignTokens.gridRadius), side / 3), style: .continuous)
                                 .fill(level == nil ? Color.clear : Color.orbitTrack(DesignTokens.tintGridTrack))

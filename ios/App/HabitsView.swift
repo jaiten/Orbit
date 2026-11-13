@@ -34,7 +34,7 @@ struct HabitsView: View {
 }
 
 /// Every habit's history on one screen, so there is nothing to open one by one: a card per habit with
-/// the last 7 days as segments and the last 12 weeks as boxes, in the habit's colour.
+/// the last 7 days as segments and the last 12 weeks as a short timeline, in the habit's colour.
 struct HabitHistoryIndex: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -43,11 +43,11 @@ struct HabitHistoryIndex: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceM)) {
-                Text("Your week at a glance. Open a habit for its full history.").font(.subheadline).foregroundStyle(.secondary).padding(.horizontal, 4)
+                Text("Your week and the last 12 weeks. Open a habit for its check-ins.").font(.subheadline).foregroundStyle(.secondary).padding(.horizontal, 4)
                 ForEach(habits) { habit in
                     VStack(alignment: .leading, spacing: 10) {
                         historyHeading(habit)
-                        HabitHistoryCharts(habit: habit, logs: logs, compact: true)
+                        HabitHistoryCharts(habit: habit, logs: logs)
                         NavigationLink { HabitHistoryDetail(habit: habit) } label: {
                             HStack { Text("Full history"); Spacer(); Image(systemName: "chevron.right").font(.caption.weight(.semibold)) }
                                 .font(.footnote).foregroundStyle(.secondary)
@@ -123,7 +123,6 @@ struct HabitHistoryCharts: View {
     let logs: [HabitLog]
     @State private var error: String?
     @State private var feedback = 0
-    var compact = false
     var body: some View {
         let color = DayTheme.color(habit.color)
         let week = (-6...0).map { Calendar.current.date(byAdding: .day, value: $0, to: PlannerLogic.todayDate)! }
@@ -135,11 +134,17 @@ struct HabitHistoryCharts: View {
                          scheduled: week.map { HabitRules.scheduledOn(rule: habit.frequencyRule, day: PlannerLogic.dayKey($0)) },
                          available: week.map { PlannerLogic.dayKey($0) >= PlannerLogic.plannerDay(habit.createdAt) },
                          toggle: toggle)
-            if !compact { BoxGrid(levels: BoxGrid.days().map { day -> Double? in
-                let key = PlannerLogic.dayKey(day)
-                return key > today ? nil : Double(counts[key] ?? 0) / target
-            }, color: color, horizontal: true)
-            .accessibilityLabel("\(habit.title), last 12 weeks").accessibilityIdentifier("habit-history-grid") }
+            // The last 12 weeks as a timeline across the card: three weeks a row, square cells that
+            // fill the width, so it stays short.
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Last 12 weeks").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                BoxGrid(levels: BoxGrid.days().map { day -> Double? in
+                    let key = PlannerLogic.dayKey(day)
+                    return key > today ? nil : Double(counts[key] ?? 0) / target
+                }, color: color, maximumCell: nil, timeline: 21)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(habit.title), last 12 weeks").accessibilityIdentifier("habit-history-grid")
         }
         .modifier(MutationErrorModifier(error: $error))
         .sensoryFeedback(.success, trigger: feedback)
