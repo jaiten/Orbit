@@ -1273,3 +1273,11 @@ body[data-view="today"] .capture-dock {
 .head-tools:has(> input[type="search"]) > .icon-button {
   margin-top: var(--space-l);
 }
+
+/* Selected rows (Ctrl-click): an accent tint and outline that list, card, calendar and hover styles
+   can't cover up. */
+:is([data-row-menu], [data-note-menu]).is-selected,
+:is([data-row-menu], [data-note-menu]).is-selected:hover {
+  background: color-mix(in srgb, var(--accent) 16%, var(--list-bg)) !important;
+  box-shadow: inset 0 0 0 2px var(--accent-text) !important;
+}

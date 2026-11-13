@@ -4142,8 +4142,6 @@ body[data-view="settings"] .settings-block {
   top: calc(52px + var(--anytime-height, 74px));
   z-index: 4;
   height: 8px;
-  cursor: ns-resize;
-  touch-action: none;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -4398,9 +4396,6 @@ select {
 .schedule-anytime .progress-options,
 .schedule-anytime .timer-action {
   display: none;
-}
-.anytime-resizer.collapsed {
-  height: 8px;
 }
 .home-update {
   position: relative;

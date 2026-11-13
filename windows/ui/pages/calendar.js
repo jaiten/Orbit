@@ -105,6 +105,9 @@ function renderSchedule(tasks) {
         `<button class="day-tile ${key === calendarDay ? "selected" : ""}" data-day="${key}" aria-label="${localDay(key).toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}"><span>${localDay(key).toLocaleDateString([], { weekday: "short" })}</span><strong>${localDay(key).getDate()}</strong></button>`,
     )
     .join("");
+  // Any time grows to fit the busiest day (22px labels, 2px apart, 4px padding above and below).
+  const anytimeMost = Math.max(0, ...days.map((key) => open.filter((task) => taskDate(task) === key && !task.hasTime).length));
+  const anytimeHeight = Math.max(30, anytimeMost * 24 + 6);
   const untimed = days
     .map(
       (key) =>
@@ -139,7 +142,7 @@ function renderSchedule(tasks) {
       return `<div class="schedule-day ${key === dayKey(now) && !dayView ? "is-today" : ""}"><div class="schedule-slots">${slots}</div>${blocks}${nowLine}</div>`;
     })
     .join("");
-  return `<div class="calendar-page timeline-page">${calendarHeader(title, subtitle)}<div id="calendar-timeline" class="calendar-timeline${dayView ? " day-view" : ""}"><div class="schedule-header time-grid"><span></span>${headings}</div><div class="schedule-all-day time-grid"><span class="time-axis-label">Any time</span>${untimed}</div><div id="anytime-resizer" class="anytime-resizer" role="separator" aria-label="Anytime section height" aria-orientation="horizontal" tabindex="0" aria-valuemin="0" aria-valuemax="240"><span></span></div><div class="schedule-hours time-grid"><div class="time-axis">${axis}</div>${columns}</div></div><div class="capture-dock">${addField("Add a task for " + date.toLocaleDateString([], { month: "short", day: "numeric" }))}</div></div>`;
+  return `<div class="calendar-page timeline-page">${calendarHeader(title, subtitle)}<div id="calendar-timeline" class="calendar-timeline${dayView ? " day-view" : ""}" style="--anytime-height:${anytimeHeight}px"><div class="schedule-header time-grid"><span></span>${headings}</div><div class="schedule-all-day time-grid"><span class="time-axis-label">Any time</span>${untimed}</div><div class="anytime-resizer" aria-hidden="true"></div><div class="schedule-hours time-grid"><div class="time-axis">${axis}</div>${columns}</div></div><div class="capture-dock">${addField("Add a task for " + date.toLocaleDateString([], { month: "short", day: "numeric" }))}</div></div>`;
 }
 function bindCalendar() {
   if ($("#calendar-completed"))
@@ -291,45 +294,6 @@ function bindCalendar() {
     };
   });
   const timeline = $("#calendar-timeline");
-  const applyAnytime = (height, save = true) => {
-    const value = Math.max(0, Math.min(240, Math.round(height)));
-    if (save) localStorage.setItem("anytimeHeight", String(value));
-    timeline?.style.setProperty("--anytime-height", `${value}px`);
-    const resizer = $("#anytime-resizer");
-    resizer?.setAttribute("aria-valuenow", String(value));
-    resizer?.classList.toggle("collapsed", value === 0);
-    return value;
-  };
-  let anytimeHeight = applyAnytime(Number(localStorage.getItem("anytimeHeight") ?? 74), false);
-  const resizer = $("#anytime-resizer");
-  if (resizer) {
-    resizer.onkeydown = (event) => {
-      if (!["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      anytimeHeight = applyAnytime(
-        event.key === "Home" ? 0 : event.key === "End" ? 240 : anytimeHeight + (event.key === "ArrowDown" ? 16 : -16),
-      );
-    };
-    resizer.onpointerdown = (event) => {
-      event.preventDefault();
-      const start = event.clientY,
-        initial = anytimeHeight;
-      resizer.setPointerCapture(event.pointerId);
-      resizer.onpointermove = (move) => {
-        anytimeHeight = applyAnytime(initial + move.clientY - start, false);
-      };
-      resizer.onpointerup = () => {
-        applyAnytime(anytimeHeight);
-        resizer.onpointermove = null;
-        resizer.onpointerup = null;
-      };
-      resizer.onpointercancel = () => {
-        anytimeHeight = applyAnytime(initial);
-        resizer.onpointermove = null;
-      };
-    };
-  }
 
   if (timeline) {
     timeline
