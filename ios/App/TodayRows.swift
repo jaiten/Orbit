@@ -56,6 +56,8 @@ struct CheckTile: View {
     var progress = 0 // 0: ordinary, 1: ready, 2: in progress
     var progressOptions: [TileMove] = []
     var allowsToggle = true
+    /// On Today a tap on the title checks the item off too; editing is in the touch-and-hold menu.
+    var tapChecks = false
     @Environment(\.orbitAccent) private var accent
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.groupedRows) private var grouped
@@ -120,7 +122,8 @@ struct CheckTile: View {
                         line
                     }.padding(.leading, -2)
                 }
-                    .buttonStyle(OrbitPress()).accessibilityLabel("Edit " + title)
+                    .buttonStyle(OrbitPress()).accessibilityLabel(tapChecks ? title : "Edit " + title)
+                    .accessibilityHint(tapChecks ? "Checks it off. Touch and hold to edit." : "")
                     .accessibilityValue(subtitle).accessibilityIdentifier("checklist-title")
                 if !progressOptions.isEmpty {
                     Menu {
@@ -186,7 +189,10 @@ struct CheckTile: View {
     }
 
     private func tapMain() { if !gestureMoved { if actionEdge == 0 { toggle() } else { actionEdge = 0 } } }
-    private func tapEdit() { if !gestureMoved { if actionEdge == 0 { edit() } else { actionEdge = 0 } } }
+    private func tapEdit() {
+        guard !gestureMoved else { return }
+        if actionEdge != 0 { actionEdge = 0 } else if tapChecks { if allowsToggle { toggle() } } else { edit() }
+    }
 
     private func swipeChanged(_ x: CGFloat) {
         gestureMoved = true
@@ -236,6 +242,7 @@ struct TaskRow: View {
     @Environment(\.modelContext) private var context
     let task: PlannerTask
     var completionDate: Date = .now
+    var tapChecks = false
     var edit: () -> Void
     @State private var error: String?
     @State private var feedback = 0
@@ -281,8 +288,8 @@ struct TaskRow: View {
     var body: some View {
         CheckTile(title: task.title, subtitle: subtitle, done: task.completedAt != nil, color: accent.fill,
                   completionLabel: completionLabel,
-                  toggle: toggle, edit: edit, remove: { change { context.delete(task); try Mutations.save(context) } }, moves: moves, icon: ItemIcons.suggested(for: task.title), progress: progress, progressOptions: progressOptions)
-            .modifier(TaskActions(task: task)).modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
+                  toggle: toggle, edit: edit, remove: { change { context.delete(task); try Mutations.save(context) } }, moves: moves, icon: ItemIcons.suggested(for: task.title), progress: progress, progressOptions: progressOptions, tapChecks: tapChecks)
+            .modifier(TaskActions(task: task, edit: edit)).modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
             .sensoryFeedback(.impact(weight: .medium), trigger: startedFeedback)
     }
     private func toggle() {
@@ -310,6 +317,7 @@ struct HabitRow: View {
     let habit: Habit
     let logs: [HabitLog]
     let date: Date
+    var tapChecks = false
     var edit: () -> Void
     @State private var error: String?
     @State private var feedback = 0
@@ -318,8 +326,8 @@ struct HabitRow: View {
     var body: some View {
         CheckTile(title: habit.title, subtitle: PlannerLogic.detail(habit, logs: logs, at: date), done: checked, color: DayTheme.color(habit.color),
                   completionLabel: (checked ? "Undo " : "Log ") + habit.title,
-                  toggle: toggle, edit: edit, remove: { change { try Conversions.remove(habit, in: context) } }, met: checked, icon: ItemIcons.symbol(habit.icon, title: habit.title), allowsToggle: canLog)
-            .modifier(HabitActions(habit: habit))
+                  toggle: toggle, edit: edit, remove: { change { try Conversions.remove(habit, in: context) } }, met: checked, icon: ItemIcons.symbol(habit.icon, title: habit.title), allowsToggle: canLog, tapChecks: tapChecks)
+            .modifier(HabitActions(habit: habit, edit: edit))
             .modifier(MutationErrorModifier(error: $error)).sensoryFeedback(.success, trigger: feedback)
     }
     private func toggle() {

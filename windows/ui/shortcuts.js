@@ -99,7 +99,7 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     const habit = tile.querySelector("[data-habit-menu]")?.dataset.habitMenu;
     if (habit) openHabit(habit);
-    else tile.querySelector("[data-edit]")?.click();
+    else if (tile.querySelector("[data-edit]")) openTask(tile.querySelector("[data-edit]").dataset.edit);
   } else if (e.key === "Delete") {
     e.preventDefault();
     void action(() => deleteItem(tile));

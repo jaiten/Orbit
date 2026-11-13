@@ -180,10 +180,10 @@ struct TodayView: View {
 
     @ViewBuilder private func itemView(_ item: TodayItem) -> some View {
         if let task = item.task {
-            TaskRow(task: task) { editing = task }
+            TaskRow(task: task, tapChecks: true) { editing = task }
         }
         if let habit = item.habit {
-            HabitRow(habit: habit, logs: logs, date: day, edit: { editingHabit = habit })
+            HabitRow(habit: habit, logs: logs, date: day, tapChecks: true, edit: { editingHabit = habit })
         }
     }
 

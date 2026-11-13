@@ -527,7 +527,16 @@ function bindTiles() {
           else await put("tasks", OrbitPlanner.setProgress(t, kind !== "dismiss", kind === "start"));
         })),
   );
-  document.querySelectorAll("[data-edit]").forEach((b) => (b.onclick = () => openTask(b.dataset.edit)));
+  // On Today a click checks a task off, as it does for habits; right-click (or E) edits it.
+  document.querySelectorAll("[data-edit]").forEach((b) => {
+    const checks = page === "today" && b.classList.contains("row-body");
+    if (checks)
+      b.setAttribute(
+        "aria-label",
+        `${b.closest(".complete") ? "Reopen" : "Complete"} ${b.querySelector(".row-title")?.textContent || ""}`,
+      );
+    b.onclick = () => (checks ? action(() => toggle(b.dataset.edit)) : openTask(b.dataset.edit));
+  });
   document.querySelectorAll("[data-toggle]").forEach((b) => (b.onclick = () => action(() => toggle(b.dataset.toggle))));
   document.querySelectorAll("[data-habit-toggle]").forEach(
     (b) =>

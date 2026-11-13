@@ -5,10 +5,12 @@ import UIKit
 struct TaskActions: ViewModifier {
     @Environment(\.modelContext) private var context
     let task: PlannerTask
+    var edit: (() -> Void)? = nil
     @State private var error: String?
     @State private var calendarDraft: CalendarDraft?
     func body(content: Content) -> some View {
         content.contextMenu {
+                if let edit { Button("Edit", systemImage: "pencil", action: edit) }
                 Button("Copy text", systemImage: "doc.on.doc") { UIPasteboard.general.string = task.notes.isEmpty ? task.title : task.title + "\n\n" + task.notes }
                 if task.completedAt == nil && task.startedAt == nil {
                     Button("Mark in progress", systemImage: "play.circle") { change { try Mutations.setProgress(task, enabled: true, start: true, in: context) } }
@@ -51,9 +53,11 @@ struct TaskActions: ViewModifier {
 struct HabitActions: ViewModifier {
     @Environment(\.modelContext) private var context
     let habit: Habit
+    var edit: (() -> Void)? = nil
     @State private var error: String?
     func body(content: Content) -> some View {
         content.contextMenu {
+            if let edit { Button("Edit", systemImage: "pencil", action: edit) }
             Button("Copy text", systemImage: "doc.on.doc") { UIPasteboard.general.string = habit.title }
             Button("Make It a Task", systemImage: "checklist") { change { try Conversions.toTask(habit, in: context) } }
             Button("Delete habit", systemImage: "trash", role: .destructive) { change { try Conversions.remove(habit, in: context) } }

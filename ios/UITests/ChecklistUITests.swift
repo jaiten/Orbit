@@ -28,14 +28,14 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(suggestion.waitForExistence(timeout: 5)); suggestion.tap()
         let start = app.buttons["Start Laundry"]
         XCTAssertTrue(start.waitForExistence(timeout: 5))
-        XCTAssertEqual(start.frame.midY, app.buttons["Edit Laundry"].frame.midY, accuracy: 2)
-        let height = app.buttons["Edit Laundry"].frame.height
+        XCTAssertEqual(start.frame.midY, app.buttons["Laundry"].frame.midY, accuracy: 2)
+        let height = app.buttons["Laundry"].frame.height
         start.tap()
-        XCTAssertEqual(app.buttons["Edit Laundry"].value as? String, "In progress")
+        XCTAssertEqual(app.buttons["Laundry"].value as? String, "In progress")
         let finish = app.buttons["Finish Laundry"]
         XCTAssertTrue(finish.waitForExistence(timeout: 5))
-        XCTAssertEqual(finish.frame.midY, app.buttons["Edit Laundry"].frame.midY, accuracy: 2)
-        XCTAssertEqual(app.buttons["Edit Laundry"].frame.height, height, accuracy: 2)
+        XCTAssertEqual(finish.frame.midY, app.buttons["Laundry"].frame.midY, accuracy: 2)
+        XCTAssertEqual(app.buttons["Laundry"].frame.height, height, accuracy: 2)
         // Starting suggests a timer once; it can be declined.
         XCTAssertTrue(app.buttons["Start a 30-min timer"].waitForExistence(timeout: 5))
         app.buttons["Not now"].tap()
@@ -78,13 +78,13 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(keyboard.waitForExistence(timeout: 5))
         app.buttons["Dismiss keyboard"].tap()
         XCTAssertTrue(keyboard.waitForNonExistence(timeout: 5))
-        app.buttons["Edit Call mum"].press(forDuration: 1.2)
+        app.buttons["Call mum"].press(forDuration: 1.2)
         app.buttons["Delete"].tap()
         let undo = app.buttons["Undo"]
         XCTAssertTrue(undo.waitForExistence(timeout: 3))
         undo.tap()
         XCTAssertTrue(app.buttons["Complete Call mum"].waitForExistence(timeout: 5))
-        app.buttons["Edit Call mum"].press(forDuration: 1.2)
+        app.buttons["Call mum"].press(forDuration: 1.2)
         app.buttons["Delete"].tap()
         XCTAssertTrue(undo.waitForExistence(timeout: 3))
         input.tap()
@@ -185,7 +185,7 @@ final class ChecklistUITests: XCTestCase {
         let makeHabit = app.buttons["Make It a Habit"]
         XCTAssertTrue(makeHabit.waitForExistence(timeout: 5)); makeHabit.tap()
         XCTAssertTrue(app.buttons["Log Read a few pages"].waitForExistence(timeout: 5))
-        app.buttons["Edit Read a few pages"].press(forDuration: 1.2)
+        app.buttons["Read a few pages"].press(forDuration: 1.2)
         let makeTask = app.buttons["Make It a Task"]
         XCTAssertTrue(makeTask.waitForExistence(timeout: 5)); makeTask.tap()
         XCTAssertTrue(app.buttons["Complete Read a few pages"].waitForExistence(timeout: 5))
@@ -219,7 +219,7 @@ final class ChecklistUITests: XCTestCase {
         // One row per item, stacked, as on the website.
         XCTAssertEqual(app.buttons["Complete Clean the car"].frame.minX, app.buttons["Complete Call Mom"].frame.minX, accuracy: 2)
         XCTAssertNotEqual(app.buttons["Complete Clean the car"].frame.minY, app.buttons["Complete Call Mom"].frame.minY)
-        // The tick completes; the rest of the row opens the item.
+        // The tick completes the item.
         let toggle = app.buttons["Complete Clean the car"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
         XCTAssertGreaterThanOrEqual(toggle.frame.height, 44)
@@ -231,8 +231,11 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(reopen.waitForExistence(timeout: 5))
         reveal(reopen, in: app); reopen.tap()
         XCTAssertTrue(app.buttons["Complete Clean the car"].waitForExistence(timeout: 5))
-        reveal(app.buttons["Edit Call Mom"], in: app)
-        app.buttons["Edit Call Mom"].tap()
+        // On Today the title checks the item off too; editing is in the touch-and-hold menu.
+        reveal(app.buttons["Call Mom"], in: app)
+        app.buttons["Call Mom"].press(forDuration: 1.2)
+        let editItem = app.buttons["Edit"]
+        XCTAssertTrue(editItem.waitForExistence(timeout: 5)); editItem.tap()
         XCTAssertTrue(app.navigationBars.buttons["Cancel"].waitForExistence(timeout: 5))
         app.navigationBars.buttons["Cancel"].tap()
         let screenshot = XCTAttachment(screenshot: app.screenshot()); screenshot.name = "Completed checklist tile"; screenshot.lifetime = .keepAlways; add(screenshot)
@@ -247,7 +250,10 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap(); field.typeText("Stretch")
         app.navigationBars.buttons["Save"].tap()
-        let edit = app.buttons["Edit Stretch"]
+        // On Today, touch and hold opens Edit; on Habits the title still edits.
+        let title = app.buttons["Stretch"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5)); title.press(forDuration: 1.2)
+        let edit = app.buttons["Edit"]
         XCTAssertTrue(edit.waitForExistence(timeout: 5)); edit.tap()
         XCTAssertTrue(app.navigationBars["Edit Habit"].waitForExistence(timeout: 5))
         app.navigationBars.buttons["Cancel"].tap()
