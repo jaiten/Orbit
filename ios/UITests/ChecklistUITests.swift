@@ -37,14 +37,16 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertEqual(finish.value as? String, "In progress")
         XCTAssertEqual(finish.frame.midY, app.buttons["Laundry"].frame.midY, accuracy: 2)
         XCTAssertEqual(app.buttons["Laundry"].frame.height, height, accuracy: 2)
-        // Starting suggests a timer once; it can be declined.
-        XCTAssertTrue(app.buttons["Start a 30-min timer"].waitForExistence(timeout: 5))
+        // Starting suggests a timer once (a menu of lengths); it can be declined.
+        let suggestion = app.buttons["Start a timer: Laundry"]
+        XCTAssertTrue(suggestion.waitForExistence(timeout: 5))
         app.buttons["Not now"].tap()
-        XCTAssertTrue(app.buttons["Start a 30-min timer"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(suggestion.waitForNonExistence(timeout: 5))
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "Orbit inline task progress"; screenshot.lifetime = .keepAlways; add(screenshot)
         finish.tap()
-        XCTAssertTrue(app.buttons["Completed (1)"].waitForExistence(timeout: 5))
+        let completed = app.buttons["Completed (1)"]; reveal(completed, in: app)
+        XCTAssertTrue(completed.waitForExistence(timeout: 5))
     }
 
     func testBottomCaptureStaysReachableAndKeepsDraftWhenKeyboardCloses() {
@@ -451,6 +453,7 @@ final class ChecklistUITests: XCTestCase {
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "Today at largest text size"; screenshot.lifetime = .keepAlways; add(screenshot)
         check.tap()
+        XCTAssertTrue(check.waitForNonExistence(timeout: 5), "Logging moves the habit into Completed")
         // Completed sits at the bottom of Today, below the fold at this text size.
         let completed = app.buttons["Completed (1)"]; reveal(completed, in: app)
         XCTAssertTrue(completed.waitForExistence(timeout: 5))
