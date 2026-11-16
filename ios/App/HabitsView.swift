@@ -10,6 +10,7 @@ struct HabitsView: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var adding = false
     @State private var editing: Habit?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -18,11 +19,14 @@ struct HabitsView: View {
                         NavigationLink { HabitHistoryIndex() } label: { Image(systemName: "clock.arrow.circlepath").frame(width: 44, height: 44) }.accessibilityLabel("History")
                     }
                     if habits.isEmpty { ContentUnavailableView("No Habits", systemImage: "repeat", description: Text("Start typing to add a habit.")) }
+                    // Every habit's check-ins are read from the logs once, not once for each row.
+                    let counts = PlannerLogic.countsByHabit(logs)
                     VStack(spacing: DayTheme.rowSpacing(compact: compactRows, typeSize: typeSize)) {
                         ForEach(habits) { habit in
-                            HabitRow(habit: habit, logs: logs, date: PlannerLogic.todayDate, edit: { editing = habit })
+                            HabitRow(habit: habit, counts: counts[habit.id] ?? [:], date: PlannerLogic.todayDate, edit: { editing = habit })
+                                .transition(.orbitRow)
                         }
-                    }
+                    }.animation(reduceMotion ? nil : .orbitFold, value: habits.map(\.id))
 
                 }.padding(.horizontal, CGFloat(DesignTokens.screenPadding)).padding(.vertical, CGFloat(DesignTokens.spaceS))
                     .frame(maxWidth: 760).frame(maxWidth: .infinity)

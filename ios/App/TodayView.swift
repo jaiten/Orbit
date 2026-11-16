@@ -34,14 +34,37 @@ struct TodayView: View {
     @State private var day = PlannerLogic.todayDate
     @ObservedObject private var calendars = CalendarBridge.shared
 
-    /// Dated today or earlier and still open, or finished today. Undated and Someday items stay in Lists.
-    private var relevant: [PlannerTask] {
-        let today = PlannerLogic.dayKey(day)
-        return tasks.filter { !$0.note && TodayRules.onDay(TodayRules.item($0), day: today, today: PlannerLogic.today) }
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// The day's tasks and habits, worked out once for each update of the screen: every section and
+    /// row reads from this instead of filtering all the tasks and check-ins again.
+    private struct DaySnapshot {
+        /// Dated today or earlier and still open, or finished today. Undated and Someday items stay in Lists.
+        var relevant: [PlannerTask] = []
+        /// Habits scheduled for the day; a weekly habit drops off once its week is done.
+        var dueHabits: [Habit] = []
+        var checkedHabits: [Habit] = []
+        var counts: [UUID: [String: Int]] = [:]
+        func checked(_ habit: Habit) -> Bool { checkedHabits.contains { $0.id == habit.id } }
     }
-    /// Habits scheduled for the day; a weekly habit drops off once its week is done.
-    private var dueHabits: [Habit] { habits.filter { PlannerLogic.plannerDay($0.createdAt) <= PlannerLogic.dayKey(day) && PlannerLogic.isDue($0, logs: logs, at: day) } }
-    private var checkedHabits: [Habit] { dueHabits.filter { PlannerLogic.checkedToday($0, logs: logs, at: day) } }
+    private var snapshot: DaySnapshot {
+        let key = PlannerLogic.dayKey(day), today = PlannerLogic.today
+        // Tasks finished on another day are skipped by their time alone, before any day is worked out.
+        let end = Calendar.current.date(byAdding: .day, value: 1, to: day) ?? day.addingTimeInterval(86_400)
+        var result = DaySnapshot()
+        result.relevant = tasks.filter { task in
+            if task.note { return false }
+            if let finished = task.completedAt {
+                let shifted = DayStart.shifted(finished)
+                if shifted < day || shifted >= end { return false }
+            }
+            return TodayRules.onDay(TodayRules.item(task), day: key, today: today)
+        }
+        result.counts = PlannerLogic.countsByHabit(logs)
+        result.dueHabits = habits.filter { PlannerLogic.plannerDay($0.createdAt) <= key && PlannerLogic.isDue($0, counts: result.counts[$0.id] ?? [:], at: day) }
+        result.checkedHabits = result.dueHabits.filter { PlannerLogic.checkedToday($0, counts: result.counts[$0.id] ?? [:], at: day) }
+        return result
+    }
     private var sections: [String] {
         let hidden = Set(hiddenSections.split(separator: ",").map(String.init))
         var values = homeSections.split(separator: ",").map(String.init).filter { !hidden.contains($0) && ($0 != "overall" || showOverall) }; if showOverall && !values.contains("overall") { values.append("overall") }; return values
@@ -75,25 +98,27 @@ struct TodayView: View {
     }
 
     private var content: some View {
-        VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
+        let today = snapshot, shown = sections
+        return VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
             header
             FocusBanner()
             ConflictBanner()
             EveningCheckInOffer()
             // The plan, then the day's sections; capture is docked at the bottom.
-            if sections.contains("progress") { PlanCard(done: planDone, total: (includeTasks ? relevant.count : 0) + dueHabits.count, accent: accent.fill) }
-            ForEach(sections.filter { $0 != "progress" && $0 != "completed" }, id: \.self) { section in
-                homeSection(section)
+            if shown.contains("progress") {
+                PlanCard(done: (includeTasks ? today.relevant.filter { $0.completedAt != nil }.count : 0) + today.checkedHabits.count,
+                         total: (includeTasks ? today.relevant.count : 0) + today.dueHabits.count, accent: accent.fill)
+            }
+            ForEach(shown.filter { $0 != "progress" && $0 != "completed" }, id: \.self) { section in
+                homeSection(section, today, shown)
             }
             // Completed always sits at the bottom of Today, whatever order the other sections are in.
-            if sections.contains("completed") { homeSection("completed") }
+            if shown.contains("completed") { homeSection("completed", today, shown) }
         }
         .padding(.top, CGFloat(DesignTokens.spaceS))
         .padding(.horizontal, CGFloat(DesignTokens.screenPadding)).padding(.bottom, CGFloat(DesignTokens.spaceSection))
         .frame(maxWidth: 760).frame(maxWidth: .infinity)
     }
-
-    private var planDone: Int { (includeTasks ? relevant.filter { $0.completedAt != nil }.count : 0) + checkedHabits.count }
 
     /// The daily heading stays above the plan.
     private var header: some View {
@@ -103,27 +128,22 @@ struct TodayView: View {
         }
     }
 
-    private var completedItems: [TodayItem] {
-        (sections.contains("today") ? relevant.filter { $0.completedAt != nil }.map { TodayItem(task: $0) } : []) +
-        (sections.contains("routine") ? checkedHabits.map { TodayItem(habit: $0) } : [])
-    }
-
-    @ViewBuilder private func homeSection(_ id: String) -> some View {
+    @ViewBuilder private func homeSection(_ id: String, _ today: DaySnapshot, _ sections: [String]) -> some View {
         switch id {
         case "consistency":
-            if !habits.isEmpty || tasks.contains(where: { !$0.note }) { ConsistencyStrip(habits: habits, logs: logs).orbitCard() }
+            if !habits.isEmpty || tasks.contains(where: { !$0.note }) { ConsistencyStrip(habits: habits, logs: logs, tasks: tasks).orbitCard() }
         case "overall": OverallProgressCard(habits: habits, logs: logs, tasks: tasks)
         case "today":
             // Tasks from earlier days simply stay on Today with the rest; move them whenever you like.
-            let open = relevant.filter { $0.completedAt == nil }
+            let open = today.relevant.filter { $0.completedAt == nil }
             let planned = open.sorted { a, b in
                 if a.hasTime != b.hasTime { return a.hasTime }
                 return a.hasTime ? (a.dueDate ?? .distantFuture) < (b.dueDate ?? .distantFuture) : a.sortOrder < b.sortOrder
             }
-            checklistSection("Your day", note: "", items: planned.map { TodayItem(task: $0) }, empty: relevant.isEmpty ? "Nothing planned. Add a task to get started." : "No more tasks scheduled for today.")
+            checklistSection("Your day", note: "", items: planned.map { TodayItem(task: $0) }, counts: today.counts, empty: today.relevant.isEmpty ? "Nothing planned. Add a task to get started." : "No more tasks scheduled for today.")
         case "routine":
-            let open = dueHabits.filter { !PlannerLogic.checkedToday($0, logs: logs, at: day) }
-            if dueHabits.isEmpty {
+            let open = today.dueHabits.filter { !today.checked($0) }
+            if today.dueHabits.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     SectionLabel(title: "Habits")
                     Text("Start with something small you want to do regularly.")
@@ -132,21 +152,25 @@ struct TodayView: View {
                         .font(.subheadline.weight(.medium)).frame(minHeight: 44)
                 }
             } else {
-                checklistSection("Habits", note: "", items: open.map { TodayItem(habit: $0) }, empty: "All habits checked for today.")
+                checklistSection("Habits", note: "", items: open.map { TodayItem(habit: $0) }, counts: today.counts, empty: "All habits checked for today.")
             }
         case "completed":
+            let completedItems = (sections.contains("today") ? today.relevant.filter { $0.completedAt != nil }.map { TodayItem(task: $0) } : []) +
+                (sections.contains("routine") ? today.checkedHabits.map { TodayItem(habit: $0) } : [])
             if !completedItems.isEmpty {
                 DisclosureGroup(isExpanded: $showingCompleted) {
-                    checklist(completedItems).padding(.top, 8)
+                    checklist(completedItems, counts: today.counts).padding(.top, 8)
                 } label: {
                     Text("Completed (\(completedItems.count))").font(.subheadline.weight(.medium)).foregroundStyle(.secondary)
+                        .monospacedDigit().contentTransition(.numericText())
                 }.accessibilityIdentifier("today-completed")
                     .accessibilityValue(showingCompleted ? "Expanded" : "Collapsed")
+                    .transition(.opacity)
             }
         case "calendar": if calendars.connected { calendarSection }
         default:
             if let list = lists.first(where: { "list:" + $0.id.uuidString == id }) {
-                checklistSection(list.name, items: tasks.filter { $0.listID == list.id && $0.completedAt == nil && !$0.note }.map { TodayItem(task: $0) }, empty: "No tasks.")
+                checklistSection(list.name, items: tasks.filter { $0.listID == list.id && $0.completedAt == nil && !$0.note }.map { TodayItem(task: $0) }, counts: today.counts, empty: "No tasks.")
             }
         }
     }
@@ -159,34 +183,40 @@ struct TodayView: View {
         }
     }
 
-    private func checklistSection(_ title: String, note: String = "", items: [TodayItem], empty: String) -> some View {
+    private func checklistSection(_ title: String, note: String = "", items: [TodayItem], counts: [UUID: [String: Int]], empty: String) -> some View {
         VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceS)) {
             SectionLabel(title: title, note: note)
-            if items.isEmpty && !empty.isEmpty { Text(empty).font(.subheadline).foregroundStyle(.secondary).padding(.horizontal, 4).padding(.vertical, 8) }
-            checklist(items)
+            if items.isEmpty && !empty.isEmpty {
+                Text(empty).font(.subheadline).foregroundStyle(.secondary).padding(.horizontal, 4).padding(.vertical, 8).transition(.opacity)
+            }
+            checklist(items, counts: counts)
         }
     }
 
-
-    /// One grouped card with hairline dividers. Rows stay still during completion; only the check
-    /// control animates.
-    @ViewBuilder private func checklist(_ items: [TodayItem]) -> some View {
+    /// One grouped card with hairline dividers. A ticked row stays a moment, then fades as its
+    /// neighbours close the gap and the card shortens with them; rows that arrive (from sync, Undo or
+    /// another screen) open the same way.
+    @ViewBuilder private func checklist(_ items: [TodayItem], counts: [UUID: [String: Int]]) -> some View {
         if !items.isEmpty {
             GroupedRows {
                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                    if index > 0 { Divider().padding(.leading, 56) }
-                    itemView(item)
+                    VStack(spacing: 0) {
+                        if index > 0 { Divider().padding(.leading, 56) }
+                        itemView(item, counts: counts)
+                    }.transition(.orbitRow)
                 }
             }
+            .animation(reduceMotion ? nil : .orbitFold, value: items.map(\.id))
+            .transition(.opacity)
         }
     }
 
-    @ViewBuilder private func itemView(_ item: TodayItem) -> some View {
+    @ViewBuilder private func itemView(_ item: TodayItem, counts: [UUID: [String: Int]]) -> some View {
         if let task = item.task {
             TaskRow(task: task, tapChecks: true) { editing = task }
         }
         if let habit = item.habit {
-            HabitRow(habit: habit, logs: logs, date: day, tapChecks: true, edit: { editingHabit = habit })
+            HabitRow(habit: habit, counts: counts[habit.id] ?? [:], date: day, tapChecks: true, edit: { editingHabit = habit })
         }
     }
 

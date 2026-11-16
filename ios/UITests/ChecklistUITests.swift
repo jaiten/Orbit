@@ -184,7 +184,10 @@ final class ChecklistUITests: XCTestCase {
         app.navigationBars.buttons["Save"].tap()
         let row = app.descendants(matching: .any).matching(identifier: "checklist-title").firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5), app.debugDescription)
+        // The hold menu is short: conversions sit under More.
         row.press(forDuration: 1.2)
+        let more = app.buttons["More"]
+        XCTAssertTrue(more.waitForExistence(timeout: 5)); more.tap()
         let makeHabit = app.buttons["Make It a Habit"]
         XCTAssertTrue(makeHabit.waitForExistence(timeout: 5)); makeHabit.tap()
         XCTAssertTrue(app.buttons["Log Read a few pages"].waitForExistence(timeout: 5))
@@ -194,13 +197,24 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Complete Read a few pages"].waitForExistence(timeout: 5))
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "Orbit Today checklist"; screenshot.lifetime = .keepAlways; add(screenshot)
-        row.swipeLeft()
+        // A swipe right opens the editor.
+        dragSideways(row, by: 120)
+        XCTAssertTrue(app.navigationBars.buttons["Cancel"].waitForExistence(timeout: 5))
+        app.navigationBars.buttons["Cancel"].tap()
+        // A short swipe left reveals Delete.
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        dragSideways(row, by: -110)
         let delete = app.buttons["Delete"]
         XCTAssertTrue(delete.waitForExistence(timeout: 5)); delete.tap()
         // Wait for disappearance directly. Negating waitForExistence times out and
         // collects diagnostics, which can consume the eight-second Undo window.
         XCTAssertTrue(row.waitForNonExistence(timeout: 5))
         let undo = app.buttons["Undo"]
+        XCTAssertTrue(undo.waitForExistence(timeout: 2)); undo.tap()
+        XCTAssertTrue(app.buttons["Complete Read a few pages"].waitForExistence(timeout: 5))
+        // A swipe all the way left deletes in one motion, and Undo brings it back.
+        dragSideways(row, by: -320)
+        XCTAssertTrue(row.waitForNonExistence(timeout: 5))
         XCTAssertTrue(undo.waitForExistence(timeout: 2)); undo.tap()
         XCTAssertTrue(app.buttons["Complete Read a few pages"].waitForExistence(timeout: 5))
     }
@@ -381,7 +395,7 @@ final class ChecklistUITests: XCTestCase {
         app.navigationBars.buttons.element(boundBy: 0).tap()
         XCTAssertTrue(app.buttons["Packing list"].firstMatch.waitForExistence(timeout: 5))
         let titleOnly = app.buttons["Packing list"].firstMatch
-        titleOnly.swipeLeft()
+        dragSideways(titleOnly, by: -110)
         let deleteNote = app.buttons["Delete note"].firstMatch
         XCTAssertTrue(deleteNote.waitForExistence(timeout: 5))
         XCTAssertLessThanOrEqual(deleteNote.frame.height, titleOnly.frame.height + 2)
@@ -495,6 +509,14 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(disclosure.waitForExistence(timeout: 5))
         XCTAssertEqual(disclosure.value as? String, "Collapsed")
         XCTAssertFalse(app.buttons["Reopen Remember this task"].exists)
+    }
+
+    /// A steady sideways drag on a row that pauses before letting go, so how far it went decides what
+    /// happens (not how fast): about -110 reveals Delete, further left deletes, and right opens Edit.
+    private func dragSideways(_ element: XCUIElement, by distance: CGFloat) {
+        let start = element.coordinate(withNormalizedOffset: CGVector(dx: distance < 0 ? 0.85 : 0.15, dy: 0.5))
+        start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: distance, dy: 0)),
+                    withVelocity: XCUIGestureVelocity(500), thenHoldForDuration: 0.3)
     }
 
     private func reveal(_ element: XCUIElement, in app: XCUIApplication) {

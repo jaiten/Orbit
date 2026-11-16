@@ -25,6 +25,7 @@ struct NotesView: View {
     @State private var error: String?
     @AppStorage("collapsedNoteSections") private var collapsedStorage = ""
     @ObservedObject private var lock = NoteLock.shared
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var collapsed: Set<String> { Set(collapsedStorage.split(separator: ",").map(String.init)) }
     /// Search never matches a hidden page, and only the title of a locked one.
     private var notes: [PlannerTask] {
@@ -154,25 +155,18 @@ struct NotesView: View {
                         .padding(.horizontal, 4).padding(.top, 2).accessibilityAddTraits(.isHeader)
                     VStack(spacing: 0) {
                         ForEach(Array(group.items.enumerated()), id: \.element.id) { index, note in
-                            if index > 0 { Divider().padding(.leading, 48) }
-                            // The row opens the page; ⋯ (or touch and hold) shows Copy text, Move, Make It a Task, Delete.
-                            HStack(spacing: 0) {
-                                NoteRow(note: note)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture { withAnimation(.orbit) { path.append(.open(note.id)) } }
-                                    .accessibilityElement(children: .ignore)
-                                    .accessibilityAddTraits(.isButton)
-                                    .accessibilityLabel(NoteRow.displayTitle(note, lists: lists))
-                                    .accessibilityValue(NoteRow.detail(note, lists: lists))
-                                    .accessibilityIdentifier("note-row")
-                                    .accessibilityAction { withAnimation(.orbit) { path.append(.open(note.id)) } }
-                                NoteMenu(note: note)
-                            }
-                            .contentShape(Rectangle())
-                            .modifier(NoteActions(note: note))
+                            // The row (or a swipe right) opens the page; a swipe left deletes it; ⋯ or touch
+                            // and hold shows Copy text, Move, Make It a Task and Delete.
+                            VStack(spacing: 0) {
+                                if index > 0 { Divider().padding(.leading, 48) }
+                                NoteListRow(note: note, title: NoteRow.displayTitle(note, lists: lists), detail: NoteRow.detail(note, lists: lists)) {
+                                    withAnimation(.orbit) { path.append(.open(note.id)) }
+                                }
+                            }.transition(.orbitRow)
                         }
                     }.orbitSurface(radius: CGFloat(DesignTokens.radiusCard))
                         .clipShape(RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusCard), style: .continuous))
+                        .animation(reduceMotion ? nil : .orbitFold, value: group.items.map(\.id))
                     }
                     }
                 }
@@ -295,8 +289,11 @@ struct NoteMenuItems: View {
             note.listID = id; note.updatedAt = .now; try Mutations.save(context)
         }
     }
+    /// Moving or deleting takes the row out of its list; the neighbours close the gap smoothly.
     private func change(_ action: () throws -> Void) {
-        do { try action() } catch { context.rollback(); self.error = error.localizedDescription }
+        withAnimation(UIAccessibility.isReduceMotionEnabled ? nil : .orbitFold) {
+            do { try action() } catch { context.rollback(); self.error = error.localizedDescription }
+        }
     }
 }
 
@@ -314,39 +311,43 @@ struct NoteMenu: View {
     }
 }
 
-/// Touch and hold a note: copy it, move it to another section, turn it into a task, or delete it.
-struct NoteActions: ViewModifier {
+/// A page in the list. Tap it, or swipe right, to open it; swipe left for Delete (all the way deletes);
+/// ⋯ or touch and hold to copy it, move it to another section, turn it into a task, or delete it.
+struct NoteListRow: View {
     @Environment(\.modelContext) private var context
-    @GestureState private var drag: CGFloat = 0
-    @State private var revealingDelete = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let note: PlannerTask
+    let title: String
+    let detail: String
+    var open: () -> Void
     @State private var error: String?
-    func body(content: Content) -> some View {
-        content
-            .offset(x: revealingDelete ? -76 : max(-76, min(0, drag)))
-            .background(alignment: .trailing) {
-                if revealingDelete || drag < -15 {
-                    Button(role: .destructive) {
-                        do { context.delete(note); try Mutations.save(context) }
-                        catch { context.rollback(); self.error = error.localizedDescription }
-                    } label: { Image(systemName: "trash").frame(width: 76).frame(maxHeight: .infinity).foregroundStyle(.white).background(Color.red) }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Delete note")
-                }
+    @State private var pressed = false
+    var body: some View {
+        SwipeRow(edit: open, editSymbol: "square.and.pencil", deleteLabel: "Delete note", remove: remove) { swipe in
+            HStack(spacing: 0) {
+                Button { if !swipe.takesTap() { open() } } label: { NoteRow(note: note) }
+                    .buttonStyle(RowPress(pressed: $pressed))
+                    .accessibilityLabel(title).accessibilityValue(detail).accessibilityHint("Opens the note")
+                    .accessibilityIdentifier("note-row")
+                NoteMenu(note: note)
             }
-            .clipped()
-            .simultaneousGesture(DragGesture(minimumDistance: 25)
-                .updating($drag) { value, state, _ in
-                    if abs(value.translation.width) > abs(value.translation.height) { state = value.translation.width }
-                }
-                .onEnded { value in
-                    if abs(value.translation.width) > abs(value.translation.height) {
-                        withAnimation(.easeOut(duration: 0.18)) { revealingDelete = value.translation.width < -40 }
-                    }
-                })
-            .contextMenu { NoteMenuItems(note: note, error: $error) }
-            .modifier(MutationErrorModifier(error: $error))
+            .background { RowHighlight(pressed: pressed) }
+            // Opaque inside its card, so the row slides and lifts as one solid piece.
+            .background(Color.orbitSurface)
+        }
+        .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusRow), style: .continuous))
+        .contextMenu { NoteMenuItems(note: note, error: $error) }
+        .modifier(MutationErrorModifier(error: $error))
     }
+    private func remove() {
+        withAnimation(reduceMotion ? nil : .orbitFold) {
+            do { context.delete(note); try Mutations.save(context) }
+            catch { context.rollback(); self.error = error.localizedDescription }
+        }
+    }
+}
+
+enum NoteActions {
     static func text(of note: PlannerTask) -> String {
         [note.title, note.notes].filter { !$0.isEmpty }.joined(separator: "\n\n")
     }

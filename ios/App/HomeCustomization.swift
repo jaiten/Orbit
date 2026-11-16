@@ -72,9 +72,10 @@ struct ConsistencyStrip: View {
     @Environment(\.orbitAccent) private var accent
     let habits: [Habit]
     let logs: [HabitLog]
+    /// Passed in by Today, which has already read them.
+    let tasks: [PlannerTask]
     private let range = 7
     @AppStorage("progressIncludesTasks") private var includeTasks = true
-    @Query private var tasks: [PlannerTask]
     private var days: [Date] { (0..<range).reversed().map { Calendar.current.date(byAdding: .day, value: -$0, to: PlannerLogic.todayDate)! } }
     var body: some View {
         let fractions = PlannerLogic.consistencySeries(habits: habits, logs: logs, ending: PlannerLogic.todayDate, days: range, tasks: tasks, includeTasks: includeTasks)

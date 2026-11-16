@@ -16,6 +16,10 @@ struct CalendarView: View {
     @State private var overview = false
     @State private var error: String?
     @State private var showCompleted = false
+    /// The day a dragged task is over, so it can show where the task will land.
+    @State private var dropTarget: Date?
+    @State private var dropped = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("calendarFirstWeekday") private var firstWeekday = Calendar.current.firstWeekday
     private var calendar: Calendar { var value = Calendar.current; value.firstWeekday = firstWeekday; return value }
     private var days: [Date] {
@@ -65,7 +69,9 @@ struct CalendarView: View {
                                 ForEach(days, id: \.self) { day in
                                     Button { selected = day } label: { dayCell(day, events: visibleEvents) }
                                         .buttonStyle(.plain).accessibilityLabel(day.formatted(date: .complete, time: .omitted))
-                                        .dropDestination(for: String.self) { ids, _ in reschedule(ids, to: day) }
+                                        .dropDestination(for: String.self) { ids, _ in reschedule(ids, to: day) } isTargeted: { over in
+                                            if over { dropTarget = day } else if dropTarget == day { dropTarget = nil }
+                                        }
                                 }
                             }
                         }
@@ -83,11 +89,14 @@ struct CalendarView: View {
                     if !agenda.isEmpty {
                         GroupedRows {
                             ForEach(Array(agenda.enumerated()), id: \.element.id) { index, entry in
-                                if index > 0 { Divider().padding(.leading, 16) }
-                                if let task = entry.task { TaskRow(task: task) { editing = task }.draggable(task.id.uuidString) }
-                                if let event = entry.event { CalendarEventRow(event: event) }
+                                VStack(spacing: 0) {
+                                    if index > 0 { Divider().padding(.leading, 16) }
+                                    // Dragging lifts a small card with the task's name, not a see-through row.
+                                    if let task = entry.task { TaskRow(task: task) { editing = task }.draggable(task.id.uuidString) { DragChip(title: task.title) } }
+                                    if let event = entry.event { CalendarEventRow(event: event) }
+                                }.transition(.orbitRow)
                             }
-                        }
+                        }.animation(reduceMotion ? nil : .orbitFold, value: agenda.map(\.id))
                     }
                     let completed = selectedTasks.filter { $0.completedAt != nil }
                     if !completed.isEmpty {
@@ -109,6 +118,7 @@ struct CalendarView: View {
                 .sheet(isPresented: $adding) { QuickCapture(initialDate: selected).presentationDragIndicator(.visible) }
                 .sheet(isPresented: $overview) { AgendaSheet(day: selected).presentationDragIndicator(.visible) }
                 .modifier(MutationErrorModifier(error: $error))
+                .sensoryFeedback(.impact(weight: .medium), trigger: dropped)
         }
     }
     /// A day in the strip: weekday letter (week view), the date in a circle (filled when chosen, accent
@@ -118,6 +128,7 @@ struct CalendarView: View {
         let isToday = calendar.isDateInToday(day)
         let outside = mode == "Month" && !calendar.isDate(day, equalTo: selected, toGranularity: .month)
         let busy = tasks.contains { $0.day == PlannerLogic.dayKey(day) } || events.contains { $0.startDate < calendar.date(byAdding: .day, value: 1, to: day)! && $0.endDate > day }
+        let targeted = dropTarget == day
         VStack(spacing: 5) {
             if mode == "Week" {
                 Text(day.formatted(.dateTime.weekday(.narrow))).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
@@ -126,10 +137,14 @@ struct CalendarView: View {
                 .foregroundStyle(isSelected ? Color.white : isToday ? accent.text : outside ? Color.secondary.opacity(0.45) : Color.primary)
                 .frame(width: 36, height: 36)
                 .background(Circle().fill(isSelected ? accent.text : Color.clear))
+                // A task dragged over the day rings it and lifts it a little.
+                .overlay(Circle().strokeBorder(accent.fill, lineWidth: 2).opacity(targeted ? 1 : 0))
+                .scaleEffect(targeted ? 1.12 : 1)
             Circle().fill(busy ? accent.fill : Color.clear).frame(width: 5, height: 5)
         }
         .frame(maxWidth: .infinity).padding(.vertical, 2).contentShape(Rectangle())
         .animation(.orbit, value: isSelected)
+        .animation(reduceMotion ? nil : .orbitLift, value: targeted)
     }
     /// All-day events, then tasks without a time, then timed tasks and events in order.
     private func agendaEntries(_ events: [EKEvent]) -> [Entry] {
@@ -152,11 +167,28 @@ struct CalendarView: View {
         let old = task.dueDate
         let time = calendar.dateComponents([.hour, .minute], from: old ?? day)
         let new = calendar.date(bySettingHour: task.hasTime ? time.hour! : 0, minute: task.hasTime ? time.minute! : 0, second: 0, of: day)!
-        task.schedule(new, hasTime: task.hasTime); task.updatedAt = .now
-        if let old { task.reminders = task.reminders.map { new.addingTimeInterval($0.timeIntervalSince(old)) } }
-        do { try Mutations.save(context)
+        dropTarget = nil
+        do {
+            // The row leaves this day's list as its neighbours close the gap.
+            try withAnimation(reduceMotion ? nil : .orbitFold) {
+                task.schedule(new, hasTime: task.hasTime); task.updatedAt = .now
+                if let old { task.reminders = task.reminders.map { new.addingTimeInterval($0.timeIntervalSince(old)) } }
+                try Mutations.save(context)
+            }
+            dropped += 1
             Task { do { try await refreshReminders(context) } catch { self.error = error.localizedDescription } }
             return true
         } catch { self.error = error.localizedDescription; return false }
+    }
+}
+
+/// What follows the finger while a task is dragged to another day: a small solid card with its name.
+private struct DragChip: View {
+    let title: String
+    var body: some View {
+        Label(title, systemImage: "calendar").font(.subheadline.weight(.medium)).lineLimit(1)
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .frame(maxWidth: 260, alignment: .leading)
+            .background(Color.orbitSurface, in: RoundedRectangle(cornerRadius: CGFloat(DesignTokens.radiusRow), style: .continuous))
     }
 }

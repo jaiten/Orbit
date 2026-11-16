@@ -20,11 +20,22 @@ import UserNotifications
         Task { try? await Task.sleep(for: .seconds(moment.big ? 5 : 4)); if self.moment == moment { self.moment = nil } }
     }
 
-    /// Call after something is checked off (not undone). Plays the tick, then celebrates a day where
-    /// everything planned is done, or a newly earned badge. The first time ever, badges already earned
-    /// are recorded quietly.
+    /// Call once a tick has been saved (not undone). Milestones, a finished day and badges read the
+    /// whole planner, so they wait until the row has folded away and never hold up its animation.
+    /// The tick's own sound plays at the tap.
+    func settled(context: ModelContext, habit: Habit? = nil, at date: Date = PlannerLogic.todayDate) {
+        Task {
+            try? await Task.sleep(for: .milliseconds(450))
+            if let habit, habit.modelContext != nil, !habit.isDeleted, let logs = try? context.fetch(FetchDescriptor<HabitLog>()) {
+                checkIn(habit, logs: logs, at: date)
+            }
+            finished(context: context)
+        }
+    }
+
+    /// Celebrates a day where everything planned is done, or a newly earned badge. The first time
+    /// ever, badges already earned are recorded quietly.
     func finished(context: ModelContext) {
-        Sounds.play(.tick)
         let tasks = (try? context.fetch(FetchDescriptor<PlannerTask>())) ?? []
         let habits = (try? context.fetch(FetchDescriptor<Habit>())) ?? []
         let logs = (try? context.fetch(FetchDescriptor<HabitLog>())) ?? []

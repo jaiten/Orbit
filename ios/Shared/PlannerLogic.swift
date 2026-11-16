@@ -25,15 +25,24 @@ enum PlannerLogic {
     static func overlaps(_ start: Date, _ end: Date, _ otherStart: Date, _ otherEnd: Date) -> Bool { start < otherEnd && otherStart < end }
     static func consistencySeries(habits: [Habit], logs: [HabitLog], ending: Date, days: Int, calendar: Calendar = .current, tasks: [PlannerTask] = [], includeTasks: Bool = true) -> [Double] {
         let inputs = entries(habits, logs: logs, calendar: calendar)
+        // Each task is filed under its day once (the day it was finished, else its date), rather than
+        // being looked at again for every day shown.
+        var planned: [String: Int] = [:], finished: [String: Int] = [:]
+        if includeTasks {
+            for task in tasks where !task.note {
+                guard let key = task.completedAt.map({ dayKey(DayStart.shifted($0), calendar: calendar) }) ?? task.day else { continue }
+                planned[key, default: 0] += 1
+                if task.completedAt != nil { finished[key, default: 0] += 1 }
+            }
+        }
         return (0..<max(0, days)).reversed().map { offset in
             let key = dayKey(calendar.date(byAdding: .day, value: -offset, to: ending)!, calendar: calendar)
             let active = inputs.filter { ($0.createdDay.map { $0 <= key } ?? true) && HabitRules.scheduledOn(rule: $0.rule, day: key) }
             let habitDone = active.reduce(0.0) { sum, entry in
                 sum + min(1, Double(entry.counts[key] ?? 0) / Double(HabitRules.dailyTarget(rule: entry.rule, target: entry.target)))
             }
-            let items = includeTasks ? tasks.filter { !$0.note && ($0.completedAt.map { dayKey(DayStart.shifted($0), calendar: calendar) } ?? $0.day) == key } : []
-            let total = active.count + items.count
-            return total == 0 ? 0 : (habitDone + Double(items.filter { $0.completedAt != nil }.count)) / Double(total)
+            let total = active.count + (planned[key] ?? 0)
+            return total == 0 ? 0 : (habitDone + Double(finished[key] ?? 0)) / Double(total)
         }
     }
     static func dailyProgress(_ habit: Habit, logs: [HabitLog], at date: Date, calendar: Calendar = .current) -> Int {
@@ -44,15 +53,31 @@ enum PlannerLogic {
     static func counts(_ habit: Habit, logs: [HabitLog]) -> [String: Int] {
         logs.reduce(into: [:]) { result, log in if log.habitID == habit.id { result[log.dayKey, default: 0] += log.count } }
     }
+    /// Every habit's check-ins by day, read from the logs once. Screens with many rows use this
+    /// instead of scanning all the logs again for each row.
+    static func countsByHabit(_ logs: [HabitLog]) -> [UUID: [String: Int]] {
+        var result: [UUID: [String: Int]] = [:]
+        for log in logs { result[log.habitID, default: [:]][log.dayKey, default: 0] += log.count }
+        return result
+    }
     static func checkedToday(_ habit: Habit, logs: [HabitLog], at date: Date, calendar: Calendar = .current) -> Bool {
-        HabitRules.checked(rule: habit.frequencyRule, target: habit.target, counts: counts(habit, logs: logs), day: dayKey(date, calendar: calendar))
+        checkedToday(habit, counts: counts(habit, logs: logs), at: date, calendar: calendar)
+    }
+    static func checkedToday(_ habit: Habit, counts: [String: Int], at date: Date, calendar: Calendar = .current) -> Bool {
+        HabitRules.checked(rule: habit.frequencyRule, target: habit.target, counts: counts, day: dayKey(date, calendar: calendar))
     }
     /// Check-ins in the current period: the day, or the week for weekly habits.
     static func progress(_ habit: Habit, logs: [HabitLog], at date: Date, calendar: Calendar = .current) -> Int {
-        HabitRules.periodProgress(rule: habit.frequencyRule, counts: counts(habit, logs: logs), day: dayKey(date, calendar: calendar), weekStart: HabitRules.weekStart(calendar))
+        progress(habit, counts: counts(habit, logs: logs), at: date, calendar: calendar)
+    }
+    static func progress(_ habit: Habit, counts: [String: Int], at date: Date, calendar: Calendar = .current) -> Int {
+        HabitRules.periodProgress(rule: habit.frequencyRule, counts: counts, day: dayKey(date, calendar: calendar), weekStart: HabitRules.weekStart(calendar))
     }
     static func isDue(_ habit: Habit, logs: [HabitLog], at date: Date, calendar: Calendar = .current) -> Bool {
-        HabitRules.due(rule: habit.frequencyRule, target: habit.target, counts: counts(habit, logs: logs), day: dayKey(date, calendar: calendar), weekStart: HabitRules.weekStart(calendar))
+        isDue(habit, counts: counts(habit, logs: logs), at: date, calendar: calendar)
+    }
+    static func isDue(_ habit: Habit, counts: [String: Int], at date: Date, calendar: Calendar = .current) -> Bool {
+        HabitRules.due(rule: habit.frequencyRule, target: habit.target, counts: counts, day: dayKey(date, calendar: calendar), weekStart: HabitRules.weekStart(calendar))
     }
     /// "X of the last 7 days". Missed days are never counted against anything.
     static func checkedDays(_ habit: Habit, logs: [HabitLog], ending date: Date, days: Int = 7, calendar: Calendar = .current) -> Int {
@@ -60,8 +85,11 @@ enum PlannerLogic {
     }
     /// For example "Weekdays · 1 of 1 today" or "2 of 3 this week", as on Windows.
     static func detail(_ habit: Habit, logs: [HabitLog], at date: Date) -> String {
+        detail(habit, counts: counts(habit, logs: logs), at: date)
+    }
+    static func detail(_ habit: Habit, counts: [String: Int], at date: Date) -> String {
         let schedule = HabitRules.schedule(habit.frequencyRule)
-        let count = "\(progress(habit, logs: logs, at: date)) of \(habit.target) \(schedule == "WEEKLY" ? "this week" : "today")"
+        let count = "\(progress(habit, counts: counts, at: date)) of \(habit.target) \(schedule == "WEEKLY" ? "this week" : "today")"
         return schedule == "DAILY" || schedule == "WEEKLY" ? count : HabitRules.label(schedule) + " · " + count
     }
 }

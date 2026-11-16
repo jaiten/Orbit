@@ -98,6 +98,8 @@ struct RootView: View {
         .onChange(of: phase) { _, value in
             if value == .active { UsageSignals.recordVisit(); SyncService.shared.resumeRealtime(); Task { await refreshNotifications(); await SyncService.shared.run(context) } }
             else {
+                // A tick still waiting out its pause is saved before Orbit leaves the screen.
+                CompletionHold.shared.flush(animated: false)
                 SyncService.shared.suspendRealtime()
                 // Locked notes lock again whenever Orbit leaves the screen.
                 if value == .background { BackgroundRefresh.schedule(); NoteLock.shared.lock() }

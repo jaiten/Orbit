@@ -12,6 +12,17 @@ extension Animation {
     static var orbitLift: Animation { .spring(response: DesignTokens.springLift.response, dampingFraction: DesignTokens.springLift.damping) }
     /// Large elements and progress.
     static var orbitSoft: Animation { .spring(response: DesignTokens.springSoft.response, dampingFraction: DesignTokens.springSoft.damping) }
+    /// Rows joining or leaving a list, and a row settling after a swipe: quick, with no bounce.
+    static var orbitFold: Animation { .spring(response: DesignTokens.springUi.response, dampingFraction: DesignTokens.springUi.damping) }
+    /// A row leaving its list fades faster than its neighbours close the gap, so text never overlaps.
+    static var orbitLeave: Animation { .easeOut(duration: 0.14) }
+}
+
+extension AnyTransition {
+    /// For rows in a list: fades in with the list's own animation and out a little sooner.
+    static var orbitRow: AnyTransition {
+        .asymmetric(insertion: .opacity, removal: .opacity.animation(.orbitLeave))
+    }
 }
 
 extension Color {
@@ -125,6 +136,25 @@ struct OrbitPress: ButtonStyle {
     }
 }
 
+/// Press feedback for a row: the text stays exactly where it is and the row reports the press, so
+/// the whole row can highlight as rows do in iOS lists (see `RowHighlight`).
+struct RowPress: ButtonStyle {
+    @Binding var pressed: Bool
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.onChange(of: configuration.isPressed) { _, now in pressed = now }
+    }
+}
+
+/// The grey wash over a pressed row. It appears at once and fades when the finger lifts.
+struct RowHighlight: View {
+    let pressed: Bool
+    var body: some View {
+        Color.primary.opacity(pressed ? 0.07 : 0)
+            .animation(pressed ? nil : .easeOut(duration: 0.3), value: pressed)
+            .allowsHitTesting(false).accessibilityHidden(true)
+    }
+}
+
 private struct TickMark: Shape {
     func path(in rect: CGRect) -> Path {
         var p = Path()
@@ -206,6 +236,7 @@ struct PlanCard: View {
             }.frame(width: 44, height: 44)
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(done) of \(total) done").font(.headline).monospacedDigit()
+                    .contentTransition(.numericText()).animation(reduceMotion ? nil : .orbitFold, value: done)
                 Text("Your plan for today").font(.subheadline).foregroundStyle(.secondary)
             }
         }

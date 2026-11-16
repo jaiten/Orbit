@@ -36,6 +36,7 @@ struct AgendaView: View {
     @AppStorage("compactRows") private var compactRows = false
     @AppStorage("agendaCompletedExpanded") private var showCompleted = false
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var rowSpacing: CGFloat { DayTheme.rowSpacing(compact: compactRows, typeSize: typeSize) }
     private var tasks: [PlannerTask] { allTasks.filter { !$0.note } }
     /// A titled run of tasks: a day key, or a TaskDateGroup name for everything.
@@ -127,8 +128,8 @@ struct AgendaView: View {
 
     private func rows(_ items: [PlannerTask]) -> some View {
         VStack(spacing: rowSpacing) {
-            ForEach(items.sorted(by: order)) { task in TaskRow(task: task) { edit(task) } }
-        }
+            ForEach(items.sorted(by: order)) { task in TaskRow(task: task) { edit(task) }.transition(.orbitRow) }
+        }.animation(reduceMotion ? nil : .orbitFold, value: items.sorted(by: order).map(\.id))
     }
 
     private func order(_ a: PlannerTask, _ b: PlannerTask) -> Bool {
@@ -218,6 +219,7 @@ struct AgendaSheet: View {
 struct TasksView: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("compactRows") private var compactRows = false
     @Query(sort: \PlannerTask.sortOrder) private var tasks: [PlannerTask]
     @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
@@ -303,8 +305,9 @@ struct TasksView: View {
     }
     private func rows(_ items: [PlannerTask]) -> some View {
         VStack(spacing: DayTheme.rowSpacing(compact: compactRows, typeSize: typeSize)) {
-            ForEach(items) { task in TaskRow(task: task) { editing = task } }
+            ForEach(items) { task in TaskRow(task: task) { editing = task }.transition(.orbitRow) }
         }.padding(.top, CGFloat(DesignTokens.spaceS))
+            .animation(reduceMotion ? nil : .orbitFold, value: items.map(\.id))
     }
     @ViewBuilder private func category(_ name: String, id: String, items: [PlannerTask]) -> some View {
         if !items.isEmpty {
