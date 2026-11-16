@@ -165,6 +165,36 @@ const remove = (folder) => {
       .waitFor();
     await editOnToday("Read for twenty minutes");
     await p.getByRole("button", { name: "Make it a Habit", exact: true }).click();
+    await p.getByRole("checkbox", { name: "Log Read for twenty minutes", exact: true }).waitFor();
+    await p.waitForTimeout(700);
+    console.log(
+      "GEOMETRY",
+      JSON.stringify(
+        await p.evaluate(() => {
+          const r = (el) => {
+            if (!el) return null;
+            const b = el.getBoundingClientRect();
+            return [Math.round(b.left), Math.round(b.top), Math.round(b.right), Math.round(b.bottom)];
+          };
+          return {
+            inner: [innerWidth, innerHeight],
+            scrollHeight: document.scrollingElement.scrollHeight,
+            scrollY,
+            row: r(document.querySelector('[aria-label="Log Read for twenty minutes"]')),
+            offer: r(document.querySelector(".evening-offer")),
+            habits: r(document.querySelector(".habits-compact-card")),
+            side: r(document.querySelector(".today-side")),
+            sidePad: document.querySelector(".today-side")?.style.paddingTop,
+            panels: [...document.querySelectorAll(".today-side > .today-panel")].map((el) => [
+              el.dataset.todayPanel,
+              r(el),
+            ]),
+            main: r(document.querySelector(".today-main")),
+            mainHTML: document.querySelector(".today-main")?.innerText.slice(0, 200),
+          };
+        }),
+      ),
+    );
     // A queued scroll from layout must not close the newly opened context menu.
     await p.getByRole("checkbox", { name: "Log Read for twenty minutes", exact: true }).click({ button: "right" });
     await p.evaluate(() => document.dispatchEvent(new Event("scroll")));
