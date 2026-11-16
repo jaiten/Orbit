@@ -85,7 +85,7 @@ including iPhone widgets. The release pipeline verifies Apple processing after u
 
 On iPhone, **Settings → Calendars → Connect calendars** shows today's events from
 accounts in Apple Calendar, including configured Google accounts. Touch and hold a
-to-do for **Send to calendar**; the native editor lets you choose a writable calendar
+to-do and choose **More → Send to calendar**; the native editor lets you choose a writable calendar
 and confirm saving. Repeat sends reopen the same event where its identifier is still
 valid. Edits to calendar events do not update the original task. Calendar event
 access currently runs on iPhone; Windows does not connect directly to calendar providers.
@@ -110,9 +110,18 @@ TestFlight uploads follow successful iOS checks on main: [release guide](docs/te
 rest, with no Overdue section), and habits due today. Undated tasks
 stay in their list until you add them to Today. Completed items move below the
 open ones in a collapsed Completed section. Task and habit titles open their details;
-use the separate check control to complete a task or log a habit. Touch and hold a
-row for actions, including Make It a Habit / Make It a Task. Arrange sections in
+use the separate check control to complete a task or log a habit. Arrange sections in
 Edit Today.
+
+**Checking off, swipes and the hold menu.** A tick shows the moment you tap or click it. The row
+stays where it is for about a third of a second (longer while you keep ticking others), then folds
+away and appears under Completed; tap it again inside that pause to take the tick back. On iPhone,
+swipe a task, habit or note left a little for Delete, or all the way to delete in one motion (Undo
+brings it back); swipe right to edit it (or open the note). Touch and hold lifts the row as a card
+with a short menu: Edit, Do Tomorrow, Start focus timer, **Move** (Add to Today, Move to Someday),
+**More** (Mark in progress, Send to calendar, Make It a Habit, Make It a Note), Copy text and
+Delete. On Windows, dragging a task in Calendar's week and day views outlines the time it will
+land on, and it can be dropped on a time that already has something.
 
 **Notes** replaces Lists. Notes are titled pages grouped into sections (Personal,
 Work, Someday…); open one to edit it as a page with a large title, a Section property and
@@ -131,8 +140,8 @@ when the app is minimised or leaves the screen, or with **Lock Now**. **Hide tit
 section shows its pages as "Hidden note", with no title or text in lists and search. Locks keep
 notes out of view on the device; note text is not encrypted separately in sync.
 
-**Adding tasks to your calendar.** Touch and hold a dated task on iPhone (or open it) and choose
-**Send to calendar**: the system event editor opens with it filled in, for any calendar on the phone,
+**Adding tasks to your calendar.** Touch and hold a dated task on iPhone and choose
+**More → Send to calendar** (or open the task): the system event editor opens with it filled in, for any calendar on the phone,
 including Google or Outlook accounts added in iOS Settings. On Windows, right-click a dated task
 (or use **Add to calendar…** in its editor) for Google Calendar or Outlook in the browser, or an
 .ics file for the default calendar app (Windows Calendar, Outlook, Apple Calendar). It is a one-time
