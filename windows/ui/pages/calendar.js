@@ -212,6 +212,8 @@ function applyCalendarStyles(root = document) {
     .querySelectorAll("[data-anytime-height]")
     .forEach((item) => item.style.setProperty("--anytime-height", `${item.dataset.anytimeHeight}px`));
 }
+// The task being dragged in Calendar (a drag's own data cannot be read until it is dropped).
+let draggedTask = null;
 function bindCalendar() {
   applyCalendarStyles();
   if ($("#calendar-completed"))
@@ -349,12 +351,38 @@ function bindCalendar() {
       drag = null;
       ghost.hidden = true;
     };
+    // A task dragged over the day outlines the time it would take there, for as long as it runs.
+    column.addEventListener("dragover", (event) => {
+      if (!draggedTask) return;
+      const start = slotAt(event.clientY);
+      show(start, Math.min(96, start + Math.max(1, Math.round((draggedTask.durationMinutes || 60) / 15))));
+    });
+    column.addEventListener("dragleave", (event) => {
+      if (!column.contains(event.relatedTarget)) ghost.hidden = true;
+    });
+    column.addEventListener("drop", () => (ghost.hidden = true));
   });
+  const endTaskDrag = () => {
+    draggedTask = null;
+    document.body.classList.remove("dragging-task");
+    document.querySelectorAll(".drag-source").forEach((block) => block.classList.remove("drag-source"));
+    document.querySelectorAll(".drop-target").forEach((target) => target.classList.remove("drop-target"));
+    document.querySelectorAll(".slot-ghost").forEach((ghost) => (ghost.hidden = true));
+  };
   document.querySelectorAll("[data-drag-task]").forEach((block) => {
     block.ondragstart = (event) => {
       event.dataTransfer.setData("text/orbit-task", block.dataset.dragTask);
       event.dataTransfer.effectAllowed = "move";
+      draggedTask = rows("tasks").find((item) => item.id === block.dataset.dragTask) || null;
+      // Once the picture that follows the pointer has been taken, dim the original and let the grid
+      // underneath other blocks receive the drag.
+      setTimeout(() => {
+        if (!draggedTask) return;
+        block.classList.add("drag-source");
+        document.body.classList.add("dragging-task");
+      }, 0);
     };
+    block.ondragend = endTaskDrag;
   });
   document.querySelectorAll("[data-resize-task]").forEach((handle) => {
     const task = rows("tasks").find((item) => item.id === handle.dataset.resizeTask);
@@ -426,8 +454,13 @@ function bindCalendar() {
       if (!event.dataTransfer.types.includes("text/orbit-task")) return;
       event.preventDefault();
       event.dataTransfer.dropEffect = "move";
+      if (target.classList.contains("schedule-all-day-column")) target.classList.add("drop-target");
+    };
+    target.ondragleave = (event) => {
+      if (!target.contains(event.relatedTarget)) target.classList.remove("drop-target");
     };
     target.ondrop = (event) => {
+      endTaskDrag();
       const [key, time] = target.dataset.timeSlot?.split("T") || [
         target.querySelector("[data-add-day]").dataset.addDay,
       ];

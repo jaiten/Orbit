@@ -662,6 +662,8 @@ const fs = require("node:fs");
   const ghostWidth = await p.locator(".layout-ghost").evaluate((ghost) => ghost.clientWidth);
   assert.ok(Math.abs(ghostWidth - resizedMainWidth + 20) < 45, "Dragging across columns adapts the preview width");
   await p.mouse.up();
+  // The panel glides into its gap before the layout is saved.
+  await p.locator(".layout-placeholder").waitFor({ state: "detached" });
   assert.equal(
     await p.locator('[data-panel-drop="main"]').evaluate((column) => column.firstElementChild.dataset.todayPanel),
     "habits",

@@ -1,5 +1,26 @@
 // Page routing and start-up. Pages live in ui/pages; shared helpers in core.js, motion in motion.js.
 let shownView = null;
+/** The current page as HTML, from what is in memory now. */
+function pageHTML() {
+  // Notes are task records too, but never to-dos: only the Notes page shows them.
+  const tasks = rows("tasks")
+    .filter((t) => !t.isNote)
+    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  const habits = rows("habits").sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  const pages = {
+    today: () => renderToday(tasks, habits),
+    tasks: () => renderTasks(tasks),
+    lists: () => renderNotes(tasks),
+    note: renderNoteEditor,
+    calendar: () => renderCalendar(tasks),
+    history: () => renderHistoryIndex(habits),
+    "habit-history": () => renderHabitHistory(habits),
+    habits: () => renderHabits(habits),
+    account: renderAccount,
+    review: renderReview,
+  };
+  return (pages[page] || renderSettings)();
+}
 function render() {
   renderRevision++;
   // Keep keyboard focus on the same item across re-renders (Space/Enter toggles it repeatedly).
@@ -18,23 +39,6 @@ function render() {
         ? "lists"
         : page;
   document.querySelectorAll("[data-page]").forEach((b) => b.classList.toggle("selected", b.dataset.page === navPage));
-  // Notes are task records too, but never to-dos: only the Notes page shows them.
-  const tasks = rows("tasks")
-    .filter((t) => !t.isNote)
-    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-  const habits = rows("habits").sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-  const pages = {
-    today: () => renderToday(tasks, habits),
-    tasks: () => renderTasks(tasks),
-    lists: () => renderNotes(tasks),
-    note: renderNoteEditor,
-    calendar: () => renderCalendar(tasks),
-    history: () => renderHistoryIndex(habits),
-    "habit-history": () => renderHabitHistory(habits),
-    habits: () => renderHabits(habits),
-    account: renderAccount,
-    review: renderReview,
-  };
   // A new page cross-fades in; the same page re-forms with rows springing to their new places.
   const view =
     page +
@@ -49,7 +53,7 @@ function render() {
   shownView = view;
   // Notes fill the window edge to edge, like a document app; other pages keep the reading width.
   document.body.dataset.view = page === "note" ? "lists" : page;
-  $("#content").innerHTML = (pages[page] || renderSettings)();
+  $("#content").innerHTML = pageHTML();
   renderLists();
   bind();
   if (changedPage) {

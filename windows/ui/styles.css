@@ -578,7 +578,7 @@ main {
     padding 0.15s;
 }
 .task-row:hover .today-action,
-.task-row:focus-within .today-action {
+.task-row:has(:focus-visible) .today-action {
   max-width: 140px;
   margin-right: var(--space-m);
   padding: 3px 12px;
@@ -2916,10 +2916,27 @@ body[data-view="lists"] .page {
   gap: 8px;
   flex-wrap: wrap;
 }
+/* Dialogs settle into place like a macOS sheet: a short rise and a hint of growth with the fade,
+   while the page dims behind. (scale and translate, so a dialog's own transform is left alone.) */
 dialog[open] {
-  animation: dialog-appear 140ms ease-out;
+  animation: dialog-appear 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+dialog[open]::backdrop {
+  animation: backdrop-appear 180ms ease-out;
 }
 @keyframes dialog-appear {
+  from {
+    opacity: 0;
+    scale: 0.98;
+    translate: 0 8px;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+    translate: 0 0;
+  }
+}
+@keyframes backdrop-appear {
   from {
     opacity: 0;
   }
@@ -2928,7 +2945,8 @@ dialog[open] {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  dialog[open] {
+  dialog[open],
+  dialog[open]::backdrop {
     animation: none;
   }
 }
@@ -3071,7 +3089,7 @@ body[data-view="lists"] .page {
   pointer-events: none;
 }
 .check-tile:hover .row-actions,
-.check-tile:focus-within .row-actions {
+.check-tile:has(:focus-visible) .row-actions {
   padding-right: 8px;
   opacity: 1;
   pointer-events: auto;
@@ -3247,7 +3265,7 @@ dialog {
     transform 140ms ease;
 }
 .check-tile:hover .row-actions,
-.check-tile:focus-within .row-actions {
+.check-tile:has(:focus-visible) .row-actions {
   width: 62px;
   padding: 0;
   transform: translateY(-50%) translateX(0);

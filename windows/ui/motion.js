@@ -7,22 +7,58 @@ function spring() {
 const tokenNumber = (name, fallback) =>
   parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || fallback;
 
-/** Where every movable row is, keyed by data-flip, before a re-render. */
-function captureRows() {
-  const rects = new Map();
-  document
-    .querySelectorAll("#content [data-flip]")
-    .forEach((el) => rects.set(el.dataset.flip, el.getBoundingClientRect()));
-  return rects;
+// Lists re-form in one movement: rows slide inside their list, the list's edge follows them over the
+// same time, and whatever sits below is carried along by the layout. Nothing flies across the page.
+const FOLD = { duration: 240, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" };
+
+/**
+ * The list a row sits in, and a name for it that survives a re-render: its heading with the counts
+ * taken out, so "3 completed" and "4 completed" are the same list.
+ */
+function rowGroup(row) {
+  const list = row.closest("[data-flip-group], .check-list");
+  if (!list) return null;
+  if (list.dataset.flipGroup) return { list, key: list.dataset.flipGroup };
+  const before = list.previousElementSibling;
+  const label = before?.matches(".section-label, summary") ? before : list.closest("details")?.querySelector("summary");
+  const text = (label?.querySelector("h2")?.textContent ?? label?.textContent ?? "").replace(/\d+/g, "#").trim();
+  return { list, key: (list.closest("[data-today-panel]")?.dataset.todayPanel ?? "") + "|" + text };
 }
-/** After a re-render: rows that moved spring from their old place; new rows fade and slide in. */
+/** Where every movable row is inside its list, and how tall each list is, before a re-render. */
+function captureRows() {
+  const rows = new Map(),
+    groups = new Map();
+  document.querySelectorAll("#content [data-flip]").forEach((el) => {
+    const group = rowGroup(el),
+      rect = el.getBoundingClientRect();
+    if (group && !groups.has(group.key)) groups.set(group.key, group.list.getBoundingClientRect());
+    const base = group ? group.list.getBoundingClientRect() : { left: 0, top: 0 };
+    rows.set(el.dataset.flip, {
+      group: group?.key ?? null,
+      x: rect.left - base.left,
+      y: rect.top - base.top,
+      shown: rect.height > 0,
+    });
+  });
+  return { rows, groups };
+}
+/**
+ * After a re-render: rows that moved within their list slide from their old place; rows that are new
+ * slide in; rows that came from another list (a task just completed) simply fade in where they now
+ * belong. Each list grows or shrinks with its rows.
+ */
 function settleRows(before) {
   const reduce = reducedMotion(),
     { easing, duration } = spring("ui");
   const slide = tokenNumber("--row-slide", 20);
+  const lists = new Map();
   document.querySelectorAll("#content [data-flip]").forEach((el) => {
-    const old = before.get(el.dataset.flip);
-    if (!old) {
+    const group = rowGroup(el);
+    if (group && !lists.has(group.key)) lists.set(group.key, group.list);
+    const now = el.getBoundingClientRect();
+    if (!now.height) return;
+    const old = before.rows.get(el.dataset.flip);
+    if (!old?.shown) {
       el.animate(
         reduce
           ? [{ opacity: 0 }, { opacity: 1 }]
@@ -34,12 +70,43 @@ function settleRows(before) {
       );
       return;
     }
-    const now = el.getBoundingClientRect();
-    const dx = old.left - now.left,
-      dy = old.top - now.top;
+    if (old.group !== (group?.key ?? null)) {
+      el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: reduce ? 200 : FOLD.duration, easing: "ease-out" });
+      return;
+    }
+    const base = group ? group.list.getBoundingClientRect() : { left: 0, top: 0 };
+    const dx = old.x - (now.left - base.left),
+      dy = old.y - (now.top - base.top);
     if (reduce || (Math.abs(dx) < 1 && Math.abs(dy) < 1)) return;
-    el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], { duration, easing });
+    el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], FOLD);
   });
+  if (reduce) return;
+  lists.forEach((list, key) => {
+    const old = before.groups.get(key),
+      now = list.getBoundingClientRect();
+    if (!now.height || Math.abs((old?.height ?? 0) - now.height) < 1) return;
+    // Rows still on their way are clipped at the edge, as if the card were closing over them.
+    list.classList.add("folding");
+    const frames = [{ height: (old?.height ?? 0) + "px" }, { height: now.height + "px" }];
+    if (!old?.height) {
+      frames[0].opacity = 0;
+      frames[1].opacity = 1;
+    }
+    list
+      .animate(frames, FOLD)
+      .finished.catch(() => {})
+      .then(() => list.classList.remove("folding"));
+  });
+}
+/** Rows about to leave their list fade out first, so the rows around them never slide over their text. */
+function fadeRows(rows) {
+  return Promise.all(
+    rows.map((row) =>
+      row
+        .animate([{ opacity: 1 }, { opacity: 0 }], { duration: 130, easing: "ease-out", fill: "forwards" })
+        .finished.catch(() => {}),
+    ),
+  );
 }
 /**
  * A new page: one quick, soft cross-fade with a hint of focus, like switching panes on macOS. No row

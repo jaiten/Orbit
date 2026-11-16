@@ -164,6 +164,104 @@ function interacting() {
     ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)
   );
 }
+// A tick shows at once. The lists then wait a moment before they re-form, so the tick is seen landing
+// and the row folds away instead of flying across the page; ticking several in a row keeps them all
+// in place until there is a pause. Reduced motion skips the wait.
+const TICK_PAUSE = 380;
+let tickHoldUntil = 0,
+  tickTimer = null,
+  localEdits = 0;
+const tickedRows = new Set();
+const holdingTicks = () => performance.now() < tickHoldUntil;
+function holdForTick(flipID) {
+  if (reducedMotion()) return;
+  tickedRows.add(flipID);
+  // Long enough to cover the fade that follows the pause.
+  tickHoldUntil = performance.now() + TICK_PAUSE + 400;
+  clearTimeout(tickTimer);
+  tickTimer = setTimeout(foldTicked, TICK_PAUSE);
+}
+/** The pause is over: ticked rows that are about to leave their list fade, then everything re-forms. */
+async function foldTicked() {
+  const mine = tickTimer;
+  let leaving = [];
+  try {
+    // Where each row will be after the re-render, to see which ones change lists.
+    const next = document.createElement("div");
+    next.innerHTML = pageHTML();
+    const after = new Map();
+    next.querySelectorAll("[data-flip]").forEach((row) => after.set(row.dataset.flip, rowGroup(row)?.key ?? null));
+    leaving = [...document.querySelectorAll("#content [data-flip]")].filter(
+      (row) => tickedRows.has(row.dataset.flip) && after.get(row.dataset.flip) !== (rowGroup(row)?.key ?? null),
+    );
+    // A finished task also leaves Calendar's time grid.
+    document.querySelectorAll("#content .schedule-event[data-drag-task]").forEach((block) => {
+      const id = block.dataset.dragTask;
+      if (tickedRows.has("task-" + id) && !next.querySelector(`.schedule-event[data-drag-task="${CSS.escape(id)}"]`))
+        leaving.push(block);
+    });
+  } catch (error) {
+    console.warn("orbit.fold", error);
+  }
+  if (leaving.length) await fadeRows(leaving);
+  // Another tick restarted the pause while these faded; they all fold together when it ends.
+  if (mine !== tickTimer) return;
+  tickedRows.clear();
+  tickHoldUntil = 0;
+  void load(true);
+}
+/** Puts a change on screen before it is saved: the record in memory, so the next click sees it. */
+function applyLocally(key, payload) {
+  localEdits++;
+  const index = state.records.findIndex((r) => r.key === key);
+  const record = { ...(index < 0 ? {} : state.records[index]), key, payload, deleted: false };
+  if (index < 0) state.records.push(record);
+  else state.records[index] = record;
+}
+/**
+ * Draws (or takes back) the tick on every row for an item, with the words a screen reader hears.
+ * Returns how many rows it found.
+ */
+function showTick(selector, done, label, detail) {
+  const buttons = document.querySelectorAll(selector);
+  buttons.forEach((button) => {
+    const mark = button.querySelector(".tick, .progress-tick");
+    if (mark) mark.outerHTML = tick(done, done);
+    button.setAttribute("aria-checked", String(done));
+    button.setAttribute("aria-label", label);
+    const row = button.closest(".check-tile");
+    if (!row) return;
+    row.classList.toggle("complete", done);
+    row.classList.remove("in-progress");
+    row.querySelectorAll(".row-body, .habit-log").forEach((body) => {
+      if (body.getAttribute("aria-label")) body.setAttribute("aria-label", label);
+    });
+    if (detail) {
+      const text = row.querySelector(".row-detail");
+      if (text) {
+        text.textContent = detail(row);
+        text.classList.toggle("met", done);
+      }
+    }
+  });
+  return buttons.length;
+}
+/** Ticks are never dropped or made to wait for one another: each shows at once and they save in order. */
+let tickSaves = Promise.resolve();
+function tickAction(fn) {
+  const saved = fn();
+  tickSaves = tickSaves
+    .then(() => saved)
+    .then(
+      () => load(true),
+      (error) => {
+        showNotice(error.message);
+        return load(true);
+      },
+    );
+  return tickSaves;
+}
+
 let pendingSyncStatus = null;
 let syncStatusTimer;
 function updateSync(value) {
@@ -205,8 +303,12 @@ document.addEventListener("close", () => setTimeout(flushSyncStatus, 400), true)
 async function load(force = false) {
   const sequence = ++loadSequence;
   const revision = renderRevision;
+  const edits = localEdits;
   const next = await api.read();
   if (sequence !== loadSequence) return;
+  // Something was ticked while this was being read, so it is already out of date; the load that
+  // follows that tick's save brings everything in.
+  if (edits !== localEdits) return;
   const signature = JSON.stringify({
     records: next.records.map((r) => ({ key: r.key, payload: r.payload, deleted: r.deleted, conflict: r.conflict })),
     email: next.email,
@@ -238,6 +340,7 @@ async function load(force = false) {
   if (
     document.querySelector("dialog[open]") ||
     revision !== renderRevision ||
+    holdingTicks() ||
     ((!force || page === "note") && interacting())
   ) {
     pendingRender = true;
@@ -249,7 +352,7 @@ async function load(force = false) {
   render();
 }
 function flushPending() {
-  if (pendingRender && !interacting()) void load();
+  if (pendingRender && !interacting() && !holdingTicks()) void load();
 }
 document.addEventListener("toggle", flushPending, true);
 document.addEventListener("close", flushPending, true);
@@ -464,15 +567,21 @@ async function toggle(id) {
     await put("tasks", OrbitPlanner.setProgress(t, true, true));
     return;
   }
-  poppedID = t.completedAt ? null : t.id;
-  if (!t.completedAt && focusTimer?.taskID === t.id) stopTimer();
-  if (!t.completedAt) noteCompletion();
-  await put("tasks", {
+  const done = !t.completedAt;
+  // The tick is drawn straight away (showTick), so the re-render that follows has nothing to pop.
+  poppedID = done && reducedMotion() ? t.id : null;
+  if (done && focusTimer?.taskID === t.id) stopTimer();
+  if (done) noteCompletion();
+  const next = {
     ...t,
-    startedAt: t.completedAt ? null : t.startedAt,
-    completedAt: t.completedAt ? null : Date.now(),
+    startedAt: done ? t.startedAt : null,
+    completedAt: done ? Date.now() : null,
     updatedAt: Date.now(),
-  });
+  };
+  applyLocally(t._key || "tasks/" + t.id, clean(next));
+  if (showTick(`[data-toggle="${CSS.escape(t.id)}"]`, done, `${done ? "Reopen" : "Complete"} ${t.title}`))
+    holdForTick("task-" + t.id);
+  await put("tasks", next);
 }
 async function log(id, undo, date = today()) {
   const h = rows("habits").find((h) => h.id === id);
@@ -483,10 +592,20 @@ async function log(id, undo, date = today()) {
   if (!undo && checked(h, date)) return;
   const data = old || { id: crypto.randomUUID(), habitID: id, dayKey: date, count: 0 };
   data.count = Math.max(0, data.count + (undo ? -1 : 1));
-  poppedID = undo ? null : id;
   data.updatedAt = Date.now();
   data._key = `habit_logs/${id}-${date}`;
   if (!undo) noteCompletion();
+  applyLocally(data._key, clean(data));
+  // A habit with several check-ins a day is only ticked by the one that meets its target.
+  const done = checked(h, date);
+  poppedID = done && reducedMotion() ? id : null;
+  const shown = showTick(
+    `[data-habit-toggle="${CSS.escape(id)}"][data-habit-day="${date}"]`,
+    done,
+    `${done ? "Undo" : "Log"} ${h.title}`,
+    (row) => (row.querySelector(".habit-log") ? `${progress(h, date)} of ${h.target}` : habitDetail(h, date)),
+  );
+  if (shown) holdForTick("habit-" + id);
   await put("habit_logs", data);
   if (!undo && date === current) celebrateStreak(h, [...habitLogs().filter((l) => l.id !== data.id), data]);
 }
@@ -520,7 +639,13 @@ async function backfillYesterday(id) {
 // Shared tile handlers, used by every page that shows tasks or habits.
 function bindTiles() {
   document.querySelectorAll("[data-delete-row]").forEach((button) => {
-    button.onclick = () => void action(() => deleteItem(button.closest(".check-tile")));
+    // The row fades before its neighbours close the gap.
+    button.onclick = () =>
+      void action(async () => {
+        const row = button.closest(".check-tile");
+        if (!reducedMotion()) await fadeRows([row]);
+        await deleteItem(row);
+      });
   });
   document.querySelectorAll(".progress-options").forEach((menu) => {
     menu.onkeydown = (event) => {
@@ -556,22 +681,26 @@ function bindTiles() {
         "aria-label",
         b.closest(".row-line")?.querySelector("[data-toggle]")?.getAttribute("aria-label") || "",
       );
-    b.onclick = () => (checks ? action(() => toggle(b.dataset.edit)) : openTask(b.dataset.edit));
+    b.onclick = () => (checks ? tickAction(() => toggle(b.dataset.edit)) : openTask(b.dataset.edit));
   });
   if (clickChecks)
     document.querySelectorAll(".task-row[data-row-menu]").forEach((row) => {
       row.onclick = (event) => {
         // The row's own controls (tick, title, pencil, delete, timer, Add to Today) handle themselves.
-        if (event.target.closest("button, a, input, select, label, summary, [data-picker], .mac-picker")) return;
+        // (Read from the click's own path: the tick it landed on may have been redrawn since.)
+        const own = "button, a, input, select, label, summary, [data-picker], .mac-picker";
+        if (event.composedPath().some((el) => el instanceof Element && el.matches(own))) return;
         const id = row.dataset.rowMenu.split(":")[1];
-        void action(() => toggle(id));
+        void tickAction(() => toggle(id));
       };
     });
-  document.querySelectorAll("[data-toggle]").forEach((b) => (b.onclick = () => action(() => toggle(b.dataset.toggle))));
+  document
+    .querySelectorAll("[data-toggle]")
+    .forEach((b) => (b.onclick = () => tickAction(() => toggle(b.dataset.toggle))));
   document.querySelectorAll("[data-habit-toggle]").forEach(
     (b) =>
       (b.onclick = () =>
-        action(() =>
+        tickAction(() =>
           log(
             b.dataset.habitToggle,
             checked(

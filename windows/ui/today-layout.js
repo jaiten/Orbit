@@ -77,7 +77,7 @@ function bindTodayBoard() {
     localStorage.setItem("todayPanelLayout", JSON.stringify(values));
     render();
   };
-  const place = (placeholder, x, y) => {
+  const place = (placeholder, x, y, settled = false) => {
     const columns = [...document.querySelectorAll("[data-panel-drop]")];
     const target =
       document.elementFromPoint(x, y)?.closest("[data-panel-drop]") ||
@@ -95,8 +95,32 @@ function bindTodayBoard() {
     const before = candidates.find(
       (panel) => y < panel.getBoundingClientRect().top + panel.getBoundingClientRect().height / 2,
     );
+    // The gap is already there, or the panels are still sliding from the last change.
+    const shown = (panel) => panel.dataset.todayPanel && !panel.hidden && !panel.classList.contains("drag-source");
+    let next = placeholder.nextElementSibling;
+    while (next && !shown(next)) next = next.nextElementSibling;
+    if (placeholder.parentElement === target && next === (before || null)) return;
+    // (When the panel is let go, the gap goes straight to where the pointer is.)
+    if (!settled && performance.now() - lastPlaced < 170) return;
+    lastPlaced = performance.now();
+    // The other panels slide out of the way rather than jumping.
+    const others = panels.filter(shown);
+    const from = new Map(others.map((panel) => [panel, panel.getBoundingClientRect()]));
     target.insertBefore(placeholder, before || null);
+    if (settled || reducedMotion()) return;
+    others.forEach((panel) => {
+      const old = from.get(panel),
+        now = panel.getBoundingClientRect();
+      const dx = old.left - now.left,
+        dy = old.top - now.top;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+      panel.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], {
+        duration: 170,
+        easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+      });
+    });
   };
+  let lastPlaced = 0;
   panels.forEach((panel) => {
     panel.ondragstart = (event) => {
       if (!editingTodayLayout) {
@@ -129,8 +153,10 @@ function bindTodayBoard() {
       grip.setPointerCapture(event.pointerId);
       const offsetX = event.clientX - box.left,
         offsetY = event.clientY - box.top;
-      let finished = false;
+      let finished = false,
+        last = null;
       grip.onpointermove = (move) => {
+        last = move;
         place(placeholder, move.clientX, move.clientY);
         ghost.style.width = `${placeholder.getBoundingClientRect().width}px`;
         ghost.style.left = `${move.clientX - Math.min(offsetX, ghost.clientWidth - 20)}px`;
@@ -157,15 +183,29 @@ function bindTodayBoard() {
         grip.onpointermove = null;
         grip.onpointerup = null;
         grip.onpointercancel = null;
-        ghost.remove();
-        panel.classList.remove("drag-source");
-        if (cancel) {
-          originalParent.insertBefore(panel, originalNext?.isConnected ? originalNext : null);
-          placeholder.remove();
-        } else {
-          placeholder.replaceWith(panel);
-          persist();
-        }
+        const settle = () => {
+          ghost.remove();
+          panel.classList.remove("drag-source");
+          if (cancel) {
+            originalParent.insertBefore(panel, originalNext?.isConnected ? originalNext : null);
+            placeholder.remove();
+          } else {
+            placeholder.replaceWith(panel);
+            persist();
+          }
+        };
+        if (!cancel && last) place(placeholder, last.clientX, last.clientY, true);
+        if (cancel || reducedMotion() || !placeholder.isConnected) return settle();
+        // Let go: the panel glides into the gap it was dropped on.
+        const land = placeholder.getBoundingClientRect();
+        ghost
+          .animate([{}, { left: `${land.left}px`, top: `${land.top}px`, rotate: "0deg" }], {
+            duration: 150,
+            easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+            fill: "forwards",
+          })
+          .finished.catch(() => {})
+          .then(settle);
       };
       grip.onpointerup = () => finish(false);
       grip.onpointercancel = () => finish(true);
