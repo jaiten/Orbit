@@ -6,9 +6,11 @@ import WidgetKit
     /// Saves and syncs. Deletions and moves can be undone (UndoJournal decides); `undoKind` forces it, as imports do.
     static func save(_ context: ModelContext, undoable: Bool = true, undoKind: UndoJournal.Kind? = nil) throws {
         do {
-            let before = Dictionary(uniqueKeysWithValues: try context.fetch(FetchDescriptor<SyncEntry>()).filter { $0.key != "owner" && !$0.tombstone }.map { ($0.key, $0.payload) })
+            // The outbox is read once and used both for Undo's "before" and to record what changed.
+            let entries = try context.fetch(FetchDescriptor<SyncEntry>())
+            let before = Dictionary(uniqueKeysWithValues: entries.filter { $0.key != "owner" && !$0.tombstone }.map { ($0.key, $0.payload) })
             let after = try SyncRecords.snapshots(context)
-            try SyncRecords.capture(context, snapshots: after); try context.save()
+            try SyncRecords.capture(context, snapshots: after, entries: entries); try context.save()
             if undoable { UndoJournal.shared.record(before: before, after: after, kind: undoKind) }
             WidgetCenter.shared.reloadAllTimelines(); NotificationCenter.default.post(name: .init("OrbitLocalChange"), object: nil)
         }
