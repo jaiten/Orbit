@@ -71,7 +71,13 @@ function settleRows(before) {
       return;
     }
     if (old.group !== (group?.key ?? null)) {
-      el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: reduce ? 200 : FOLD.duration, easing: "ease-out" });
+      // It appears once its neighbours have mostly made room, so text never crosses text.
+      el.animate([{ opacity: 0 }, { opacity: 1 }], {
+        duration: 200,
+        delay: reduce ? 0 : 90,
+        easing: "ease-out",
+        fill: "backwards",
+      });
       return;
     }
     const base = group ? group.list.getBoundingClientRect() : { left: 0, top: 0 };
