@@ -267,6 +267,11 @@ private struct SidewaysDrag<Legacy: Gesture>: ViewModifier {
     }
 }
 
+/// A row is only taken out of its list once the menu that asked for it has finished closing.
+enum MenuDismissal {
+    static let pause: Duration = .milliseconds(420)
+}
+
 /// Reminders are rebuilt after quick edits such as ticks, but only once things have settled, so the
 /// work never competes with an animation and several ticks in a row rebuild them once.
 @MainActor enum ReminderRefresh {

@@ -279,20 +279,26 @@ struct NoteMenuItems: View {
             Button("Someday") { move(TodayRules.somedayID) }
         }
         Button("Make It a Task", systemImage: "checklist") {
-            Task { if await mayOpen() { change { try NoteRules.makeTask(note, in: context) } } }
+            Task { if await mayOpen() { leave { try NoteRules.makeTask(note, in: context) } } }
         }
-        Button("Delete", systemImage: "trash", role: .destructive) { change { context.delete(note); try Mutations.save(context) } }
+        Button("Delete", systemImage: "trash", role: .destructive) { leave { context.delete(note); try Mutations.save(context) } }
     }
     private func move(_ id: UUID?) {
-        change {
+        leave {
             if id == TodayRules.somedayID { try TodayRules.ensureSomeday(context) }
             note.listID = id; note.updatedAt = .now; try Mutations.save(context)
         }
     }
-    /// Moving or deleting takes the row out of its list; the neighbours close the gap smoothly.
     private func change(_ action: () throws -> Void) {
-        withAnimation(UIAccessibility.isReduceMotionEnabled ? nil : .orbitFold) {
-            do { try action() } catch { context.rollback(); self.error = error.localizedDescription }
+        do { try action() } catch { context.rollback(); self.error = error.localizedDescription }
+    }
+    /// Moving or deleting takes the row out of its list. The menu closes first; then the row leaves
+    /// and its neighbours close the gap.
+    private func leave(_ action: @escaping () throws -> Void) {
+        Task {
+            try? await Task.sleep(for: MenuDismissal.pause)
+            guard note.modelContext != nil, !note.isDeleted else { return }
+            withAnimation(UIAccessibility.isReduceMotionEnabled ? nil : .orbitFold) { change(action) }
         }
     }
 }

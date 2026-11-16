@@ -57,11 +57,17 @@ struct TaskActions: ViewModifier {
         do { try action(); Task { await FocusSession.shared.stopIfMatching(id); do { try await refreshReminders(context) } catch { self.error = error.localizedDescription } } }
         catch { context.rollback(); self.error = error.localizedDescription }
     }
-    /// A change that takes the row out of its list (another day, Someday, a habit, deleted): the
-    /// neighbours close the gap smoothly.
-    private func move(_ action: () throws -> Void) {
+    /// A change that takes the row out of its list (another day, Someday, a habit, deleted). The menu
+    /// closes first, its lifted card settling back into the row; then the row leaves and its
+    /// neighbours close the gap. (Removing the row while the menu is still closing leaves the system
+    /// animating towards a row that is no longer there.)
+    private func move(_ action: @escaping () throws -> Void) {
         CompletionHold.shared.cancel("task-" + task.id.uuidString)
-        withAnimation(reduceMotion ? nil : .orbitFold) { change(action) }
+        Task {
+            try? await Task.sleep(for: MenuDismissal.pause)
+            guard task.modelContext != nil, !task.isDeleted else { return }
+            withAnimation(reduceMotion ? nil : .orbitFold) { change(action) }
+        }
     }
 }
 
@@ -81,9 +87,14 @@ struct HabitActions: ViewModifier {
         }.modifier(MutationErrorModifier(error: $error))
     }
 
-    private func change(_ action: () throws -> Void) {
+    /// The menu closes first; then the row leaves (see TaskActions.move).
+    private func change(_ action: @escaping () throws -> Void) {
         CompletionHold.shared.cancel("habit-" + habit.id.uuidString)
-        withAnimation(reduceMotion ? nil : .orbitFold) { apply(action) }
+        Task {
+            try? await Task.sleep(for: MenuDismissal.pause)
+            guard habit.modelContext != nil, !habit.isDeleted else { return }
+            withAnimation(reduceMotion ? nil : .orbitFold) { apply(action) }
+        }
     }
     private func apply(_ action: () throws -> Void) {
         do { try action(); Task { do { try await refreshReminders(context) } catch { self.error = error.localizedDescription } } }
