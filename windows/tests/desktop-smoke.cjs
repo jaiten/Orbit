@@ -38,6 +38,9 @@ const remove = (folder) => {
     const errors = [];
     p.on("pageerror", (e) => errors.push(e.message));
     await p.getByRole("heading", { name: "Today", exact: true, level: 1 }).waitFor();
+    // The one-time evening check-in offer floats over the bottom right of Today; on a small screen
+    // (the CI runner's is 1024 by 768) it covers the habit rows this test clicks. It is not under test here.
+    await p.evaluate(() => localStorage.setItem("eveningOffered", "yes"));
     // Midnight day start keeps "today" equal to the calendar day whenever the test runs.
     await p.evaluate(() =>
       window.orbit.put("preferences/00000000-0000-4000-8000-000000000002", {
@@ -165,36 +168,6 @@ const remove = (folder) => {
       .waitFor();
     await editOnToday("Read for twenty minutes");
     await p.getByRole("button", { name: "Make it a Habit", exact: true }).click();
-    await p.getByRole("checkbox", { name: "Log Read for twenty minutes", exact: true }).waitFor();
-    await p.waitForTimeout(700);
-    console.log(
-      "GEOMETRY",
-      JSON.stringify(
-        await p.evaluate(() => {
-          const r = (el) => {
-            if (!el) return null;
-            const b = el.getBoundingClientRect();
-            return [Math.round(b.left), Math.round(b.top), Math.round(b.right), Math.round(b.bottom)];
-          };
-          return {
-            inner: [innerWidth, innerHeight],
-            scrollHeight: document.scrollingElement.scrollHeight,
-            scrollY,
-            row: r(document.querySelector('[aria-label="Log Read for twenty minutes"]')),
-            offer: r(document.querySelector(".evening-offer")),
-            habits: r(document.querySelector(".habits-compact-card")),
-            side: r(document.querySelector(".today-side")),
-            sidePad: document.querySelector(".today-side")?.style.paddingTop,
-            panels: [...document.querySelectorAll(".today-side > .today-panel")].map((el) => [
-              el.dataset.todayPanel,
-              r(el),
-            ]),
-            main: r(document.querySelector(".today-main")),
-            mainHTML: document.querySelector(".today-main")?.innerText.slice(0, 200),
-          };
-        }),
-      ),
-    );
     // A queued scroll from layout must not close the newly opened context menu.
     await p.getByRole("checkbox", { name: "Log Read for twenty minutes", exact: true }).click({ button: "right" });
     await p.evaluate(() => document.dispatchEvent(new Event("scroll")));
