@@ -163,6 +163,7 @@ struct TodayView: View {
                 } label: {
                     Text("Completed (\(completedItems.count))").font(.subheadline.weight(.medium)).foregroundStyle(.secondary)
                         .monospacedDigit().contentTransition(.numericText())
+                        .animation(reduceMotion ? nil : .orbitFold, value: completedItems.count)
                 }.accessibilityIdentifier("today-completed")
                     .accessibilityValue(showingCompleted ? "Expanded" : "Collapsed")
                     .transition(.opacity)
