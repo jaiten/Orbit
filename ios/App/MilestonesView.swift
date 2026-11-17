@@ -7,8 +7,9 @@ struct MilestonesView: View {
     @Environment(\.colorScheme) private var scheme
     @Query private var tasks: [PlannerTask]
     @Query private var logs: [HabitLog]
+    @Query private var habits: [Habit]
     var body: some View {
-        let metrics = Rewards.metrics(tasks: tasks, logs: logs)
+        let metrics = Rewards.metrics(tasks: tasks, logs: logs, counters: Rewards.counterIDs(habits))
         let earned = Set(Rewards.earnedBadges(metrics))
         List {
             Section {

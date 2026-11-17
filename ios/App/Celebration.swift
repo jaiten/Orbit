@@ -40,7 +40,7 @@ import UserNotifications
         let habits = (try? context.fetch(FetchDescriptor<Habit>())) ?? []
         let logs = (try? context.fetch(FetchDescriptor<HabitLog>())) ?? []
         let defaults = UserDefaults.standard
-        let earned = Rewards.earned(Rewards.metrics(tasks: tasks, logs: logs))
+        let earned = Rewards.earned(Rewards.metrics(tasks: tasks, logs: logs, counters: Rewards.counterIDs(habits)))
         let firstTime = defaults.object(forKey: "earnedBadges") == nil
         let seen = Set(defaults.stringArray(forKey: "earnedBadges") ?? [])
         let fresh = firstTime ? [] : earned.filter { !seen.contains($0) }

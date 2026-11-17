@@ -6,6 +6,11 @@ import Foundation
 /// changes never shift a day.
 enum HabitRules {
     static let schedules = ["DAILY", "WEEKDAYS", "WEEKENDS", "WEEKLY"]
+    /// A counter is a habit with no target: every tap adds one to the day's count ("no phone in the
+    /// washroom: 3 today"). It is never due, never checked and never part of progress, streaks or
+    /// reminders; its check-ins are simply how many times it happened that day. Same as Windows.
+    static let counter = "COUNTER"
+    static func isCounter(_ rule: String) -> Bool { rule == counter }
     private static let calendar: Calendar = {
         var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "UTC")!; return c
     }()
@@ -35,7 +40,8 @@ enum HabitRules {
 
     static func schedule(_ rule: String) -> String { schedules.contains(rule) ? rule : "DAILY" }
     static func label(_ rule: String) -> String {
-        ["DAILY": "Daily", "WEEKDAYS": "Weekdays", "WEEKENDS": "Weekends", "WEEKLY": "Weekly"][schedule(rule)]!
+        if isCounter(rule) { return "Counter" }
+        return ["DAILY": "Daily", "WEEKDAYS": "Weekdays", "WEEKENDS": "Weekends", "WEEKLY": "Weekly"][schedule(rule)]!
     }
     static let colors = ["sage", "lavender", "clay", "honey"]
     /// A new habit's default colour, so habits mix: the least used so far, never the newest habit's,
@@ -51,6 +57,7 @@ enum HabitRules {
     }
     static func dailyTarget(rule: String, target: Int) -> Int { schedule(rule) == "WEEKLY" ? 1 : max(1, target) }
     static func scheduledOn(rule: String, day: String) -> Bool {
+        if isCounter(rule) { return false }
         switch schedule(rule) {
         case "WEEKDAYS": return (1...5).contains(weekday(day))
         case "WEEKENDS": return [0, 6].contains(weekday(day))
@@ -60,7 +67,11 @@ enum HabitRules {
 
     /// `counts` holds this habit's check-ins by day key.
     static func checked(rule: String, target: Int, counts: [String: Int], day: String) -> Bool {
-        (counts[day] ?? 0) >= dailyTarget(rule: rule, target: target)
+        !isCounter(rule) && (counts[day] ?? 0) >= dailyTarget(rule: rule, target: target)
+    }
+    /// How many times in the `days` days ending with `day` (a counter's "12 in 7 days").
+    static func countOver(counts: [String: Int], day: String, days: Int = 7) -> Int {
+        (0..<days).reduce(0) { $0 + (counts[addDays(day, -$1)] ?? 0) }
     }
     static func periodProgress(rule: String, counts: [String: Int], day: String, weekStart: Int) -> Int {
         guard schedule(rule) == "WEEKLY" else { return counts[day] ?? 0 }
@@ -87,6 +98,7 @@ enum HabitRules {
     /// habit, weeks in a row that met the weekly target. Cases: shared/test-cases/streaks.json.
     static func streak(rule: String, target: Int, counts: [String: Int], day: String, weekStart: Int) -> Int {
         var count = 0
+        if isCounter(rule) { return 0 }
         if schedule(rule) == "WEEKLY" {
             var week = weekStartKey(day, weekStart: weekStart)
             while count < 520, periodProgress(rule: rule, counts: counts, day: week, weekStart: weekStart) >= max(1, target) {

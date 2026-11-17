@@ -105,11 +105,13 @@ struct AgendaView: View {
     }
 
     @ViewBuilder private var habitSection: some View {
-        if !habits.isEmpty {
+        // Counters have no schedule to summarise.
+        let regular = habits.filter { !$0.isCounter }
+        if !regular.isEmpty {
             VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceS)) {
                 SectionLabel(title: "Habits", note: scope == .all ? "Since added" : scope.title)
                 VStack(spacing: rowSpacing) {
-                    ForEach(habits) { habit in
+                    ForEach(regular) { habit in
                         let summary = self.summary(habit)
                         Button { editHabit(habit) } label: { HabitSummaryRow(habit: habit, done: summary.done, due: summary.due) }
                             .buttonStyle(OrbitPress())

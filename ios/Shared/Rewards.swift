@@ -13,10 +13,12 @@ enum Rewards {
         for log in logs where log.count > 0 { completions += log.count; days.insert(log.dayKey) }
         return Metrics(completions: completions, activeDays: days.count)
     }
-    @MainActor static func metrics(tasks: [PlannerTask], logs: [HabitLog]) -> Metrics {
+    /// `counters` are the ids of counter habits: their taps are not achievements, so they stay out of badges.
+    @MainActor static func metrics(tasks: [PlannerTask], logs: [HabitLog], counters: Set<UUID> = []) -> Metrics {
         metrics(tasks: tasks.map { (completedDay: $0.completedAt.map(PlannerLogic.plannerDay), isNote: $0.note) },
-                logs: logs.map { (dayKey: $0.dayKey, count: $0.count) })
+                logs: logs.filter { !counters.contains($0.habitID) }.map { (dayKey: $0.dayKey, count: $0.count) })
     }
+    @MainActor static func counterIDs(_ habits: [Habit]) -> Set<UUID> { Set(habits.filter(\.isCounter).map(\.id)) }
     static func value(_ metrics: Metrics, _ metric: String) -> Int { metric == "activeDays" ? metrics.activeDays : metrics.completions }
     /// Badges reached, in their listed order.
     static func earned(_ metrics: Metrics) -> [String] { RewardsData.badges.filter { value(metrics, $0.metric) >= $0.goal }.map(\.id) }

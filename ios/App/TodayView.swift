@@ -143,7 +143,11 @@ struct TodayView: View {
             checklistSection("Your day", note: "", items: planned.map { TodayItem(task: $0) }, counts: today.counts, empty: today.relevant.isEmpty ? "Nothing planned. Add a task to get started." : "No more tasks scheduled for today.")
         case "routine":
             let open = today.dueHabits.filter { !today.checked($0) }
-            if today.dueHabits.isEmpty {
+            let counters = habits.filter(\.isCounter)
+            if today.dueHabits.isEmpty && !counters.isEmpty {
+                // Only counters so far: no prompt to start a habit.
+                EmptyView()
+            } else if today.dueHabits.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     SectionLabel(title: "Habits")
                     Text("Start with something small you want to do regularly.")
@@ -153,6 +157,20 @@ struct TodayView: View {
                 }
             } else {
                 checklistSection("Habits", note: "", items: open.map { TodayItem(habit: $0) }, counts: today.counts, empty: "All habits checked for today.")
+            }
+            // Counters have no target, so they stay here all day and out of the plan.
+            if !counters.isEmpty {
+                VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceS)) {
+                    SectionLabel(title: "Counters", note: "Tap to add one")
+                    GroupedRows {
+                        ForEach(Array(counters.enumerated()), id: \.element.id) { index, counter in
+                            VStack(spacing: 0) {
+                                if index > 0 { Divider().padding(.leading, 56) }
+                                CounterRow(habit: counter, counts: today.counts[counter.id] ?? [:]) { editingHabit = counter }
+                            }.transition(.orbitRow)
+                        }
+                    }.animation(reduceMotion ? nil : .orbitFold, value: counters.map(\.id))
+                }
             }
         case "completed":
             let completedItems = (sections.contains("today") ? today.relevant.filter { $0.completedAt != nil }.map { TodayItem(task: $0) } : []) +

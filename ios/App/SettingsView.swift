@@ -63,8 +63,9 @@ private struct AppearanceSection: View {
     @AppStorage("sounds") private var sounds = true
     @Query private var tasks: [PlannerTask]
     @Query private var logs: [HabitLog]
+    @Query private var habits: [Habit]
     var body: some View {
-        let open = Set(Rewards.accents(earned: Rewards.earnedBadges(Rewards.metrics(tasks: tasks, logs: logs))))
+        let open = Set(Rewards.accents(earned: Rewards.earnedBadges(Rewards.metrics(tasks: tasks, logs: logs, counters: Rewards.counterIDs(habits)))))
         Section("Appearance") {
             AccentPicker(title: "Appearance", selection: $appearance, choices: [("system", "System"), ("light", "Light"), ("dark", "Dark")])
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: typeSize.isAccessibilitySize ? 2 : 3), spacing: 12) {

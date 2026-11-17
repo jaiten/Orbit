@@ -9,6 +9,7 @@ struct HabitsView: View {
     @AppStorage("compactRows") private var compactRows = false
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var adding = false
+    @State private var addingCounter = false
     @State private var editing: Habit?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
@@ -16,23 +17,37 @@ struct HabitsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
                     PageHeader(eyebrow: "", title: "Habits") {
+                        Button { addingCounter = true } label: { Label("Counter", systemImage: "plus").font(.subheadline).padding(.horizontal, 14).frame(minHeight: 44).fixedSize(horizontal: true, vertical: false) }
+                            .accessibilityLabel("New counter").accessibilityHint("A counter adds one each time you tap it")
                         NavigationLink { HabitHistoryIndex() } label: { Image(systemName: "clock.arrow.circlepath").frame(width: 44, height: 44) }.accessibilityLabel("History")
                     }
                     if habits.isEmpty { ContentUnavailableView("No Habits", systemImage: "repeat", description: Text("Start typing to add a habit.")) }
                     // Every habit's check-ins are read from the logs once, not once for each row.
                     let counts = PlannerLogic.countsByHabit(logs)
+                    let regular = habits.filter { !$0.isCounter }, counters = habits.filter(\.isCounter)
                     VStack(spacing: DayTheme.rowSpacing(compact: compactRows, typeSize: typeSize)) {
-                        ForEach(habits) { habit in
+                        ForEach(regular) { habit in
                             HabitRow(habit: habit, counts: counts[habit.id] ?? [:], date: PlannerLogic.todayDate, edit: { editing = habit })
                                 .transition(.orbitRow)
                         }
-                    }.animation(reduceMotion ? nil : .orbitFold, value: habits.map(\.id))
+                    }.animation(reduceMotion ? nil : .orbitFold, value: regular.map(\.id))
+                    // Counters: no target, one more on every tap.
+                    if !counters.isEmpty {
+                        SectionLabel(title: "Counters", note: "Tap to add one")
+                        VStack(spacing: DayTheme.rowSpacing(compact: compactRows, typeSize: typeSize)) {
+                            ForEach(counters) { counter in
+                                CounterRow(habit: counter, counts: counts[counter.id] ?? [:]) { editing = counter }
+                                    .transition(.orbitRow)
+                            }
+                        }.animation(reduceMotion ? nil : .orbitFold, value: counters.map(\.id))
+                    }
 
                 }.padding(.horizontal, CGFloat(DesignTokens.screenPadding)).padding(.vertical, CGFloat(DesignTokens.spaceS))
                     .frame(maxWidth: 760).frame(maxWidth: .infinity)
             }.captureDock(scheme) { InlineCapture(habitsOnly: true) }.background(DayTheme.canvas(scheme)).navigationTitle("Habits").navigationBarTitleDisplayMode(.inline)
                 .toolbar(.hidden, for: .navigationBar)
-                .sheet(isPresented: $adding) { HabitEditor().presentationDragIndicator(.visible) }.sheet(item: $editing) { HabitEditor(habit: $0).presentationDragIndicator(.visible) }
+                .sheet(isPresented: $adding) { HabitEditor().presentationDragIndicator(.visible) }
+                .sheet(isPresented: $addingCounter) { HabitEditor(startsAsCounter: true).presentationDragIndicator(.visible) }.sheet(item: $editing) { HabitEditor(habit: $0).presentationDragIndicator(.visible) }
         }
     }
 }
@@ -51,7 +66,8 @@ struct HabitHistoryIndex: View {
                 ForEach(habits) { habit in
                     VStack(alignment: .leading, spacing: 10) {
                         historyHeading(habit)
-                        HabitHistoryCharts(habit: habit, logs: logs)
+                        if habit.isCounter { CounterHistory(habit: habit, counts: PlannerLogic.counts(habit, logs: logs)) }
+                        else { HabitHistoryCharts(habit: habit, logs: logs) }
                         NavigationLink { HabitHistoryDetail(habit: habit) } label: {
                             HStack { Text("Full history"); Spacer(); Image(systemName: "chevron.right").font(.caption.weight(.semibold)) }
                                 .font(.footnote).foregroundStyle(.secondary)
@@ -63,7 +79,7 @@ struct HabitHistoryIndex: View {
         }.background(DayTheme.canvas(scheme)).navigationTitle("History").navigationBarTitleDisplayMode(.inline)
     }
     @ViewBuilder private func historyHeading(_ habit: Habit) -> some View {
-        let count = "\(PlannerLogic.checkedDays(habit, logs: logs, ending: PlannerLogic.todayDate)) of the last 7 days"
+        let count = habit.isCounter ? "Counter" : "\(PlannerLogic.checkedDays(habit, logs: logs, ending: PlannerLogic.todayDate)) of the last 7 days"
         if typeSize.isAccessibilitySize {
             VStack(alignment: .leading, spacing: 6) {
                 Label { Text(habit.title).font(.body.weight(.semibold)) } icon: {
@@ -92,9 +108,14 @@ struct HabitHistoryDetail: View {
         ScrollView {
             VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceM)) {
-                    Eyebrow(text: "\(PlannerLogic.checkedDays(habit, logs: logs, ending: PlannerLogic.todayDate)) of the last 7 days")
-                    Text("Tap any of the last seven days to add or remove a check-in.").font(.footnote).foregroundStyle(.secondary)
-                    HabitHistoryCharts(habit: habit, logs: logs)
+                    if habit.isCounter {
+                        Eyebrow(text: "How often")
+                        CounterHistory(habit: habit, counts: PlannerLogic.counts(habit, logs: logs))
+                    } else {
+                        Eyebrow(text: "\(PlannerLogic.checkedDays(habit, logs: logs, ending: PlannerLogic.todayDate)) of the last 7 days")
+                        Text("Tap any of the last seven days to add or remove a check-in.").font(.footnote).foregroundStyle(.secondary)
+                        HabitHistoryCharts(habit: habit, logs: logs)
+                    }
                 }.orbitCard()
                 VStack(alignment: .leading, spacing: 0) {
                     LabeledContent("Repeats", value: HabitRules.label(habit.frequencyRule)).padding(.vertical, 12)
@@ -168,6 +189,10 @@ struct HabitEditor: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     var habit: Habit?
+    /// A new item opens as a counter (from Habits' Counter button).
+    var startsAsCounter = false
+    /// A habit repeats towards a target; a counter just adds one on every tap.
+    @State private var counter = false
     @State private var title = ""
     @State private var frequency = "DAILY"
     @State private var target = 1
@@ -184,31 +209,36 @@ struct HabitEditor: View {
             Form {
                 Section {
                     TextField("Title", text: $title).accessibilityIdentifier("habit-title-input")
-                    Picker("Repeats", selection: $frequency) { ForEach(HabitRules.schedules, id: \.self) { Text(HabitRules.label($0)).tag($0) } }
-                    Stepper("\(target) \(target == 1 ? "time" : "times") a \(frequency == "WEEKLY" ? "week" : "day")", value: $target, in: 1...1000)
+                    Picker("Type", selection: $counter) { Text("Habit").tag(false); Text("Counter").tag(true) }
+                    if !counter {
+                        Picker("Repeats", selection: $frequency) { ForEach(HabitRules.schedules, id: \.self) { Text(HabitRules.label($0)).tag($0) } }
+                        Stepper("\(target) \(target == 1 ? "time" : "times") a \(frequency == "WEEKLY" ? "week" : "day")", value: $target, in: 1...1000)
+                    }
                     Picker("Color", selection: $color) { ForEach(DayTheme.colors, id: \.self) { Text($0.capitalized).tag($0) } }
                     Picker("Icon", selection: $icon) {
                         Label("Automatic", systemImage: ItemIcons.suggested(for: title)).tag("automatic")
                         ForEach(ItemIcons.all) { Label($0.name, systemImage: $0.id).tag($0.id) }
                     }
                 }
-                Section {
+                if counter { Section { EmptyView() } footer: { Text("A counter has no target. Each tap adds one for the day, so you can see how often it happens.") } }
+                if !counter { Section {
                     Toggle("Reminder", isOn: $reminderEnabled)
                     if reminderEnabled { DatePicker("At", selection: $reminder, displayedComponents: .hourAndMinute) }
                     Toggle("Second reminder if not done", isOn: $nudgeEnabled)
                     if nudgeEnabled { DatePicker("Nudge at", selection: $nudge, displayedComponents: .hourAndMinute) }
-                } header: { Text("Reminders") } footer: { Text("Reminders stop once the habit is checked for the day.") }
-                if let habit { Section { Button("Make It a Task", systemImage: "checklist") {
+                } header: { Text("Reminders") } footer: { Text("Reminders stop once the habit is checked for the day.") } }
+                if let habit, !counter { Section { Button("Make It a Task", systemImage: "checklist") {
                     do { try Conversions.toTask(habit, in: context); finish() } catch { self.error = error.localizedDescription }
                 } } }
                 if habit != nil { Section { Button("Delete habit", role: .destructive) { confirmDelete = true } } }
-            }.orbitFormBackground().tint(accent.fill).navigationTitle(habit == nil ? "New Habit" : "Edit Habit").navigationBarTitleDisplayMode(.inline)
+            }.orbitFormBackground().tint(accent.fill).navigationTitle((habit == nil ? "New " : "Edit ") + (counter ? "Counter" : "Habit")).navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Save", action: save).disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
                 }.onAppear {
                     // A new habit starts in the next colour, so habits mix; any colour can still be chosen.
-                    guard let habit else { color = (try? QuickAddSaver.nextHabitColor(in: context)) ?? "sage"; return }
+                    guard let habit else { counter = startsAsCounter; color = (try? QuickAddSaver.nextHabitColor(in: context)) ?? "sage"; return }
+                    counter = habit.isCounter
                     title = habit.title; frequency = HabitRules.schedule(habit.frequencyRule); target = habit.target; color = habit.color; icon = ItemIcons.all.contains { $0.id == habit.icon } ? habit.icon : "automatic"
                     reminderEnabled = habit.reminderMinutes != nil; nudgeEnabled = habit.nudgeMinutes != nil
                     reminder = time(habit.reminderMinutes ?? 540); nudge = time(habit.nudgeMinutes ?? 1200)
@@ -237,10 +267,10 @@ struct HabitEditor: View {
            ItemIcons.suggested(for: habit.title) != ItemIcons.suggested(for: newTitle) {
             chosenIcon = ItemIcons.suggested(for: habit.title)
         }
-        item.title = newTitle; item.frequencyRule = frequency
-        item.target = target; item.color = color; item.icon = chosenIcon
-        item.reminderMinutes = reminderEnabled ? minutes(reminder) : nil
-        item.nudgeMinutes = nudgeEnabled ? minutes(nudge) : nil; item.updatedAt = .now
+        item.title = newTitle; item.frequencyRule = counter ? HabitRules.counter : frequency
+        item.target = counter ? 1 : target; item.color = color; item.icon = chosenIcon
+        item.reminderMinutes = reminderEnabled && !counter ? minutes(reminder) : nil
+        item.nudgeMinutes = nudgeEnabled && !counter ? minutes(nudge) : nil; item.updatedAt = .now
         do { try Mutations.save(context); finish() } catch { self.error = error.localizedDescription }
     }
     private func finish() {

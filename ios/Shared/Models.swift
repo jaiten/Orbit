@@ -114,6 +114,11 @@ struct Subtask: Codable, Identifiable, Equatable {
     }
 }
 
+extension Habit {
+    /// A counter adds one on every tap and has no target (HabitRules.counter).
+    var isCounter: Bool { HabitRules.isCounter(frequencyRule) }
+}
+
 extension PlannerTask {
     var note: Bool { isNote == true }
     /// The task's local calendar day ("YYYY-MM-DD"), or nil when it has no date.

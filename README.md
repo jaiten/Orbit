@@ -113,6 +113,15 @@ open ones in a collapsed Completed section. Task and habit titles open their det
 use the separate check control to complete a task or log a habit. Arrange sections in
 Edit Today.
 
+**Counters.** A counter is a habit with no target, for things you want to tally ("washroom
+without my phone"). Each tap or click adds one for the day; Take One Off (touch and hold, or
+right-click on Windows) goes back. Make one from Habits (**Counter** on iPhone, **New counter** on
+Windows) or switch a habit's Type in its editor. Counters sit under the habits on Today and Habits,
+show today's count, and have their own history (today, the last 7 days, a daily average and 12
+weeks). They never count as done, so they stay out of the plan, progress, streaks, reminders and
+badges. A counter is stored as a habit whose `frequencyRule` is `COUNTER`
+([case](shared/test-cases/habits.json)).
+
 **Checking off, swipes and the hold menu.** A tick shows the moment you tap or click it. The row
 stays where it is for about a third of a second (longer while you keep ticking others), then folds
 away and appears under Completed; tap it again inside that pause to take the tick back. On iPhone,
