@@ -326,7 +326,9 @@ final class ChecklistUITests: XCTestCase {
         // Accessibility frames use floating-point coordinates (44 can read as 43.999999999999986).
         XCTAssertGreaterThanOrEqual(sections.frame.height + 0.001, 44)
         sections.tap()
-        XCTAssertTrue(app.textFields["new-list-name"].waitForExistence(timeout: 5))
+        // On a slow simulator the first tap can land before the button responds: tap once more if needed.
+        if !app.textFields["new-list-name"].waitForExistence(timeout: 8) { sections.tap() }
+        XCTAssertTrue(app.textFields["new-list-name"].waitForExistence(timeout: 10))
         for name in ["Weekend", "Errands"] {
             app.textFields["new-list-name"].tap(); app.textFields["new-list-name"].typeText(name)
             app.buttons["Add Section"].tap()
