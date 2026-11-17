@@ -34,14 +34,65 @@ const todayPanelNames = {
   recent: "Recent progress",
   plan: "Your plan",
   habits: "Habits",
+  "habits-weekly": "Weekly habits",
+  "habits-monthly": "Monthly habits",
+  counters: "Counters",
   heatmap: "Overall progress",
 };
-function todayPanel(id, content, defaultColumn = "side") {
+/** Habits split into Daily, Weekly and Monthly cards that move on their own (Edit layout → Split). */
+const habitsSplit = () => localStorage.getItem("todayHabitsSplit") === "on";
+function todayPanel(id, content, defaultColumn = "side", tools = "") {
   const stored = JSON.parse(localStorage.getItem("todayPanelLayout") || "null") || {};
   const column = stored[id]?.column || defaultColumn;
   const visibility = { heatmap: false, ...JSON.parse(localStorage.getItem("todayPanelVisibility") || "{}") };
-  const visible = id === "tasks" || visibility[id] !== false;
-  return `<section class="today-panel" data-today-panel="${id}" data-panel-column="${column}" ${!visible ? "hidden" : ""} ${editingTodayLayout ? 'draggable="true"' : ""}>${editingTodayLayout ? `<div class="panel-tools"><button class="panel-grip" data-move-panel="${id}" aria-label="Move ${todayPanelNames[id]}" title="Drag to move; arrow keys also move panels">⠿ <span>${todayPanelNames[id]}</span></button></div>` : ""}${content}</section>`;
+  // Split weekly and monthly cards show and hide with Habits.
+  const visible = id === "tasks" || visibility[id.startsWith("habits-") ? "habits" : id] !== false;
+  return `<section class="today-panel" data-today-panel="${id}" data-panel-column="${column}" ${!visible ? "hidden" : ""} ${editingTodayLayout ? 'draggable="true"' : ""}>${editingTodayLayout ? `<div class="panel-tools"><button class="panel-grip" data-move-panel="${id}" aria-label="Move ${todayPanelNames[id]}" title="Drag to move; arrow keys also move panels">⠿ <span>${todayPanelNames[id]}</span></button>${tools}</div>` : ""}${content}</section>`;
+}
+/** One compact habit card: a title with how many are done, and the habits in fitted columns. */
+function todayHabitCard(title, habits, captions = true) {
+  const done = habits.filter((h) => checked(h)).length;
+  return `<section class="card habits-compact-card">${sectionLabel(title, `${done} of ${habits.length}`)}<div class="check-list compact-habits">${captions ? compactHabitGroups(habits) : habits.map(compactHabit).join("")}</div></section>`;
+}
+/**
+ * Today's habit panels. Together: one Habits card (daily, then weekly and monthly under small captions).
+ * Split: Daily, Weekly and Monthly cards, each placed on its own. Counters always have their own card.
+ * In Edit layout the Habits card carries the Split / Join button.
+ */
+function habitPanels(habits, counters) {
+  const split = habitsSplit();
+  const daily = habits.filter((h) => !OrbitHabits.period(h)),
+    weekly = habits.filter((h) => OrbitHabits.period(h) === "week"),
+    monthly = habits.filter((h) => OrbitHabits.period(h) === "month");
+  const splitButton = `<button type="button" class="panel-action" data-split-habits="${split ? "off" : "on"}" title="${split ? "Put daily, weekly and monthly habits back in one card" : "Give daily, weekly and monthly habits their own cards, to place separately"}">${split ? "Join" : "Split"}</button>`;
+  const panels = [];
+  if (!split) {
+    if (habits.length || !counters.length)
+      panels.push(
+        todayPanel("habits", todayHabitCard("Habits", habits), habits.length > 6 ? "main" : "side", splitButton),
+      );
+  } else {
+    // The Habits panel holds the daily ones (and the Join button, so it is never lost).
+    if (daily.length || editingTodayLayout || (!weekly.length && !monthly.length && !counters.length))
+      panels.push(
+        todayPanel(
+          "habits",
+          todayHabitCard("Daily habits", daily, false),
+          daily.length > 6 ? "main" : "side",
+          splitButton,
+        ),
+      );
+    if (weekly.length) panels.push(todayPanel("habits-weekly", todayHabitCard("Weekly habits", weekly, false)));
+    if (monthly.length) panels.push(todayPanel("habits-monthly", todayHabitCard("Monthly habits", monthly, false)));
+  }
+  if (counters.length)
+    panels.push(
+      todayPanel(
+        "counters",
+        `<section class="card habits-compact-card">${sectionLabel("Counters")}<div class="check-list compact-habits compact-counters">${counters.map((h) => counterCard(h, { compact: true })).join("")}</div></section>`,
+      ),
+    );
+  return panels.join("");
 }
 /** Edit layout: which panels show, with Overall progress's range beside its own toggle. */
 function todayLayoutOptions() {
@@ -74,7 +125,9 @@ function todayLayoutOptions() {
   return `<div class="today-layout-options" role="group" aria-label="Visible panels">
     <span class="layout-heading">Show on Today</span>
     <span class="layout-group">${toggle("upcoming")}${upcomingControl}</span>
-    ${["recent", "plan", "habits"].map(toggle).join("")}
+    ${["recent", "plan"].map(toggle).join("")}
+    <span class="layout-group">${toggle("habits")}${visibility.habits !== false ? `<label class="layout-toggle ${habitsSplit() ? "on" : ""}"><input type="checkbox" data-split-habits-toggle ${habitsSplit() ? "checked" : ""} /><span class="layout-check" aria-hidden="true"></span>Separate daily, weekly, monthly</label>` : ""}</span>
+    ${toggle("counters")}
     <span class="layout-group">${toggle("heatmap")}${rangeControl}</span>
   </div>`;
 }
@@ -246,7 +299,7 @@ function renderToday(tasks, allHabits) {
         ${todayPanel("upcoming", upcomingCard(tasks))}
         ${todayPanel("recent", recentProgressCard(tasks, allHabits))}
         ${todayPanel("plan", planCard(done, total))}
-        ${todayPanel("habits", `<section class="card habits-compact-card">${habits.length || !counters.length ? sectionLabel("Habits", `${habitsDone} of ${habits.length}`) + `<div class="check-list compact-habits">${compactHabitGroups(habits)}</div>` : ""}${counters.length ? sectionLabel("Counters", "Click to add one") + `<div class="check-list compact-habits compact-counters">${counters.map((h) => counterCard(h, { compact: true })).join("")}</div>` : ""}</section>`, habits.length + counters.length > 6 ? "main" : "side")}
+        ${habitPanels(habits, counters)}
         ${todayPanel("heatmap", overallProgressCard(tasks, allHabits))}
       </aside>
     </div>
@@ -335,12 +388,80 @@ function renderAgenda(tasks, allHabits, head = "") {
   </div>`;
 }
 
+/**
+ * Today's habit card lays its habits out in as many columns as fit without cutting any title short:
+ * each list measures its widest habit (title, colour dot and count at their real width), fits that many
+ * columns of that width into the card, then evens them out (7 habits that fit 3 across become 3 + 2 + 2
+ * rows, not 3 + 3 + 1). It runs again whenever the card changes width (window, panel resize, moving the card).
+ */
+const HABIT_COLUMN_GAP = 18;
+/** The width of an element's text itself (the title stretches to fill its row, so its box won't do). */
+function textWidth(element) {
+  if (!element) return 0;
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  return range.getBoundingClientRect().width;
+}
+function layoutHabitColumns(list) {
+  const rows = [...list.querySelectorAll(":scope > .habit-row, :scope > .counter-row")];
+  list.classList.remove("columns");
+  list.style.removeProperty("grid-template-columns");
+  if (rows.length < 2) return;
+  // A row's natural width: the line's padding and gaps around its title (at full length) and count.
+  const need = Math.max(
+    ...rows.map((row) => {
+      const line = row.querySelector(".habit-log, .counter-add") || row;
+      const title = row.querySelector(".row-title");
+      const detail = row.querySelector(".row-detail");
+      const style = getComputedStyle(line);
+      const chrome =
+        parseFloat(style.paddingLeft) + parseFloat(style.paddingRight) + 10 + 2 * (parseFloat(style.columnGap) || 10);
+      return Math.ceil(chrome + textWidth(title) + textWidth(detail) + 4);
+    }),
+  );
+  const width = list.clientWidth;
+  const fit = Math.max(1, Math.floor((width + HABIT_COLUMN_GAP) / (need + HABIT_COLUMN_GAP)));
+  // Balanced: the fewest rows that fit, then the fewest columns that still need only that many rows.
+  const perColumn = Math.ceil(rows.length / fit);
+  const columns = Math.ceil(rows.length / perColumn);
+  if (columns < 2) return;
+  list.classList.add("columns");
+  list.style.setProperty("grid-template-columns", `repeat(${columns}, minmax(0, 1fr))`);
+}
+let habitColumnsObserver = null;
+function bindHabitColumns() {
+  habitColumnsObserver?.disconnect();
+  const lists = [...document.querySelectorAll(".habits-compact-card .compact-habits")];
+  if (!lists.length) return;
+  let lastWidths = new Map();
+  habitColumnsObserver = new ResizeObserver(() => {
+    for (const list of lists) {
+      if (lastWidths.get(list) === list.clientWidth) continue;
+      lastWidths.set(list, list.clientWidth);
+      layoutHabitColumns(list);
+    }
+  });
+  lists.forEach((list) => habitColumnsObserver.observe(list));
+}
 function bindToday() {
   applyCalendarStyles();
+  bindHabitColumns();
   document.querySelectorAll(".upcoming-card [data-edit-event]").forEach((button) => {
     button.onclick = () => openEvent(button.dataset.editEvent);
     button.oncontextmenu = openEventMenu;
   });
+  const setSplit = (on) => {
+    localStorage.setItem("todayHabitsSplit", on ? "on" : "off");
+    render();
+  };
+  document.querySelectorAll("[data-split-habits]").forEach((button) => {
+    button.onclick = (event) => {
+      event.stopPropagation();
+      setSplit(button.dataset.splitHabits === "on");
+    };
+  });
+  const splitToggle = $("[data-split-habits-toggle]");
+  if (splitToggle) splitToggle.onchange = () => setSplit(splitToggle.checked);
   document.querySelectorAll("[data-panel-visible]").forEach((toggle) => {
     toggle.onchange = () => {
       const visibility = { heatmap: false, ...JSON.parse(localStorage.getItem("todayPanelVisibility") || "{}") };

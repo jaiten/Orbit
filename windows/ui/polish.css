@@ -2211,3 +2211,33 @@ textarea.title-field {
   text-transform: uppercase;
   opacity: 0.8;
 }
+
+/* Today's habits in columns when there is room (layoutHabitColumns works out how many). */
+.habits-compact-card .compact-habits.columns {
+  display: grid;
+  column-gap: 18px;
+  row-gap: 0;
+  align-items: start;
+}
+.habits-compact-card .compact-habits.columns .habit-period-caption {
+  grid-column: 1 / -1;
+}
+.habits-compact-card .compact-habits.columns > .habit-row::before,
+.habits-compact-card .compact-habits.columns > .counter-row::before {
+  display: none;
+}
+
+/* Edit layout: the Habits card's Split / Join button, on the right of its move handle. */
+.today-board.editing .panel-tools .panel-action {
+  margin-left: auto;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent-text);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.today-board.editing .panel-tools .panel-action:hover {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}

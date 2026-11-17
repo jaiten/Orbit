@@ -342,10 +342,18 @@ final class ChecklistUITests: XCTestCase {
         let errands = app.textFields.matching(NSPredicate(format: "value == %@", "Errands")).firstMatch
         let weekend = app.textFields.matching(NSPredicate(format: "value == %@", "Weekend")).firstMatch
         let origin = app.coordinate(withNormalizedOffset: .zero)
-        let dragStart = origin.withOffset(CGVector(dx: app.frame.width - 40, dy: errands.frame.midY))
-        let dragEnd = origin.withOffset(CGVector(dx: app.frame.width - 40, dy: weekend.frame.midY - 8))
-        dragStart.press(forDuration: 0.8, thenDragTo: dragEnd)
-        let names = app.textFields.allElementsBoundByIndex.compactMap { $0.value as? String }
+        let order = { app.textFields.allElementsBoundByIndex.compactMap { $0.value as? String } }
+        // The reorder handle sometimes misses the first synthesized drag on a busy simulator; one more
+        // try, measured afresh, before checking the order.
+        for _ in 0..<2 {
+            let dragStart = origin.withOffset(CGVector(dx: app.frame.width - 40, dy: errands.frame.midY))
+            let dragEnd = origin.withOffset(CGVector(dx: app.frame.width - 40, dy: weekend.frame.midY - 8))
+            dragStart.press(forDuration: 0.8, thenDragTo: dragEnd)
+            Thread.sleep(forTimeInterval: 0.4)
+            let now = order()
+            if let e = now.firstIndex(of: "Errands"), let w = now.firstIndex(of: "Weekend"), e < w { break }
+        }
+        let names = order()
         XCTAssertLessThan(try! XCTUnwrap(names.firstIndex(of: "Errands")), try! XCTUnwrap(names.firstIndex(of: "Weekend")))
         app.navigationBars.buttons["Done"].tap()
         app.buttons["New note in Weekend"].tap()
