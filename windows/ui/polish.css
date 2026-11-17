@@ -2109,3 +2109,8 @@ textarea.title-field {
     border-radius: 14px;
   }
 }
+
+/* "On" (every day, weekdays, weekends) only applies to daily habits. */
+#habit-editor .habit-field[hidden] {
+  display: none;
+}

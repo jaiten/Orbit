@@ -64,18 +64,33 @@ function habitPickers() {
     ],
     form.elements.kind.value,
   );
+  // Repeats: Daily, Weekly or Monthly, with how many times in the box beside it. A daily habit can
+  // keep to weekdays or weekends (iPhone: How often in the habit editor).
+  const rule = form.elements.frequency.value;
+  const daily = !["WEEKLY", "MONTHLY"].includes(rule);
   $("#habit-frequency-picker").innerHTML = macPicker(
     "habit-frequency",
     "Repeats",
     [
       ["DAILY", "Daily"],
-      ["WEEKDAYS", "Weekdays"],
-      ["WEEKENDS", "Weekends"],
       ["WEEKLY", "Weekly"],
       ["MONTHLY", "Monthly"],
     ],
-    form.elements.frequency.value,
+    daily ? "DAILY" : rule,
   );
+  $("#habit-days-field").hidden = !daily;
+  $("#habit-days-picker").innerHTML = daily
+    ? macPicker(
+        "habit-days",
+        "On",
+        [
+          ["DAILY", "Every day"],
+          ["WEEKDAYS", "Weekdays"],
+          ["WEEKENDS", "Weekends"],
+        ],
+        rule,
+      )
+    : "";
   $("#habit-colour-picker").innerHTML = macPicker(
     "habit-colour",
     "Colour",
@@ -96,8 +111,15 @@ function habitPickers() {
         habitPickers();
       },
       "habit-frequency": (value) => {
-        form.elements.frequency.value = value;
+        // Back to Daily keeps weekdays or weekends if the habit had them.
+        const current = form.elements.frequency.value;
+        form.elements.frequency.value =
+          value === "DAILY" && ["WEEKDAYS", "WEEKENDS"].includes(current) ? current : value;
         updateTargetLabel();
+        habitPickers();
+      },
+      "habit-days": (value) => {
+        form.elements.frequency.value = value;
         habitPickers();
       },
       "habit-colour": (value) => {

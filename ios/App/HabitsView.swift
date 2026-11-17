@@ -256,15 +256,19 @@ struct HabitEditor: View {
     private var howOften: some View {
         let unit = HabitRules.period(frequency) ?? "day"
         let perBinding = Binding<String>(get: { unit }, set: { value in
-            withAnimation(.orbit) { frequency = value == "week" ? "WEEKLY" : value == "month" ? "MONTHLY" : "DAILY" }
+            // Back to Daily keeps weekdays or weekends if the habit had them.
+            withAnimation(.orbit) {
+                frequency = value == "week" ? "WEEKLY" : value == "month" ? "MONTHLY"
+                    : ["WEEKDAYS", "WEEKENDS"].contains(frequency) ? frequency : "DAILY"
+            }
         })
         return Section {
+            Picker("Repeats", selection: perBinding) {
+                Text("Daily").tag("day"); Text("Weekly").tag("week"); Text("Monthly").tag("month")
+            }.pickerStyle(.segmented).accessibilityIdentifier("habit-period")
             Stepper(value: $target, in: 1...1000) {
                 Text("\(target) \(target == 1 ? "time" : "times") a \(unit)").monospacedDigit()
             }.accessibilityIdentifier("habit-target")
-            Picker("Per", selection: perBinding) {
-                Text("A day").tag("day"); Text("A week").tag("week"); Text("A month").tag("month")
-            }.pickerStyle(.segmented).accessibilityIdentifier("habit-period")
             if unit == "day" {
                 Picker("On", selection: $frequency) {
                     Text("Every day").tag("DAILY"); Text("Weekdays").tag("WEEKDAYS"); Text("Weekends").tag("WEEKENDS")
