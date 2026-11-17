@@ -27,49 +27,135 @@ import SwiftData
     }
     static func stamp(_ date: Date?) -> Any { date.map { $0.timeIntervalSince1970 * 1000 } ?? NSNull() }
     static func id(_ uuid: UUID?) -> Any { uuid.map { $0.uuidString.lowercased() } ?? NSNull() }
+    static func payload(_ t: PlannerTask) -> [String: Any] {
+        var payload: [String: Any] = ["conversionData": t.conversionData ?? NSNull() as Any, "id": id(t.id), "title": t.title, "notes": t.notes, "listID": id(t.listID), "dueDate": t.hasTime ? stamp(t.dueDate) : NSNull(), "localDate": t.day ?? NSNull() as Any, "hasTime": t.hasTime, "durationMinutes": t.durationMinutes, "reminders": t.reminders.map { $0.timeIntervalSince1970 * 1000 }, "recurrenceRule": t.recurrenceRule, "priority": t.priority, "tags": t.tags, "subtasks": t.subtasks.map { ["id": id($0.id), "title": $0.title, "completed": $0.completed] }, "completedAt": stamp(t.completedAt), "nextOccurrenceID": id(t.nextOccurrenceID), "sortOrder": t.sortOrder, "updatedAt": stamp(t.updatedAt)]
+        if let tracking = t.progressTracking { payload["progressTracking"] = tracking }
+        if let started = t.startedAt { payload["startedAt"] = stamp(started) }
+        if t.isNote == true { payload["isNote"] = true }
+        if let icon = t.noteIcon { payload["noteIcon"] = icon }
+        if t.locked == true { payload["locked"] = true }
+        if !t.photos.isEmpty { payload["photos"] = t.photos.map { photo -> [String: String] in
+            var value = ["id": photo.id, "contentType": photo.contentType]
+            if let position = photo.position { value["position"] = position }
+            if let wrap = photo.wrap { value["wrap"] = wrap }
+            return value
+        } }
+        return payload
+    }
+    static func payload(_ h: Habit) -> [String: Any] {
+        ["conversionData": h.conversionData ?? NSNull() as Any, "id": id(h.id), "title": h.title, "frequencyRule": h.frequencyRule, "target": h.target, "color": h.color, "icon": h.icon, "reminderMinutes": h.reminderMinutes ?? NSNull() as Any, "nudgeMinutes": h.nudgeMinutes ?? NSNull() as Any, "goal": h.goal ?? NSNull() as Any, "goalKind": h.goalKind ?? NSNull() as Any, "createdAt": stamp(h.createdAt), "updatedAt": stamp(h.updatedAt)]
+    }
+    static func payload(_ l: HabitLog) -> [String: Any] {
+        ["id": id(l.id), "habitID": id(l.habitID), "dayKey": l.dayKey, "count": l.count, "updatedAt": stamp(l.updatedAt)]
+    }
+    static func payload(_ l: TaskList) -> [String: Any] {
+        var payload: [String: Any] = ["id": id(l.id), "name": l.name, "color": l.color, "sortOrder": l.sortOrder, "updatedAt": stamp(l.updatedAt)]
+        if let kind = l.kind { payload["kind"] = kind }
+        if l.locked == true { payload["locked"] = true }
+        if l.hidden == true { payload["hidden"] = true }
+        return payload
+    }
+    static func payload(_ i: IdeaPrompt) -> [String: Any] {
+        ["id": id(i.id), "text": i.text, "shownAt": stamp(i.shownAt), "dismissed": i.dismissed, "updatedAt": stamp(i.updatedAt)]
+    }
+    /// The synced key of a planner model ("tasks/<id>", "habit_logs/<habit id>-<day>"), nil for anything else.
+    static func key(_ model: any PersistentModel) -> String? {
+        switch model {
+        case let t as PlannerTask: "tasks/" + t.id.uuidString.lowercased()
+        case let h as Habit: "habits/" + h.id.uuidString.lowercased()
+        // The stable key makes independent check-ins on two devices conflict safely.
+        case let l as HabitLog: "habit_logs/" + l.habitID.uuidString.lowercased() + "-" + l.dayKey
+        case let l as TaskList: "lists/" + l.id.uuidString.lowercased()
+        case let i as IdeaPrompt: "idea_prompts/" + i.id.uuidString.lowercased()
+        default: nil
+        }
+    }
+    /// A planner model's key and payload, nil for anything else (such as outbox entries).
+    static func record(_ model: any PersistentModel) throws -> (key: String, payload: String)? {
+        guard let key = key(model) else { return nil }
+        switch model {
+        case let t as PlannerTask: return (key, try json(payload(t)))
+        case let h as Habit: return (key, try json(payload(h)))
+        case let l as HabitLog: return (key, try json(payload(l)))
+        case let l as TaskList: return (key, try json(payload(l)))
+        case let i as IdeaPrompt: return (key, try json(payload(i)))
+        default: return nil
+        }
+    }
+    /// The preferences records (Day starts at, Quick add rules), once someone has set them, so a new device
+    /// never overrides them with the defaults.
+    static func preferenceSnapshots() throws -> [String: String] {
+        var result: [String: String] = [:]
+        if DayStart.updatedAt > 0 {
+            result["preferences/" + DayStart.recordID.uuidString.lowercased()] = try json(["id": id(DayStart.recordID), "dayStartMinutes": DayStart.minutes, "updatedAt": DayStart.updatedAt])
+        }
+        if CaptureRules.updatedAt > 0 {
+            result["preferences/" + CaptureRules.recordID.uuidString.lowercased()] = try json(CaptureRules.payload.merging(["id": id(CaptureRules.recordID)]) { $1 })
+        }
+        return result
+    }
+    /// Every record, as the server should hold it. Reads everything: for sync's full check and backups,
+    /// not for each edit (see Mutations.save, which handles only what changed).
     static func snapshots(_ context: ModelContext) throws -> [String: String] {
         let pendingDeletions = Set(context.deletedModelsArray.map(\.persistentModelID))
-        var result: [String: String] = [:]
-        func add(_ entity: String, _ key: String, _ value: [String: Any]) throws { result[entity + "/" + key] = try json(value) }
-        for t in try context.fetch(FetchDescriptor<PlannerTask>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) {
-            var payload: [String: Any] = ["conversionData": t.conversionData ?? NSNull() as Any, "id": id(t.id), "title": t.title, "notes": t.notes, "listID": id(t.listID), "dueDate": t.hasTime ? stamp(t.dueDate) : NSNull(), "localDate": t.day ?? NSNull() as Any, "hasTime": t.hasTime, "durationMinutes": t.durationMinutes, "reminders": t.reminders.map { $0.timeIntervalSince1970 * 1000 }, "recurrenceRule": t.recurrenceRule, "priority": t.priority, "tags": t.tags, "subtasks": t.subtasks.map { ["id": id($0.id), "title": $0.title, "completed": $0.completed] }, "completedAt": stamp(t.completedAt), "nextOccurrenceID": id(t.nextOccurrenceID), "sortOrder": t.sortOrder, "updatedAt": stamp(t.updatedAt)]
-            if let tracking = t.progressTracking { payload["progressTracking"] = tracking }
-            if let started = t.startedAt { payload["startedAt"] = stamp(started) }
-            if t.isNote == true { payload["isNote"] = true }
-            if let icon = t.noteIcon { payload["noteIcon"] = icon }
-            if t.locked == true { payload["locked"] = true }
-            if !t.photos.isEmpty { payload["photos"] = t.photos.map { photo -> [String: String] in
-                var value = ["id": photo.id, "contentType": photo.contentType]
-                if let position = photo.position { value["position"] = position }
-                if let wrap = photo.wrap { value["wrap"] = wrap }
-                return value
-            } }
-            try add("tasks", t.id.uuidString.lowercased(), payload)
+        var result = try preferenceSnapshots()
+        func add(_ models: [any PersistentModel]) throws {
+            for model in models where !model.isDeleted && !pendingDeletions.contains(model.persistentModelID) {
+                if let record = try record(model) { result[record.key] = record.payload }
+            }
         }
-        for h in try context.fetch(FetchDescriptor<Habit>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) {
-            try add("habits", h.id.uuidString.lowercased(), ["conversionData": h.conversionData ?? NSNull() as Any, "id": id(h.id), "title": h.title, "frequencyRule": h.frequencyRule, "target": h.target, "color": h.color, "icon": h.icon, "reminderMinutes": h.reminderMinutes ?? NSNull() as Any, "nudgeMinutes": h.nudgeMinutes ?? NSNull() as Any, "goal": h.goal ?? NSNull() as Any, "goalKind": h.goalKind ?? NSNull() as Any, "createdAt": stamp(h.createdAt), "updatedAt": stamp(h.updatedAt)])
-        }
-        for l in try context.fetch(FetchDescriptor<HabitLog>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) {
-            // The stable key makes independent check-ins on two devices conflict safely.
-            try add("habit_logs", l.habitID.uuidString.lowercased() + "-" + l.dayKey, ["id": id(l.id), "habitID": id(l.habitID), "dayKey": l.dayKey, "count": l.count, "updatedAt": stamp(l.updatedAt)])
-        }
-        for l in try context.fetch(FetchDescriptor<TaskList>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) {
-            var payload: [String: Any] = ["id": id(l.id), "name": l.name, "color": l.color, "sortOrder": l.sortOrder, "updatedAt": stamp(l.updatedAt)]
-            if let kind = l.kind { payload["kind"] = kind }
-            if l.locked == true { payload["locked"] = true }
-            if l.hidden == true { payload["hidden"] = true }
-            try add("lists", l.id.uuidString.lowercased(), payload)
-        }
-        // Day start syncs once someone has chosen it, so a new device never overrides it with the default.
-        if DayStart.updatedAt > 0 {
-            try add("preferences", DayStart.recordID.uuidString.lowercased(), ["id": id(DayStart.recordID), "dayStartMinutes": DayStart.minutes, "updatedAt": DayStart.updatedAt])
-        }
-        // Quick add rules (@ places, start & finish words), likewise only once someone has set them.
-        if CaptureRules.updatedAt > 0 {
-            try add("preferences", CaptureRules.recordID.uuidString.lowercased(), CaptureRules.payload.merging(["id": id(CaptureRules.recordID)]) { $1 })
-        }
-        for i in try context.fetch(FetchDescriptor<IdeaPrompt>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) { try add("idea_prompts", i.id.uuidString.lowercased(), ["id": id(i.id), "text": i.text, "shownAt": stamp(i.shownAt), "dismissed": i.dismissed, "updatedAt": stamp(i.updatedAt)]) }
+        try add(context.fetch(FetchDescriptor<PlannerTask>()))
+        try add(context.fetch(FetchDescriptor<Habit>()))
+        try add(context.fetch(FetchDescriptor<HabitLog>()))
+        try add(context.fetch(FetchDescriptor<TaskList>()))
+        try add(context.fetch(FetchDescriptor<IdeaPrompt>()))
         return result
+    }
+    /// One record as it is stored on this device now, reading only that item (nil if it isn't here).
+    static func snapshot(key: String, context: ModelContext) throws -> String? {
+        if key.hasPrefix("preferences/") { return try preferenceSnapshots()[key] }
+        let parts = key.split(separator: "/", maxSplits: 1).map(String.init)
+        guard parts.count == 2 else { return nil }
+        let rest = parts[1]
+        func first<T: PersistentModel>(_ descriptor: FetchDescriptor<T>) throws -> T? {
+            var limited = descriptor; limited.fetchLimit = 1
+            return try context.fetch(limited).first { !$0.isDeleted }
+        }
+        let model: (any PersistentModel)?
+        switch parts[0] {
+        case "habit_logs":
+            guard rest.count > 37, let habitID = UUID(uuidString: String(rest.prefix(36))) else { return nil }
+            let day = String(rest.dropFirst(37))
+            model = try first(FetchDescriptor<HabitLog>(predicate: #Predicate { $0.habitID == habitID && $0.dayKey == day }))
+        default:
+            guard let uuid = UUID(uuidString: rest) else { return nil }
+            switch parts[0] {
+            case "tasks": model = try first(FetchDescriptor<PlannerTask>(predicate: #Predicate { $0.id == uuid }))
+            case "habits": model = try first(FetchDescriptor<Habit>(predicate: #Predicate { $0.id == uuid }))
+            case "lists": model = try first(FetchDescriptor<TaskList>(predicate: #Predicate { $0.id == uuid }))
+            case "idea_prompts": model = try first(FetchDescriptor<IdeaPrompt>(predicate: #Predicate { $0.id == uuid }))
+            default: model = nil
+            }
+        }
+        return try model.flatMap { try record($0)?.payload }
+    }
+    /// The outbox entries for `keys`, by key, reading only those.
+    static func entries(_ keys: Set<String>, context: ModelContext) throws -> [String: SyncEntry] {
+        guard !keys.isEmpty else { return [:] }
+        let wanted = Array(keys)
+        let found = try context.fetch(FetchDescriptor<SyncEntry>(predicate: #Predicate { wanted.contains($0.key) }))
+        return Dictionary(found.map { ($0.key, $0) }, uniquingKeysWith: { first, _ in first })
+    }
+    /// Records the changed items in the outbox: `records` hold new payloads, `removed` keys were deleted.
+    static func capture(_ context: ModelContext, records: [String: String], removed: Set<String>, entries existing: [String: SyncEntry]) {
+        for (key, payload) in records {
+            if let entry = existing[key] {
+                if entry.payload != payload || entry.tombstone { entry.payload = payload; entry.tombstone = false; entry.dirty = true; entry.mutation = UUID().uuidString.lowercased() }
+            } else { context.insert(SyncEntry(key: key, payload: payload)) }
+        }
+        for key in removed where records[key] == nil {
+            if let entry = existing[key], !entry.tombstone { entry.tombstone = true; entry.dirty = true; entry.mutation = UUID().uuidString.lowercased() }
+        }
     }
     /// `fetched` is every outbox entry, when the caller has just read them.
     static func capture(_ context: ModelContext, snapshots supplied: [String: String]? = nil, entries fetched: [SyncEntry]? = nil) throws {

@@ -325,8 +325,9 @@ private struct FocusBanner: View {
 /// A small notice when sync kept two versions of something; opens the review screen.
 private struct ConflictBanner: View {
     @Environment(\.orbitAccent) private var accent
-    @Query private var entries: [SyncEntry]
-    private var count: Int { entries.filter { $0.conflict != nil }.count }
+    /// Only entries with a conflict: the outbox holds one entry for every item in the planner.
+    @Query(filter: #Predicate<SyncEntry> { $0.conflict != nil }) private var entries: [SyncEntry]
+    private var count: Int { entries.count }
     var body: some View {
         if count > 0 {
             NavigationLink { ConflictReviewView() } label: {

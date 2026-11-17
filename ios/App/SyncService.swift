@@ -17,6 +17,8 @@ import OSLog
     private var busy = false
     private var again = false
     private var lastDeviceCheck = Date.distantPast
+    /// When sync last compared every record with the outbox (see run).
+    private var lastFullCapture = Date.distantPast
     @Published var syncing = false
     private let realtime = RealtimeWakeup()
     private var realtimeAllowed = true
@@ -102,7 +104,7 @@ import OSLog
     func signOut() async throws {
         guard !busy else { throw NSError(domain: "Orbit", code: 1, userInfo: [NSLocalizedDescriptionKey: "Sync is finishing. Please try again."]) }
         _ = try await request("/auth/v1/logout?scope=local", body: [:])
-        realtime.stop(); try saveSession(nil); lastDeviceCheck = .distantPast; status = "Saved on this device"
+        realtime.stop(); try saveSession(nil); lastDeviceCheck = .distantPast; lastFullCapture = .distantPast; status = "Saved on this device"
     }
     func deleteAccount(context: ModelContext) async throws {
         guard !busy, session != nil else { throw NSError(domain: "Orbit", code: 1, userInfo: [NSLocalizedDescriptionKey: "Sync is finishing. Please try again."]) }
@@ -138,12 +140,16 @@ import OSLog
             if realtimeAllowed { realtime.start(token: session?["access_token"] as? String ?? "", userID: uid) { [weak self] in
                 Task { await self?.run(context) }
             } }
-            try SyncRecords.bind(uid, context: context); try SyncRecords.capture(context); try context.save(); status = "Syncing…"
+            try SyncRecords.bind(uid, context: context)
+            // Each edit records itself (Mutations.save); the full check that reads everything is a safety net,
+            // so it runs when Orbit opens and then at most every few minutes, not after every tick.
+            if Date.now.timeIntervalSince(lastFullCapture) > 300 { try SyncRecords.capture(context); lastFullCapture = .now }
+            try context.save(); status = "Syncing…"
             try await uploadPhotos(context, uid: uid)
-            for entry in try context.fetch(FetchDescriptor<SyncEntry>()) where entry.conflict != nil {
+            for entry in try context.fetch(FetchDescriptor<SyncEntry>(predicate: #Predicate { $0.conflict != nil })) {
                 try receive(try SyncRecords.object(entry.conflict!), context: context)
             }
-            let pending = try context.fetch(FetchDescriptor<SyncEntry>()).filter { $0.dirty && $0.conflict == nil && $0.key != "owner" }
+            let pending = try context.fetch(FetchDescriptor<SyncEntry>(predicate: #Predicate { $0.dirty && $0.conflict == nil && $0.key != "owner" }))
             for entry in pending {
                 let mutation = entry.mutation
                 let body: [String: Any] = ["p_key": entry.key, "p_payload": try SyncRecords.object(entry.payload), "p_deleted": entry.tombstone, "p_base": entry.revision, "p_mutation": mutation]
@@ -226,8 +232,12 @@ import OSLog
     }
     private func receive(_ record: [String: Any], context: ModelContext) throws {
         guard let key = record["key"] as? String, let revision = record["revision"] as? Int, let payload = record["payload"] as? [String: Any] else { throw CocoaError(.coderReadCorrupt) }
+        // Reads only this record's entry: a sync looks at every record, so reading them all here made
+        // each sync take time proportional to the square of the planner's size.
+        let old = try SyncRecords.entries([key], context: context)[key]
+        // Most records are already up to date: nothing to do (both branches below need a newer revision).
+        if let old, revision <= old.revision { return }
         let value = try SyncRecords.json(payload), deleted = record["deleted"] as? Bool ?? false
-        let old = try context.fetch(FetchDescriptor<SyncEntry>()).first { $0.key == key }
         if let old, old.dirty {
             if revision > old.revision {
                 let local = try SyncRecords.object(old.payload)
@@ -235,7 +245,7 @@ import OSLog
                 if old.tombstone == deleted, let merged = SyncMerge.merge(local: local, remote: payload, base: base) {
                     let mergedJSON = try SyncRecords.json(merged)
                     try SyncRecords.apply(["key": key, "payload": merged, "deleted": deleted], context: context)
-                    old.payload = try SyncRecords.snapshots(context)[key] ?? mergedJSON
+                    old.payload = try SyncRecords.snapshot(key: key, context: context) ?? mergedJSON
                     old.revision = revision; old.basePayload = value; old.conflict = nil
                     old.dirty = mergedJSON != value
                     if old.dirty { old.mutation = UUID().uuidString.lowercased(); again = true }
@@ -249,7 +259,7 @@ import OSLog
             try SyncRecords.apply(record, context: context)
             let entry = old ?? SyncEntry(key: key, payload: value); if old == nil { context.insert(entry) }
             // Use the local canonical representation to avoid spurious re-uploads.
-            entry.payload = try SyncRecords.snapshots(context)[key] ?? value; entry.tombstone = deleted; entry.basePayload = value; entry.revision = revision; entry.dirty = false; entry.conflict = nil; entry.mutation = record["mutation"] as? String ?? UUID().uuidString.lowercased(); try context.save()
+            entry.payload = try SyncRecords.snapshot(key: key, context: context) ?? value; entry.tombstone = deleted; entry.basePayload = value; entry.revision = revision; entry.dirty = false; entry.conflict = nil; entry.mutation = record["mutation"] as? String ?? UUID().uuidString.lowercased(); try context.save()
         } catch { context.rollback(); throw error }
     }
     func resolve(_ entry: SyncEntry, local: Bool, context: ModelContext) async throws {

@@ -201,6 +201,28 @@ import UIKit
         context.delete(task); try Mutations.save(context)
         XCTAssertEqual(UndoJournal.shared.change?.kind, .deleted, "deleting")
     }
+    /// A save records only what it touched, yet the outbox ends up the same as a full check would make it.
+    func testSaveRecordsOnlyTheChangedItems() throws {
+        let context = ModelContext(try Persistence.makeContainer(inMemory: true))
+        let kept = PlannerTask(title: "Untouched"), changed = PlannerTask(title: "Before")
+        let habit = Habit(title: "Water"); context.insert(kept); context.insert(changed); context.insert(habit)
+        try Mutations.save(context)
+        let keptKey = "tasks/" + kept.id.uuidString.lowercased(), changedKey = "tasks/" + changed.id.uuidString.lowercased()
+        func entry(_ key: String) throws -> SyncEntry? { try SyncRecords.entries([key], context: context)[key] }
+        let keptMutation = try XCTUnwrap(entry(keptKey)).mutation
+        changed.title = "After"; try Mutations.log(habit, at: .now, in: context)
+        XCTAssertEqual(try entry(keptKey)?.mutation, keptMutation, "an untouched item is not re-sent")
+        XCTAssertEqual(try SyncRecords.object(XCTUnwrap(entry(changedKey)).payload)["title"] as? String, "After")
+        let logKey = "habit_logs/" + habit.id.uuidString.lowercased() + "-" + PlannerLogic.dayKey(.now)
+        XCTAssertNotNil(try entry(logKey), "a new check-in is recorded")
+        XCTAssertEqual(try SyncRecords.snapshot(key: logKey, context: context), try entry(logKey)?.payload)
+        context.delete(changed); try Mutations.save(context)
+        XCTAssertEqual(try entry(changedKey)?.tombstone, true, "a deletion is recorded")
+        // A full check finds nothing left to record.
+        let before = try context.fetch(FetchDescriptor<SyncEntry>()).map { $0.key + $0.payload + String($0.tombstone) }.sorted()
+        try SyncRecords.capture(context)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<SyncEntry>()).map { $0.key + $0.payload + String($0.tombstone) }.sorted(), before)
+    }
     func testUndoDeletionAndRemoteEditProtection() throws {
         let context = ModelContext(try Persistence.makeContainer(inMemory: true))
         let task = PlannerTask(title: "Keep me"); context.insert(task); try Mutations.save(context)

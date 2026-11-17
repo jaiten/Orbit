@@ -16,7 +16,7 @@ import SwiftData
 
     static func toHabit(_ task: PlannerTask, in context: ModelContext, createdAt: Date? = nil, save: Bool = true) throws {
         let key = "tasks/" + task.id.uuidString.lowercased()
-        var payload = try SyncRecords.object(try SyncRecords.snapshots(context)[key]!)
+        var payload = SyncRecords.payload(task)
         payload.removeValue(forKey: "conversionData")
         let habit: Habit
         if let backup = task.conversionData, let source = try SyncRecords.object(backup)["source"] as? [String: Any] {

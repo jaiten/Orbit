@@ -9,7 +9,8 @@ struct HabitsView: View {
     @AppStorage("compactRows") private var compactRows = false
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var adding = false
-    @State private var addingCounter = false
+    /// What the + menu makes: "habit", "counter" or "avoid".
+    @State private var newKind = "habit"
     @State private var editing: Habit?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
@@ -17,8 +18,12 @@ struct HabitsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
                     PageHeader(eyebrow: "", title: "Habits") {
-                        Button { addingCounter = true } label: { Label("Counter", systemImage: "plus").font(.subheadline).padding(.horizontal, 14).frame(minHeight: 44).fixedSize(horizontal: true, vertical: false) }
-                            .accessibilityLabel("New counter").accessibilityHint("A counter adds one each time you tap it")
+                        Menu {
+                            Button("Habit", systemImage: "repeat") { newKind = "habit"; adding = true }
+                            Button("Counter", systemImage: "plus.circle") { newKind = "counter"; adding = true }
+                            Button("Habit to Avoid", systemImage: "nosign") { newKind = "avoid"; adding = true }
+                        } label: { Image(systemName: "plus").font(.system(size: 17, weight: .medium)).frame(width: 44, height: 44) }
+                            .accessibilityLabel("New").accessibilityHint("A habit, a counter, or a habit to avoid")
                         NavigationLink { HabitHistoryIndex() } label: { Image(systemName: "clock.arrow.circlepath").frame(width: 44, height: 44) }.accessibilityLabel("History")
                     }
                     if habits.isEmpty { ContentUnavailableView("No Habits", systemImage: "repeat", description: Text("Start typing to add a habit.")) }
@@ -61,8 +66,8 @@ struct HabitsView: View {
                     .frame(maxWidth: 760).frame(maxWidth: .infinity)
             }.captureDock(scheme) { InlineCapture(habitsOnly: true) }.background(DayTheme.canvas(scheme)).navigationTitle("Habits").navigationBarTitleDisplayMode(.inline)
                 .toolbar(.hidden, for: .navigationBar)
-                .sheet(isPresented: $adding) { HabitEditor().presentationDragIndicator(.visible) }
-                .sheet(isPresented: $addingCounter) { HabitEditor(startsAsCounter: true).presentationDragIndicator(.visible) }.sheet(item: $editing) { HabitEditor(habit: $0).presentationDragIndicator(.visible) }
+                .sheet(isPresented: $adding) { HabitEditor(startsAs: newKind).presentationDragIndicator(.visible) }
+.sheet(item: $editing) { HabitEditor(habit: $0).presentationDragIndicator(.visible) }
         }
     }
 }
@@ -216,8 +221,8 @@ struct HabitEditor: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     var habit: Habit?
-    /// A new item opens as a counter (from Habits' Counter button).
-    var startsAsCounter = false
+    /// What a new item opens as: "habit", "counter" or "avoid" (from the Habits page's + menu).
+    var startsAs = "habit"
     /// A habit repeats towards a target; a counter just adds one on every tap.
     @State private var counter = false
     /// Something to stay away from: ticked off each night, with a slip marked when it happens (HabitRules.avoid).
@@ -288,7 +293,7 @@ struct HabitEditor: View {
                     ToolbarItem(placement: .confirmationAction) { Button("Save", action: save).disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
                 }.onAppear {
                     // A new habit starts in the next colour, so habits mix; any colour can still be chosen.
-                    guard let habit else { counter = startsAsCounter; color = (try? QuickAddSaver.nextHabitColor(in: context)) ?? "sage"; return }
+                    guard let habit else { counter = startsAs == "counter"; avoid = startsAs == "avoid"; color = (try? QuickAddSaver.nextHabitColor(in: context)) ?? "sage"; return }
                     counter = habit.isCounter; avoid = habit.isAvoid
                     hasGoal = habit.goal != nil; goal = habit.goal ?? 3; goalAtMost = habit.goalKind == "atMost"
                     title = habit.title; frequency = HabitRules.schedule(habit.frequencyRule); target = habit.target; color = habit.color; icon = ItemIcons.all.contains { $0.id == habit.icon } ? habit.icon : "automatic"

@@ -6,9 +6,8 @@ struct ConflictReviewView: View {
     @Environment(\.orbitAccent) private var accent
     @Environment(\.modelContext) private var context
     @ObservedObject private var sync = SyncService.shared
-    @Query private var entries: [SyncEntry]
+    @Query(filter: #Predicate<SyncEntry> { $0.conflict != nil }) private var conflicts: [SyncEntry]
     @State private var message: String?
-    private var conflicts: [SyncEntry] { entries.filter { $0.conflict != nil } }
     var body: some View {
         List {
             if conflicts.isEmpty { ContentUnavailableView("Nothing to Review", systemImage: "checkmark.circle") }

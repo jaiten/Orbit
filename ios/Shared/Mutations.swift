@@ -6,11 +6,18 @@ import WidgetKit
     /// Saves and syncs. Deletions and moves can be undone (UndoJournal decides); `undoKind` forces it, as imports do.
     static func save(_ context: ModelContext, undoable: Bool = true, undoKind: UndoJournal.Kind? = nil) throws {
         do {
-            // The outbox is read once and used both for Undo's "before" and to record what changed.
-            let entries = try context.fetch(FetchDescriptor<SyncEntry>())
-            let before = Dictionary(uniqueKeysWithValues: entries.filter { $0.key != "owner" && !$0.tombstone }.map { ($0.key, $0.payload) })
-            let after = try SyncRecords.snapshots(context)
-            try SyncRecords.capture(context, snapshots: after, entries: entries); try context.save()
+            // Only the items this edit touched are read and recorded, so a tick costs the same with a
+            // year of history as with a day (sync's occasional full check catches anything else).
+            let removed = Set(context.deletedModelsArray.compactMap(SyncRecords.key))
+            var after: [String: String] = [:]
+            for model in context.insertedModelsArray + context.changedModelsArray where !removed.contains(SyncRecords.key(model) ?? "") {
+                if let record = try SyncRecords.record(model) { after[record.key] = record.payload }
+            }
+            for (key, payload) in try SyncRecords.preferenceSnapshots() { after[key] = payload }
+            let entries = try SyncRecords.entries(Set(after.keys).union(removed), context: context)
+            let before = entries.filter { !$0.value.tombstone }.mapValues(\.payload)
+            SyncRecords.capture(context, records: after, removed: removed, entries: entries); try context.save()
+            // Both hold just the touched keys: unchanged ones match and drop out, deleted ones are only in `before`.
             if undoable { UndoJournal.shared.record(before: before, after: after, kind: undoKind) }
             TaskProgress.forget()
             WidgetCenter.shared.reloadAllTimelines(); NotificationCenter.default.post(name: .init("OrbitLocalChange"), object: nil)
