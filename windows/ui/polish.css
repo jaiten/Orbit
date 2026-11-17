@@ -2325,3 +2325,9 @@ textarea.title-field {
 .avoid-row.habit-plum {
   --habit-color: var(--plum);
 }
+
+/* The scrollbar's room is always kept, so a page growing tall enough to scroll (a task moving to Completed,
+   say) never shifts the centred layout sideways. */
+html {
+  scrollbar-gutter: stable;
+}

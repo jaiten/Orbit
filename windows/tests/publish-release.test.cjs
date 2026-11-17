@@ -8,7 +8,13 @@ const { publishRelease } = require("../scripts/publish-release.cjs");
 test("a release stays in draft until every asset is present, then repeated runs leave it untouched", () => {
   const dist = fs.mkdtempSync(path.join(os.tmpdir(), "orbit-release-"));
   const commit = "a".repeat(40);
-  const files = ["latest.yml", "Orbit-Setup-0.3.4.exe", "Orbit-Setup-0.3.4.exe.blockmap", "Orbit-0.3.4.exe"];
+  const files = [
+    "latest.yml",
+    "Orbit-Setup-0.3.4.exe",
+    "Orbit-Setup-0.3.4.exe.blockmap",
+    "Orbit-0.3.4.exe",
+    "Orbit-Setup.exe",
+  ];
   let release = null;
   let omitAsset = true;
   let uploads = 0;
@@ -37,13 +43,19 @@ test("a release stays in draft until every asset is present, then repeated runs 
     }
   };
   try {
-    files.forEach((name) => fs.writeFileSync(path.join(dist, name), name));
+    // The fixed-name copy is made by publishRelease itself.
+    files.filter((name) => name !== "Orbit-Setup.exe").forEach((name) => fs.writeFileSync(path.join(dist, name), name));
     const options = { version: "0.3.4", repo: "jaiten/Orbit", commit, dist, gh };
     assert.throws(() => publishRelease(options), /upload incomplete/);
     assert.equal(release.isDraft, true);
     omitAsset = false;
     assert.match(publishRelease(options), /Published https/);
     assert.equal(release.isDraft, false);
+    assert.equal(
+      fs.readFileSync(path.join(dist, "Orbit-Setup.exe"), "utf8"),
+      "Orbit-Setup-0.3.4.exe",
+      "The fixed-name installer is the versioned one",
+    );
     const count = uploads;
     assert.match(publishRelease(options), /already published/);
     assert.equal(uploads, count, "A public release must not be overwritten");

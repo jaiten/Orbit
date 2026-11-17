@@ -715,7 +715,8 @@ const fs = require("node:fs");
   await p.evaluate(() => (document.documentElement.dataset.accent = localStorage.getItem("accent") || "coral"));
 
   // A real drop reschedules a task to a quarter-hour and retains reminder offsets.
-  await p.locator("#inline-task-input").fill("Drag calendar task 11pm");
+  // "today": after 11pm a bare "11pm" means tomorrow, which would take the task off Today.
+  await p.locator("#inline-task-input").fill("Drag calendar task today 11pm");
   await p.locator("#inline-task-input").press("Enter");
   await p.getByRole("button", { name: "Complete Drag calendar task", exact: true }).waitFor();
   await p.locator("#inline-task-input").fill("Untimed calendar task");

@@ -54,7 +54,10 @@ function render() {
   // Notes fill the window edge to edge, like a document app; other pages keep the reading width.
   document.body.dataset.view = page === "note" ? "lists" : page;
   if (changedPage) releaseTodayHeights();
-  $("#content").innerHTML = pageHTML();
+  const fresh = document.createElement("div");
+  fresh.innerHTML = pageHTML();
+  keepUnchangedPanels(fresh, changedPage);
+  $("#content").replaceChildren(...fresh.childNodes);
   renderLists();
   bind();
   if (changedPage) {
@@ -69,6 +72,25 @@ function render() {
   poppedID = null;
   if (focusSelector) document.querySelector(focusSelector)?.focus();
   if (state.recoveryReady && !$("#password-editor").open) openDialog($("#password-editor"));
+}
+
+/**
+ * Today's cards whose content is the same as last time stay on screen as they are, instead of being
+ * rebuilt: ticking a task leaves the habits card (its rows, hover and columns) untouched. Compared with
+ * the HTML each card was drawn from, since a shown card also carries its held height and column layout.
+ */
+let panelSources = new Map();
+function keepUnchangedPanels(fresh, changedPage) {
+  const sources = new Map();
+  fresh.querySelectorAll(".today-panel[data-today-panel]").forEach((panel) => {
+    const id = panel.dataset.todayPanel,
+      source = panel.outerHTML;
+    sources.set(id, source);
+    if (changedPage || panelSources.get(id) !== source) return;
+    const shown = $("#content").querySelector(`.today-panel[data-today-panel="${CSS.escape(id)}"]`);
+    if (shown) panel.replaceWith(shown);
+  });
+  panelSources = sources;
 }
 
 function bind() {

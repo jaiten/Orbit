@@ -8,11 +8,16 @@ function publishRelease({ version, repo, commit, dist, gh }) {
   if (!/^\d+\.\d+\.\d+$/.test(version || "") || repo !== "jaiten/Orbit" || !/^[a-f0-9]{40}$/.test(commit || ""))
     throw Error("Invalid release coordinates");
   const tag = `v${version}`;
+  // A copy of the installer under a fixed name, so releases/latest/download/Orbit-Setup.exe (the
+  // website's download button) always gives the newest version.
+  const setup = path.resolve(dist, `Orbit-Setup-${version}.exe`);
+  if (fs.existsSync(setup)) fs.copyFileSync(setup, path.resolve(dist, "Orbit-Setup.exe"));
   const files = [
     "latest.yml",
     `Orbit-Setup-${version}.exe`,
     `Orbit-Setup-${version}.exe.blockmap`,
     `Orbit-${version}.exe`,
+    "Orbit-Setup.exe",
   ].map((file) => path.resolve(dist, file));
   files.forEach((file) => {
     if (!fs.statSync(file).size) throw Error(`Empty release asset: ${file}`);
