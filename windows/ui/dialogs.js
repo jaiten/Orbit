@@ -41,8 +41,27 @@ function updateTargetLabel() {
 }
 $("#habit-form").elements.frequency.onchange = updateTargetLabel;
 
+/** A habit repeats towards a target; a counter just adds up, so it has no schedule or target to set. */
+function updateHabitKind() {
+  const form = $("#habit-form");
+  const counter = form.elements.kind.value === "counter";
+  $("#habit-schedule-fields").hidden = counter;
+  form.elements.target.disabled = counter;
+  $("#habit-kind-hint").hidden = !counter;
+  $("#habit-editor-title").textContent = `${editingHabit ? "Edit" : "New"} ${counter ? "Counter" : "Habit"}`;
+  $("#move-habit").hidden = !editingHabit || counter;
+}
 function habitPickers() {
   const form = $("#habit-form");
+  $("#habit-kind-picker").innerHTML = macPicker(
+    "habit-kind",
+    "Type",
+    [
+      ["habit", "Habit"],
+      ["counter", "Counter"],
+    ],
+    form.elements.kind.value,
+  );
   $("#habit-frequency-picker").innerHTML = macPicker(
     "habit-frequency",
     "Repeats",
@@ -68,6 +87,11 @@ function habitPickers() {
   );
   bindPickers(
     {
+      "habit-kind": (value) => {
+        form.elements.kind.value = value;
+        updateHabitKind();
+        habitPickers();
+      },
       "habit-frequency": (value) => {
         form.elements.frequency.value = value;
         updateTargetLabel();
@@ -92,14 +116,14 @@ function openHabit(id, draft = null) {
   f.elements.title.value = source?.title || "";
   f.elements.target.value = source?.target || 1;
   f.elements.frequency.value = OrbitHabits.schedule(source || {});
+  f.elements.kind.value = source && OrbitHabits.isCounter(source) ? "counter" : "habit";
   f.elements.color.value = editingHabit?.color || draft?.color || nextHabitColor();
   // Keep the iPhone's icon choice when editing; Windows uses text-only rows.
   f.elements.icon.value = source?.icon || "automatic";
   updateTargetLabel();
   habitPickers();
-  $("#habit-editor-title").textContent = editingHabit ? "Edit Habit" : "New Habit";
   $("#delete-habit").hidden = !editingHabit;
-  $("#move-habit").hidden = !editingHabit;
+  updateHabitKind();
   openDialog($("#habit-editor"));
 }
 
@@ -184,6 +208,7 @@ $("#habit-form").onsubmit = (e) => {
   e.preventDefault();
   const f = e.target;
   if (!f.elements.title.value.trim()) return;
+  const counter = f.elements.kind.value === "counter";
   action(async () => {
     await put("habits", {
       ...(editingHabit || {
@@ -194,8 +219,8 @@ $("#habit-form").onsubmit = (e) => {
         nudgeMinutes: null,
       }),
       title: f.elements.title.value.trim(),
-      target: Number(f.elements.target.value),
-      frequencyRule: f.elements.frequency.value,
+      target: counter ? 1 : Number(f.elements.target.value),
+      frequencyRule: counter ? OrbitHabits.COUNTER : f.elements.frequency.value,
       color: f.elements.color.value,
       icon: f.elements.icon.value,
       updatedAt: Date.now(),

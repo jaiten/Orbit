@@ -119,7 +119,14 @@ function todayProgress() {
 const rewardValues = () =>
   OrbitRewards.metrics(
     rows("tasks").map((t) => ({ completedDay: t.completedAt ? plannerDay(t.completedAt) : null, isNote: t.isNote })),
-    rows("habit_logs"),
+    // A counter's taps are not achievements, so they stay out of badges.
+    rows("habit_logs").filter((l) => !counterIDs().has(l.habitID)),
+  );
+const counterIDs = () =>
+  new Set(
+    rows("habits")
+      .filter(OrbitHabits.isCounter)
+      .map((h) => h.id),
   );
 const readSet = (key) => {
   try {

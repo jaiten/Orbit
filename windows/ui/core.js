@@ -521,6 +521,24 @@ function habitCard(h, { fullWidth = false } = {}) {
     </div>
   </div>`;
 }
+/**
+ * A counter: a habit with no target that goes up by one each time it is clicked ("3 today").
+ * Right-click for Take one off and Edit; the pencil and bin appear on hover outside Today.
+ */
+function counterCard(h, { compact = false } = {}) {
+  const date = today();
+  const id = esc(h.id),
+    title = esc(h.title);
+  const count = dailyCount(h, date);
+  const week = OrbitHabits.countOver(h, habitLogs(), date, 7);
+  const detail = compact ? "today" : `today · ${week} in 7 days`;
+  return `<div class="row counter-row habit-${colorName(h.color)} check-tile" data-flip="habit-${id}" data-row-menu="habit:${id}">
+    <div class="row-line">
+      <button class="counter-add" aria-label="Add one to ${title}: ${count} today" title="Add one" data-counter="${id}" data-habit-menu="${id}"><span class="counter-plus ${poppedID === h.id ? "pop" : ""}" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 6.5v11M6.5 12h11"/></svg></span><span class="row-title">${title}</span><span class="row-detail counter-count"><b class="${poppedID === h.id ? "pop" : ""}">${count}</b> ${detail}</span></button>
+      ${compact ? "" : rowActions(id, title, true)}
+    </div>
+  </div>`;
+}
 /** Two short habits share a row; longer titles take the full width. */
 function habitCards(habits) {
   const compact = (habit) => habit.title.length <= 22 && habit.title.split(/\s+/).length <= 4;
@@ -608,6 +626,25 @@ async function log(id, undo, date = today()) {
   if (shown) holdForTick("habit-" + id);
   await put("habit_logs", data);
   if (!undo && date === current) celebrateStreak(h, [...habitLogs().filter((l) => l.id !== data.id), data]);
+}
+/** A counter goes up by one for today (or down, from its menu). The number changes at once. */
+async function countUp(id, delta = 1) {
+  const h = rows("habits").find((habit) => habit.id === id);
+  if (!h) return;
+  const date = today();
+  const old = rows("habit_logs").find((l) => l.habitID === id && l.dayKey === date);
+  const data = old || { id: crypto.randomUUID(), habitID: id, dayKey: date, count: 0 };
+  data.count = Math.max(0, data.count + delta);
+  data.updatedAt = Date.now();
+  data._key = `habit_logs/${id}-${date}`;
+  applyLocally(data._key, clean(data));
+  if (delta > 0) OrbitSounds.play("tick");
+  // The re-render that follows the save gives the number its small bump.
+  poppedID = delta > 0 ? id : null;
+  document.querySelectorAll(`[data-counter="${CSS.escape(id)}"] .counter-count b`).forEach((number) => {
+    number.textContent = data.count;
+  });
+  await put("habit_logs", data);
 }
 /** A gentle note when a check-in lands a streak on a milestone (7 days, 4 weeks…), with a bigger burst. */
 let celebrationTimer;
@@ -711,6 +748,9 @@ function bindTiles() {
           ),
         )),
   );
+  document
+    .querySelectorAll("[data-counter]")
+    .forEach((b) => (b.onclick = () => tickAction(() => countUp(b.dataset.counter))));
   document.querySelectorAll("[data-habit-edit]").forEach((b) => (b.onclick = () => openHabit(b.dataset.habitEdit)));
   document.querySelectorAll("[data-new-habit]").forEach((b) => (b.onclick = () => openHabit(null)));
   bindPickers(
@@ -851,6 +891,8 @@ function openRowMenu(e) {
     ],
   ];
   if (kind !== "habit") entries.push(["Select item", () => selectRow(kind, id)]);
+  if (kind === "habit" && OrbitHabits.isCounter(item) && dailyCount(item) > 0)
+    entries.push(["Take one off", () => tickAction(() => countUp(id, -1))]);
   if (kind === "habit") entries.push(["Edit…", () => openHabit(id)]);
   if (kind === "note") {
     entries.push(["Open", () => openNote(id)]);

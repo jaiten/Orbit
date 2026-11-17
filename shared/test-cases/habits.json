@@ -126,6 +126,17 @@
       "day": "2026-10-24",
       "weekStart": 0,
       "expect": { "due": true, "checked": false, "progress": 0, "lastSeven": 0 }
+    },
+    {
+      "name": "a counter adds up through the day and is never due or checked",
+      "habit": { "frequencyRule": "COUNTER", "target": 1 },
+      "logs": [
+        { "dayKey": "2026-10-20", "count": 4 },
+        { "dayKey": "2026-10-19", "count": 2 }
+      ],
+      "day": "2026-10-20",
+      "weekStart": 0,
+      "expect": { "due": false, "checked": false, "progress": 4, "lastSeven": 0 }
     }
   ]
 }

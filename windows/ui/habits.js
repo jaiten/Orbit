@@ -4,6 +4,13 @@
 // The same cases run on iOS: shared/test-cases/habits.json.
 (function (root) {
   const SCHEDULES = ["DAILY", "WEEKDAYS", "WEEKENDS", "WEEKLY"];
+  /**
+   * A counter is a habit with no target: every tap adds one to the day's count ("no phone in the
+   * washroom: 3 today"). It is never due, never checked and never part of progress, streaks or
+   * reminders; its check-ins are simply how many times it happened that day.
+   */
+  const COUNTER = "COUNTER";
+  const isCounter = (habit) => habit.frequencyRule === COUNTER;
 
   function parseKey(key) {
     const [y, m, d] = key.split("-").map(Number);
@@ -32,6 +39,7 @@
     return schedule(habit) === "WEEKLY" ? 1 : Math.max(1, habit.target || 1);
   }
   function scheduledOn(habit, key) {
+    if (isCounter(habit)) return false;
     const day = weekday(key);
     if (schedule(habit) === "WEEKDAYS") return day >= 1 && day <= 5;
     if (schedule(habit) === "WEEKENDS") return day === 0 || day === 6;
@@ -41,7 +49,14 @@
     return logs.filter((l) => l.habitID === habit.id && l.dayKey === key).reduce((sum, l) => sum + l.count, 0);
   }
   function checkedOn(habit, logs, key) {
-    return dayCount(habit, logs, key) >= dailyTarget(habit);
+    return !isCounter(habit) && dayCount(habit, logs, key) >= dailyTarget(habit);
+  }
+  /** How many times in the `days` days ending with `key` (for a counter's "12 this week"). */
+  function countOver(habit, logs, key, days = 7) {
+    const start = addDays(key, 1 - days);
+    return logs
+      .filter((l) => l.habitID === habit.id && l.dayKey >= start && l.dayKey <= key)
+      .reduce((sum, l) => sum + l.count, 0);
   }
   /** Check-ins in the habit's period: the day, or the week for weekly habits. */
   function periodProgress(habit, logs, key, weekStart = 0) {
@@ -79,6 +94,7 @@
    */
   function streak(habit, logs, key, weekStart = 0) {
     let count = 0;
+    if (isCounter(habit)) return 0;
     if (schedule(habit) === "WEEKLY") {
       const target = Math.max(1, habit.target || 1);
       for (let week = weekStartKey(key, weekStart); count < 520; week = addDays(week, -7)) {
@@ -104,6 +120,7 @@
       : null;
   }
   function label(habit) {
+    if (isCounter(habit)) return "Counter";
     return { DAILY: "Daily", WEEKDAYS: "Weekdays", WEEKENDS: "Weekends", WEEKLY: "Weekly" }[schedule(habit)];
   }
   const COLORS = ["sage", "lavender", "clay", "honey"];
@@ -125,6 +142,9 @@
 
   const api = {
     SCHEDULES,
+    COUNTER,
+    isCounter,
+    countOver,
     addDays,
     weekday,
     weekStartKey,

@@ -139,6 +139,8 @@ const shared = Object.fromEntries(
     "poppedID",
     "captureRows",
     "settleRows",
+    "counterCard",
+    "countUp",
     "rowGroup",
     "fadeRows",
     "pageHTML",

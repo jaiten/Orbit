@@ -187,6 +187,8 @@ function renderToday(tasks, allHabits) {
   const timed = open.filter((t) => t.hasTime),
     untimed = open.filter((t) => !t.hasTime);
   const habitsDone = habits.filter((h) => checked(h)).length;
+  // Counters have no target, so they sit below the habits and stay out of the day's progress.
+  const counters = allHabits.filter(OrbitHabits.isCounter);
   const includeTasks = localStorage.getItem("progressIncludesTasks") !== "false";
   const done = (includeTasks ? complete.length : 0) + habitsDone,
     total = (includeTasks ? relevant.length : 0) + habits.length;
@@ -224,7 +226,7 @@ function renderToday(tasks, allHabits) {
         ${todayPanel("upcoming", upcomingCard(tasks))}
         ${todayPanel("recent", recentProgressCard(tasks, allHabits))}
         ${todayPanel("plan", planCard(done, total))}
-        ${todayPanel("habits", `<section class="card habits-compact-card">${sectionLabel("Habits", `${habitsDone} of ${habits.length}`)}<div class="check-list compact-habits">${habits.map(compactHabit).join("")}</div></section>`, habits.length > 6 ? "main" : "side")}
+        ${todayPanel("habits", `<section class="card habits-compact-card">${habits.length || !counters.length ? sectionLabel("Habits", `${habitsDone} of ${habits.length}`) + `<div class="check-list compact-habits">${habits.map(compactHabit).join("")}</div>` : ""}${counters.length ? sectionLabel("Counters", "Click to add one") + `<div class="check-list compact-habits compact-counters">${counters.map((h) => counterCard(h, { compact: true })).join("")}</div>` : ""}</section>`, habits.length + counters.length > 6 ? "main" : "side")}
         ${todayPanel("heatmap", overallProgressCard(tasks, allHabits))}
       </aside>
     </div>
@@ -267,6 +269,7 @@ function habitSummaryRow(h, days) {
 
 /** Week, month and everything: tasks by day (or by when) and how each habit is going. */
 function renderAgenda(tasks, allHabits, head = "") {
+  const regularHabits = allHabits.filter((h) => !OrbitHabits.isCounter(h));
   const t = today();
   const days = todayScope === "all" ? [] : scopeDays();
   const inRange = todayScope === "all" ? tasks : tasks.filter((task) => days.includes(taskDate(task)));
@@ -307,7 +310,7 @@ function renderAgenda(tasks, allHabits, head = "") {
     </section>
     <aside class="today-side" aria-label="Plan and habits">
       ${planCard(inRange.filter((task) => task.completedAt).length, inRange.length)}
-      ${allHabits.length ? sectionLabel("Habits", todayScope === "all" ? "Since added" : title) + `<div class="check-list">${allHabits.map((h) => habitSummaryRow(h, days)).join("")}</div>` : ""}
+      ${regularHabits.length ? sectionLabel("Habits", todayScope === "all" ? "Since added" : title) + `<div class="check-list">${regularHabits.map((h) => habitSummaryRow(h, days)).join("")}</div>` : ""}
     </aside>
   </div>`;
 }

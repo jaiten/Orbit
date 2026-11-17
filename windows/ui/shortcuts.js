@@ -42,7 +42,9 @@ async function goTo(name) {
 
 async function deleteItem(tile) {
   const taskID = tile.querySelector("[data-toggle]")?.dataset.toggle;
-  const habitID = tile.querySelector("[data-habit-toggle]")?.dataset.habitToggle;
+  const habitID =
+    tile.querySelector("[data-habit-toggle]")?.dataset.habitToggle ??
+    tile.querySelector("[data-counter]")?.dataset.counter;
   const task = rows("tasks").find((t) => t.id === taskID);
   if (task) return put("tasks", task, true);
   const habit = rows("habits").find((h) => h.id === habitID);

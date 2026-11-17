@@ -183,7 +183,14 @@
           <button type="button" data-close aria-label="Close">×</button>
         </div>
         <label>Title<input name="title" required maxlength="500" /></label>
-        <div class="fields">
+        <div class="habit-field">
+          <span>Type</span><input type="hidden" name="kind" value="habit" />
+          <div id="habit-kind-picker"></div>
+        </div>
+        <p id="habit-kind-hint" class="secondary" hidden>
+          A counter has no target. Each click adds one for the day, so you can see how often it happens.
+        </p>
+        <div class="fields" id="habit-schedule-fields">
           <div class="habit-field">
             <span>Repeats</span><input type="hidden" name="frequency" value="DAILY" />
             <div id="habit-frequency-picker"></div>
