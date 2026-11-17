@@ -87,6 +87,7 @@ private struct AppearanceSection: View {
             Toggle("Compact habits and tasks", isOn: $compactRows)
             Toggle("Sounds when you finish things", isOn: $sounds)
             NavigationLink { MilestonesView() } label: { Label("Milestones", systemImage: "rosette") }
+            ShuffleColoursButton()
             Text("Fits more items by reducing spacing. Larger accessibility text keeps the room it needs.")
                 .font(.footnote).foregroundStyle(.secondary)
         }
@@ -254,6 +255,35 @@ struct CaptureRulesView: View {
         CaptureRules.save(places: parsedPlaces, progressWords: parsedWords)
         // Saving records the rules for sync.
         do { try Mutations.save(context, undoable: false) } catch { self.error = error.localizedDescription }
+    }
+}
+
+/// Settings → Appearance → Shuffle Colours: every habit, task category and note section gets a new colour
+/// at random, never the one it had and never the same as the item before it. Same as Windows.
+private struct ShuffleColoursButton: View {
+    @Environment(\.modelContext) private var context
+    @Query(sort: \Habit.createdAt) private var habits: [Habit]
+    @Query(sort: \TaskList.sortOrder) private var lists: [TaskList]
+    @State private var confirming = false
+    @State private var error: String?
+    var body: some View {
+        Button { confirming = true } label: { Label("Shuffle Colours", systemImage: "shuffle") }
+            .confirmationDialog("Give every habit, category and note section a new colour?", isPresented: $confirming, titleVisibility: .visible) {
+                Button("Shuffle Colours", action: shuffle)
+            }
+            .modifier(MutationErrorModifier(error: $error))
+    }
+    private func shuffle() {
+        var previous: String?
+        func pick(_ current: String) -> String {
+            let choices = DayTheme.colors.filter { $0 != current && $0 != previous }
+            let chosen = choices.randomElement() ?? current
+            previous = chosen
+            return chosen
+        }
+        for habit in habits { habit.color = pick(habit.color); habit.updatedAt = .now }
+        for list in lists where list.id != TodayRules.somedayID { list.color = pick(list.color); list.updatedAt = .now }
+        do { try Mutations.save(context) } catch { context.rollback(); self.error = error.localizedDescription }
     }
 }
 

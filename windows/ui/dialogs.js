@@ -346,8 +346,9 @@ function showUndo(visible) {
   };
 }
 /**
- * Undo and Redo. On Today they sit in the header beside Edit layout, always there; on other pages they
- * pop up at the top for a few seconds after each change (staying while the pointer is on them).
+ * Undo and Redo. On Today they sit in the header beside Edit layout, and on Notes in the note's toolbar
+ * between ⋯ and the bin, always there; on other pages they pop up at the top for a few seconds after
+ * each change (staying while the pointer is on them).
  * Every [data-history-action] button follows the same state, with what it would do as its tooltip.
  */
 let historyState = {},
@@ -362,7 +363,10 @@ const historyButtonsHTML = () =>
   `<span class="history-inline" role="toolbar" aria-label="Undo and redo">${["undo", "redo"]
     .map((kind) => `<button class="icon-button" data-history-action="${kind}" disabled>${historyIcons[kind]}</button>`)
     .join("")}</span>`;
+/** Pages with their own Undo and Redo buttons, where the pop-up never shows. */
+const historyDocked = () => ["today", "lists", "note"].includes(page);
 function paintHistoryButtons() {
+  if (historyDocked() && !$("#history-buttons").hidden) showHistoryPopup(false);
   const history = historyState;
   document.querySelectorAll("[data-history-action]").forEach((button) => {
     const undo = button.dataset.historyAction === "undo";
@@ -393,7 +397,7 @@ function updateHistoryButtons(history = {}) {
   paintHistoryButtons();
   const changed = historyVersion !== null && history.version !== historyVersion;
   historyVersion = history.version ?? null;
-  if (page === "today") showHistoryPopup(false);
+  if (historyDocked()) showHistoryPopup(false);
   else if (changed && (history.canUndo || history.canRedo)) showHistoryPopup(true);
 }
 document.addEventListener("click", (event) => {

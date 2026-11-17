@@ -412,6 +412,7 @@ function renderNoteEditor() {
         ${OrbitLocks.isLocked(note) ? `<span class="note-locked-mark" title="Locked">${icon(LOCK_PATH)}</span>` : ""}
         <input id="note-photo-file" type="file" accept="image/*" multiple hidden />
         <button class="icon-button" id="note-more" aria-label="More note options" aria-haspopup="menu" title="More">${icon(ICONS.more)}</button>
+        ${historyButtonsHTML()}
         ${note ? `<button class="icon-button danger" data-delete-note aria-label="Delete note" title="Delete note">${icon(ICONS.trash)}</button>` : ""}
       </div>
       <article class="note-page">

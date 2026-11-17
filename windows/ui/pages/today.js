@@ -337,7 +337,6 @@ function renderAgenda(tasks, allHabits, head = "") {
 
 function bindToday() {
   applyCalendarStyles();
-  paintHistoryButtons();
   document.querySelectorAll(".upcoming-card [data-edit-event]").forEach((button) => {
     button.onclick = () => openEvent(button.dataset.editEvent);
     button.oncontextmenu = openEventMenu;

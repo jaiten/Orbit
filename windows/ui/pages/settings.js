@@ -110,6 +110,29 @@ function bindNavOrderDrag() {
   });
 }
 
+/**
+ * Shuffle colours: every habit, task category and note section gets a new colour at random, never the one
+ * it had and never the same as the item before it. One change, so Undo (Ctrl+Z) puts them all back.
+ */
+async function shuffleColours() {
+  const items = [
+    ...rows("habits").map((item) => ["habits", item]),
+    ...rows("lists")
+      .filter((list) => list.id !== SOMEDAY)
+      .map((item) => ["lists", item]),
+  ];
+  if (!items.length) return showNotice("Add a habit or a category first.", { dismissAfter: 3000 });
+  let previous = null;
+  const changes = items.map(([entity, item]) => {
+    const choices = HABIT_COLORS.filter((c) => c !== item.color && c !== previous);
+    previous = choices[Math.floor(Math.random() * choices.length)];
+    return { key: `${entity}/${item.id}`, payload: { ...clean(item), color: previous, updatedAt: Date.now() } };
+  });
+  await action(() => api.batch(changes));
+  showNotice(`New colours for ${items.length} ${items.length === 1 ? "item" : "items"}. Ctrl+Z puts them back.`, {
+    dismissAfter: 4000,
+  });
+}
 /** Accent choices: unlocked ones as buttons; locked ones show which badge opens them. */
 function accentButtons(current) {
   const open = new Set(availableAccents());
@@ -134,6 +157,7 @@ function renderSettings() {
       <label class="toggle"><input type="checkbox" id="compact-rows" ${root.compact === "true" ? "checked" : ""} /> Compact habits and tasks</label>
       <label class="toggle"><input type="checkbox" id="sounds-toggle" ${OrbitSounds.enabled() ? "checked" : ""} /> Sounds when you finish things</label>
       <div class="accent-options segmented" role="group" aria-label="Appearance">${choiceButtons("appearance", appearances, root.appearance)}</div>
+      <div class="settings-field"><span>Habit and list colours</span><button id="shuffle-colours" title="Give every habit, task category and note section a new colour">Shuffle colours</button></div>
       <h3>Accent</h3><div class="accent-options segmented" role="group" aria-label="Accent">${accentButtons(root.accent)}</div>
     </section>
     ${milestonesSection()}
@@ -307,6 +331,7 @@ function bindSettings() {
       render();
     };
   if ($("#compact-rows")) $("#compact-rows").onchange = (event) => applyCompact(event.target.checked);
+  if ($("#shuffle-colours")) $("#shuffle-colours").onclick = () => void shuffleColours();
   if ($("#sounds-toggle"))
     $("#sounds-toggle").onchange = (event) => {
       localStorage.setItem("sounds", event.target.checked ? "on" : "off");

@@ -71,6 +71,7 @@ function render() {
 }
 
 function bind() {
+  paintHistoryButtons();
   bindTiles();
   bindToday();
   bindTasks();

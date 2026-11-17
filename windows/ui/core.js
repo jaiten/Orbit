@@ -913,8 +913,8 @@ function openRowMenu(e) {
   const [kind, id] = (e.currentTarget.dataset.rowMenu || "note:" + e.currentTarget.dataset.noteMenu).split(":");
   const item = rows(kind === "habit" ? "habits" : "tasks").find((r) => r.id === id);
   if (!item) return;
-  const clean = kind === "task" ? OrbitNotes.withoutRepeat(item.title, item.notes) : item;
-  const text = [clean.title, clean.notes?.trim()].filter(Boolean).join("\n\n");
+  const shown = kind === "task" ? OrbitNotes.withoutRepeat(item.title, item.notes) : item;
+  const text = [shown.title, shown.notes?.trim()].filter(Boolean).join("\n\n");
   // Right-clicking one of several selected rows acts on the whole selection.
   if (selectedRows.size > 1 && selectedRows.has(`${kind}:${id}`)) {
     const box = e.currentTarget.getBoundingClientRect();
