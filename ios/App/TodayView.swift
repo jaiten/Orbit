@@ -32,6 +32,8 @@ struct TodayView: View {
     @State private var error: String?
     @AppStorage("showOverallProgress") private var showOverall = false
     @State private var day = PlannerLogic.todayDate
+    /// Each section's tallest height while Today is open (see HeldHeight).
+    @State private var heldHeights: [String: CGFloat] = [:]
     @ObservedObject private var calendars = CalendarBridge.shared
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -93,7 +95,8 @@ struct TodayView: View {
                 hiddenSections = layout.hidden
             }
             .task { refresh(); while !Task.isCancelled { try? await Task.sleep(for: .seconds(60)); if !Task.isCancelled { refresh() } } }
-            .onChange(of: phase) { _, value in if value == .active { refresh() } }
+            .onChange(of: phase) { _, value in if value == .active { refresh() } else { heldHeights = [:] } }
+            .onDisappear { heldHeights = [:] }
             .onReceive(TimeChanges.publisher) { _ in refresh() }
     }
 
@@ -110,7 +113,7 @@ struct TodayView: View {
                          total: (includeTasks ? today.relevant.count : 0) + today.dueHabits.count, accent: accent.fill)
             }
             ForEach(shown.filter { $0 != "progress" && $0 != "completed" }, id: \.self) { section in
-                homeSection(section, today, shown)
+                homeSection(section, today, shown).modifier(HeldHeight(id: section, held: $heldHeights))
             }
             // Completed always sits at the bottom of Today, whatever order the other sections are in.
             if shown.contains("completed") { homeSection("completed", today, shown) }
@@ -276,10 +279,26 @@ struct TodayView: View {
     }
 
     private func refresh() {
+        if PlannerLogic.dayKey(day) != PlannerLogic.today { heldHeights = [:] }
         day = PlannerLogic.todayDate
         calendars.reload(); FocusSession.shared.restore()
     }
 
+}
+
+/// A Today section keeps its tallest height while Today stays open, so ticking off a task or habit (which
+/// leaves its section for Completed) never moves the sections below it. Heights settle when Today is left,
+/// Orbit goes to the background, or the day changes. Same as Windows (holdTodayHeights).
+private struct HeldHeight: ViewModifier {
+    let id: String
+    @Binding var held: [String: CGFloat]
+    func body(content: Content) -> some View {
+        content
+            .frame(minHeight: held[id], alignment: .top)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                if height > (held[id] ?? 0) + 0.5 { held[id] = height }
+            }
+    }
 }
 
 private struct TodaySheets: ViewModifier {

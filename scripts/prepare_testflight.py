@@ -8,8 +8,6 @@ import plistlib
 import re
 import subprocess
 
-import yaml
-
 TEAM = '5T6K789X4T'
 GROUP = 'group.com.jaiten.orbit.shared'
 
@@ -63,6 +61,8 @@ def validate_profile(profile, bundle):
 
 
 def main():
+    import yaml  # only here: the helpers above are tested on runners without PyYAML
+
     root = Path(__file__).resolve().parents[1]
     spec = yaml.safe_load((root / 'ios/project.yml').read_text())
     # The same rising number on GitHub and Codemagic (build_number above).
