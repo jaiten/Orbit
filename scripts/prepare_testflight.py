@@ -14,6 +14,17 @@ TEAM = '5T6K789X4T'
 GROUP = 'group.com.jaiten.orbit.shared'
 
 
+def build_number(now=None):
+    """The TestFlight build number: minutes since 1 January 2026 (UTC), plus 20000.
+
+    GitHub Actions and Codemagic both use it, so whichever builds, each upload is higher than the one before
+    (TestFlight refuses a lower one), and it starts above the old run-number builds (the last was 10901).
+    """
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    start = datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc)
+    return 20000 + int((now - start).total_seconds() // 60)
+
+
 def validate_profile(profile, bundle):
     entitlements = profile['Entitlements']
     if profile.get('TeamIdentifier') != [TEAM]:
@@ -32,9 +43,8 @@ def validate_profile(profile, bundle):
 def main():
     root = Path(__file__).resolve().parents[1]
     spec = yaml.safe_load((root / 'ios/project.yml').read_text())
-    # Monotonic for this workflow, including manual retries; exceeds prototype build 2.
-    spec['settings']['base']['CURRENT_PROJECT_VERSION'] = str(
-        1000 + int(os.environ['GITHUB_RUN_NUMBER']) * 100 + int(os.environ['GITHUB_RUN_ATTEMPT']))
+    # The same rising number on GitHub and Codemagic (build_number above).
+    spec['settings']['base']['CURRENT_PROJECT_VERSION'] = str(build_number())
     profiles = {}
     profile_dir = Path.home() / 'Library/MobileDevice/Provisioning Profiles'
     profile_dir.mkdir(parents=True, exist_ok=True)

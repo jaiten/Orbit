@@ -1,8 +1,9 @@
-# TestFlight builds on Codemagic (https://codemagic.io), which gives personal accounts 500 free macOS
-# minutes a month: no Mac needed, and no GitHub Actions minutes. It runs the same signing and upload steps
-# as .github/workflows/testflight.yml, with the same scripts and the same secrets (see docs/testflight.md,
-# "Codemagic"). Builds start by hand from the Codemagic dashboard; it builds and uploads without running
-# the UI tests, about 10-15 minutes.
+# TestFlight on Codemagic (https://codemagic.io), as the fallback for GitHub Actions. Personal accounts get
+# 500 free macOS minutes a month. Codemagic starts on the same pushes as GitHub's iOS workflow, then asks
+# GitHub first (scripts/defer_to_github.py): if GitHub's iOS run got a runner, GitHub has it and this build
+# stops after a minute or so; if GitHub can't run it (no minutes, no runner), this cancels GitHub's queued run
+# and builds and uploads here instead. Both use scripts/prepare_testflight.py, so build numbers keep rising
+# whichever one builds. Setup: docs/testflight.md, "Codemagic".
 workflows:
   testflight:
     name: TestFlight
@@ -12,29 +13,43 @@ workflows:
       xcode: 26.3
       groups:
         # CERTIFICATE_P12_BASE64, P12_PASSWORD, APP_PROFILE_BASE64, WIDGET_PROFILE_BASE64,
-        # SHARE_PROFILE_BASE64 (optional), ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY
+        # SHARE_PROFILE_BASE64 (optional), ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY, GITHUB_TOKEN
         - orbit_testflight
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+      cancel_previous_builds: true
+    when:
+      changeset:
+        includes:
+          - 'ios/**'
+          - 'shared/**'
     scripts:
+      - name: Leave it to GitHub if GitHub can build it
+        script: python3 scripts/defer_to_github.py
       - name: Check required credentials
         script: |
+          [ "${SKIP_BUILD:-}" = 1 ] && exit 0
           for name in CERTIFICATE_P12_BASE64 P12_PASSWORD APP_PROFILE_BASE64 WIDGET_PROFILE_BASE64 ASC_KEY_ID ASC_ISSUER_ID ASC_PRIVATE_KEY; do
             if [ -z "${!name}" ]; then echo "Missing Codemagic variable: $name (group orbit_testflight)"; exit 1; fi
           done
       - name: Install build tools
         script: |
+          [ "${SKIP_BUILD:-}" = 1 ] && exit 0
           brew install xcodegen
           python3 -m pip install --user PyYAML==6.0.2
       - name: Prepare signing and project
         script: |
+          [ "${SKIP_BUILD:-}" = 1 ] && exit 0
           set -euo pipefail
           umask 077
-          # The shared scripts read GitHub's names. Build numbers come from 50000 + 100 x the Codemagic build
-          # number, well above GitHub's (1000 + 100 x run number), so each upload is higher than the last.
+          # The shared scripts use GitHub's name for the scratch folder.
           export RUNNER_TEMP="$CM_BUILD_DIR/.signing"
           mkdir -p "$RUNNER_TEMP"
           echo "RUNNER_TEMP=$RUNNER_TEMP" >> "$CM_ENV"
-          export GITHUB_RUN_NUMBER=$((490 + BUILD_NUMBER))
-          export GITHUB_RUN_ATTEMPT=1
           KEYCHAIN_PASSWORD=$(openssl rand -hex 32)
           KEYCHAIN_PATH="$RUNNER_TEMP/orbit-signing.keychain-db"
           printf '%s' "$CERTIFICATE_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/orbit.p12"
@@ -46,19 +61,34 @@ workflows:
           security list-keychains -d user -s "$KEYCHAIN_PATH"
           python3 scripts/prepare_testflight.py
           xcodegen generate --spec ios/signing-project.json --project ios
+      - name: Unit tests
+        script: |
+          [ "${SKIP_BUILD:-}" = 1 ] && exit 0
+          set -o pipefail
+          cd ios && xcodegen generate && cd ..
+          DEVICE=$(xcrun simctl list devices available | grep -m1 -oE 'iPhone [0-9]+[^(]*\(([0-9A-F-]{36})\)' | grep -oE '[0-9A-F-]{36}')
+          xcodebuild test -project ios/Orbit.xcodeproj -scheme Orbit -destination "id=$DEVICE" -only-testing:OrbitTests -quiet
+          xcodegen generate --spec ios/signing-project.json --project ios
       - name: Archive signed app and widget
         script: |
+          [ "${SKIP_BUILD:-}" = 1 ] && exit 0
           set -o pipefail
           xcodebuild archive -project ios/Orbit.xcodeproj -scheme Orbit -configuration Release -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Orbit.xcarchive"
       - name: Export App Store package
-        script: xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Orbit.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export"
+        script: |
+          [ "${SKIP_BUILD:-}" = 1 ] && exit 0
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Orbit.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export"
       - name: Upload to TestFlight
         script: |
+          [ "${SKIP_BUILD:-}" = 1 ] && exit 0
           set -euo pipefail
           xcrun altool --upload-app --type ios --file "$RUNNER_TEMP/export/Orbit.ipa" --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
       - name: Verify Apple finished processing this build
-        script: python3 scripts/wait_for_testflight.py
+        script: |
+          [ "${SKIP_BUILD:-}" = 1 ] && exit 0
+          python3 scripts/wait_for_testflight.py
       - name: Remove signing material
         script: |
+          [ "${SKIP_BUILD:-}" = 1 ] && exit 0
           security delete-keychain "$RUNNER_TEMP/orbit-signing.keychain-db" 2>/dev/null || true
           rm -rf "$RUNNER_TEMP" "$HOME/.appstoreconnect/private_keys"

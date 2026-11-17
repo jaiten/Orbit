@@ -90,27 +90,37 @@ Apple's `VALID` processing state, and records the internal testing state in the 
 summary. A rejected, expired or unprocessed build does not pass this release gate.
 The check uses read-only App Store Connect requests and does not change tester groups.
 
-## Codemagic (no Mac, no GitHub Actions minutes)
+## Codemagic: automatic fallback when GitHub can't build
 
-[Codemagic](https://codemagic.io) gives personal accounts 500 free macOS minutes a month. `codemagic.yaml`
-runs the same signing, upload and processing check as the GitHub workflow, with the same scripts, and
-skips the UI tests, so a build takes about 10–15 minutes.
+GitHub Actions is the main iOS pipeline. [Codemagic](https://codemagic.io) (500 free macOS minutes a month
+on a personal account) takes over automatically when GitHub can't run, for example when the Actions
+minutes run out. `codemagic.yaml` starts on the same pushes (to `main`, changing `ios/` or `shared/`), and
+its first step, `scripts/defer_to_github.py`, asks GitHub whether its iOS run for that commit got a runner:
 
-1. Sign in at codemagic.io with GitHub (use your **personal** account; team accounts get no free minutes)
-   and add the `jaiten/Orbit` repository.
-2. In the app's **Environment variables**, create a group named `orbit_testflight` and add, as *secure*
-   variables, the same values as the GitHub secrets above: `CERTIFICATE_P12_BASE64`, `P12_PASSWORD`,
-   `APP_PROFILE_BASE64`, `WIDGET_PROFILE_BASE64`, `SHARE_PROFILE_BASE64` (optional), `ASC_KEY_ID`,
-   `ASC_ISSUER_ID`, `ASC_PRIVATE_KEY`. GitHub never shows secrets again, so use the original files.
-   On Windows, base64 a file with PowerShell:
-   `[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\path\to\file"))`.
-3. Click **Start new build**, choose the branch and the **TestFlight** workflow.
+- **It did:** GitHub has the build; Codemagic stops (about a minute of Codemagic time).
+- **GitHub cancelled it unstarted, or no runner came within 6 minutes:** Codemagic cancels GitHub's queued
+  run, so only one of them uploads, then runs the unit tests and uploads to TestFlight itself.
+- A commit saying `[skip testflight]` is skipped on both. A build started by hand in Codemagic with the
+  variable `FORCE_BUILD=true` skips the check and always builds.
 
-Codemagic build numbers start at 50101 (50001 + 100 × its build number), above the GitHub workflow's
-(1000 + 100 × run number). TestFlight only accepts a build number higher than the last upload, so if you
-go back to the GitHub workflow later, raise its base in `scripts/prepare_testflight.py` above Codemagic's.
+Both run `scripts/prepare_testflight.py`, whose build number is minutes since 1 January 2026 (UTC) plus
+20000, so each upload is higher than the last whichever service built it.
+
+### Setup (all in a browser)
+
+1. Sign in at codemagic.io with GitHub (your **personal** account; team accounts get no free minutes) and
+   add the `jaiten/Orbit` repository.
+2. Make a GitHub token for the check: GitHub → Settings → Developer settings → Fine-grained tokens →
+   Generate. Repository access: only `jaiten/Orbit`. Permissions: **Actions: Read and write**.
+3. In the app's **Environment variables**, create a group named `orbit_testflight` and add, as *secure*
+   variables: `CERTIFICATE_P12_BASE64`, `P12_PASSWORD`, `APP_PROFILE_BASE64`, `WIDGET_PROFILE_BASE64`,
+   `SHARE_PROFILE_BASE64` (optional), `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_PRIVATE_KEY` (the same values as
+   the GitHub secrets above; GitHub never shows them again, so use the original files) and `GITHUB_TOKEN`.
+   On Windows, copy a file as base64 with PowerShell:
+   `[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\path\to\file")) | Set-Clipboard`.
+4. Codemagic adds the push webhook to GitHub when the app is added; check it under the app's settings →
+   Webhooks if builds don't start.
 
 If a file is lost: a new App Store Connect API key can be made in App Store Connect → Users and Access →
 Integrations. A lost certificate or profile can be replaced from the Apple Developer website (Certificates,
-Identifiers & Profiles); creating a certificate needs a signing request, which Codemagic's own
-code-signing settings can generate instead (Team settings → Code signing identities).
+Identifiers & Profiles).
