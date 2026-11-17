@@ -4602,7 +4602,7 @@ body:is([data-view="history"], [data-view="habit-history"]) .page-head {
   color: var(--accent-text);
   background: var(--surface);
 }
-/* One slim line: icon, "Update ready", and "Restart" at the end. */
+/* One slim line: icon, "Update", and "Restart" as its own small button at the end, so it always fits. */
 /* The pill always holds its words: it takes the sidebar's width (less a scrollbar, at any text size)
    and the label gives way with an ellipsis before anything spills over the rounded edge. */
 .restart-update {
@@ -4615,7 +4615,7 @@ body:is([data-view="history"], [data-view="habit-history"]) .page-head {
   max-width: calc(100% - 8px);
   min-height: 30px;
   margin: 4px 4px 6px;
-  padding: 4px 12px 4px 10px;
+  padding: 3px 3px 3px 10px;
   overflow: hidden;
   line-height: 1.2;
   border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
@@ -4635,7 +4635,7 @@ body:is([data-view="history"], [data-view="habit-history"]) .page-head {
 .restart-update > span {
   display: flex;
   flex: 1;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 6px;
   min-width: 0;
@@ -4650,12 +4650,19 @@ body:is([data-view="history"], [data-view="habit-history"]) .page-head {
 }
 .restart-update small {
   flex: 0 0 auto;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--accent-button);
+  color: #fff;
   font-size: 11px;
   font-weight: 600;
 }
 .restart-update:hover {
   background: color-mix(in srgb, var(--accent) 17%, var(--surface));
   border-color: var(--accent-text);
+}
+.restart-update:hover small {
+  filter: brightness(1.08);
 }
 .settings-field .mac-picker {
   width: min(240px, 100%);

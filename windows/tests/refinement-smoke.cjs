@@ -334,7 +334,7 @@ const fs = require("node:fs");
   await p.locator("#inline-task-input").fill("Unfinished draft");
   await p.evaluate(() => window.emitUpdate({ status: "downloaded", version: "0.3.5", percent: 100 }));
   assert.equal(await p.locator("#home-update").isVisible(), true);
-  assert.match(await p.locator("#restart-update").innerText(), /Update ready\s*Restart/);
+  assert.match(await p.locator("#restart-update").innerText(), /^Update\s*Restart$/);
   assert.ok((await p.locator("#restart-update").boundingBox()).height <= 32, "The update button is one slim line");
   await p.locator("#home-update").click();
   assert.equal(await p.evaluate(() => window.updateInstalls), 0, "Restart discarded an unfinished task draft");
