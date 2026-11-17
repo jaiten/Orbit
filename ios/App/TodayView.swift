@@ -142,7 +142,7 @@ struct TodayView: View {
             }
             checklistSection("Your day", note: "", items: planned.map { TodayItem(task: $0) }, counts: today.counts, empty: today.relevant.isEmpty ? "Nothing planned. Add a task to get started." : "No more tasks scheduled for today.")
         case "routine":
-            // Avoid habits have their own group below: kept by default, so never "open" or "completed".
+            // Avoid habits have their own group below, ticked in place each night, so never "open" or "completed".
             let open = today.dueHabits.filter { !today.checked($0) && !$0.isAvoid }
             let counters = habits.filter(\.isCounter)
             let avoiding = today.dueHabits.filter(\.isAvoid)
@@ -162,12 +162,12 @@ struct TodayView: View {
             }
             if !avoiding.isEmpty {
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceS)) {
-                    SectionLabel(title: "Avoiding", note: "Tap if you slip")
+                    SectionLabel(title: "Avoiding", note: "Tick tonight · hold if you slip")
                     GroupedRows {
                         ForEach(Array(avoiding.enumerated()), id: \.element.id) { index, habit in
                             VStack(spacing: 0) {
                                 if index > 0 { Divider().padding(.leading, 56) }
-                                AvoidRow(habit: habit, counts: today.counts[habit.id] ?? [:]) { editingHabit = habit }
+                                HabitRow(habit: habit, counts: today.counts[habit.id] ?? [:], date: PlannerLogic.todayDate, tapChecks: true, edit: { editingHabit = habit })
                             }.transition(.orbitRow)
                         }
                     }.animation(reduceMotion ? nil : .orbitFold, value: avoiding.map(\.id))

@@ -36,12 +36,13 @@ struct HabitsView: View {
                             }
                         }.animation(reduceMotion ? nil : .orbitFold, value: group.habits.map(\.id))
                     }
-                    // Avoid habits: kept every day unless a slip is marked.
+                    // Avoid habits: ticked off at night; touch and hold to mark a slip.
                     if !avoiding.isEmpty {
-                        SectionLabel(title: "Avoiding", note: "Kept unless you mark a slip")
+                        SectionLabel(title: "Avoiding", note: "Hold to mark a slip")
                         VStack(spacing: DayTheme.rowSpacing(compact: compactRows, typeSize: typeSize)) {
                             ForEach(avoiding) { habit in
-                                AvoidRow(habit: habit, counts: counts[habit.id] ?? [:]) { editing = habit }.transition(.orbitRow)
+                                HabitRow(habit: habit, counts: counts[habit.id] ?? [:], date: PlannerLogic.todayDate, edit: { editing = habit })
+                                    .transition(.orbitRow)
                             }
                         }.animation(reduceMotion ? nil : .orbitFold, value: avoiding.map(\.id))
                     }
@@ -219,7 +220,7 @@ struct HabitEditor: View {
     var startsAsCounter = false
     /// A habit repeats towards a target; a counter just adds one on every tap.
     @State private var counter = false
-    /// Something to stay away from: kept every day unless a slip is marked (HabitRules.avoid).
+    /// Something to stay away from: ticked off each night, with a slip marked when it happens (HabitRules.avoid).
     @State private var avoid = false
     /// A counter's optional daily goal.
     @State private var hasGoal = false
@@ -268,7 +269,7 @@ struct HabitEditor: View {
                 }
                 if avoid {
                     Section { EmptyView() } footer: {
-                        Text("Something to stay away from, like alcohol or late-night snacks. Every day counts as kept unless you mark a slip, and your streak counts clean days in a row.")
+                        Text("Something to stay away from, like alcohol or late-night snacks. Tick it off at night when you've kept it. If you slip, touch and hold it and choose I Slipped Today: that day is marked as failed.")
                     }
                 }
                 if !counter && !avoid { Section {

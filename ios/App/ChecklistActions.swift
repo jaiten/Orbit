@@ -93,9 +93,15 @@ struct HabitActions: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let habit: Habit
     var edit: (() -> Void)? = nil
+    /// An avoid habit marked as slipped today.
+    var slipped = false
     @State private var error: String?
     func body(content: Content) -> some View {
         content.contextMenu {
+            if habit.isAvoid {
+                if slipped { Button("Take Back Today's Slip", systemImage: "arrow.uturn.backward") { mark(false) } }
+                else { Button("I Slipped Today", systemImage: "xmark.circle") { mark(true) } }
+            }
             if let edit { Button("Edit", systemImage: "pencil", action: edit) }
             Button("Copy text", systemImage: "doc.on.doc") { UIPasteboard.general.string = habit.title }
             Button("Make It a Task", systemImage: "checklist") { change { try Conversions.toTask(habit, in: context) } }
@@ -104,6 +110,10 @@ struct HabitActions: ViewModifier {
         }.modifier(MutationErrorModifier(error: $error))
     }
 
+    private func mark(_ slip: Bool) {
+        CompletionHold.shared.cancel("habit-" + habit.id.uuidString)
+        apply { try Mutations.slip(habit, at: PlannerLogic.todayDate, slipped: slip, in: context) }
+    }
     /// The menu closes first; then the row leaves (see TaskActions.move).
     private func change(_ action: @escaping () throws -> Void) {
         CompletionHold.shared.cancel("habit-" + habit.id.uuidString)

@@ -311,13 +311,15 @@ struct HabitRow: View {
     @State private var pending: Bool?
     private var saved: Bool { PlannerLogic.checkedToday(habit, counts: counts, at: date) }
     private var checked: Bool { pending ?? saved }
-    private var canLog: Bool { PlannerLogic.dayKey(date) == PlannerLogic.today }
+    /// An avoid habit marked as slipped: that day can't be ticked (touch and hold to take the slip back).
+    private var slipped: Bool { HabitRules.slipped(rule: habit.frequencyRule, counts: counts, day: PlannerLogic.dayKey(date)) }
+    private var canLog: Bool { PlannerLogic.dayKey(date) == PlannerLogic.today && !slipped }
     private var holdKey: String { "habit-" + habit.id.uuidString }
     var body: some View {
         CheckTile(title: habit.title, subtitle: PlannerLogic.detail(habit, counts: counts, at: date), done: checked, color: DayTheme.color(habit.color),
                   completionLabel: (checked ? "Undo " : "Log ") + habit.title,
-                  toggle: toggle, edit: edit, remove: remove, met: checked, icon: ItemIcons.symbol(habit.icon, title: habit.title), allowsToggle: canLog, tapChecks: tapChecks)
-            .modifier(HabitActions(habit: habit, edit: edit))
+                  toggle: toggle, edit: edit, remove: remove, met: checked, icon: slipped ? "xmark.circle" : ItemIcons.symbol(habit.icon, title: habit.title), allowsToggle: canLog, tapChecks: tapChecks)
+            .modifier(HabitActions(habit: habit, edit: edit, slipped: slipped))
             .modifier(MutationErrorModifier(error: $error))
             .sensoryFeedback(.impact(weight: .light), trigger: feedback)
     }

@@ -2,20 +2,27 @@
   "description": "Habit schedule rules. Run by windows/tests/habits.test.cjs and ios/Tests/SharedCaseTests.swift. 2026-10-19 is a Monday. weekStart uses 0 = Sunday, 1 = Monday.",
   "cases": [
     {
-      "name": "an avoid habit is kept every day unless a slip is logged",
-      "habit": { "frequencyRule": "AVOID", "target": 1, "createdDay": "2026-10-15" },
-      "logs": [{ "dayKey": "2026-10-18", "count": 1 }],
+      "name": "an avoid habit is ticked off like a daily habit",
+      "habit": { "frequencyRule": "AVOID", "target": 1 },
+      "logs": [
+        { "dayKey": "2026-10-18", "count": 1 },
+        { "dayKey": "2026-10-19", "count": 1 },
+        { "dayKey": "2026-10-20", "count": 1 }
+      ],
       "day": "2026-10-20",
       "weekStart": 0,
-      "expect": { "due": true, "checked": true, "progress": 0, "lastSeven": 5 }
+      "expect": { "due": true, "checked": true, "progress": 1, "lastSeven": 3, "slipped": false }
     },
     {
-      "name": "a slip today marks an avoid habit as not kept",
-      "habit": { "frequencyRule": "AVOID", "target": 1, "createdDay": "2026-10-01" },
-      "logs": [{ "dayKey": "2026-10-20", "count": 1 }],
+      "name": "a slip (count -1) fails an avoid habit's day",
+      "habit": { "frequencyRule": "AVOID", "target": 1 },
+      "logs": [
+        { "dayKey": "2026-10-19", "count": 1 },
+        { "dayKey": "2026-10-20", "count": -1 }
+      ],
       "day": "2026-10-20",
       "weekStart": 0,
-      "expect": { "due": true, "checked": false, "progress": 1, "lastSeven": 6 }
+      "expect": { "due": true, "checked": false, "progress": 0, "lastSeven": 1, "slipped": true }
     },
     {
       "name": "monthly habit counts check-ins across the calendar month",

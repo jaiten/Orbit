@@ -33,7 +33,7 @@ function decodeBackup(data) {
         !/^\d{4}-\d{2}-\d{2}$/.test(p.dayKey) ||
         r.key !== `habit_logs/${p.habitID.toLowerCase()}-${p.dayKey}` ||
         !Number.isInteger(p.count) ||
-        p.count < 0
+        p.count < -1 // -1: an avoid habit's slip
       )
         throw Error("Invalid habit history");
     } else {

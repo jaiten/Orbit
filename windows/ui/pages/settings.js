@@ -29,6 +29,13 @@ function applyCompact(value) {
 }
 applyCompact(localStorage.getItem("compactRows") === "true");
 
+/** Keeps the quick add bar out of sight until you type (see polish.css, data-capture-hidden). */
+function applyCaptureHidden(value) {
+  document.documentElement.dataset.captureHidden = String(value);
+  localStorage.setItem("captureHidden", String(value));
+}
+applyCaptureHidden(localStorage.getItem("captureHidden") === "true");
+
 const calendarToggle = (calendar, attribute, subtitle) =>
   `<label class="toggle calendar-toggle" data-event-color="${/^#[0-9a-f]{6}$/i.test(calendar.color || "") ? calendar.color : "var(--muted)"}"><input type="checkbox" ${attribute}="${esc(calendar.id)}" ${calendar.shown === false ? "" : "checked"} /><span class="calendar-name"><i></i><span>${esc(calendar.title)}${subtitle ? `<small>${esc(subtitle)}</small>` : ""}</span></span></label>`;
 
@@ -155,6 +162,7 @@ function renderSettings() {
     <section class="settings-block">
       <h2>Appearance</h2>
       <label class="toggle"><input type="checkbox" id="compact-rows" ${root.compact === "true" ? "checked" : ""} /> Compact habits and tasks</label>
+      <label class="toggle"><input type="checkbox" id="capture-hidden" ${root.captureHidden === "true" ? "checked" : ""} /> Hide quick add until I type</label>
       <label class="toggle"><input type="checkbox" id="sounds-toggle" ${OrbitSounds.enabled() ? "checked" : ""} /> Sounds when you finish things</label>
       <div class="accent-options segmented" role="group" aria-label="Appearance">${choiceButtons("appearance", appearances, root.appearance)}</div>
       <div class="settings-field"><span>Habit and list colours</span><button id="shuffle-colours" title="Give every habit, task category and note section a new colour">Shuffle colours</button></div>
@@ -331,6 +339,7 @@ function bindSettings() {
       render();
     };
   if ($("#compact-rows")) $("#compact-rows").onchange = (event) => applyCompact(event.target.checked);
+  if ($("#capture-hidden")) $("#capture-hidden").onchange = (event) => applyCaptureHidden(event.target.checked);
   if ($("#shuffle-colours")) $("#shuffle-colours").onclick = () => void shuffleColours();
   if ($("#sounds-toggle"))
     $("#sounds-toggle").onchange = (event) => {

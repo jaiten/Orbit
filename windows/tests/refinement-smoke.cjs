@@ -655,6 +655,8 @@ const fs = require("node:fs");
   assert.ok(Number(await p.evaluate(() => localStorage.getItem("todayColumnShare"))) >= 35);
 
   assert.equal(await p.locator("[data-panel-column-toggle]").count(), 0);
+  // The quick add bar sits in the middle, over the bottom of the side column: scroll the grip clear of it.
+  await p.evaluate(() => document.scrollingElement.scrollTo(0, document.scrollingElement.scrollHeight));
   const gripBox = await p.getByRole("button", { name: "Move Habits", exact: true }).boundingBox();
   const taskPanelBox = await p.locator('[data-today-panel="tasks"]').boundingBox();
   await p.mouse.move(gripBox.x + 12, gripBox.y + gripBox.height / 2);

@@ -33,30 +33,32 @@ import WidgetKit
         try save(context)
     }
 
-    /// An avoid habit: records a slip for the day (a check-in on an avoid habit is a slip).
-    static func slip(_ habit: Habit, at date: Date, in context: ModelContext) throws {
+    /// An avoid habit: marks the day as a slip (count HabitRules.slip), or takes the slip back (count 0).
+    /// A slipped day can't be ticked and ends the streak.
+    static func slip(_ habit: Habit, at date: Date, slipped: Bool = true, in context: ModelContext) throws {
         let id = habit.id, key = PlannerLogic.dayKey(date)
         let logs = try context.fetch(FetchDescriptor<HabitLog>(predicate: #Predicate { $0.habitID == id }))
-        if let log = logs.first(where: { $0.dayKey == key }) { log.count += 1; log.updatedAt = .now }
-        else { context.insert(HabitLog(habitID: id, dayKey: key)) }
+        let count = slipped ? HabitRules.slip : 0
+        if let log = logs.first(where: { $0.dayKey == key }) { log.count = count; log.updatedAt = .now }
+        else if slipped { context.insert(HabitLog(habitID: id, dayKey: key, count: count)) }
         try save(context)
     }
 
     static func log(_ habit: Habit, at date: Date, in context: ModelContext) throws {
-        // Logging an avoid habit means a slip, which has its own action.
-        if habit.isAvoid { return try slip(habit, at: date, in: context) }
         let id = habit.id, key = PlannerLogic.dayKey(date)
         let logs = try context.fetch(FetchDescriptor<HabitLog>(predicate: #Predicate { $0.habitID == id }))
         if PlannerLogic.checkedToday(habit, logs: logs, at: date) { return }
-        if let log = logs.first(where: { $0.dayKey == key }) { log.count += 1; log.updatedAt = .now }
-        else { context.insert(HabitLog(habitID: id, dayKey: key)) }
+        if let log = logs.first(where: { $0.dayKey == key }) {
+            if log.count < 0 { return } // a slipped day stays failed until the slip is taken back
+            log.count += 1; log.updatedAt = .now
+        } else { context.insert(HabitLog(habitID: id, dayKey: key)) }
         try save(context)
     }
 
     static func undoLog(_ habit: Habit, at date: Date, in context: ModelContext) throws {
         let id = habit.id, key = PlannerLogic.dayKey(date)
         let logs = try context.fetch(FetchDescriptor<HabitLog>(predicate: #Predicate { $0.habitID == id && $0.dayKey == key }))
-        if let log = logs.first { log.count = max(0, log.count - 1); log.updatedAt = .now }
+        if let log = logs.first, log.count > 0 { log.count -= 1; log.updatedAt = .now }
         try save(context)
     }
 

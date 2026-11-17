@@ -133,8 +133,8 @@ const rewardValues = () =>
 const counterIDs = () =>
   new Set(
     rows("habits")
-      // Counters' taps and avoid habits' slips are not achievements.
-      .filter((h) => OrbitHabits.isCounter(h) || OrbitHabits.isAvoid(h))
+      // Counters' taps are not achievements (an avoid habit's slip is a count below zero, never counted).
+      .filter((h) => OrbitHabits.isCounter(h))
       .map((h) => h.id),
   );
 const readSet = (key) => {

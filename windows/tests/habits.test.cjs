@@ -13,6 +13,7 @@ for (const c of cases) {
         checked: habits.checkedOn(habit, logs, c.day),
         progress: habits.periodProgress(habit, logs, c.day, c.weekStart),
         lastSeven: habits.checkedDays(habit, logs, c.day, 7),
+        ...("slipped" in c.expect ? { slipped: habits.slipped(habit, logs, c.day) } : {}),
       },
       c.expect,
     );
@@ -48,17 +49,22 @@ for (const c of require("../../shared/test-cases/streaks.json").cases) {
   });
 }
 
-test("avoid habits: clean days in a row, a slip ends the run, days before it was made don't count", () => {
-  const habit = { id: "a", frequencyRule: "AVOID", target: 1, createdDay: "2026-10-10" };
-  const slip = (dayKey) => ({ habitID: "a", dayKey, count: 1 });
-  assert.equal(habits.streak(habit, [], "2026-10-16"), 7);
-  assert.equal(habits.streak(habit, [slip("2026-10-14")], "2026-10-16"), 2);
-  assert.equal(habits.streak(habit, [slip("2026-10-16")], "2026-10-16"), 0);
-  assert.equal(habits.milestone(habit, 7), "7 days in a row");
+test("avoid habits: ticked days in a row, a slip fails the day and ends the run", () => {
+  const habit = { id: "a", frequencyRule: "AVOID", target: 1 };
+  const kept = (dayKey) => ({ habitID: "a", dayKey, count: 1 });
+  const slip = (dayKey) => ({ habitID: "a", dayKey, count: habits.SLIP });
+  const days = ["2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16"];
+  assert.equal(habits.streak(habit, days.map(kept), "2026-10-16"), 4);
+  assert.equal(
+    habits.streak(habit, [...days.slice(0, 2).map(kept), slip("2026-10-15"), kept("2026-10-16")], "2026-10-16"),
+    1,
+  );
+  assert.equal(habits.streak(habit, [], "2026-10-16"), 0);
   assert.equal(habits.slipped(habit, [slip("2026-10-16")], "2026-10-16"), true);
+  assert.equal(habits.slipped(habit, [kept("2026-10-16")], "2026-10-16"), false);
   assert.equal(habits.label(habit), "Avoid");
-  assert.equal(habits.consistency([{ ...habit, createdDay: "2026-10-01" }], [slip("2026-10-16")], "2026-10-16"), 0);
-  assert.equal(habits.consistency([{ ...habit, createdDay: "2026-10-01" }], [], "2026-10-16"), 1);
+  assert.equal(habits.consistency([habit], [slip("2026-10-16")], "2026-10-16"), 0);
+  assert.equal(habits.consistency([habit], [kept("2026-10-16")], "2026-10-16"), 1);
 });
 
 test("counter goals: at least is met once reached, at most is fine until passed", () => {

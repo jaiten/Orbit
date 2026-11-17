@@ -14,18 +14,12 @@
   const COUNTER = "COUNTER";
   const isCounter = (habit) => habit.frequencyRule === COUNTER;
   /**
-   * An avoid habit ("no alcohol") is kept every day unless a slip is logged that day: a check-in on an avoid
-   * habit is a slip. Its streak is clean days in a row; days before it was made don't count.
+   * An avoid habit ("no alcohol") is ticked off like a daily habit, usually at night once the day is kept.
+   * A slip is the day's count set to -1 (SLIP): that day is failed, can't be ticked, and ends the streak.
    */
   const AVOID = "AVOID";
+  const SLIP = -1;
   const isAvoid = (habit) => habit.frequencyRule === AVOID;
-  /** The local day a habit was made: `createdDay` when given, else from `createdAt` (ms). */
-  function createdKey(habit) {
-    if (habit.createdDay) return habit.createdDay;
-    if (!habit.createdAt) return null;
-    const d = new Date(habit.createdAt);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }
   /**
    * A counter's optional goal: "at least" `goal` a day (met once reached) or "at most" (fine until passed).
    * Returns null without a goal, else "met", "short", "within" or "over".
@@ -88,14 +82,18 @@
     return logs.filter((l) => l.habitID === habit.id && l.dayKey === key).reduce((sum, l) => sum + l.count, 0);
   }
   function checkedOn(habit, logs, key) {
-    if (isAvoid(habit)) {
-      const created = createdKey(habit);
-      return !(created && key < created) && dayCount(habit, logs, key) === 0;
-    }
     return !isCounter(habit) && dayCount(habit, logs, key) >= dailyTarget(habit);
   }
-  /** An avoid habit with a slip logged on `key`. */
-  const slipped = (habit, logs, key) => isAvoid(habit) && dayCount(habit, logs, key) > 0;
+  /** An avoid habit marked as slipped on `key`. */
+  const slipped = (habit, logs, key) => isAvoid(habit) && dayCount(habit, logs, key) < 0;
+  /**
+   * An avoid habit's line: "Kept · 5 days" once ticked, else the run so far ("4 days in a row") or "Tick off
+   * tonight". `run` is the streak through today when ticked, else through yesterday.
+   */
+  function avoidDetail(ticked, run) {
+    if (ticked) return run <= 1 ? "Kept today" : `Kept · ${run} days`;
+    return run > 0 ? `${run} ${run === 1 ? "day" : "days"} in a row` : "Tick off tonight";
+  }
   /** How many times in the `days` days ending with `key` (for a counter's "12 this week"). */
   function countOver(habit, logs, key, days = 7) {
     const start = addDays(key, 1 - days);
@@ -105,7 +103,7 @@
   }
   /** Check-ins in the habit's period: the day, the week for weekly habits, the month for monthly ones. */
   function periodProgress(habit, logs, key, weekStart = 0) {
-    if (!period(habit)) return dayCount(habit, logs, key);
+    if (!period(habit)) return Math.max(0, dayCount(habit, logs, key));
     const monthly = period(habit) === "month";
     const start = monthly ? monthStartKey(key) : weekStartKey(key, weekStart),
       end = monthly ? nextMonthKey(key) : addDays(start, 7);
@@ -136,11 +134,8 @@
     const active = habits.filter((h) => (!h.createdDay || h.createdDay <= key) && scheduledOn(h, key));
     if (!active.length) return 0;
     return (
-      active.reduce(
-        (sum, h) =>
-          sum + (isAvoid(h) ? (dayCount(h, logs, key) ? 0 : 1) : Math.min(1, dayCount(h, logs, key) / dailyTarget(h))),
-        0,
-      ) / active.length
+      active.reduce((sum, h) => sum + Math.min(1, Math.max(0, dayCount(h, logs, key)) / dailyTarget(h)), 0) /
+      active.length
     );
   }
   /**
@@ -212,7 +207,9 @@
     COUNTER,
     isCounter,
     AVOID,
+    SLIP,
     isAvoid,
+    avoidDetail,
     slipped,
     goalState,
     countOver,

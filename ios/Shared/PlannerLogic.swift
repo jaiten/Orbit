@@ -39,14 +39,14 @@ enum PlannerLogic {
             let key = dayKey(calendar.date(byAdding: .day, value: -offset, to: ending)!, calendar: calendar)
             let active = inputs.filter { ($0.createdDay.map { $0 <= key } ?? true) && HabitRules.scheduledOn(rule: $0.rule, day: key) }
             let habitDone = active.reduce(0.0) { sum, entry in
-                sum + min(1, Double(entry.counts[key] ?? 0) / Double(HabitRules.dailyTarget(rule: entry.rule, target: entry.target)))
+                sum + min(1, Double(max(0, entry.counts[key] ?? 0)) / Double(HabitRules.dailyTarget(rule: entry.rule, target: entry.target)))
             }
             let total = active.count + (planned[key] ?? 0)
             return total == 0 ? 0 : (habitDone + Double(finished[key] ?? 0)) / Double(total)
         }
     }
     static func dailyProgress(_ habit: Habit, logs: [HabitLog], at date: Date, calendar: Calendar = .current) -> Int {
-        counts(habit, logs: logs)[dayKey(date, calendar: calendar)] ?? 0
+        max(0, counts(habit, logs: logs)[dayKey(date, calendar: calendar)] ?? 0)
     }
     static func dailyTarget(_ habit: Habit) -> Int { HabitRules.dailyTarget(rule: habit.frequencyRule, target: habit.target) }
     /// Check-ins for one habit by local day key.
@@ -64,12 +64,7 @@ enum PlannerLogic {
         checkedToday(habit, counts: counts(habit, logs: logs), at: date, calendar: calendar)
     }
     static func checkedToday(_ habit: Habit, counts: [String: Int], at date: Date, calendar: Calendar = .current) -> Bool {
-        HabitRules.checked(rule: habit.frequencyRule, target: habit.target, counts: counts, day: dayKey(date, calendar: calendar),
-                           createdDay: createdDay(habit, calendar: calendar))
-    }
-    /// The planner day a habit was made (an avoid habit only counts days from then).
-    static func createdDay(_ habit: Habit, calendar: Calendar = .current) -> String {
-        dayKey(DayStart.shifted(habit.createdAt), calendar: calendar)
+        HabitRules.checked(rule: habit.frequencyRule, target: habit.target, counts: counts, day: dayKey(date, calendar: calendar))
     }
     /// Check-ins in the current period: the day, or the week for weekly habits.
     static func progress(_ habit: Habit, logs: [HabitLog], at date: Date, calendar: Calendar = .current) -> Int {
@@ -86,8 +81,7 @@ enum PlannerLogic {
     }
     /// "X of the last 7 days". Missed days are never counted against anything.
     static func checkedDays(_ habit: Habit, logs: [HabitLog], ending date: Date, days: Int = 7, calendar: Calendar = .current) -> Int {
-        HabitRules.checkedDays(rule: habit.frequencyRule, target: habit.target, counts: counts(habit, logs: logs), day: dayKey(date, calendar: calendar), days: days,
-                               createdDay: createdDay(habit, calendar: calendar))
+        HabitRules.checkedDays(rule: habit.frequencyRule, target: habit.target, counts: counts(habit, logs: logs), day: dayKey(date, calendar: calendar), days: days)
     }
     /// For example "Weekdays · 1 of 1 today" or "2 of 3 this week", as on Windows.
     static func detail(_ habit: Habit, logs: [HabitLog], at date: Date) -> String {
@@ -97,9 +91,9 @@ enum PlannerLogic {
         if habit.isAvoid {
             let day = dayKey(date)
             if HabitRules.slipped(rule: habit.frequencyRule, counts: counts, day: day) { return "Slipped today" }
-            let clean = HabitRules.streak(rule: habit.frequencyRule, target: 1, counts: counts, day: day, weekStart: HabitRules.weekStart(),
-                                          createdDay: createdDay(habit))
-            return clean == 1 ? "Clean today" : "Clean · \(clean) days"
+            let ticked = HabitRules.checked(rule: habit.frequencyRule, target: 1, counts: counts, day: day)
+            let run = HabitRules.streak(rule: habit.frequencyRule, target: 1, counts: counts, day: ticked ? day : HabitRules.addDays(day, -1), weekStart: HabitRules.weekStart())
+            return HabitRules.avoidDetail(ticked: ticked, run: run)
         }
         let schedule = HabitRules.schedule(habit.frequencyRule)
         let unit = HabitRules.period(schedule)

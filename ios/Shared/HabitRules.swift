@@ -13,9 +13,10 @@ enum HabitRules {
     /// reminders; its check-ins are simply how many times it happened that day. Same as Windows.
     static let counter = "COUNTER"
     static func isCounter(_ rule: String) -> Bool { rule == counter }
-    /// An avoid habit ("no alcohol") is kept every day unless a slip is logged that day: a check-in on an
-    /// avoid habit is a slip. Its streak is clean days in a row; days before it was made don't count. Same as Windows.
+    /// An avoid habit ("no alcohol") is ticked off like a daily habit, usually at night once the day is kept.
+    /// A slip is the day's count set to -1 (`slip`): that day is failed, can't be ticked, and ends the streak. Same as Windows.
     static let avoid = "AVOID"
+    static let slip = -1
     static func isAvoid(_ rule: String) -> Bool { rule == avoid }
     /// A counter's optional goal: at least `goal` a day ("met" once reached) or at most ("over" once passed).
     /// nil without a goal, else "met", "short", "within" or "over". Same as Windows.
@@ -86,19 +87,23 @@ enum HabitRules {
     }
 
     /// `counts` holds this habit's check-ins by day key.
-    /// `createdDay` keeps an avoid habit from counting days before it was made as kept.
-    static func checked(rule: String, target: Int, counts: [String: Int], day: String, createdDay: String? = nil) -> Bool {
-        if isAvoid(rule) { return !(createdDay.map { day < $0 } ?? false) && (counts[day] ?? 0) == 0 }
+    static func checked(rule: String, target: Int, counts: [String: Int], day: String) -> Bool {
         return !isCounter(rule) && (counts[day] ?? 0) >= dailyTarget(rule: rule, target: target)
     }
-    /// An avoid habit with a slip logged on `day`.
-    static func slipped(rule: String, counts: [String: Int], day: String) -> Bool { isAvoid(rule) && (counts[day] ?? 0) > 0 }
+    /// An avoid habit marked as slipped on `day`.
+    static func slipped(rule: String, counts: [String: Int], day: String) -> Bool { isAvoid(rule) && (counts[day] ?? 0) < 0 }
+    /// An avoid habit's line: "Kept · 5 days" once ticked, else the run so far ("4 days in a row") or "Tick off tonight".
+    /// `run` is the streak through today when ticked, else through yesterday.
+    static func avoidDetail(ticked: Bool, run: Int) -> String {
+        if ticked { return run <= 1 ? "Kept today" : "Kept · \(run) days" }
+        return run > 0 ? "\(run) \(run == 1 ? "day" : "days") in a row" : "Tick off tonight"
+    }
     /// How many times in the `days` days ending with `day` (a counter's "12 in 7 days").
     static func countOver(counts: [String: Int], day: String, days: Int = 7) -> Int {
         (0..<days).reduce(0) { $0 + (counts[addDays(day, -$1)] ?? 0) }
     }
     static func periodProgress(rule: String, counts: [String: Int], day: String, weekStart: Int) -> Int {
-        guard let unit = period(rule) else { return counts[day] ?? 0 }
+        guard let unit = period(rule) else { return max(0, counts[day] ?? 0) }
         let start = unit == "month" ? monthStartKey(day) : weekStartKey(day, weekStart: weekStart)
         let end = unit == "month" ? addMonths(day, 1) : addDays(start, 7)
         return counts.filter { $0.key >= start && $0.key < end }.reduce(0) { $0 + $1.value }
@@ -118,13 +123,13 @@ enum HabitRules {
         let active = habits.filter { ($0.createdDay.map { $0 <= day } ?? true) && scheduledOn(rule: $0.rule, day: day) }
         guard !active.isEmpty else { return 0 }
         return active.reduce(0.0) { sum, habit in
-            let count = habit.counts[day] ?? 0
-            return sum + (isAvoid(habit.rule) ? (count > 0 ? 0 : 1) : min(1, Double(count) / Double(dailyTarget(rule: habit.rule, target: habit.target))))
+            let count = max(0, habit.counts[day] ?? 0)
+            return sum + min(1, Double(count) / Double(dailyTarget(rule: habit.rule, target: habit.target)))
         } / Double(active.count)
     }
     /// Scheduled days checked in a row ending on `day` (unscheduled days are skipped), or for a weekly
     /// habit, weeks in a row that met the weekly target. Cases: shared/test-cases/streaks.json.
-    static func streak(rule: String, target: Int, counts: [String: Int], day: String, weekStart: Int, createdDay: String? = nil) -> Int {
+    static func streak(rule: String, target: Int, counts: [String: Int], day: String, weekStart: Int) -> Int {
         var count = 0
         if isCounter(rule) { return 0 }
         if schedule(rule) == "WEEKLY" {
@@ -145,7 +150,7 @@ enum HabitRules {
         for _ in 0..<3660 {
             defer { current = addDays(current, -1) }
             if !scheduledOn(rule: rule, day: current) { continue }
-            if !checked(rule: rule, target: target, counts: counts, day: current, createdDay: createdDay) { break }
+            if !checked(rule: rule, target: target, counts: counts, day: current) { break }
             count += 1
         }
         return count
@@ -157,7 +162,7 @@ enum HabitRules {
         return marks.contains(streak) ? "\(streak) \(unit)s in a row" : nil
     }
     /// Days checked in the `days` days ending with `day`. Missed days only lower the count.
-    static func checkedDays(rule: String, target: Int, counts: [String: Int], day: String, days: Int = 7, createdDay: String? = nil) -> Int {
-        (0..<days).filter { checked(rule: rule, target: target, counts: counts, day: addDays(day, -$0), createdDay: createdDay) }.count
+    static func checkedDays(rule: String, target: Int, counts: [String: Int], day: String, days: Int = 7) -> Int {
+        (0..<days).filter { checked(rule: rule, target: target, counts: counts, day: addDays(day, -$0)) }.count
     }
 }

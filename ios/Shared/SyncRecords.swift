@@ -131,7 +131,7 @@ import SwiftData
             guard let habitID = uid("habitID"), let day = p["dayKey"] as? String else { throw CocoaError(.coderReadCorrupt) }
             let old = try context.fetch(FetchDescriptor<HabitLog>()).first { $0.habitID == habitID && $0.dayKey == day }
             if deleted { if let old { context.delete(old) }; return }
-            let l = old ?? HabitLog(habitID: habitID, dayKey: day); if old == nil { context.insert(l) }; l.id = uuid; l.count = max(0, p["count"] as? Int ?? 0); l.updatedAt = date("updatedAt") ?? .now
+            let l = old ?? HabitLog(habitID: habitID, dayKey: day); if old == nil { context.insert(l) }; l.id = uuid; l.count = max(HabitRules.slip, p["count"] as? Int ?? 0); l.updatedAt = date("updatedAt") ?? .now
         case "lists":
             let old = try context.fetch(FetchDescriptor<TaskList>()).first { $0.id == uuid }; if deleted { if let old { context.delete(old) }; return }
             let l = old ?? TaskList(name: p["name"] as? String ?? "List"); if old == nil { l.id = uuid; context.insert(l) }; l.kind = p["kind"] as? String; l.locked = (p["locked"] as? Bool) == true ? true : nil; l.hidden = (p["hidden"] as? Bool) == true ? true : nil; l.name = p["name"] as? String ?? l.name; l.color = p["color"] as? String ?? "sage"; l.sortOrder = p["sortOrder"] as? Int ?? 0; l.updatedAt = date("updatedAt") ?? .now

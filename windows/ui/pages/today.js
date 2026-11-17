@@ -219,12 +219,12 @@ function overallProgressCard(tasks, habits) {
  * hover actions to get in the way. Right-click or E edits it.
  */
 function compactHabit(h) {
-  if (OrbitHabits.isAvoid(h)) return avoidCard(h, { compact: true });
+  if (OrbitHabits.slipped(h, habitLogs(), today())) return avoidCard(h, { compact: true });
   const done = checked(h),
     id = esc(h.id),
     title = esc(h.title);
   return `<div class="row habit-row habit-${colorName(h.color)} check-tile ${done ? "complete" : ""}" data-flip="habit-${id}" data-row-menu="habit:${id}">
-    <button class="row-line habit-log" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-day="${today()}" data-habit-menu="${id}">${tick(done, poppedID === h.id)}<span class="row-title">${title}</span><span class="row-detail ${done ? "met" : ""}">${progress(h)} of ${h.target}</span></button>
+    <button class="row-line habit-log" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-day="${today()}" data-habit-menu="${id}">${tick(done, poppedID === h.id)}<span class="row-title">${title}</span><span class="row-detail ${done ? "met" : ""}">${OrbitHabits.isAvoid(h) ? habitDetail(h) : `${progress(h)} of ${h.target}`}</span></button>
   </div>`;
 }
 /**
