@@ -713,17 +713,20 @@ const fs = require("node:fs");
   await p.evaluate(() => (document.documentElement.dataset.accent = localStorage.getItem("accent") || "coral"));
 
   // A real drop reschedules a task to a quarter-hour and retains reminder offsets.
-  await p.locator("#inline-task-input").fill("Drag calendar task");
+  await p.locator("#inline-task-input").fill("Drag calendar task 11pm");
   await p.locator("#inline-task-input").press("Enter");
   await p.getByRole("button", { name: "Complete Drag calendar task", exact: true }).waitFor();
+  await p.locator("#inline-task-input").fill("Untimed calendar task");
+  await p.locator("#inline-task-input").press("Enter");
+  await p.getByRole("button", { name: "Complete Untimed calendar task", exact: true }).waitFor();
   await p.keyboard.press("Control+2");
   await p.getByRole("tab", { name: "Week", exact: true }).click();
-  const dragSource = p.locator(".schedule-anytime", { hasText: "Drag calendar task" });
+  const dragSource = p.locator(".schedule-event", { hasText: "Drag calendar task" });
   assert.equal(await p.locator("#toggle-anytime").count(), 0);
-  assert.ok((await dragSource.boundingBox()).height <= 25, "Anytime rows stay one compact line");
-  // Any time sizes itself to the busiest day: one task here, so one compact row.
+  // Any time holds all-day events only: tasks without a time are not listed there.
+  assert.equal(await p.locator(".schedule-all-day", { hasText: "Untimed calendar task" }).count(), 0);
   const anytimeHeight = await p.locator(".schedule-all-day").evaluate((row) => row.getBoundingClientRect().height);
-  assert.ok(anytimeHeight >= 28 && anytimeHeight <= 34, `Any time fits one row (${anytimeHeight}px)`);
+  assert.ok(anytimeHeight >= 28 && anytimeHeight <= 34, `Any time stays one compact row (${anytimeHeight}px)`);
   const targetSlot = p.locator('[data-time-slot$="T10:15"]').first();
   const expectedDay = (await targetSlot.getAttribute("data-time-slot")).slice(0, 10);
   await targetSlot.scrollIntoViewIfNeeded();
@@ -995,6 +998,7 @@ const fs = require("node:fs");
   await p.waitForFunction(async () =>
     (await window.orbit.read()).records.some((r) => r.payload.title === "Typed in any time" && r.payload.localDate),
   );
+  assert.equal(await p.locator(".schedule-all-day", { hasText: "Typed in any time" }).count(), 0);
   assert.equal(await p.locator("#calendar-completed").count(), 0, "Week view has no completed list below the grid");
   await p.locator('[data-scope="month"]').click();
   // Day starts at is one synced preferences record.

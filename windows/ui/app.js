@@ -53,6 +53,7 @@ function render() {
   shownView = view;
   // Notes fill the window edge to edge, like a document app; other pages keep the reading width.
   document.body.dataset.view = page === "note" ? "lists" : page;
+  if (changedPage) releaseTodayHeights();
   $("#content").innerHTML = pageHTML();
   renderLists();
   bind();

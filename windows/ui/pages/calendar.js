@@ -147,16 +147,10 @@ function renderSchedule(tasks) {
         `<button class="day-tile ${key === calendarDay ? "selected" : ""}" data-day="${key}" aria-label="${localDay(key).toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}"><span>${localDay(key).toLocaleDateString([], { weekday: "short" })}</span><strong>${localDay(key).getDate()}</strong></button>`,
     )
     .join("");
-  // Any time grows to fit the busiest day (22px labels, 2px apart, 4px padding above and below).
+  // Any time holds all-day calendar events only; tasks without a time stay on Today and in Tasks.
+  // It grows to fit the busiest day (22px labels, 2px apart, 4px padding above and below).
   const shared = calendarEvents();
-  const anytimeMost = Math.max(
-    0,
-    ...days.map(
-      (key) =>
-        open.filter((task) => taskDate(task) === key && !task.hasTime).length +
-        OrbitCalendarEvents.allDayOn(shared, key).length,
-    ),
-  );
+  const anytimeMost = Math.max(0, ...days.map((key) => OrbitCalendarEvents.allDayOn(shared, key).length));
   const anytimeHeight = Math.max(30, anytimeMost * 24 + 6);
   const untimed = days
     .map(
@@ -166,12 +160,6 @@ function renderSchedule(tasks) {
           key,
         )
           .map((event) => eventChip(event))
-          .join("")}${open
-          .filter((task) => taskDate(task) === key && !task.hasTime)
-          .map(
-            (task) =>
-              `<div class="schedule-anytime" draggable="true" data-drag-task="${esc(task.id)}" title="${esc(task.title)}">${taskRow(task)}</div>`,
-          )
           .join("")}</div>`,
     )
     .join("");
@@ -265,7 +253,16 @@ function bindCalendar() {
       quickContext = { defaultDate: column.dataset.anytimeDay, listID: null };
       const records = quickRecords(result);
       finish();
-      void action(() => (records.habit ? api.batch(records.changes) : saveTasks([records.task], records.extra)));
+      void action(() => (records.habit ? api.batch(records.changes) : saveTasks([records.task], records.extra))).then(
+        () => {
+          // Any time lists all-day events only, so say where the new task went.
+          if (!records.habit && !records.task.hasTime)
+            showNotice(
+              `Added for ${localDay(column.dataset.anytimeDay).toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" })}. It's on Today and in Tasks.`,
+              { dismissAfter: 3500 },
+            );
+        },
+      );
     };
     input.onblur = () => setTimeout(finish, 0);
   };
