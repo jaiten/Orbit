@@ -89,3 +89,28 @@ Connect identity. It finds the exact bundle and archived build number, waits for
 Apple's `VALID` processing state, and records the internal testing state in the job
 summary. A rejected, expired or unprocessed build does not pass this release gate.
 The check uses read-only App Store Connect requests and does not change tester groups.
+
+## Codemagic (no Mac, no GitHub Actions minutes)
+
+[Codemagic](https://codemagic.io) gives personal accounts 500 free macOS minutes a month. `codemagic.yaml`
+runs the same signing, upload and processing check as the GitHub workflow, with the same scripts, and
+skips the UI tests, so a build takes about 10–15 minutes.
+
+1. Sign in at codemagic.io with GitHub (use your **personal** account; team accounts get no free minutes)
+   and add the `jaiten/Orbit` repository.
+2. In the app's **Environment variables**, create a group named `orbit_testflight` and add, as *secure*
+   variables, the same values as the GitHub secrets above: `CERTIFICATE_P12_BASE64`, `P12_PASSWORD`,
+   `APP_PROFILE_BASE64`, `WIDGET_PROFILE_BASE64`, `SHARE_PROFILE_BASE64` (optional), `ASC_KEY_ID`,
+   `ASC_ISSUER_ID`, `ASC_PRIVATE_KEY`. GitHub never shows secrets again, so use the original files.
+   On Windows, base64 a file with PowerShell:
+   `[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\path\to\file"))`.
+3. Click **Start new build**, choose the branch and the **TestFlight** workflow.
+
+Codemagic build numbers start at 50101 (50001 + 100 × its build number), above the GitHub workflow's
+(1000 + 100 × run number). TestFlight only accepts a build number higher than the last upload, so if you
+go back to the GitHub workflow later, raise its base in `scripts/prepare_testflight.py` above Codemagic's.
+
+If a file is lost: a new App Store Connect API key can be made in App Store Connect → Users and Access →
+Integrations. A lost certificate or profile can be replaced from the Apple Developer website (Certificates,
+Identifiers & Profiles); creating a certificate needs a signing request, which Codemagic's own
+code-signing settings can generate instead (Team settings → Code signing identities).
