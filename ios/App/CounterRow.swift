@@ -41,13 +41,18 @@ struct CounterRow: View {
                         Text("\(today)").font(.body.weight(.semibold)).monospacedDigit()
                             .contentTransition(.numericText(value: Double(today)))
                             .animation(reduceMotion ? nil : .snappy, value: today)
+                        // A goal: "/ 8" (at least) or "/ 2 max" (at most), tinted once met or passed.
+                        if let goal = habit.goal, goalState != nil {
+                            Text("/ \(goal)\(habit.goalKind == "atMost" ? " max" : "")").font(.footnote.weight(.medium)).monospacedDigit()
+                        }
                         Text("today").font(.footnote).foregroundStyle(.secondary)
-                    }.padding(.trailing, 14)
+                    }.foregroundStyle(goalTint).padding(.trailing, 14)
                 }
                 .frame(maxWidth: .infinity, minHeight: rowHeight, alignment: .leading).contentShape(Rectangle())
             }
             .buttonStyle(RowPress(pressed: $pressed))
-            .accessibilityLabel("Add one to \(habit.title)").accessibilityValue("\(today) today")
+            .accessibilityLabel("Add one to \(habit.title)")
+            .accessibilityValue("\(today) today" + (habit.goal.map { ", goal \(habit.goalKind == "atMost" ? "at most" : "at least") \($0)" } ?? ""))
             .accessibilityIdentifier("counter-row")
             .background { RowHighlight(pressed: pressed) }
             .background(color.opacity(grouped ? 0 : 0.07))
@@ -66,6 +71,16 @@ struct CounterRow: View {
         }
         .modifier(MutationErrorModifier(error: $error))
         .sensoryFeedback(.impact(weight: .light), trigger: feedback)
+    }
+
+    private var goalState: String? { HabitRules.goalState(rule: habit.frequencyRule, goal: habit.goal, kind: habit.goalKind, count: today) }
+    /// Met (at least) or within (at most) in the counter's colour; passed (at most) in red; otherwise plain.
+    private var goalTint: Color {
+        switch goalState {
+        case "met", "within": return color
+        case "over": return .red
+        default: return .primary
+        }
     }
 
     private func add(_ amount: Int) {
@@ -138,3 +153,83 @@ struct CounterHistory: View {
         .accessibilityElement(children: .combine)
     }
 }
+
+/// An avoid habit ("no alcohol"): kept every day unless a slip is marked. A shield in the habit's colour
+/// while the day is clean, a cross once a slip is marked. Tapping asks before marking a slip, so a stray
+/// tap never does; touch and hold for the same, Edit and Delete. It never moves to Completed.
+struct AvoidRow: View {
+    @Environment(\.modelContext) private var context
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.groupedRows) private var grouped
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @AppStorage("compactRows") private var compactRows = false
+    let habit: Habit
+    let counts: [String: Int]
+    var edit: () -> Void
+    @State private var error: String?
+    @State private var asking = false
+    @State private var feedback = 0
+    @State private var pressed = false
+    private var slipped: Bool { HabitRules.slipped(rule: habit.frequencyRule, counts: counts, day: PlannerLogic.today) }
+    private var color: Color { DayTheme.color(habit.color) }
+    private var rowHeight: CGFloat { compactRows && !typeSize.isAccessibilitySize ? 44 : (grouped ? 50 : 56) }
+
+    var body: some View {
+        SwipeRow(radius: grouped ? 0 : DayTheme.rowRadius, edit: edit, remove: remove) { swipe in
+            Button { if !swipe.takesTap() { asking = true } } label: {
+                HStack(spacing: 0) {
+                    Image(systemName: slipped ? "xmark.circle" : "checkmark.shield")
+                        .font(.system(size: 20, weight: .medium)).foregroundStyle(slipped ? Color.secondary : color)
+                        .contentTransition(.symbolEffect(.replace))
+                        .frame(width: 46, height: rowHeight)
+                    Text(habit.title).font(.body).foregroundStyle(.primary)
+                        .lineLimit(typeSize.isAccessibilitySize ? nil : 2).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
+                    Text(PlannerLogic.detail(habit, counts: counts, at: PlannerLogic.todayDate)).font(.footnote)
+                        .foregroundStyle(slipped ? Color.red : .secondary).padding(.trailing, 14)
+                }
+                .frame(maxWidth: .infinity, minHeight: rowHeight, alignment: .leading).contentShape(Rectangle())
+            }
+            .buttonStyle(RowPress(pressed: $pressed))
+            .accessibilityLabel(habit.title)
+            .accessibilityValue(PlannerLogic.detail(habit, counts: counts, at: PlannerLogic.todayDate))
+            .accessibilityHint(slipped ? "Take back today's slip" : "Mark a slip today")
+            .accessibilityIdentifier("avoid-row")
+            .background { RowHighlight(pressed: pressed) }
+            .background(color.opacity(grouped ? 0 : 0.07))
+            .background(Color.orbitSurface)
+        }
+        .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: DayTheme.rowRadius, style: .continuous))
+        .contextMenu {
+            if slipped { Button("Take Back Today's Slip", systemImage: "arrow.uturn.backward") { setSlip(false) } }
+            else { Button("I Slipped Today", systemImage: "xmark.circle") { setSlip(true) } }
+            Button("Edit", systemImage: "pencil", action: edit)
+            Button("Copy text", systemImage: "doc.on.doc") { UIPasteboard.general.string = habit.title }
+            Divider()
+            Button("Delete", systemImage: "trash", role: .destructive) {
+                Task { try? await Task.sleep(for: MenuDismissal.pause); remove() }
+            }
+        }
+        .confirmationDialog(slipped ? "Take back today's slip?" : "Mark a slip for \(habit.title) today?", isPresented: $asking, titleVisibility: .visible) {
+            if slipped { Button("Take Back Slip") { setSlip(false) } }
+            else { Button("I Slipped Today", role: .destructive) { setSlip(true) } }
+        } message: { Text(slipped ? "Today counts as kept again." : "Your clean streak starts again tomorrow. One slip doesn't undo the progress.") }
+        .modifier(MutationErrorModifier(error: $error))
+        .sensoryFeedback(.impact(weight: .light), trigger: feedback)
+    }
+
+    private func setSlip(_ slip: Bool) {
+        do {
+            if slip { try Mutations.slip(habit, at: PlannerLogic.todayDate, in: context) }
+            else { try Mutations.undoLog(habit, at: PlannerLogic.todayDate, in: context) }
+            feedback += 1
+        } catch { self.error = error.localizedDescription }
+    }
+    private func remove() {
+        guard habit.modelContext != nil, !habit.isDeleted else { return }
+        withAnimation(reduceMotion ? nil : .orbitFold) {
+            do { try Conversions.remove(habit, in: context) } catch { context.rollback(); self.error = error.localizedDescription }
+        }
+    }
+}
+

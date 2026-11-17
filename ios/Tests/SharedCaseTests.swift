@@ -87,13 +87,14 @@ final class SharedCaseTests: XCTestCase {
             let name = c["name"] as! String
             let habit = c["habit"] as! [String: Any]
             let rule = habit["frequencyRule"] as! String, target = habit["target"] as! Int
+            let created = habit["createdDay"] as? String
             let counts = (c["logs"] as! [[String: Any]]).reduce(into: [String: Int]()) { $0[$1["dayKey"] as! String, default: 0] += $1["count"] as! Int }
             let day = c["day"] as! String, weekStart = c["weekStart"] as! Int
             let expect = c["expect"] as! [String: Any]
             XCTAssertEqual(HabitRules.due(rule: rule, target: target, counts: counts, day: day, weekStart: weekStart), expect["due"] as? Bool, name)
-            XCTAssertEqual(HabitRules.checked(rule: rule, target: target, counts: counts, day: day), expect["checked"] as? Bool, name)
+            XCTAssertEqual(HabitRules.checked(rule: rule, target: target, counts: counts, day: day, createdDay: created), expect["checked"] as? Bool, name)
             XCTAssertEqual(HabitRules.periodProgress(rule: rule, counts: counts, day: day, weekStart: weekStart), expect["progress"] as? Int, name)
-            XCTAssertEqual(HabitRules.checkedDays(rule: rule, target: target, counts: counts, day: day), expect["lastSeven"] as? Int, name)
+            XCTAssertEqual(HabitRules.checkedDays(rule: rule, target: target, counts: counts, day: day, createdDay: created), expect["lastSeven"] as? Int, name)
         }
     }
 

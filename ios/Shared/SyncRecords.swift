@@ -47,7 +47,7 @@ import SwiftData
             try add("tasks", t.id.uuidString.lowercased(), payload)
         }
         for h in try context.fetch(FetchDescriptor<Habit>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) {
-            try add("habits", h.id.uuidString.lowercased(), ["conversionData": h.conversionData ?? NSNull() as Any, "id": id(h.id), "title": h.title, "frequencyRule": h.frequencyRule, "target": h.target, "color": h.color, "icon": h.icon, "reminderMinutes": h.reminderMinutes ?? NSNull() as Any, "nudgeMinutes": h.nudgeMinutes ?? NSNull() as Any, "createdAt": stamp(h.createdAt), "updatedAt": stamp(h.updatedAt)])
+            try add("habits", h.id.uuidString.lowercased(), ["conversionData": h.conversionData ?? NSNull() as Any, "id": id(h.id), "title": h.title, "frequencyRule": h.frequencyRule, "target": h.target, "color": h.color, "icon": h.icon, "reminderMinutes": h.reminderMinutes ?? NSNull() as Any, "nudgeMinutes": h.nudgeMinutes ?? NSNull() as Any, "goal": h.goal ?? NSNull() as Any, "goalKind": h.goalKind ?? NSNull() as Any, "createdAt": stamp(h.createdAt), "updatedAt": stamp(h.updatedAt)])
         }
         for l in try context.fetch(FetchDescriptor<HabitLog>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) {
             // The stable key makes independent check-ins on two devices conflict safely.
@@ -126,7 +126,7 @@ import SwiftData
             let old = try context.fetch(FetchDescriptor<Habit>()).first { $0.id == uuid }
             if deleted { if let old { context.delete(old) }; return }
             let h = old ?? Habit(title: p["title"] as? String ?? "Habit"); if old == nil { h.id = uuid; context.insert(h) }
-            h.conversionData = p["conversionData"] as? String; h.title = p["title"] as? String ?? h.title; h.target = max(1, p["target"] as? Int ?? 1); h.frequencyRule = p["frequencyRule"] as? String ?? "DAILY"; h.color = p["color"] as? String ?? "clay"; h.icon = p["icon"] as? String ?? "leaf"; h.reminderMinutes = p["reminderMinutes"] as? Int; h.nudgeMinutes = p["nudgeMinutes"] as? Int; h.createdAt = date("createdAt") ?? .now; h.updatedAt = date("updatedAt") ?? .now
+            h.conversionData = p["conversionData"] as? String; h.title = p["title"] as? String ?? h.title; h.target = max(1, p["target"] as? Int ?? 1); h.frequencyRule = p["frequencyRule"] as? String ?? "DAILY"; h.color = p["color"] as? String ?? "clay"; h.icon = p["icon"] as? String ?? "leaf"; h.reminderMinutes = p["reminderMinutes"] as? Int; h.nudgeMinutes = p["nudgeMinutes"] as? Int; h.goal = (p["goal"] as? Int).flatMap { $0 > 0 ? $0 : nil }; h.goalKind = p["goalKind"] as? String == "atMost" ? "atMost" : nil; h.createdAt = date("createdAt") ?? .now; h.updatedAt = date("updatedAt") ?? .now
         case "habit_logs":
             guard let habitID = uid("habitID"), let day = p["dayKey"] as? String else { throw CocoaError(.coderReadCorrupt) }
             let old = try context.fetch(FetchDescriptor<HabitLog>()).first { $0.habitID == habitID && $0.dayKey == day }

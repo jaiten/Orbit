@@ -107,6 +107,7 @@ const shared = Object.fromEntries(
     "openEvent",
     "openEventMenu",
     "focusTitle",
+    "avoidCard",
     "releaseTodayHeights",
     "HABIT_COLORS",
     "habitPeriods",

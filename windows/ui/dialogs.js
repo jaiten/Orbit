@@ -47,12 +47,17 @@ $("#habit-form").elements.frequency.onchange = updateTargetLabel;
 /** A habit repeats towards a target; a counter just adds up, so it has no schedule or target to set. */
 function updateHabitKind() {
   const form = $("#habit-form");
-  const counter = form.elements.kind.value === "counter";
-  $("#habit-schedule-fields").hidden = counter;
-  form.elements.target.disabled = counter;
+  const kind = form.elements.kind.value;
+  const counter = kind === "counter",
+    avoid = kind === "avoid";
+  $("#habit-schedule-fields").hidden = counter || avoid;
+  form.elements.target.disabled = counter || avoid;
   $("#habit-kind-hint").hidden = !counter;
-  $("#habit-editor-title").textContent = `${editingHabit ? "Edit" : "New"} ${counter ? "Counter" : "Habit"}`;
-  $("#move-habit").hidden = !editingHabit || counter;
+  $("#habit-avoid-hint").hidden = !avoid;
+  $("#habit-goal-fields").hidden = !counter;
+  $("#habit-editor-title").textContent =
+    `${editingHabit ? "Edit" : "New"} ${counter ? "Counter" : avoid ? "Habit to Avoid" : "Habit"}`;
+  $("#move-habit").hidden = !editingHabit || counter || avoid;
 }
 function habitPickers() {
   const form = $("#habit-form");
@@ -62,8 +67,18 @@ function habitPickers() {
     [
       ["habit", "Habit"],
       ["counter", "Counter"],
+      ["avoid", "Avoid (no alcohol, no snacking…)"],
     ],
     form.elements.kind.value,
+  );
+  $("#habit-goal-kind-picker").innerHTML = macPicker(
+    "habit-goal-kind",
+    "Goal is",
+    [
+      ["atLeast", "At least (drink water)"],
+      ["atMost", "At most (coffees)"],
+    ],
+    form.elements.goalKind.value,
   );
   // Repeats: Daily, Weekly or Monthly, with how many times in the box beside it. A daily habit can
   // keep to weekdays or weekends (iPhone: How often in the habit editor).
@@ -123,6 +138,10 @@ function habitPickers() {
         updateTargetLabel();
         habitPickers();
       },
+      "habit-goal-kind": (value) => {
+        form.elements.goalKind.value = value;
+        habitPickers();
+      },
       "habit-days": (value) => {
         form.elements.frequency.value = value;
         habitPickers();
@@ -146,7 +165,10 @@ function openHabit(id, draft = null) {
   f.elements.title.value = source?.title || "";
   f.elements.target.value = source?.target || 1;
   f.elements.frequency.value = OrbitHabits.schedule(source || {});
-  f.elements.kind.value = source && OrbitHabits.isCounter(source) ? "counter" : "habit";
+  f.elements.kind.value =
+    source && OrbitHabits.isCounter(source) ? "counter" : source && OrbitHabits.isAvoid(source) ? "avoid" : "habit";
+  f.elements.goal.value = source?.goal || "";
+  f.elements.goalKind.value = source?.goalKind === "atMost" ? "atMost" : "atLeast";
   f.elements.color.value = editingHabit?.color || draft?.color || nextHabitColor();
   // Keep the iPhone's icon choice when editing; Windows uses text-only rows.
   f.elements.icon.value = source?.icon || "automatic";
@@ -239,7 +261,9 @@ $("#habit-form").onsubmit = (e) => {
   e.preventDefault();
   const f = e.target;
   if (!f.elements.title.value.trim()) return;
-  const counter = f.elements.kind.value === "counter";
+  const counter = f.elements.kind.value === "counter",
+    avoid = f.elements.kind.value === "avoid";
+  const goal = counter && Number(f.elements.goal.value) > 0 ? Math.round(Number(f.elements.goal.value)) : null;
   action(async () => {
     await put("habits", {
       ...(editingHabit || {
@@ -250,8 +274,10 @@ $("#habit-form").onsubmit = (e) => {
         nudgeMinutes: null,
       }),
       title: f.elements.title.value.trim(),
-      target: counter ? 1 : Number(f.elements.target.value),
-      frequencyRule: counter ? OrbitHabits.COUNTER : f.elements.frequency.value,
+      target: counter || avoid ? 1 : Number(f.elements.target.value),
+      frequencyRule: counter ? OrbitHabits.COUNTER : avoid ? OrbitHabits.AVOID : f.elements.frequency.value,
+      goal,
+      goalKind: goal && f.elements.goalKind.value === "atMost" ? "atMost" : null,
       color: f.elements.color.value,
       icon: f.elements.icon.value,
       updatedAt: Date.now(),

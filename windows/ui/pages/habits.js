@@ -17,9 +17,14 @@ function renderHabits(habits) {
 /** Habits grouped by how often they repeat: Daily (incl. weekdays and weekends), Weekly, Monthly. Empty groups go. */
 function habitPeriods(habits) {
   return [
-    { name: "Daily", note: "Each day", items: habits.filter((h) => !OrbitHabits.period(h)) },
+    {
+      name: "Daily",
+      note: "Each day",
+      items: habits.filter((h) => !OrbitHabits.period(h) && !OrbitHabits.isAvoid(h)),
+    },
     { name: "Weekly", note: "Times this week", items: habits.filter((h) => OrbitHabits.period(h) === "week") },
     { name: "Monthly", note: "Times this month", items: habits.filter((h) => OrbitHabits.period(h) === "month") },
+    { name: "Avoiding", note: "Kept unless you mark a slip", items: habits.filter((h) => OrbitHabits.isAvoid(h)) },
   ].filter((group) => group.items.length);
 }
 /** "5 of the last 7 days" as seven rounded segments with weekday letters. Unscheduled days are outlined. */

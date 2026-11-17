@@ -33,7 +33,18 @@ import WidgetKit
         try save(context)
     }
 
+    /// An avoid habit: records a slip for the day (a check-in on an avoid habit is a slip).
+    static func slip(_ habit: Habit, at date: Date, in context: ModelContext) throws {
+        let id = habit.id, key = PlannerLogic.dayKey(date)
+        let logs = try context.fetch(FetchDescriptor<HabitLog>(predicate: #Predicate { $0.habitID == id }))
+        if let log = logs.first(where: { $0.dayKey == key }) { log.count += 1; log.updatedAt = .now }
+        else { context.insert(HabitLog(habitID: id, dayKey: key)) }
+        try save(context)
+    }
+
     static func log(_ habit: Habit, at date: Date, in context: ModelContext) throws {
+        // Logging an avoid habit means a slip, which has its own action.
+        if habit.isAvoid { return try slip(habit, at: date, in: context) }
         let id = habit.id, key = PlannerLogic.dayKey(date)
         let logs = try context.fetch(FetchDescriptor<HabitLog>(predicate: #Predicate { $0.habitID == id }))
         if PlannerLogic.checkedToday(habit, logs: logs, at: date) { return }

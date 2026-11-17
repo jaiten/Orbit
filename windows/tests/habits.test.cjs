@@ -47,3 +47,26 @@ for (const c of require("../../shared/test-cases/streaks.json").cases) {
     assert.deepEqual({ streak: count, milestone: habits.milestone(habit, count) }, c.expect);
   });
 }
+
+test("avoid habits: clean days in a row, a slip ends the run, days before it was made don't count", () => {
+  const habit = { id: "a", frequencyRule: "AVOID", target: 1, createdDay: "2026-10-10" };
+  const slip = (dayKey) => ({ habitID: "a", dayKey, count: 1 });
+  assert.equal(habits.streak(habit, [], "2026-10-16"), 7);
+  assert.equal(habits.streak(habit, [slip("2026-10-14")], "2026-10-16"), 2);
+  assert.equal(habits.streak(habit, [slip("2026-10-16")], "2026-10-16"), 0);
+  assert.equal(habits.milestone(habit, 7), "7 days in a row");
+  assert.equal(habits.slipped(habit, [slip("2026-10-16")], "2026-10-16"), true);
+  assert.equal(habits.label(habit), "Avoid");
+  assert.equal(habits.consistency([{ ...habit, createdDay: "2026-10-01" }], [slip("2026-10-16")], "2026-10-16"), 0);
+  assert.equal(habits.consistency([{ ...habit, createdDay: "2026-10-01" }], [], "2026-10-16"), 1);
+});
+
+test("counter goals: at least is met once reached, at most is fine until passed", () => {
+  const counter = (goal, goalKind) => ({ frequencyRule: "COUNTER", target: 1, goal, goalKind });
+  assert.equal(habits.goalState(counter(null), 5), null);
+  assert.equal(habits.goalState(counter(8, "atLeast"), 3), "short");
+  assert.equal(habits.goalState(counter(8, "atLeast"), 8), "met");
+  assert.equal(habits.goalState(counter(2, "atMost"), 2), "within");
+  assert.equal(habits.goalState(counter(2, "atMost"), 3), "over");
+  assert.equal(habits.goalState({ frequencyRule: "DAILY", goal: 3 }, 5), null);
+});

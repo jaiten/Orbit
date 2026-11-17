@@ -2242,3 +2242,71 @@ textarea.title-field {
 .today-board.editing .panel-tools .panel-action:hover {
   background: color-mix(in srgb, var(--accent) 20%, transparent);
 }
+
+/* Avoid habits: a shield in the habit's colour while the day is clean, a muted cross once a slip is marked. */
+.avoid-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  color: var(--habit-color, var(--sage));
+}
+.avoid-mark svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.avoid-mark.slipped {
+  color: var(--muted);
+}
+.compact-habits .avoid-mark {
+  width: 14px;
+  height: 14px;
+}
+.compact-habits .avoid-mark svg {
+  width: 14px;
+  height: 14px;
+}
+.avoid-row.slipped .row-detail {
+  color: var(--accent-text);
+}
+.avoid-row .row-title {
+  text-decoration: none;
+}
+/* Counters with a goal: met (at least) in the habit's colour; passed (at most) in the accent. */
+.counter-row.goal-met .counter-count,
+.counter-row.goal-within .counter-count {
+  color: var(--habit-color);
+}
+.counter-row.goal-over .counter-count {
+  color: var(--accent-text);
+}
+.avoid-row.habit-sage {
+  --habit-color: var(--sage);
+}
+.avoid-row.habit-lavender {
+  --habit-color: var(--lavender);
+}
+.avoid-row.habit-clay {
+  --habit-color: var(--clay);
+}
+.avoid-row.habit-honey {
+  --habit-color: var(--honey);
+}
+.avoid-row.habit-teal {
+  --habit-color: var(--teal);
+}
+.avoid-row.habit-rose {
+  --habit-color: var(--rose);
+}
+.avoid-row.habit-blue {
+  --habit-color: var(--blue);
+}
+.avoid-row.habit-plum {
+  --habit-color: var(--plum);
+}

@@ -29,7 +29,7 @@ struct OrbitItemQuery: EntityQuery {
         let tasks = try context.fetch(FetchDescriptor<PlannerTask>(sortBy: [SortDescriptor(\.sortOrder)]))
             .filter { $0.completedAt == nil && TodayRules.onDay(TodayRules.item($0), day: today, today: today) }
         let habits = try context.fetch(FetchDescriptor<Habit>(sortBy: [SortDescriptor(\.createdAt)]))
-            .filter { PlannerLogic.isDue($0, logs: logs, at: PlannerLogic.todayDate) && !PlannerLogic.checkedToday($0, logs: logs, at: PlannerLogic.todayDate) }
+            .filter { !$0.isAvoid && PlannerLogic.isDue($0, logs: logs, at: PlannerLogic.todayDate) && !PlannerLogic.checkedToday($0, logs: logs, at: PlannerLogic.todayDate) }
         return tasks.map { OrbitItem(id: "task:" + $0.id.uuidString, title: $0.title) } + habits.map { OrbitItem(id: "habit:" + $0.id.uuidString, title: $0.title) }
     }
 }

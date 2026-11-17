@@ -72,7 +72,7 @@ function decodeBackup(data) {
       entity === "habits" &&
       (!Number.isInteger(p.target) ||
         p.target < 1 ||
-        !["DAILY", "WEEKDAYS", "WEEKENDS", "WEEKLY", "MONTHLY", "COUNTER"].includes(p.frequencyRule))
+        !["DAILY", "WEEKDAYS", "WEEKENDS", "WEEKLY", "MONTHLY", "COUNTER", "AVOID"].includes(p.frequencyRule))
     )
       throw Error("Invalid habit goal");
   }

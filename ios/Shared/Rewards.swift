@@ -18,7 +18,8 @@ enum Rewards {
         metrics(tasks: tasks.map { (completedDay: $0.completedAt.map(PlannerLogic.plannerDay), isNote: $0.note) },
                 logs: logs.filter { !counters.contains($0.habitID) }.map { (dayKey: $0.dayKey, count: $0.count) })
     }
-    @MainActor static func counterIDs(_ habits: [Habit]) -> Set<UUID> { Set(habits.filter(\.isCounter).map(\.id)) }
+    /// Counters and avoid habits: their check-ins (taps, slips) are not achievements.
+    @MainActor static func counterIDs(_ habits: [Habit]) -> Set<UUID> { Set(habits.filter { $0.isCounter || $0.isAvoid }.map(\.id)) }
     static func value(_ metrics: Metrics, _ metric: String) -> Int { metric == "activeDays" ? metrics.activeDays : metrics.completions }
     /// Badges reached, in their listed order.
     static func earned(_ metrics: Metrics) -> [String] { RewardsData.badges.filter { value(metrics, $0.metric) >= $0.goal }.map(\.id) }

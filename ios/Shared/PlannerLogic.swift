@@ -64,7 +64,12 @@ enum PlannerLogic {
         checkedToday(habit, counts: counts(habit, logs: logs), at: date, calendar: calendar)
     }
     static func checkedToday(_ habit: Habit, counts: [String: Int], at date: Date, calendar: Calendar = .current) -> Bool {
-        HabitRules.checked(rule: habit.frequencyRule, target: habit.target, counts: counts, day: dayKey(date, calendar: calendar))
+        HabitRules.checked(rule: habit.frequencyRule, target: habit.target, counts: counts, day: dayKey(date, calendar: calendar),
+                           createdDay: createdDay(habit, calendar: calendar))
+    }
+    /// The planner day a habit was made (an avoid habit only counts days from then).
+    static func createdDay(_ habit: Habit, calendar: Calendar = .current) -> String {
+        dayKey(DayStart.shifted(habit.createdAt), calendar: calendar)
     }
     /// Check-ins in the current period: the day, or the week for weekly habits.
     static func progress(_ habit: Habit, logs: [HabitLog], at date: Date, calendar: Calendar = .current) -> Int {
@@ -81,13 +86,21 @@ enum PlannerLogic {
     }
     /// "X of the last 7 days". Missed days are never counted against anything.
     static func checkedDays(_ habit: Habit, logs: [HabitLog], ending date: Date, days: Int = 7, calendar: Calendar = .current) -> Int {
-        HabitRules.checkedDays(rule: habit.frequencyRule, target: habit.target, counts: counts(habit, logs: logs), day: dayKey(date, calendar: calendar), days: days)
+        HabitRules.checkedDays(rule: habit.frequencyRule, target: habit.target, counts: counts(habit, logs: logs), day: dayKey(date, calendar: calendar), days: days,
+                               createdDay: createdDay(habit, calendar: calendar))
     }
     /// For example "Weekdays · 1 of 1 today" or "2 of 3 this week", as on Windows.
     static func detail(_ habit: Habit, logs: [HabitLog], at date: Date) -> String {
         detail(habit, counts: counts(habit, logs: logs), at: date)
     }
     static func detail(_ habit: Habit, counts: [String: Int], at date: Date) -> String {
+        if habit.isAvoid {
+            let day = dayKey(date)
+            if HabitRules.slipped(rule: habit.frequencyRule, counts: counts, day: day) { return "Slipped today" }
+            let clean = HabitRules.streak(rule: habit.frequencyRule, target: 1, counts: counts, day: day, weekStart: HabitRules.weekStart(),
+                                          createdDay: createdDay(habit))
+            return clean == 1 ? "Clean today" : "Clean · \(clean) days"
+        }
         let schedule = HabitRules.schedule(habit.frequencyRule)
         let unit = HabitRules.period(schedule)
         let count = "\(progress(habit, counts: counts, at: date)) of \(habit.target) \(unit.map { "this " + $0 } ?? "today")"

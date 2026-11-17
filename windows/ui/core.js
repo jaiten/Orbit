@@ -393,6 +393,11 @@ function dueOn(h, date = today()) {
   return OrbitHabits.dueOn(h, habitLogs(), date, weekStart);
 }
 function habitDetail(h, date = today()) {
+  if (OrbitHabits.isAvoid(h)) {
+    if (OrbitHabits.slipped(h, habitLogs(), date)) return "Slipped today";
+    const clean = OrbitHabits.streak(h, habitLogs(), date, weekStart);
+    return clean === 1 ? "Clean today" : `Clean · ${clean} days`;
+  }
   const schedule = OrbitHabits.schedule(h);
   const unit = OrbitHabits.period(h);
   const count = `${progress(h, date)} of ${h.target} ${unit ? `this ${unit}` : "today"}`;
@@ -524,6 +529,7 @@ function taskRow(t) {
 /** A habit on the Habits page: tick, title, colour dot and count. A click logs a check-in (as on Today);
     the pencil that appears on hover, right-click or E edits it. */
 function habitCard(h, { fullWidth = false } = {}) {
+  if (OrbitHabits.isAvoid(h)) return avoidCard(h, { fullWidth });
   const date = today();
   const done = checked(h, date);
   const id = esc(h.id),
@@ -546,13 +552,51 @@ function counterCard(h, { compact = false } = {}) {
     title = esc(h.title);
   const count = dailyCount(h, date);
   const week = OrbitHabits.countOver(h, habitLogs(), date, 7);
+  // With a goal: "3 / 8 today" (at least) or "2 / 3 max" (at most), tinted once met or passed.
+  const goal = OrbitHabits.goalState(h, count);
+  const goalText = goal ? ` / ${h.goal}${h.goalKind === "atMost" ? " max" : ""}` : "";
   const detail = compact ? "today" : `today · ${week} in 7 days`;
-  return `<div class="row counter-row habit-${colorName(h.color)} check-tile" data-flip="habit-${id}" data-row-menu="habit:${id}">
+  const goalLabel = goal ? `, goal ${h.goalKind === "atMost" ? "at most" : "at least"} ${h.goal}` : "";
+  return `<div class="row counter-row habit-${colorName(h.color)} check-tile ${goal ? "goal-" + goal : ""}" data-flip="habit-${id}" data-row-menu="habit:${id}">
     <div class="row-line">
-      <button class="counter-add" aria-label="Add one to ${title}: ${count} today" title="Add one" data-counter="${id}" data-habit-menu="${id}"><span class="counter-plus ${poppedID === h.id ? "pop" : ""}" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 6.5v11M6.5 12h11"/></svg></span><span class="row-title">${title}</span><span class="row-detail counter-count"><b class="${poppedID === h.id ? "pop" : ""}">${count}</b> ${detail}</span></button>
+      <button class="counter-add" aria-label="Add one to ${title}: ${count} today${goalLabel}" title="Add one" data-counter="${id}" data-habit-menu="${id}"><span class="counter-plus ${poppedID === h.id ? "pop" : ""}" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 6.5v11M6.5 12h11"/></svg></span><span class="row-title">${title}</span><span class="row-detail counter-count"><b class="${poppedID === h.id ? "pop" : ""}">${count}</b>${goalText} ${detail}</span></button>
       ${compact ? "" : rowActions(id, title, true)}
     </div>
   </div>`;
+}
+/**
+ * An avoid habit ("no alcohol"): a shield while the day is clean, a cross once a slip is marked. Clicking it
+ * (or right-clicking) offers "I slipped today", so a stray click never marks one.
+ */
+const avoidMark = (slipped) =>
+  `<span class="avoid-mark ${slipped ? "slipped" : ""}" aria-hidden="true"><svg viewBox="0 0 24 24">${
+    slipped
+      ? '<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/>'
+      : '<path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6z"/><path d="m9 12 2 2 4-4"/>'
+  }</svg></span>`;
+function avoidCard(h, { compact = false, fullWidth = false } = {}) {
+  const id = esc(h.id),
+    title = esc(h.title);
+  const slipped = OrbitHabits.slipped(h, habitLogs(), today());
+  const detail = habitDetail(h);
+  const label = `${title}: ${detail}. ${slipped ? "Take back today's slip" : "Mark a slip"}`;
+  if (compact)
+    return `<div class="row habit-row avoid-row habit-${colorName(h.color)} check-tile ${slipped ? "slipped" : ""}" data-flip="habit-${id}" data-row-menu="habit:${id}">
+    <button class="row-line habit-log" data-avoid="${id}" aria-label="${label}" title="${slipped ? "Slipped today" : "Kept today. Click to mark a slip"}">${avoidMark(slipped)}<span class="row-title">${title}</span><span class="row-detail">${detail}</span></button>
+  </div>`;
+  return `<div class="row habit-row avoid-row habit-${colorName(h.color)} check-tile ${slipped ? "slipped" : ""} ${fullWidth ? "wide-habit" : ""}" data-flip="habit-${id}" data-row-menu="habit:${id}">
+    <div class="row-line">
+      <button class="row-tick" data-avoid="${id}" aria-label="${label}">${avoidMark(slipped)}</button>
+      <div class="row-main"><button class="row-body" data-avoid="${id}" aria-label="${label}"><span class="row-title">${title}</span><span class="dot ${colorName(h.color)}" aria-hidden="true"></span><span class="row-detail">${detail}</span></button>
+      ${rowActions(id, title, true)}</div>
+    </div>
+  </div>`;
+}
+/** The avoid habit's little menu: mark a slip today, or take it back. */
+function avoidEntries(h) {
+  return OrbitHabits.slipped(h, habitLogs(), today())
+    ? [["Take back today's slip", () => tickAction(() => log(h.id, true))]]
+    : [["I slipped today", () => tickAction(() => log(h.id, false))]];
 }
 /** Two short habits share a row; longer titles take the full width. */
 function habitCards(habits) {
@@ -622,12 +666,13 @@ async function log(id, undo, date = today()) {
   if (date > current || date < OrbitHabits.addDays(current, -6) || !h) return;
   if (date !== current && !["history", "habit-history"].includes(page)) return;
   const old = rows("habit_logs").find((l) => l.habitID === id && l.dayKey === date);
-  if (!undo && checked(h, date)) return;
+  // An avoid habit is kept unless a slip is logged; logging it means a slip.
+  if (!undo && checked(h, date) && !OrbitHabits.isAvoid(h)) return;
   const data = old || { id: crypto.randomUUID(), habitID: id, dayKey: date, count: 0 };
   data.count = Math.max(0, data.count + (undo ? -1 : 1));
   data.updatedAt = Date.now();
   data._key = `habit_logs/${id}-${date}`;
-  if (!undo) noteCompletion();
+  if (!undo && !OrbitHabits.isAvoid(h)) noteCompletion();
   applyLocally(data._key, clean(data));
   // A habit with several check-ins a day is only ticked by the one that meets its target.
   const done = checked(h, date);
@@ -767,6 +812,17 @@ function bindTiles() {
     .querySelectorAll("[data-counter]")
     .forEach((b) => (b.onclick = () => tickAction(() => countUp(b.dataset.counter))));
   document.querySelectorAll("[data-habit-edit]").forEach((b) => (b.onclick = () => openHabit(b.dataset.habitEdit)));
+  document.querySelectorAll("[data-avoid]").forEach(
+    (b) =>
+      (b.onclick = (event) => {
+        // The page closes menus on clicks elsewhere; this click opens one.
+        event.stopPropagation();
+        const h = rows("habits").find((habit) => habit.id === b.dataset.avoid);
+        if (!h) return;
+        const box = b.getBoundingClientRect();
+        showMenu(avoidEntries(h), box.left + 24, box.bottom);
+      }),
+  );
   document.querySelectorAll("[data-new-habit]").forEach((b) => (b.onclick = () => openHabit(null)));
   bindPickers(
     Object.fromEntries(
@@ -935,6 +991,7 @@ function openRowMenu(e) {
     ],
   ];
   entries.push([selectedRows.has(`${kind}:${id}`) ? "Deselect item" : "Select item", () => selectRow(kind, id)]);
+  if (kind === "habit" && OrbitHabits.isAvoid(item)) entries.push(...avoidEntries(item));
   if (kind === "habit" && OrbitHabits.isCounter(item) && dailyCount(item) > 0)
     entries.push(["Take one off", () => tickAction(() => countUp(id, -1))]);
   if (kind === "habit") entries.push(["Edit…", () => openHabit(id)]);

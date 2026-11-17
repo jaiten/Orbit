@@ -13,6 +13,28 @@
    */
   const COUNTER = "COUNTER";
   const isCounter = (habit) => habit.frequencyRule === COUNTER;
+  /**
+   * An avoid habit ("no alcohol") is kept every day unless a slip is logged that day: a check-in on an avoid
+   * habit is a slip. Its streak is clean days in a row; days before it was made don't count.
+   */
+  const AVOID = "AVOID";
+  const isAvoid = (habit) => habit.frequencyRule === AVOID;
+  /** The local day a habit was made: `createdDay` when given, else from `createdAt` (ms). */
+  function createdKey(habit) {
+    if (habit.createdDay) return habit.createdDay;
+    if (!habit.createdAt) return null;
+    const d = new Date(habit.createdAt);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+  /**
+   * A counter's optional goal: "at least" `goal` a day (met once reached) or "at most" (fine until passed).
+   * Returns null without a goal, else "met", "short", "within" or "over".
+   */
+  function goalState(habit, count) {
+    if (!isCounter(habit) || !(habit.goal > 0)) return null;
+    if (habit.goalKind === "atMost") return count > habit.goal ? "over" : "within";
+    return count >= habit.goal ? "met" : "short";
+  }
 
   function parseKey(key) {
     const [y, m, d] = key.split("-").map(Number);
@@ -66,8 +88,14 @@
     return logs.filter((l) => l.habitID === habit.id && l.dayKey === key).reduce((sum, l) => sum + l.count, 0);
   }
   function checkedOn(habit, logs, key) {
+    if (isAvoid(habit)) {
+      const created = createdKey(habit);
+      return !(created && key < created) && dayCount(habit, logs, key) === 0;
+    }
     return !isCounter(habit) && dayCount(habit, logs, key) >= dailyTarget(habit);
   }
+  /** An avoid habit with a slip logged on `key`. */
+  const slipped = (habit, logs, key) => isAvoid(habit) && dayCount(habit, logs, key) > 0;
   /** How many times in the `days` days ending with `key` (for a counter's "12 this week"). */
   function countOver(habit, logs, key, days = 7) {
     const start = addDays(key, 1 - days);
@@ -107,7 +135,13 @@
   function consistency(habits, logs, key) {
     const active = habits.filter((h) => (!h.createdDay || h.createdDay <= key) && scheduledOn(h, key));
     if (!active.length) return 0;
-    return active.reduce((sum, h) => sum + Math.min(1, dayCount(h, logs, key) / dailyTarget(h)), 0) / active.length;
+    return (
+      active.reduce(
+        (sum, h) =>
+          sum + (isAvoid(h) ? (dayCount(h, logs, key) ? 0 : 1) : Math.min(1, dayCount(h, logs, key) / dailyTarget(h))),
+        0,
+      ) / active.length
+    );
   }
   /**
    * Scheduled days checked in a row ending on `key` (unscheduled days are skipped), or for a weekly
@@ -151,6 +185,7 @@
   }
   function label(habit) {
     if (isCounter(habit)) return "Counter";
+    if (isAvoid(habit)) return "Avoid";
     return { DAILY: "Daily", WEEKDAYS: "Weekdays", WEEKENDS: "Weekends", WEEKLY: "Weekly", MONTHLY: "Monthly" }[
       schedule(habit)
     ];
@@ -176,6 +211,10 @@
     SCHEDULES,
     COUNTER,
     isCounter,
+    AVOID,
+    isAvoid,
+    slipped,
+    goalState,
     countOver,
     addDays,
     weekday,

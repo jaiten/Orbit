@@ -24,7 +24,8 @@ struct HabitsView: View {
                     if habits.isEmpty { ContentUnavailableView("No Habits", systemImage: "repeat", description: Text("Start typing to add a habit.")) }
                     // Every habit's check-ins are read from the logs once, not once for each row.
                     let counts = PlannerLogic.countsByHabit(logs)
-                    let regular = habits.filter { !$0.isCounter }, counters = habits.filter(\.isCounter)
+                    let regular = habits.filter { !$0.isCounter && !$0.isAvoid }, counters = habits.filter(\.isCounter)
+                    let avoiding = habits.filter(\.isAvoid)
                     // Grouped by how often they repeat: Daily (with weekdays and weekends), Weekly, Monthly.
                     ForEach(Self.periods(regular), id: \.name) { group in
                         SectionLabel(title: group.name, note: group.note)
@@ -34,6 +35,15 @@ struct HabitsView: View {
                                     .transition(.orbitRow)
                             }
                         }.animation(reduceMotion ? nil : .orbitFold, value: group.habits.map(\.id))
+                    }
+                    // Avoid habits: kept every day unless a slip is marked.
+                    if !avoiding.isEmpty {
+                        SectionLabel(title: "Avoiding", note: "Kept unless you mark a slip")
+                        VStack(spacing: DayTheme.rowSpacing(compact: compactRows, typeSize: typeSize)) {
+                            ForEach(avoiding) { habit in
+                                AvoidRow(habit: habit, counts: counts[habit.id] ?? [:]) { editing = habit }.transition(.orbitRow)
+                            }
+                        }.animation(reduceMotion ? nil : .orbitFold, value: avoiding.map(\.id))
                     }
                     // Counters: no target, one more on every tap.
                     if !counters.isEmpty {
@@ -209,6 +219,12 @@ struct HabitEditor: View {
     var startsAsCounter = false
     /// A habit repeats towards a target; a counter just adds one on every tap.
     @State private var counter = false
+    /// Something to stay away from: kept every day unless a slip is marked (HabitRules.avoid).
+    @State private var avoid = false
+    /// A counter's optional daily goal.
+    @State private var hasGoal = false
+    @State private var goal = 3
+    @State private var goalAtMost = false
     @State private var title = ""
     @State private var frequency = "DAILY"
     @State private var target = 1
@@ -227,33 +243,53 @@ struct HabitEditor: View {
             Form {
                 Section {
                     TextField("Title", text: $title).focused($titleFocused).accessibilityIdentifier("habit-title-input")
-                    Picker("Type", selection: $counter) { Text("Habit").tag(false); Text("Counter").tag(true) }
+                    Picker("Type", selection: Binding(get: { counter ? "counter" : avoid ? "avoid" : "habit" }, set: { kind in
+                        withAnimation(.orbit) { counter = kind == "counter"; avoid = kind == "avoid" }
+                    })) { Text("Habit").tag("habit"); Text("Counter").tag("counter"); Text("Avoid").tag("avoid") }
                     Picker("Color", selection: $color) { ForEach(DayTheme.colors, id: \.self) { Text($0 == "clay" ? "Coral" : $0.capitalized).tag($0) } }
                     Picker("Icon", selection: $icon) {
                         Label("Automatic", systemImage: ItemIcons.suggested(for: title)).tag("automatic")
                         ForEach(ItemIcons.all) { Label($0.name, systemImage: $0.id).tag($0.id) }
                     }
                 }
-                if !counter { howOften }
-                if counter { Section { EmptyView() } footer: { Text("A counter has no target. Each tap adds one for the day, so you can see how often it happens.") } }
-                if !counter { Section {
+                if !counter && !avoid { howOften }
+                if counter {
+                    Section {
+                        Toggle("Daily goal", isOn: $hasGoal.animation(.orbit))
+                        if hasGoal {
+                            Picker("Goal is", selection: $goalAtMost) { Text("At least").tag(false); Text("At most").tag(true) }.pickerStyle(.segmented)
+                            Stepper("\(goalAtMost ? "At most" : "At least") \(goal) a day", value: $goal, in: 1...1000).monospacedDigit()
+                        }
+                    } footer: {
+                        Text(hasGoal
+                             ? (goalAtMost ? "Like coffees: the count turns red once you pass \(goal)." : "Like glasses of water: the count lights up once you reach \(goal).")
+                             : "A counter adds one each time you tap it, so you can see how often it happens. Add a goal if you have a number in mind.")
+                    }
+                }
+                if avoid {
+                    Section { EmptyView() } footer: {
+                        Text("Something to stay away from, like alcohol or late-night snacks. Every day counts as kept unless you mark a slip, and your streak counts clean days in a row.")
+                    }
+                }
+                if !counter && !avoid { Section {
                     Toggle("Reminder", isOn: $reminderEnabled)
                     if reminderEnabled { DatePicker("At", selection: $reminder, displayedComponents: .hourAndMinute) }
                     Toggle("Second reminder if not done", isOn: $nudgeEnabled)
                     if nudgeEnabled { DatePicker("Nudge at", selection: $nudge, displayedComponents: .hourAndMinute) }
                 } header: { Text("Reminders") } footer: { Text("Reminders stop once the habit is checked for the day.") } }
-                if let habit, !counter { Section { Button("Make It a Task", systemImage: "checklist") {
+                if let habit, !counter && !avoid { Section { Button("Make It a Task", systemImage: "checklist") {
                     do { try Conversions.toTask(habit, in: context); finish() } catch { self.error = error.localizedDescription }
                 } } }
                 if habit != nil { Section { Button("Delete habit", role: .destructive) { confirmDelete = true } } }
-            }.orbitFormBackground().tint(accent.fill).navigationTitle((habit == nil ? "New " : "Edit ") + (counter ? "Counter" : "Habit")).navigationBarTitleDisplayMode(.inline)
+            }.orbitFormBackground().tint(accent.fill).navigationTitle((habit == nil ? "New " : "Edit ") + (counter ? "Counter" : avoid ? "Habit to Avoid" : "Habit")).navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Save", action: save).disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
                 }.onAppear {
                     // A new habit starts in the next colour, so habits mix; any colour can still be chosen.
                     guard let habit else { counter = startsAsCounter; color = (try? QuickAddSaver.nextHabitColor(in: context)) ?? "sage"; return }
-                    counter = habit.isCounter
+                    counter = habit.isCounter; avoid = habit.isAvoid
+                    hasGoal = habit.goal != nil; goal = habit.goal ?? 3; goalAtMost = habit.goalKind == "atMost"
                     title = habit.title; frequency = HabitRules.schedule(habit.frequencyRule); target = habit.target; color = habit.color; icon = ItemIcons.all.contains { $0.id == habit.icon } ? habit.icon : "automatic"
                     reminderEnabled = habit.reminderMinutes != nil; nudgeEnabled = habit.nudgeMinutes != nil
                     reminder = time(habit.reminderMinutes ?? 540); nudge = time(habit.nudgeMinutes ?? 1200)
@@ -311,10 +347,11 @@ struct HabitEditor: View {
            ItemIcons.suggested(for: habit.title) != ItemIcons.suggested(for: newTitle) {
             chosenIcon = ItemIcons.suggested(for: habit.title)
         }
-        item.title = newTitle; item.frequencyRule = counter ? HabitRules.counter : frequency
-        item.target = counter ? 1 : target; item.color = color; item.icon = chosenIcon
-        item.reminderMinutes = reminderEnabled && !counter ? minutes(reminder) : nil
-        item.nudgeMinutes = nudgeEnabled && !counter ? minutes(nudge) : nil; item.updatedAt = .now
+        item.title = newTitle; item.frequencyRule = counter ? HabitRules.counter : avoid ? HabitRules.avoid : frequency
+        item.target = counter || avoid ? 1 : target; item.color = color; item.icon = chosenIcon
+        item.goal = counter && hasGoal ? goal : nil; item.goalKind = counter && hasGoal && goalAtMost ? "atMost" : nil
+        item.reminderMinutes = reminderEnabled && !counter && !avoid ? minutes(reminder) : nil
+        item.nudgeMinutes = nudgeEnabled && !counter && !avoid ? minutes(nudge) : nil; item.updatedAt = .now
         do { try Mutations.save(context); finish() } catch { self.error = error.localizedDescription }
     }
     private func finish() {

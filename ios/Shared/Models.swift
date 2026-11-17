@@ -81,6 +81,9 @@ struct Subtask: Codable, Identifiable, Equatable {
     var icon: String
     var reminderMinutes: Int?
     var nudgeMinutes: Int?
+    /// A counter's optional daily goal, and whether it is "atLeast" (the default) or "atMost".
+    var goal: Int? = nil
+    var goalKind: String? = nil
     var createdAt: Date
     var updatedAt: Date
     init(title: String, frequencyRule: String = "DAILY", target: Int = 1,
@@ -118,6 +121,8 @@ struct Subtask: Codable, Identifiable, Equatable {
 extension Habit {
     /// A counter adds one on every tap and has no target (HabitRules.counter).
     var isCounter: Bool { HabitRules.isCounter(frequencyRule) }
+    /// Kept every day unless a slip is logged (HabitRules.avoid).
+    var isAvoid: Bool { HabitRules.isAvoid(frequencyRule) }
 }
 
 extension PlannerTask {

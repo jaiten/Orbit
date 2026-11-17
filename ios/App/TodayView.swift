@@ -142,9 +142,11 @@ struct TodayView: View {
             }
             checklistSection("Your day", note: "", items: planned.map { TodayItem(task: $0) }, counts: today.counts, empty: today.relevant.isEmpty ? "Nothing planned. Add a task to get started." : "No more tasks scheduled for today.")
         case "routine":
-            let open = today.dueHabits.filter { !today.checked($0) }
+            // Avoid habits have their own group below: kept by default, so never "open" or "completed".
+            let open = today.dueHabits.filter { !today.checked($0) && !$0.isAvoid }
             let counters = habits.filter(\.isCounter)
-            if today.dueHabits.isEmpty && !counters.isEmpty {
+            let avoiding = today.dueHabits.filter(\.isAvoid)
+            if today.dueHabits.allSatisfy(\.isAvoid) && !(counters.isEmpty && avoiding.isEmpty) {
                 // Only counters so far: no prompt to start a habit.
                 EmptyView()
             } else if today.dueHabits.isEmpty {
@@ -157,6 +159,19 @@ struct TodayView: View {
                 }
             } else {
                 checklistSection("Habits", note: "", items: Self.habitItems(open), counts: today.counts, empty: "All habits checked for today.")
+            }
+            if !avoiding.isEmpty {
+                VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceS)) {
+                    SectionLabel(title: "Avoiding", note: "Tap if you slip")
+                    GroupedRows {
+                        ForEach(Array(avoiding.enumerated()), id: \.element.id) { index, habit in
+                            VStack(spacing: 0) {
+                                if index > 0 { Divider().padding(.leading, 56) }
+                                AvoidRow(habit: habit, counts: today.counts[habit.id] ?? [:]) { editingHabit = habit }
+                            }.transition(.orbitRow)
+                        }
+                    }.animation(reduceMotion ? nil : .orbitFold, value: avoiding.map(\.id))
+                }
             }
             // Counters have no target, so they stay here all day and out of the plan.
             if !counters.isEmpty {
@@ -174,7 +189,7 @@ struct TodayView: View {
             }
         case "completed":
             let completedItems = (sections.contains("today") ? today.relevant.filter { $0.completedAt != nil }.map { TodayItem(task: $0) } : []) +
-                (sections.contains("routine") ? today.checkedHabits.map { TodayItem(habit: $0) } : [])
+                (sections.contains("routine") ? today.checkedHabits.filter { !$0.isAvoid }.map { TodayItem(habit: $0) } : [])
             if !completedItems.isEmpty {
                 DisclosureGroup(isExpanded: $showingCompleted) {
                     checklist(completedItems, counts: today.counts).padding(.top, 8)

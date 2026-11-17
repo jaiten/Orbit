@@ -92,7 +92,7 @@ struct DayProvider: TimelineProvider {
                     subtitle: task.hasTime ? task.dueDate!.formatted(date: .omitted, time: .shortened) : "",
                     habit: false, date: task.hasTime ? task.dueDate : nil)
             }
-            let habitItems = habits.filter { !PlannerLogic.checkedToday($0, logs: logs, at: PlannerLogic.todayDate) }.map {
+            let habitItems = habits.filter { !$0.isAvoid && !PlannerLogic.checkedToday($0, logs: logs, at: PlannerLogic.todayDate) }.map {
                 WidgetItem(id: $0.id.uuidString, title: $0.title,
                     subtitle: PlannerLogic.detail($0, logs: logs, at: PlannerLogic.todayDate), habit: true, date: nil)
             }

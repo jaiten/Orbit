@@ -219,6 +219,7 @@ function overallProgressCard(tasks, habits) {
  * hover actions to get in the way. Right-click or E edits it.
  */
 function compactHabit(h) {
+  if (OrbitHabits.isAvoid(h)) return avoidCard(h, { compact: true });
   const done = checked(h),
     id = esc(h.id),
     title = esc(h.title);
@@ -232,9 +233,10 @@ function compactHabit(h) {
  */
 function compactHabitGroups(habits) {
   const groups = [
-    ["", habits.filter((h) => !OrbitHabits.period(h))],
+    ["", habits.filter((h) => !OrbitHabits.period(h) && !OrbitHabits.isAvoid(h))],
     ["This week", habits.filter((h) => OrbitHabits.period(h) === "week")],
     ["This month", habits.filter((h) => OrbitHabits.period(h) === "month")],
+    ["Avoiding", habits.filter((h) => OrbitHabits.isAvoid(h))],
   ].filter(([, items]) => items.length);
   const captions = groups.length > 1;
   return groups
