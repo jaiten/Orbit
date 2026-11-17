@@ -121,7 +121,8 @@ final class SharedCaseTests: XCTestCase {
             let input = c["input"] as! String
             var defaultDay = DefaultDay.today
             if let key = c["defaultDate"] as? String { defaultDay = key == "undated" ? .undated : .day(key) }
-            let result = QuickAdd.parse(input, defaultDay: defaultDay, now: now, calendar: calendar)
+            let places = (c["places"] as? [[String: Any]] ?? []).map { CaptureRules.Place(name: $0["name"] as! String, days: $0["days"] as! [Int]) }
+            let result = QuickAdd.parse(input, defaultDay: defaultDay, now: now, calendar: calendar, places: places)
             let expect = c["expect"] as! [String: Any]
             XCTAssertEqual(result.kind.rawValue, expect["kind"] as? String, input)
             XCTAssertEqual(result.title, expect["title"] as? String, input)
@@ -197,5 +198,19 @@ final class SharedCaseTests: XCTestCase {
         XCTAssertEqual(Rewards.eveningText(habitsLeft: 1, tasksLeft: 2), "1 habit and 2 tasks left today. Even one small one counts.")
         XCTAssertNil(Rewards.eveningText(habitsLeft: 0, tasksLeft: 0))
         for accent in Rewards.allAccents { XCTAssertNotNil(DesignTokens.accentFill[accent], accent) }
+        // Nine accents: three to start with, six to earn; retired ones still have colours.
+        XCTAssertEqual(RewardsData.freeAccents.count, 3)
+        XCTAssertEqual(Rewards.allAccents.count, 9)
+        for accent in RewardsData.retiredAccents { XCTAssertNotNil(DesignTokens.accentFill[accent], accent) }
+    }
+
+    func testLearnedProgressMatchesSharedCases() throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../shared/test-cases/progress-learning.json").standardizedFileURL
+        let table = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        for row in try XCTUnwrap(table["cases"] as? [[String: Any]]) {
+            let history = (row["history"] as? [[String: Any]] ?? []).map { (title: $0["title"] as? String ?? "", tracking: $0["tracking"] as? Bool ?? false) }
+            let learned = TaskProgress.learned(row["title"] as? String ?? "", history: history, ruleWords: row["rules"] as? [String] ?? [])
+            XCTAssertEqual(learned?.rawValue, row["expect"] as? String, row["name"] as? String ?? "")
+        }
     }
 }

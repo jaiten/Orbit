@@ -37,6 +37,11 @@ import LocalAuthentication
         note.listID.flatMap { id in lists.first { $0.id == id } }?.hidden == true
     }
     func isSealed(_ note: PlannerTask, lists: [TaskList]) -> Bool { !unlocked && Self.isLocked(note, lists: lists) }
+    /// Writing into a locked section needs it unlocked first, as opening it does. True when allowed.
+    func mayWrite(to section: UUID?, lists: [TaskList]) async -> Bool {
+        guard let section, lists.first(where: { $0.id == section })?.locked == true else { return true }
+        return await unlock(reason: "Add a note to this locked section")
+    }
 }
 
 /// The page shown in place of a locked note until it is unlocked.

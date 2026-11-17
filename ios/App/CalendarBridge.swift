@@ -1,10 +1,12 @@
 import EventKit
 import EventKitUI
 import SwiftUI
+import SwiftData
 
 struct CalendarDraft: Identifiable {
     let id = UUID()
-    let taskID: UUID
+    /// The task the event was made from; nil when an existing calendar event is opened.
+    let taskID: UUID?
     let event: EKEvent
 }
 
@@ -101,17 +103,65 @@ struct CalendarEventEditor: UIViewControllerRepresentable {
         init(_ parent: CalendarEventEditor) { self.parent = parent }
         func eventEditViewController(_ controller: EKEventEditViewController, didCompleteWith action: EKEventEditViewAction) {
             Task { @MainActor in
-                if action == .saved, let id = controller.event?.eventIdentifier { UserDefaults.standard.set(id, forKey: "calendarEvent." + parent.draft.taskID.uuidString) }
+                if action == .saved, let taskID = parent.draft.taskID, let id = controller.event?.eventIdentifier {
+                    UserDefaults.standard.set(id, forKey: "calendarEvent." + taskID.uuidString)
+                }
                 CalendarBridge.shared.reload(); parent.dismiss()
             }
         }
     }
 }
 
+/// A calendar event on Today. Tap opens it to view or edit; touch and hold for Edit, Show in Calendar,
+/// Copy text, Add as a task and Delete event.
 struct CalendarEventRow: View {
     let event: EKEvent
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.modelContext) private var context
+    @Environment(\.openURL) private var openURL
+    @State private var editing: CalendarDraft?
+    @State private var confirmDelete = false
+    @State private var message: String?
     var body: some View {
+        Button { editing = CalendarDraft(taskID: nil, event: event) } label: { row }
+            .buttonStyle(.plain)
+            .contextMenu {
+                Button("Edit event", systemImage: "pencil") { editing = CalendarDraft(taskID: nil, event: event) }
+                Button("Show in Calendar", systemImage: "calendar") {
+                    if let url = URL(string: "calshow:\(event.startDate.timeIntervalSinceReferenceDate)") { openURL(url) }
+                }
+                Button("Copy text", systemImage: "doc.on.doc") { UIPasteboard.general.string = copyText }
+                Button("Add as a task", systemImage: "checklist") { addTask() }
+                if event.calendar.allowsContentModifications {
+                    Divider()
+                    Button("Delete event", systemImage: "trash", role: .destructive) { confirmDelete = true }
+                }
+            }
+            .accessibilityHint("Opens the event. Touch and hold for more.")
+            .sheet(item: $editing) { draft in CalendarEventEditor(draft: draft).ignoresSafeArea() }
+            .confirmationDialog("Delete \(event.title ?? "this event")?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Delete Event", role: .destructive) { delete() }
+            } message: { Text(event.hasRecurrenceRules ? "Only this occurrence is deleted." : "It is removed from \(event.calendar.title).") }
+            .alert("Calendar", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: { Text(message ?? "") }
+    }
+    private var copyText: String {
+        let when = event.isAllDay ? "All day" : event.startDate.formatted(date: .omitted, time: .shortened) + "–" + event.endDate.formatted(date: .omitted, time: .shortened)
+        return [event.title ?? "Event", when, event.location ?? "", event.notes ?? ""].filter { !$0.isEmpty }.joined(separator: "\n")
+    }
+    /// A to-do for the same day (and time, for a timed event), so prep or follow-up can be ticked off.
+    private func addTask() {
+        let task = PlannerTask(title: event.title ?? "Event", dueDate: event.isAllDay ? Calendar.current.startOfDay(for: event.startDate) : event.startDate, hasTime: !event.isAllDay)
+        if !event.isAllDay { task.durationMinutes = min(1440, max(5, Int(event.endDate.timeIntervalSince(event.startDate) / 60))) }
+        context.insert(task)
+        do { try Mutations.save(context) } catch { message = error.localizedDescription }
+    }
+    private func delete() {
+        do { try CalendarBridge.shared.store.remove(event, span: .thisEvent); CalendarBridge.shared.reload() }
+        catch { message = error.localizedDescription }
+    }
+    private var row: some View {
         HStack(spacing: 12) {
             RoundedRectangle(cornerRadius: 2).fill(Color(cgColor: event.calendar.cgColor)).frame(width: 3)
             VStack(alignment: .leading, spacing: 4) {
@@ -121,6 +171,7 @@ struct CalendarEventRow: View {
             }
             if !typeSize.isAccessibilitySize { Spacer(); timeLabel }
         }.padding(12).frame(minHeight: 60).background(DayTheme.surface, in: RoundedRectangle(cornerRadius: DayTheme.rowRadius, style: .continuous))
+            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: DayTheme.rowRadius, style: .continuous))
     }
     private var timeLabel: some View {
             VStack(alignment: .leading, spacing: 4) {

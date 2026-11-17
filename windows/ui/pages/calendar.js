@@ -588,13 +588,51 @@ $("#event-form").onsubmit = (submit) => {
       : put("events", OrbitCalendarEvents.editRequest(record, changes)),
   );
 };
-$("#delete-event").onclick = () => {
-  const record = editingEvent;
-  if (!record) return;
-  $("#event-editor").close();
-  void action(() =>
+function deleteEventRecord(record) {
+  return action(() =>
     record.provider
       ? api.linkedCalendars({ command: "delete", event: record.id })
       : put("events", OrbitCalendarEvents.deleteRequest(record)),
   );
+}
+$("#delete-event").onclick = () => {
+  const record = editingEvent;
+  if (!record) return;
+  $("#event-editor").close();
+  void deleteEventRecord(record);
 };
+/** Right-click on a calendar event (Today's Coming up): edit, copy, make a task from it, or delete it. */
+function openEventMenu(e) {
+  e.preventDefault();
+  const id = e.currentTarget.dataset.editEvent;
+  const record = rows("events").find((event) => event.id === id) || linked().events.find((event) => event.id === id);
+  const event = record && (record.provider ? record : OrbitCalendarEvents.effective(record));
+  if (!event) return;
+  const writable = eventCalendar(event)?.writable !== false;
+  const day = event.allDay ? event.startDay : dayKey(new Date(event.start));
+  const when = event.allDay ? "All day" : `${calendarTime(event.start)}–${calendarTime(event.end || event.start)}`;
+  const entries = [
+    ["Edit event…", () => openEvent(id)],
+    ["Copy text", () => api.copy([event.title || "Event", when].join("\n"))],
+    [
+      "Add as a task",
+      () => {
+        const task = newTask(event.title || "Event", day);
+        if (!event.allDay) {
+          Object.assign(task, {
+            hasTime: true,
+            dueDate: event.start,
+            durationMinutes: Math.min(
+              1440,
+              Math.max(5, Math.round(((event.end || event.start) - event.start) / 60000)),
+            ),
+          });
+        }
+        return action(() => saveTasks([{ ...task, listID: null }]));
+      },
+    ],
+  ];
+  if (writable) entries.push(["Delete event", () => deleteEventRecord(record)]);
+  const box = e.currentTarget.getBoundingClientRect();
+  showMenu(entries, e.clientX || box.left + 24, e.clientY || box.bottom);
+}

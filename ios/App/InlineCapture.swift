@@ -27,6 +27,44 @@ extension View {
     }
 }
 
+/// Closes the docked capture (and its keyboard) when the person touches anything else in the app: a row,
+/// a card, a tab. The touch still does what it would have done; only touches on the capture itself, or in
+/// another text field, are left alone. One recognizer on the window, active only while a capture is open.
+@MainActor final class CaptureOutsideTap: NSObject, UIGestureRecognizerDelegate {
+    static let shared = CaptureOutsideTap()
+    /// The open capture, in window coordinates, and what to do when something else is touched.
+    var captureFrame: CGRect = .zero
+    var onOutside: (() -> Void)?
+    private weak var installed: UIWindow?
+    private lazy var recognizer: UITapGestureRecognizer = {
+        let tap = UITapGestureRecognizer(target: self, action: #selector(tapped))
+        tap.cancelsTouchesInView = false
+        tap.delaysTouchesBegan = false
+        tap.delaysTouchesEnded = false
+        tap.delegate = self
+        return tap
+    }()
+    func activate(_ onOutside: @escaping () -> Void) {
+        self.onOutside = onOutside
+        guard let window = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene })
+            .flatMap(\.windows).first(where: \.isKeyWindow), installed !== window else { return }
+        installed?.removeGestureRecognizer(recognizer)
+        window.addGestureRecognizer(recognizer)
+        installed = window
+    }
+    func deactivate() { onOutside = nil }
+    @objc private func tapped() { onOutside?() }
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        guard onOutside != nil, let window = touch.window else { return false }
+        if captureFrame.insetBy(dx: -4, dy: -4).contains(touch.location(in: window)) { return false }
+        // Another text field takes focus by itself.
+        var view = touch.view
+        while let current = view { if current is UITextView || current is UITextField { return false }; view = current.superview }
+        return true
+    }
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
+}
+
 /// Capture docked at the bottom of Today, Tasks and Habits; advanced options use the same parser and save
 /// path. The field grows as you type, and past `NoteRules.threshold` characters, `NoteRules.wordLimit` words
 /// (not counting date and time words) or a line break the text becomes a note: the bar unfolds into a note
@@ -47,6 +85,8 @@ struct InlineCapture: View {
     @State private var saving = false
     @State private var error: String?
     @State private var conflicts: [String] = []
+    /// Where the bar is on screen, so touches on it don't count as touching something else.
+    @State private var barFrame: CGRect = .zero
     @State private var confirmConflict = false
     private var result: QuickAddResult {
         var parsed = QuickAdd.parse(text, defaultDay: defaultDay)
@@ -58,9 +98,11 @@ struct InlineCapture: View {
     private var noteCard: Bool { !notesOnly && isNote }
     private var preview: String {
         if isNote { return "Note · General" }
-        let value = QuickAdd.describe(result)
-        guard !value.isEmpty, listID == nil, let suggested = CategorySuggestion.suggest(for: result, in: context) else { return value }
-        return value + " · " + suggested.name
+        var value = QuickAdd.describe(result)
+        guard !value.isEmpty else { return value }
+        if listID == nil, let suggested = CategorySuggestion.suggest(for: result, in: context) { value += " · " + suggested.name }
+        if result.kind == .task, TaskProgress.learned(for: result.title, in: context) == .auto { value += " · Start & finish" }
+        return value
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -112,7 +154,24 @@ struct InlineCapture: View {
             .animation(reduceMotion ? .easeOut(duration: 0.15) : .orbit, value: focused)
             .animation(reduceMotion ? .easeOut(duration: 0.15) : .spring(response: 0.38, dampingFraction: 0.82), value: noteCard)
             .sensoryFeedback(.impact(weight: .light), trigger: noteCard) { _, now in now }
-            .onDisappear { dismissKeyboard() }
+            .background {
+                GeometryReader { geometry in
+                    Color.clear.onChange(of: geometry.frame(in: .global), initial: true) { _, frame in
+                        barFrame = frame
+                        if focused { CaptureOutsideTap.shared.captureFrame = frame }
+                    }
+                }
+            }
+            .onChange(of: focused) { _, now in
+                if now {
+                    CaptureOutsideTap.shared.captureFrame = barFrame
+                    CaptureOutsideTap.shared.activate { dismissKeyboard() }
+                } else { CaptureOutsideTap.shared.deactivate() }
+            }
+            .onDisappear {
+                if focused { CaptureOutsideTap.shared.deactivate() }
+                dismissKeyboard()
+            }
             .sheet(isPresented: $options) { QuickCapture(listID: listID, fromList: listID != nil || defaultDay == .undated, initialText: text, habitsOnly: habitsOnly, onSaved: { text = "" }).presentationDragIndicator(.visible) }
             .confirmationDialog("This time overlaps another plan", isPresented: $confirmConflict, titleVisibility: .visible) {
                 Button("Add anyway") { save(allowConflict: true) }

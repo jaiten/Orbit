@@ -108,9 +108,12 @@ struct OrbitSurface: ViewModifier {
     @Environment(\.colorSchemeContrast) private var contrast
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        content.background(Color.orbitSurface, in: shape)
-            .overlay(shape.strokeBorder(Color.orbitLine.opacity(contrast == .increased ? 1 : 0), lineWidth: 1))
-            .shadow(color: .black.opacity(0.03), radius: 2, y: 1)
+        // The shadow comes from the background shape, not the content: Core Animation can then draw it
+        // from the shape's path instead of rendering every card offscreen on each frame while scrolling.
+        content.background {
+            shape.fill(Color.orbitSurface).shadow(color: .black.opacity(0.03), radius: 2, y: 1)
+        }
+            .overlay { if contrast == .increased { shape.strokeBorder(Color.orbitLine, lineWidth: 1) } }
     }
 }
 extension View {
@@ -264,8 +267,11 @@ struct BoxGrid: View {
     private var rows: Int { timeline.map { (levels.count + $0 - 1) / $0 } ?? (horizontal ? 7 : weeks) }
     @ViewBuilder var body: some View {
         if let maximumCell {
+            // In the app, the cells are flattened into one layer so a page of history scrolls smoothly.
+            // (Widgets pass nil and draw normally.)
             grid.frame(width: maximumCell * CGFloat(columns) + gap * CGFloat(columns - 1),
                        height: maximumCell * CGFloat(rows) + gap * CGFloat(rows - 1))
+                .drawingGroup()
         } else {
             grid.aspectRatio(CGFloat(columns) / CGFloat(rows), contentMode: .fit)
         }

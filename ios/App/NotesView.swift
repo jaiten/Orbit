@@ -93,7 +93,7 @@ struct NotesView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             // The same bottom bar as Today; what you type here becomes a note.
-            .captureDock(scheme) { Button { withAnimation(.orbit) { path.append(.new(section: nil, token: UUID())) } } label: { Label("Write a note", systemImage: "square.and.pencil").frame(maxWidth: .infinity, minHeight: 48) }.orbitSurface(radius: CGFloat(DesignTokens.radiusInput)) }
+            .captureDock(scheme) { WriteNoteBar { withAnimation(.orbit) { path.append(.new(section: nil, token: UUID())) } } }
             .background(DayTheme.canvas(scheme)).tint(accent.fill)
             .navigationTitle("Notes").navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
@@ -140,7 +140,8 @@ struct NotesView: View {
                         }
                     }
                 // + always starts a page here; Manage sections adds, renames, reorders and deletes sections.
-                Button { withAnimation(.orbit) { path.append(.new(section: listID, token: UUID())) } } label: {
+                // A locked section opens with Face ID or the passcode before a page can be added to it.
+                Button { newNote(in: listID, sealed: sealed) } label: {
                     Image(systemName: "plus").font(.system(size: 16, weight: .medium)).frame(width: 44, height: 44)
                 }.foregroundStyle(.secondary).accessibilityLabel("New note in \(name)")
             }.padding(.horizontal, 4)
@@ -191,6 +192,13 @@ struct NotesView: View {
         } catch { context.rollback(); self.error = error.localizedDescription }
     }
 
+    private func newNote(in section: UUID?, sealed: Bool) {
+        guard sealed else { withAnimation(.orbit) { path.append(.new(section: section, token: UUID())) }; return }
+        Task {
+            guard await lock.unlock(reason: "Add a note to this locked section") else { return }
+            withAnimation(.orbit) { path.append(.new(section: section, token: UUID())) }
+        }
+    }
     /// A locked section asks for Face ID or the passcode, then opens with its pages; others just toggle.
     private func openSection(_ id: String, sealed: Bool) {
         guard sealed else { toggle(id); return }
@@ -284,9 +292,12 @@ struct NoteMenuItems: View {
         Button("Delete", systemImage: "trash", role: .destructive) { leave { context.delete(note); try Mutations.save(context) } }
     }
     private func move(_ id: UUID?) {
-        leave {
-            if id == TodayRules.somedayID { try TodayRules.ensureSomeday(context) }
-            note.listID = id; note.updatedAt = .now; try Mutations.save(context)
+        Task {
+            guard await NoteLock.shared.mayWrite(to: id, lists: lists) else { return }
+            leave {
+                if id == TodayRules.somedayID { try TodayRules.ensureSomeday(context) }
+                note.listID = id; note.updatedAt = .now; try Mutations.save(context)
+            }
         }
     }
     private func change(_ action: () throws -> Void) {
@@ -525,7 +536,13 @@ struct NoteEditor: View {
         .onAppear(perform: load)
         .onDisappear { save() }
         .onChange(of: phase) { _, value in if value != .active { save() } }
-        .onChange(of: section) { _, _ in if loaded { save() } }
+        .onChange(of: section) { old, new in
+            guard loaded else { return }
+            // Choosing a locked section asks for Face ID or the passcode; cancelling keeps the old one.
+            Task {
+                if await NoteLock.shared.mayWrite(to: new, lists: lists) { save() } else { section = old }
+            }
+        }
         .onChange(of: icon) { _, _ in if loaded { save() } }
         .sheet(isPresented: $choosingIcon) {
             NoteIconPicker(selection: $icon).presentationDetents([.height(440), .large]).presentationDragIndicator(.visible)
@@ -629,5 +646,25 @@ private struct NotePhotoView: View {
     private func load() async {
         do { image = try await SyncService.shared.loadPhoto(photo.id); failed = false }
         catch { failed = true }
+    }
+}
+
+/// Notes' "Write a note" bar: the same height, shape and shadow as the quick add bar on Today, with its
+/// icon and words where the quick add's are, so the dock looks the same on every tab.
+struct WriteNoteBar: View {
+    @Environment(\.orbitAccent) private var accent
+    var action: () -> Void
+    private var lineHeight: CGFloat { max(44, UIFont.preferredFont(forTextStyle: .title3).lineHeight + 22) }
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: "square.and.pencil").font(.system(size: 20)).foregroundStyle(accent.text).frame(width: 44, height: lineHeight)
+                Text("Write a note").font(.title3).foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+            }.padding(.vertical, 4).frame(maxWidth: .infinity, minHeight: 52, alignment: .leading).contentShape(Rectangle())
+        }.buttonStyle(.plain)
+            .orbitSurface(radius: CGFloat(DesignTokens.radiusInput))
+            .shadow(color: .black.opacity(0.06), radius: 12, y: 3)
+            .accessibilityLabel("Write a note")
     }
 }

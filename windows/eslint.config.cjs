@@ -103,6 +103,7 @@ const shared = Object.fromEntries(
     "calendarEvents",
     "calendarColor",
     "openEvent",
+    "openEventMenu",
     "rowActions",
     "habitCards",
     "OrbitPlanner",

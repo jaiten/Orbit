@@ -317,9 +317,10 @@ function renderAgenda(tasks, allHabits, head = "") {
 
 function bindToday() {
   applyCalendarStyles();
-  document
-    .querySelectorAll(".upcoming-card [data-edit-event]")
-    .forEach((button) => (button.onclick = () => openEvent(button.dataset.editEvent)));
+  document.querySelectorAll(".upcoming-card [data-edit-event]").forEach((button) => {
+    button.onclick = () => openEvent(button.dataset.editEvent);
+    button.oncontextmenu = openEventMenu;
+  });
   document.querySelectorAll("[data-panel-visible]").forEach((toggle) => {
     toggle.onchange = () => {
       const visibility = { heatmap: false, ...JSON.parse(localStorage.getItem("todayPanelVisibility") || "{}") };

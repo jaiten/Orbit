@@ -37,7 +37,9 @@ enum QuickAdd {
     }
 
     /// `now` defaults to the planner clock (DayStart), so "today" and "tomorrow" follow the day start.
-    static func parse(_ input: String, defaultDay: DefaultDay = .today, now: Date = DayStart.shifted(.now), calendar: Calendar = .current) -> QuickAddResult {
+    /// `places` are the @ rules from Settings (CaptureRules): "@mums" lands on the next of those weekdays.
+    static func parse(_ input: String, defaultDay: DefaultDay = .today, now: Date = DayStart.shifted(.now), calendar: Calendar = .current,
+                      places: [CaptureRules.Place] = CaptureRules.places) -> QuickAddResult {
         var text = Text(value: " " + input.trimmingCharacters(in: .whitespacesAndNewlines) + " ")
         let someday = text.take(#"\ssomeday(?=\s)"#) != nil
         let list = text.take(#"\s#([\p{L}\p{N}_-]+)(?=\s)"#)?[1] ?? nil
@@ -65,6 +67,13 @@ enum QuickAdd {
         }
         var date: Date?
         if schedule == nil {
+            for place in places where date == nil && !place.name.isEmpty && !place.days.isEmpty {
+                if text.take(#"\s@"# + NSRegularExpression.escapedPattern(for: place.name) + #"(?=\s)"#) != nil {
+                    date = (0..<7).map { adding(.day, $0) }.first { place.days.contains(calendar.component(.weekday, from: $0) - 1) }
+                }
+            }
+        }
+        if schedule == nil && date == nil {
             if text.take(#"\s(?:on\s+)?(today|tonight)(?=\s)"#) != nil { date = today }
             else if text.take(#"\s(?:on\s+)?(tomorrow|tmrw|tmr)(?=\s)"#) != nil { date = adding(.day, 1) }
             else if let m = text.take(#"\sin\s+(\d+|an?|one|two|three|four|five|six)\s+(day|week|month)s?(?=\s)"#) {

@@ -188,6 +188,7 @@ private struct ProgressSection: View {
             Picker("Overall progress", selection: $range) { Text("Past week").tag(7); Text("Past month").tag(30) }
             Picker("Widget history", selection: $widgetRange) { Text("Past week").tag(7); Text("Past month").tag(30) }
             Text("Recent progress shows the last seven days. To correct a habit check-in, open Habits → History.").font(.footnote).foregroundStyle(.secondary)
+            NavigationLink { CaptureRulesView() } label: { Label("Quick add rules", systemImage: "at") }
         }
         .modifier(MutationErrorModifier(error: $error))
     }
@@ -214,3 +215,45 @@ private struct DataSection: View {
         }
     }
 }
+
+/// Settings → Quick add rules: @ places with their days, and words that always track start & finish.
+/// Syncs to your other devices (CaptureRules).
+struct CaptureRulesView: View {
+    @Environment(\.modelContext) private var context
+    @State private var places = ""
+    @State private var words = ""
+    @State private var error: String?
+    var body: some View {
+        Form {
+            Section {
+                TextEditor(text: $places).font(.body.monospaced()).frame(minHeight: 110)
+                    .autocorrectionDisabled().textInputAutocapitalization(.never)
+                    .accessibilityLabel("Places, one per line")
+            } header: { Text("Places") } footer: {
+                Text("One per line, such as \"mums = Mon, Tue, Wed\" or \"dads = Thu-Sun\". Type @mums in a task to put it on the next of those days.")
+            }
+            Section {
+                TextField("laundry, print, bake", text: $words).autocorrectionDisabled().textInputAutocapitalization(.never)
+            } header: { Text("Always track start & finish") } footer: {
+                Text("Orbit also learns: after you track start & finish on a task, similar tasks suggest it, and from the second time on they start with it. Turn it off on one to teach it otherwise.")
+            }
+        }
+        .orbitFormBackground()
+        .navigationTitle("Quick add rules").navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            places = CaptureRules.placeLines(CaptureRules.places)
+            words = CaptureRules.progressWords.joined(separator: ", ")
+        }
+        .onDisappear(perform: save)
+        .modifier(MutationErrorModifier(error: $error))
+    }
+    private func save() {
+        let parsedPlaces = CaptureRules.parsePlaces(places)
+        let parsedWords = Array(Set(words.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces).lowercased() }.filter { !$0.isEmpty })).sorted()
+        guard parsedPlaces != CaptureRules.places || parsedWords != CaptureRules.progressWords.sorted() else { return }
+        CaptureRules.save(places: parsedPlaces, progressWords: parsedWords)
+        // Saving records the rules for sync.
+        do { try Mutations.save(context, undoable: false) } catch { self.error = error.localizedDescription }
+    }
+}
+

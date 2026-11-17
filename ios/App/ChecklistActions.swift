@@ -13,8 +13,13 @@ struct TaskActions: ViewModifier {
         // A short menu, so the lifted row hardly moves: the everyday actions first, the rest in two groups.
         content.contextMenu {
             if let edit { Button("Edit", systemImage: "pencil", action: edit) }
-            if task.completedAt == nil, let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: PlannerLogic.todayDate), task.day != PlannerLogic.dayKey(tomorrow) {
-                Button("Do Tomorrow", systemImage: "sunrise") { move { TodayRules.moveToDay(task, day: tomorrow); try Mutations.save(context) } }
+            // Do on…: tomorrow, then the next few days by name, to move a task along the week quickly.
+            if task.completedAt == nil {
+                Menu("Do on…", systemImage: "sunrise") {
+                    ForEach(laterDays, id: \.self) { day in
+                        Button(dayName(day)) { move { TodayRules.moveToDay(task, day: day); try Mutations.save(context) } }
+                    }
+                }
             }
             Menu("Start focus timer", systemImage: "timer") {
                 ForEach(FocusSession.options(for: task), id: \.self) { minutes in
@@ -37,12 +42,24 @@ struct TaskActions: ViewModifier {
                 Button("Make It a Habit", systemImage: "repeat") { move { try Conversions.toHabit(task, in: context) } }
                 Button("Make It a Note", systemImage: "doc.text") { move { try NoteRules.makeNote(task, in: context) } }
             }
-            Button("Copy text", systemImage: "doc.on.doc") { UIPasteboard.general.string = task.notes.isEmpty ? task.title : task.title + "\n\n" + task.notes }
+            Button("Copy text", systemImage: "doc.on.doc") {
+                let text = NoteRules.withoutRepeat(title: task.title, notes: task.notes)
+                UIPasteboard.general.string = text.notes.isEmpty ? text.title : text.title + "\n\n" + text.notes
+            }
             Divider()
             Button("Delete", systemImage: "trash", role: .destructive) { move { context.delete(task); try Mutations.save(context) } }
         }
             .sheet(item: $calendarDraft) { CalendarEventEditor(draft: $0).presentationDragIndicator(.visible) }
             .modifier(MutationErrorModifier(error: $error))
+    }
+    /// Tomorrow and the five days after it, leaving out the day the task is already on.
+    private var laterDays: [Date] {
+        (1...6).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: PlannerLogic.todayDate) }
+            .filter { PlannerLogic.dayKey($0) != task.day }
+    }
+    private func dayName(_ day: Date) -> String {
+        Calendar.current.isDate(day, inSameDayAs: Calendar.current.date(byAdding: .day, value: 1, to: PlannerLogic.todayDate) ?? .distantPast)
+            ? "Tomorrow" : day.formatted(.dateTime.weekday(.wide))
     }
     /// A timer means the task is under way.
     private func startTimer(_ minutes: Int) {

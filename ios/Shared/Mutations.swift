@@ -12,6 +12,7 @@ import WidgetKit
             let after = try SyncRecords.snapshots(context)
             try SyncRecords.capture(context, snapshots: after, entries: entries); try context.save()
             if undoable { UndoJournal.shared.record(before: before, after: after, kind: undoKind) }
+            TaskProgress.forget()
             WidgetCenter.shared.reloadAllTimelines(); NotificationCenter.default.post(name: .init("OrbitLocalChange"), object: nil)
         }
         catch { context.rollback(); throw error }

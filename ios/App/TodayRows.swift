@@ -35,8 +35,9 @@ private struct RowChrome: ViewModifier {
     @Environment(\.colorSchemeContrast) private var contrast
     @ViewBuilder func body(content: Content) -> some View {
         if enabled {
-            content.overlay(shape.strokeBorder(Color.orbitLine.opacity(contrast == .increased ? 1 : 0), lineWidth: 1))
-                .shadow(color: .black.opacity(0.03), radius: 2, y: 1)
+            // Shadow from the shape's path (cheap while scrolling), not from the row's content.
+            content.background { shape.fill(Color.orbitSurface).shadow(color: .black.opacity(0.03), radius: 2, y: 1) }
+                .overlay { if contrast == .increased { shape.strokeBorder(Color.orbitLine, lineWidth: 1) } }
         } else { content }
     }
 }
@@ -231,7 +232,8 @@ struct TaskRow: View {
             options.append(TileMove(title: "Turn off start & finish") { change { try Mutations.setProgress(task, enabled: false, in: context) } })
             return options
         }
-        guard task.progressTracking == nil && TaskProgress.suggests(task.title) else { return [] }
+        guard task.progressTracking == nil,
+              TaskProgress.suggests(task.title) || TaskProgress.learned(for: task.title, excluding: task.id, in: context) == .suggest else { return [] }
         return [TileMove(title: "Track start & finish") { change { try Mutations.setProgress(task, enabled: true, in: context) } },
                 TileMove(title: "No thanks") { change { try Mutations.setProgress(task, enabled: false, in: context) } }]
     }

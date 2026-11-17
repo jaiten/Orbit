@@ -64,6 +64,10 @@ import SwiftData
         if DayStart.updatedAt > 0 {
             try add("preferences", DayStart.recordID.uuidString.lowercased(), ["id": id(DayStart.recordID), "dayStartMinutes": DayStart.minutes, "updatedAt": DayStart.updatedAt])
         }
+        // Quick add rules (@ places, start & finish words), likewise only once someone has set them.
+        if CaptureRules.updatedAt > 0 {
+            try add("preferences", CaptureRules.recordID.uuidString.lowercased(), CaptureRules.payload.merging(["id": id(CaptureRules.recordID)]) { $1 })
+        }
         for i in try context.fetch(FetchDescriptor<IdeaPrompt>()).filter({ !$0.isDeleted && !pendingDeletions.contains($0.persistentModelID) }) { try add("idea_prompts", i.id.uuidString.lowercased(), ["id": id(i.id), "text": i.text, "shownAt": stamp(i.shownAt), "dismissed": i.dismissed, "updatedAt": stamp(i.updatedAt)]) }
         return result
     }
@@ -132,6 +136,7 @@ import SwiftData
             let old = try context.fetch(FetchDescriptor<TaskList>()).first { $0.id == uuid }; if deleted { if let old { context.delete(old) }; return }
             let l = old ?? TaskList(name: p["name"] as? String ?? "List"); if old == nil { l.id = uuid; context.insert(l) }; l.kind = p["kind"] as? String; l.locked = (p["locked"] as? Bool) == true ? true : nil; l.hidden = (p["hidden"] as? Bool) == true ? true : nil; l.name = p["name"] as? String ?? l.name; l.color = p["color"] as? String ?? "sage"; l.sortOrder = p["sortOrder"] as? Int ?? 0; l.updatedAt = date("updatedAt") ?? .now
         case "preferences":
+            if uuid == CaptureRules.recordID { if !deleted { CaptureRules.receive(p) }; return }
             guard uuid == DayStart.recordID else { return }
             if !deleted { DayStart.receive(minutes: p["dayStartMinutes"] as? Int, updatedAt: p["updatedAt"] as? Double ?? 0) }
         case "idea_prompts":

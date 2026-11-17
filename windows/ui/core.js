@@ -902,7 +902,8 @@ function openRowMenu(e) {
   const [kind, id] = (e.currentTarget.dataset.rowMenu || "note:" + e.currentTarget.dataset.noteMenu).split(":");
   const item = rows(kind === "habit" ? "habits" : "tasks").find((r) => r.id === id);
   if (!item) return;
-  const text = [item.title, item.notes?.trim()].filter(Boolean).join("\n\n");
+  const clean = kind === "task" ? OrbitNotes.withoutRepeat(item.title, item.notes) : item;
+  const text = [clean.title, clean.notes?.trim()].filter(Boolean).join("\n\n");
   const entries = [
     [
       "Copy text",

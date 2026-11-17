@@ -19,6 +19,8 @@ import SwiftData
             let start = result.date.flatMap { QuickAdd.start(of: $0, time: result.time) }
             let task = PlannerTask(title: result.title, dueDate: start, hasTime: start != nil && result.time != nil, listID: try list(for: result, viewing: listID, in: context))
             task.notes = notes
+            // Start & finish, learned from similar earlier tasks (or a rule word): on from the second time.
+            if TaskProgress.learned(for: result.title, in: context) == .auto { task.progressTracking = true }
             context.insert(task)
             if task.listID == TodayRules.somedayID { try TodayRules.moveToSomeday(task, in: context) }
         }
