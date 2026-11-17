@@ -121,6 +121,16 @@ function openDialog(dialog) {
   });
   if (!dialog.open) dialog.showModal();
 }
+/** Editors open with the cursor at the end of the title, ready to type (not on the × button). */
+function focusTitle(dialog) {
+  requestAnimationFrame(() => {
+    const field = dialog.querySelector('[name="title"]');
+    if (!field || field.disabled || !dialog.open) return;
+    field.focus({ preventScroll: true });
+    const end = field.value.length;
+    field.setSelectionRange?.(end, end);
+  });
+}
 let actionBusy = false;
 async function action(fn) {
   if (actionBusy) return;
@@ -392,7 +402,7 @@ function habitDetail(h, date = today()) {
 const pencil =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15z"/></svg>';
 const plus = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
-const HABIT_COLORS = ["sage", "lavender", "honey", "clay"];
+const HABIT_COLORS = ["sage", "lavender", "honey", "clay", "teal", "rose", "blue", "plum"];
 const colorName = (c) => (HABIT_COLORS.includes(c) ? c : "sage");
 /** Default colour for a new habit, so habits mix (OrbitHabits.nextColor); `extra` are colours about to be added. */
 const nextHabitColor = (extra = []) =>

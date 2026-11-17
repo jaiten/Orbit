@@ -156,7 +156,7 @@ struct TodayView: View {
                         .font(.subheadline.weight(.medium)).frame(minHeight: 44)
                 }
             } else {
-                checklistSection("Habits", note: "", items: open.map { TodayItem(habit: $0) }, counts: today.counts, empty: "All habits checked for today.")
+                checklistSection("Habits", note: "", items: Self.habitItems(open), counts: today.counts, empty: "All habits checked for today.")
             }
             // Counters have no target, so they stay here all day and out of the plan.
             if !counters.isEmpty {
@@ -230,7 +230,28 @@ struct TodayView: View {
         }
     }
 
+    /// Today's habits, daily first, then weekly and monthly ones, each set marked by a small caption rather
+    /// than its own heading, so the card stays compact. With only one kind there are no captions.
+    static func habitItems(_ habits: [Habit]) -> [TodayItem] {
+        let groups: [(String, [Habit])] = [("", habits.filter { HabitRules.period($0.frequencyRule) == nil }),
+                                           ("This week", habits.filter { HabitRules.period($0.frequencyRule) == "week" }),
+                                           ("This month", habits.filter { HabitRules.period($0.frequencyRule) == "month" })]
+            .filter { !$0.1.isEmpty }
+        var items: [TodayItem] = []
+        for (caption, members) in groups {
+            for (index, habit) in members.enumerated() {
+                items.append(TodayItem(habit: habit, caption: groups.count > 1 && index == 0 && !caption.isEmpty ? caption : nil))
+            }
+        }
+        return items
+    }
+
     @ViewBuilder private func itemView(_ item: TodayItem, counts: [UUID: [String: Int]]) -> some View {
+        if let caption = item.caption {
+            Text(caption.uppercased()).font(.caption2.weight(.semibold)).tracking(0.4).foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 16).padding(.top, 8).padding(.bottom, 2)
+                .accessibilityAddTraits(.isHeader)
+        }
         if let task = item.task {
             TaskRow(task: task, tapChecks: true) { editing = task }
         }

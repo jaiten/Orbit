@@ -6,12 +6,22 @@ function renderHabits(habits) {
   if (!habits.length)
     return `<div class="narrow habits-page">${head}<div class="empty-state"><svg class="doc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m17 2 4 4-4 4M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3"/></svg><p><strong>No habits yet</strong><br />Add one, or type “read every day” anywhere.</p></div><div class="capture-dock">${addField("Add a habit")}</div></div>`;
   return `<div class="narrow habits-page">${head}
-    ${regular.length ? `<div class="check-list">${habitCards(regular)}</div>` : ""}
+    ${habitPeriods(regular)
+      .map(({ name, note, items }) => sectionLabel(name, note) + `<div class="check-list">${habitCards(items)}</div>`)
+      .join("")}
     ${counters.length ? sectionLabel("Counters", "Click to add one · right-click to take one off") + `<div class="check-list counter-list">${counters.map((h) => counterCard(h)).join("")}</div>` : ""}
     <div class="capture-dock">${addField("Add a habit")}</div>
   </div>`;
 }
 
+/** Habits grouped by how often they repeat: Daily (incl. weekdays and weekends), Weekly, Monthly. Empty groups go. */
+function habitPeriods(habits) {
+  return [
+    { name: "Daily", note: "Each day", items: habits.filter((h) => !OrbitHabits.period(h)) },
+    { name: "Weekly", note: "Times this week", items: habits.filter((h) => OrbitHabits.period(h) === "week") },
+    { name: "Monthly", note: "Times this month", items: habits.filter((h) => OrbitHabits.period(h) === "month") },
+  ].filter((group) => group.items.length);
+}
 /** "5 of the last 7 days" as seven rounded segments with weekday letters. Unscheduled days are outlined. */
 function weekSegments(h, end = today()) {
   const cells = Array.from({ length: 7 }, (_, i) => {

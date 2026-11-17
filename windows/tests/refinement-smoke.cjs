@@ -245,7 +245,7 @@ const fs = require("node:fs");
   assert.equal(await p.locator('#habit-form input[name="icon"]').inputValue(), "drop");
   assert.equal(await p.getByRole("combobox", { name: "Habit icon" }).count(), 0);
   await p.getByRole("combobox", { name: "Colour", exact: true }).click();
-  assert.equal(await p.locator("#habit-colour-options .colour-swatch").count(), 4);
+  assert.equal(await p.locator("#habit-colour-options .colour-swatch").count(), 8);
   await p.getByRole("option", { name: "Lavender", exact: true }).click();
   assert.equal(await p.locator("#habit-colour .swatch-lavender").count(), 1);
   await p.getByRole("combobox", { name: "Repeats", exact: true }).click();

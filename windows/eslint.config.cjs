@@ -106,6 +106,8 @@ const shared = Object.fromEntries(
     "calendarColor",
     "openEvent",
     "openEventMenu",
+    "focusTitle",
+    "habitPeriods",
     "historyButtonsHTML",
     "paintHistoryButtons",
     "historyState",

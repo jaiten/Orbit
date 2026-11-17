@@ -25,12 +25,16 @@ struct HabitsView: View {
                     // Every habit's check-ins are read from the logs once, not once for each row.
                     let counts = PlannerLogic.countsByHabit(logs)
                     let regular = habits.filter { !$0.isCounter }, counters = habits.filter(\.isCounter)
-                    VStack(spacing: DayTheme.rowSpacing(compact: compactRows, typeSize: typeSize)) {
-                        ForEach(regular) { habit in
-                            HabitRow(habit: habit, counts: counts[habit.id] ?? [:], date: PlannerLogic.todayDate, edit: { editing = habit })
-                                .transition(.orbitRow)
-                        }
-                    }.animation(reduceMotion ? nil : .orbitFold, value: regular.map(\.id))
+                    // Grouped by how often they repeat: Daily (with weekdays and weekends), Weekly, Monthly.
+                    ForEach(Self.periods(regular), id: \.name) { group in
+                        SectionLabel(title: group.name, note: group.note)
+                        VStack(spacing: DayTheme.rowSpacing(compact: compactRows, typeSize: typeSize)) {
+                            ForEach(group.habits) { habit in
+                                HabitRow(habit: habit, counts: counts[habit.id] ?? [:], date: PlannerLogic.todayDate, edit: { editing = habit })
+                                    .transition(.orbitRow)
+                            }
+                        }.animation(reduceMotion ? nil : .orbitFold, value: group.habits.map(\.id))
+                    }
                     // Counters: no target, one more on every tap.
                     if !counters.isEmpty {
                         SectionLabel(title: "Counters", note: "Tap to add one")
@@ -49,6 +53,18 @@ struct HabitsView: View {
                 .sheet(isPresented: $adding) { HabitEditor().presentationDragIndicator(.visible) }
                 .sheet(isPresented: $addingCounter) { HabitEditor(startsAsCounter: true).presentationDragIndicator(.visible) }.sheet(item: $editing) { HabitEditor(habit: $0).presentationDragIndicator(.visible) }
         }
+    }
+}
+
+extension HabitsView {
+    struct PeriodGroup { let name: String; let note: String; let habits: [Habit] }
+    /// Daily (with weekdays and weekends), Weekly and Monthly habits; empty groups are left out.
+    /// Same groups as the Habits page on Windows.
+    static func periods(_ habits: [Habit]) -> [PeriodGroup] {
+        [PeriodGroup(name: "Daily", note: "Each day", habits: habits.filter { HabitRules.period($0.frequencyRule) == nil }),
+         PeriodGroup(name: "Weekly", note: "Times this week", habits: habits.filter { HabitRules.period($0.frequencyRule) == "week" }),
+         PeriodGroup(name: "Monthly", note: "Times this month", habits: habits.filter { HabitRules.period($0.frequencyRule) == "month" })]
+            .filter { !$0.habits.isEmpty }
     }
 }
 
@@ -204,13 +220,15 @@ struct HabitEditor: View {
     @State private var nudge = Date.now
     @State private var error: String?
     @State private var confirmDelete = false
+    /// The title takes the cursor when the editor opens, ready to type.
+    @FocusState private var titleFocused: Bool
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Title", text: $title).accessibilityIdentifier("habit-title-input")
+                    TextField("Title", text: $title).focused($titleFocused).accessibilityIdentifier("habit-title-input")
                     Picker("Type", selection: $counter) { Text("Habit").tag(false); Text("Counter").tag(true) }
-                    Picker("Color", selection: $color) { ForEach(DayTheme.colors, id: \.self) { Text($0.capitalized).tag($0) } }
+                    Picker("Color", selection: $color) { ForEach(DayTheme.colors, id: \.self) { Text($0 == "clay" ? "Coral" : $0.capitalized).tag($0) } }
                     Picker("Icon", selection: $icon) {
                         Label("Automatic", systemImage: ItemIcons.suggested(for: title)).tag("automatic")
                         ForEach(ItemIcons.all) { Label($0.name, systemImage: $0.id).tag($0.id) }
@@ -240,6 +258,7 @@ struct HabitEditor: View {
                     reminderEnabled = habit.reminderMinutes != nil; nudgeEnabled = habit.nudgeMinutes != nil
                     reminder = time(habit.reminderMinutes ?? 540); nudge = time(habit.nudgeMinutes ?? 1200)
                 }.modifier(MutationErrorModifier(error: $error))
+                .task { try? await Task.sleep(for: .milliseconds(350)); titleFocused = true }
                 .confirmationDialog("Delete this habit and its history?", isPresented: $confirmDelete, titleVisibility: .visible) {
                     Button("Delete habit", role: .destructive) {
                         guard let habit else { return }

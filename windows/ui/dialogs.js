@@ -35,6 +35,7 @@ function openTask(id, date, draft = null, { expanded = false } = {}) {
     section.open = expanded || (index === 0 && !editing && page === "calendar");
   });
   openDialog($("#editor"));
+  focusTitle($("#editor"));
 }
 
 function updateTargetLabel() {
@@ -99,6 +100,10 @@ function habitPickers() {
       ["lavender", "Lavender"],
       ["clay", "Coral"],
       ["honey", "Honey"],
+      ["teal", "Teal"],
+      ["rose", "Rose"],
+      ["blue", "Blue"],
+      ["plum", "Plum"],
     ],
     form.elements.color.value,
     { swatches: true },
@@ -150,6 +155,7 @@ function openHabit(id, draft = null) {
   $("#delete-habit").hidden = !editingHabit;
   updateHabitKind();
   openDialog($("#habit-editor"));
+  focusTitle($("#habit-editor"));
 }
 
 async function moveItem(entity, source) {

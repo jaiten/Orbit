@@ -32,7 +32,7 @@ enum DayTheme {
     /// Text and links in the accent colour, at 4.5:1 contrast in both appearances.
     static func accentText(_ name: String) -> Color { Color(DesignTokens.accentText[name] ?? DesignTokens.accentText["coral"]!) }
     // Habit and list palette keeps its stored names.
-    static let colors = ["sage", "clay", "lavender", "honey"]
+    static let colors = ["sage", "clay", "lavender", "honey", "teal", "rose", "blue", "plum"]
     static func color(_ name: String) -> Color { Color(hex: DesignTokens.palette[name] ?? DesignTokens.palette["sage"]!) }
     static func canvas(_ scheme: ColorScheme) -> Color { Color(hex: scheme == .dark ? DesignTokens.canvas.dark : DesignTokens.canvas.light) }
     static let surface = Color(DesignTokens.surface)

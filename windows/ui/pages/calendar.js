@@ -553,6 +553,7 @@ function openEvent(id) {
   $("#save-event").hidden = !writable;
   syncEventFields();
   openDialog($("#event-editor"));
+  focusTitle($("#event-editor"));
 }
 function syncEventFields() {
   const allDay = $("#event-form").allDay.checked;

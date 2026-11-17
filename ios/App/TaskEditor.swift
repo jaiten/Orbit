@@ -10,6 +10,8 @@ struct TaskEditor: View {
     var initialDate: Date?
     @State private var title = ""
     @State private var notes = ""
+    /// The title takes the cursor when the editor opens, ready to type.
+    @FocusState private var titleFocused: Bool
     @State private var progressTracking = false
     @State private var listID: UUID?
     @State private var scheduled = false
@@ -30,7 +32,7 @@ struct TaskEditor: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Title", text: $title, axis: .vertical).font(.title3).accessibilityIdentifier("task-title-input")
+                    TextField("Title", text: $title, axis: .vertical).font(.title3).focused($titleFocused).accessibilityIdentifier("task-title-input")
                     TextField("Notes", text: $notes, axis: .vertical).lineLimit(3...8)
                     Picker("List", selection: $listID) {
                         Text("Inbox").tag(nil as UUID?)
@@ -105,6 +107,8 @@ struct TaskEditor: View {
                 Button("Change time", role: .cancel) {}
             } message: { Text(conflicts.joined(separator: ", ")) }
             .onAppear(perform: populate).modifier(MutationErrorModifier(error: $error))
+            // After the sheet has risen, so the keyboard doesn't fight its animation.
+            .task { try? await Task.sleep(for: .milliseconds(350)); titleFocused = true }
             .confirmationDialog("Delete this task?", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Delete task", role: .destructive) { guard let task else { return }; context.delete(task); persistAndClose() }
             }

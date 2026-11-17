@@ -173,6 +173,25 @@ function compactHabit(h) {
     <button class="row-line habit-log" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-day="${today()}" data-habit-menu="${id}">${tick(done, poppedID === h.id)}<span class="row-title">${title}</span><span class="row-detail ${done ? "met" : ""}">${progress(h)} of ${h.target}</span></button>
   </div>`;
 }
+/**
+ * Today's habits, daily first, then weekly and monthly ones under a small caption ("This week"), so they
+ * read as groups without taking a heading's room. With only one kind there are no captions.
+ */
+function compactHabitGroups(habits) {
+  const groups = [
+    ["", habits.filter((h) => !OrbitHabits.period(h))],
+    ["This week", habits.filter((h) => OrbitHabits.period(h) === "week")],
+    ["This month", habits.filter((h) => OrbitHabits.period(h) === "month")],
+  ].filter(([, items]) => items.length);
+  const captions = groups.length > 1;
+  return groups
+    .map(
+      ([caption, items]) =>
+        (captions && caption ? `<div class="habit-period-caption" aria-hidden="true">${caption}</div>` : "") +
+        items.map(compactHabit).join(""),
+    )
+    .join("");
+}
 function renderToday(tasks, allHabits) {
   // Today: dated today or earlier and still open, or finished today. Undated and Someday items stay in Notes.
   // Today is always the current day; past days are reviewed in Calendar.
@@ -227,7 +246,7 @@ function renderToday(tasks, allHabits) {
         ${todayPanel("upcoming", upcomingCard(tasks))}
         ${todayPanel("recent", recentProgressCard(tasks, allHabits))}
         ${todayPanel("plan", planCard(done, total))}
-        ${todayPanel("habits", `<section class="card habits-compact-card">${habits.length || !counters.length ? sectionLabel("Habits", `${habitsDone} of ${habits.length}`) + `<div class="check-list compact-habits">${habits.map(compactHabit).join("")}</div>` : ""}${counters.length ? sectionLabel("Counters", "Click to add one") + `<div class="check-list compact-habits compact-counters">${counters.map((h) => counterCard(h, { compact: true })).join("")}</div>` : ""}</section>`, habits.length + counters.length > 6 ? "main" : "side")}
+        ${todayPanel("habits", `<section class="card habits-compact-card">${habits.length || !counters.length ? sectionLabel("Habits", `${habitsDone} of ${habits.length}`) + `<div class="check-list compact-habits">${compactHabitGroups(habits)}</div>` : ""}${counters.length ? sectionLabel("Counters", "Click to add one") + `<div class="check-list compact-habits compact-counters">${counters.map((h) => counterCard(h, { compact: true })).join("")}</div>` : ""}</section>`, habits.length + counters.length > 6 ? "main" : "side")}
         ${todayPanel("heatmap", overallProgressCard(tasks, allHabits))}
       </aside>
     </div>

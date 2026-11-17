@@ -4,6 +4,8 @@ import SwiftData
 struct TodayItem: Identifiable {
     var task: PlannerTask? = nil
     var habit: Habit? = nil
+    /// A small caption above the row ("This week"), where Today's habits move from daily to weekly or monthly.
+    var caption: String? = nil
     var id: String { task.map { "task-" + $0.id.uuidString } ?? "habit-" + habit!.id.uuidString }
 }
 

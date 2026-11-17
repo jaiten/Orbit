@@ -155,7 +155,7 @@
       schedule(habit)
     ];
   }
-  const COLORS = ["sage", "lavender", "clay", "honey"];
+  const COLORS = ["sage", "lavender", "clay", "honey", "teal", "rose", "blue", "plum"];
   /**
    * A new habit's default colour, so habits mix: the least used so far, never the newest habit's,
    * trying colours in order after the newest one. `existing` is habit colours, oldest first.

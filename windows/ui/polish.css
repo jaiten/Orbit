@@ -2114,3 +2114,100 @@ textarea.title-field {
 #habit-editor .habit-field[hidden] {
   display: none;
 }
+
+/* The newer habit colours (Teal, Rose, Blue, Plum): every place the first four have a rule. */
+.teal {
+  --hue: var(--teal);
+}
+.list-dot.teal,
+.dot.teal {
+  background: var(--hue);
+}
+.box-grid.fill-teal,
+.week-segments.fill-teal,
+.mini-bar.fill-teal,
+.celebration-burst.fill-teal,
+.count-days.fill-teal {
+  --fill: var(--teal);
+}
+.compact-habits .habit-teal,
+.counter-row.habit-teal {
+  --habit-color: var(--teal);
+}
+.swatch-teal {
+  background: var(--teal);
+}
+.rose {
+  --hue: var(--rose);
+}
+.list-dot.rose,
+.dot.rose {
+  background: var(--hue);
+}
+.box-grid.fill-rose,
+.week-segments.fill-rose,
+.mini-bar.fill-rose,
+.celebration-burst.fill-rose,
+.count-days.fill-rose {
+  --fill: var(--rose);
+}
+.compact-habits .habit-rose,
+.counter-row.habit-rose {
+  --habit-color: var(--rose);
+}
+.swatch-rose {
+  background: var(--rose);
+}
+.blue {
+  --hue: var(--blue);
+}
+.list-dot.blue,
+.dot.blue {
+  background: var(--hue);
+}
+.box-grid.fill-blue,
+.week-segments.fill-blue,
+.mini-bar.fill-blue,
+.celebration-burst.fill-blue,
+.count-days.fill-blue {
+  --fill: var(--blue);
+}
+.compact-habits .habit-blue,
+.counter-row.habit-blue {
+  --habit-color: var(--blue);
+}
+.swatch-blue {
+  background: var(--blue);
+}
+.plum {
+  --hue: var(--plum);
+}
+.list-dot.plum,
+.dot.plum {
+  background: var(--hue);
+}
+.box-grid.fill-plum,
+.week-segments.fill-plum,
+.mini-bar.fill-plum,
+.celebration-burst.fill-plum,
+.count-days.fill-plum {
+  --fill: var(--plum);
+}
+.compact-habits .habit-plum,
+.counter-row.habit-plum {
+  --habit-color: var(--plum);
+}
+.swatch-plum {
+  background: var(--plum);
+}
+
+/* Today: a quiet caption over weekly and monthly habits, instead of a heading. */
+.compact-habits .habit-period-caption {
+  margin: 6px 0 0 4px;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
