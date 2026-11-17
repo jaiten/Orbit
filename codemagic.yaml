@@ -62,14 +62,6 @@ workflows:
           security list-keychains -d user -s "$KEYCHAIN_PATH"
           python3 scripts/prepare_testflight.py
           xcodegen generate --spec ios/signing-project.json --project ios
-      - name: Unit tests
-        script: |
-          [ "${SKIP_BUILD:-}" = 1 ] && exit 0
-          set -o pipefail
-          cd ios && xcodegen generate && cd ..
-          DEVICE=$(xcrun simctl list devices available | grep -m1 -oE 'iPhone [0-9]+[^(]*\(([0-9A-F-]{36})\)' | grep -oE '[0-9A-F-]{36}')
-          xcodebuild test -project ios/Orbit.xcodeproj -scheme Orbit -destination "id=$DEVICE" -only-testing:OrbitTests -quiet
-          xcodegen generate --spec ios/signing-project.json --project ios
       - name: Make sure an iOS simulator runtime is ready
         # Xcode's asset compiler (actool) uses an iOS simulator runtime to thin images, and can hang without one.
         script: |
@@ -80,6 +72,14 @@ workflows:
             xcodebuild -downloadPlatform iOS
           fi
           xcrun simctl list devices available | head -5
+      - name: Unit tests
+        script: |
+          [ "${SKIP_BUILD:-}" = 1 ] && exit 0
+          set -o pipefail
+          cd ios && xcodegen generate && cd ..
+          DEVICE=$(xcrun simctl list devices available | grep -m1 -oE 'iPhone [0-9]+[^(]*\(([0-9A-F-]{36})\)' | grep -oE '[0-9A-F-]{36}')
+          xcodebuild test -project ios/Orbit.xcodeproj -scheme Orbit -destination "id=$DEVICE" -only-testing:OrbitTests -quiet
+          xcodegen generate --spec ios/signing-project.json --project ios
       - name: Archive signed app and widget
         # Fails fast instead of using up minutes if the archive hangs (it normally takes 5-10 minutes).
         script: |
