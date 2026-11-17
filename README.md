@@ -56,7 +56,7 @@ progress shows the last seven days, and earlier days are reviewed in Calendar. H
 Today log with one click anywhere on the row. A menu hides or shows completed tasks.
 Open tasks from earlier days simply stay on Today with the rest; there is no Overdue
 section, label or move prompt, so you move them yourself when you like. Touch and hold (right-click on Windows) any
-open task for **Do Tomorrow** and a timer of a chosen length. On Windows, clicking an empty spot
+open task for **Do on…** (tomorrow or any of the next few days, by name) and a timer of a chosen length. On Windows, clicking an empty spot
 in Calendar's Any time row starts typing a task for that day, and pages widen with the window. The calendar button beside the writing bar opens the full task editor. Tasks is
 grouped the same on both apps: Someday first, then tasks without a category by Today
 (including earlier days) / Upcoming, then each category. A new task with no category takes the category of
@@ -127,10 +127,28 @@ stays where it is for about a third of a second (longer while you keep ticking o
 away and appears under Completed; tap it again inside that pause to take the tick back. On iPhone,
 swipe a task, habit or note left a little for Delete, or all the way to delete in one motion (Undo
 brings it back); swipe right to edit it (or open the note). Touch and hold lifts the row as a card
-with a short menu: Edit, Do Tomorrow, Start focus timer, **Move** (Add to Today, Move to Someday),
+with a short menu: Edit, Do on… (tomorrow and the next few days), Start focus timer, **Move** (Add to Today, Move to Someday),
 **More** (Mark in progress, Send to calendar, Make It a Habit, Make It a Note), Copy text and
 Delete. On Windows, dragging a task in Calendar's week and day views outlines the time it will
 land on, and it can be dropped on a time that already has something.
+
+**Quick add rules** (Settings, synced): list places with their days, such as `mums = Mon, Tue, Wed`,
+and type `@mums` in a task to put it on the next of those days this week. Start & finish is learned:
+after you track it on a task, a similar new task suggests it, and from the second time on it starts
+tracked (turning it off on one teaches it otherwise); words listed in the rules always turn it on.
+On Windows, Ctrl+Shift+Enter adds a task even when long text would otherwise make a note.
+
+**Selecting and undo on Windows.** Ctrl-click selects rows (tasks, notes and habits), Shift-click
+selects a run of them, and Ctrl+C copies the selection as a list; the pencil and bin still edit
+and delete while selecting. Undo and Redo sit at the top of the window and walk back and forward
+through every change made on the PC (Ctrl+Z, Ctrl+Y); deletes and moves also show the Undo toast.
+
+**Calendar events on Today** open on tap or click; touch and hold (right-click on Windows) for
+Edit, Copy text, Add as a task and Delete event (and Show in Calendar on iPhone).
+
+**Accents and milestones.** Nine accent colours: Coral, Sage and Blue to start with, and six
+(Lavender, Teal, Honey, Rose, Plum, Midnight) unlocked by badges, out of 17 milestones in all
+([shared/rewards.json](shared/rewards.json)).
 
 **Notes** replaces Lists. Notes are titled pages grouped into sections (Personal,
 Work, Someday…); open one to edit it as a page with a large title, a Section property and
