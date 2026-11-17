@@ -3,7 +3,8 @@
 # GitHub first (scripts/defer_to_github.py): if GitHub's iOS run got a runner, GitHub has it and this build
 # stops after a minute or so; if GitHub can't run it (no minutes, no runner), this cancels GitHub's queued run
 # and builds and uploads here instead. Both use scripts/prepare_testflight.py, so build numbers keep rising
-# whichever one builds. Setup: docs/testflight.md, "Codemagic".
+# whichever one builds. It doesn't wait for Apple to finish processing the upload (Apple emails when it has),
+# to save minutes. Setup: docs/testflight.md, "Codemagic".
 workflows:
   testflight:
     name: TestFlight
@@ -69,10 +70,24 @@ workflows:
           DEVICE=$(xcrun simctl list devices available | grep -m1 -oE 'iPhone [0-9]+[^(]*\(([0-9A-F-]{36})\)' | grep -oE '[0-9A-F-]{36}')
           xcodebuild test -project ios/Orbit.xcodeproj -scheme Orbit -destination "id=$DEVICE" -only-testing:OrbitTests -quiet
           xcodegen generate --spec ios/signing-project.json --project ios
+      - name: Make sure an iOS simulator runtime is ready
+        # Xcode's asset compiler (actool) uses an iOS simulator runtime to thin images, and can hang without one.
+        script: |
+          [ "${SKIP_BUILD:-}" = 1 ] && exit 0
+          xcrun simctl list runtimes
+          if ! xcrun simctl list runtimes | grep -q "^iOS"; then
+            echo "No iOS simulator runtime installed: downloading it."
+            xcodebuild -downloadPlatform iOS
+          fi
+          xcrun simctl list devices available | head -5
       - name: Archive signed app and widget
+        # Fails fast instead of using up minutes if the archive hangs (it normally takes 5-10 minutes).
         script: |
           [ "${SKIP_BUILD:-}" = 1 ] && exit 0
           set -o pipefail
+          ( sleep 1200; echo "Archive took over 20 minutes: stopping it."; pkill -f "xcodebuild archive" ) &
+          WATCHDOG=$!
+          trap 'kill $WATCHDOG 2>/dev/null' EXIT
           xcodebuild archive -project ios/Orbit.xcodeproj -scheme Orbit -configuration Release -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Orbit.xcarchive"
       - name: Export App Store package
         script: |
@@ -83,10 +98,6 @@ workflows:
           [ "${SKIP_BUILD:-}" = 1 ] && exit 0
           set -euo pipefail
           xcrun altool --upload-app --type ios --file "$RUNNER_TEMP/export/Orbit.ipa" --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
-      - name: Verify Apple finished processing this build
-        script: |
-          [ "${SKIP_BUILD:-}" = 1 ] && exit 0
-          python3 scripts/wait_for_testflight.py
       - name: Remove signing material
         script: |
           [ "${SKIP_BUILD:-}" = 1 ] && exit 0
