@@ -384,8 +384,9 @@ function dueOn(h, date = today()) {
 }
 function habitDetail(h, date = today()) {
   const schedule = OrbitHabits.schedule(h);
-  const count = `${progress(h, date)} of ${h.target} ${schedule === "WEEKLY" ? "this week" : "today"}`;
-  return schedule === "DAILY" || schedule === "WEEKLY" ? count : `${OrbitHabits.label(h)} · ${count}`;
+  const unit = OrbitHabits.period(h);
+  const count = `${progress(h, date)} of ${h.target} ${unit ? `this ${unit}` : "today"}`;
+  return schedule === "DAILY" || unit ? count : `${OrbitHabits.label(h)} · ${count}`;
 }
 
 const pencil =

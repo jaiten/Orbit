@@ -73,7 +73,8 @@ struct Subtask: Codable, Identifiable, Equatable {
     var conversionData: String? = nil
     @Attribute(.unique) var id: UUID
     var title: String
-    /// DAILY or WEEKLY; target is completions in the calendar period.
+    /// DAILY, WEEKDAYS, WEEKENDS, WEEKLY or MONTHLY (or COUNTER); target is completions in the calendar
+    /// period: a day, or the week or month for weekly and monthly habits.
     var frequencyRule: String
     var target: Int
     var color: String

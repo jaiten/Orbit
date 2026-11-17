@@ -210,16 +210,13 @@ struct HabitEditor: View {
                 Section {
                     TextField("Title", text: $title).accessibilityIdentifier("habit-title-input")
                     Picker("Type", selection: $counter) { Text("Habit").tag(false); Text("Counter").tag(true) }
-                    if !counter {
-                        Picker("Repeats", selection: $frequency) { ForEach(HabitRules.schedules, id: \.self) { Text(HabitRules.label($0)).tag($0) } }
-                        Stepper("\(target) \(target == 1 ? "time" : "times") a \(frequency == "WEEKLY" ? "week" : "day")", value: $target, in: 1...1000)
-                    }
                     Picker("Color", selection: $color) { ForEach(DayTheme.colors, id: \.self) { Text($0.capitalized).tag($0) } }
                     Picker("Icon", selection: $icon) {
                         Label("Automatic", systemImage: ItemIcons.suggested(for: title)).tag("automatic")
                         ForEach(ItemIcons.all) { Label($0.name, systemImage: $0.id).tag($0.id) }
                     }
                 }
+                if !counter { howOften }
                 if counter { Section { EmptyView() } footer: { Text("A counter has no target. Each tap adds one for the day, so you can see how often it happens.") } }
                 if !counter { Section {
                     Toggle("Reminder", isOn: $reminderEnabled)
@@ -253,6 +250,30 @@ struct HabitEditor: View {
                         } catch { self.error = error.localizedDescription }
                     }
                 }
+        }
+    }
+    /// How often: a number of times a day, a week or a month; a daily habit can keep to weekdays or weekends.
+    private var howOften: some View {
+        let unit = HabitRules.period(frequency) ?? "day"
+        let perBinding = Binding<String>(get: { unit }, set: { value in
+            withAnimation(.orbit) { frequency = value == "week" ? "WEEKLY" : value == "month" ? "MONTHLY" : "DAILY" }
+        })
+        return Section {
+            Stepper(value: $target, in: 1...1000) {
+                Text("\(target) \(target == 1 ? "time" : "times") a \(unit)").monospacedDigit()
+            }.accessibilityIdentifier("habit-target")
+            Picker("Per", selection: perBinding) {
+                Text("A day").tag("day"); Text("A week").tag("week"); Text("A month").tag("month")
+            }.pickerStyle(.segmented).accessibilityIdentifier("habit-period")
+            if unit == "day" {
+                Picker("On", selection: $frequency) {
+                    Text("Every day").tag("DAILY"); Text("Weekdays").tag("WEEKDAYS"); Text("Weekends").tag("WEEKENDS")
+                }.pickerStyle(.segmented).accessibilityIdentifier("habit-days")
+            }
+        } header: { Text("How often") } footer: {
+            Text(unit == "day"
+                 ? "Shows on Today each \(frequency == "WEEKDAYS" ? "weekday" : frequency == "WEEKENDS" ? "weekend day" : "day") until you have done it \(target == 1 ? "once" : "\(target) times")."
+                 : "Shows on Today until you have done it \(target == 1 ? "once" : "\(target) times") this \(unit), then rests until the next \(unit) starts.")
         }
     }
     private func time(_ minutes: Int) -> Date { Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: .now)! }

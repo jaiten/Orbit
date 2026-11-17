@@ -46,7 +46,7 @@ enum SyncMerge {
         if let notes = payload["notes"] as? String, !notes.isEmpty { lines.append(notes) }
         if let count = payload["count"] as? Int { lines.append("\(count) check-ins") }
         if let day = payload["localDate"] as? String { lines.append("Planned for " + day) }
-        if let frequency = payload["frequencyRule"] as? String { lines.append("\(HabitRules.label(frequency)), \(payload["target"] as? Int ?? 1) \(frequency == "WEEKLY" ? "a week" : "a day")") }
+        if let frequency = payload["frequencyRule"] as? String { lines.append("\(HabitRules.label(frequency)), \(payload["target"] as? Int ?? 1) \(HabitRules.period(frequency).map { "a " + $0 } ?? "a day")") }
         if let completed = payload["completedAt"], !(completed is NSNull) { lines.append("Completed") }
         if let priority = payload["priority"] as? Int, priority > 0 { lines.append("Priority: " + ["Normal", "Low", "Medium", "High"][min(priority, 3)]) }
         if let tags = payload["tags"] as? [String], !tags.isEmpty { lines.append("Tags: " + tags.joined(separator: ", ")) }

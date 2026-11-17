@@ -9,7 +9,9 @@ function versionSummary(p, deleted) {
     p.localDate ? "Planned for " + p.localDate : "",
     p.count !== undefined ? p.count + " check-ins" : "",
     p.completedAt ? "Completed" : "",
-    p.target ? `${OrbitHabits.label(p)}, ${p.target} ${p.frequencyRule === "WEEKLY" ? "a week" : "a day"}` : "",
+    p.target
+      ? `${OrbitHabits.label(p)}, ${p.target} ${{ WEEKLY: "a week", MONTHLY: "a month" }[p.frequencyRule] || "a day"}`
+      : "",
     p.tags?.length ? "Tags: " + p.tags.join(", ") : "",
     p.priority ? "Priority: " + ["Normal", "Low", "Medium", "High"][p.priority] : "",
     p.recurrenceRule ? "Repeat: " + repeat : "",

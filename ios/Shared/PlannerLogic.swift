@@ -89,7 +89,8 @@ enum PlannerLogic {
     }
     static func detail(_ habit: Habit, counts: [String: Int], at date: Date) -> String {
         let schedule = HabitRules.schedule(habit.frequencyRule)
-        let count = "\(progress(habit, counts: counts, at: date)) of \(habit.target) \(schedule == "WEEKLY" ? "this week" : "today")"
-        return schedule == "DAILY" || schedule == "WEEKLY" ? count : HabitRules.label(schedule) + " · " + count
+        let unit = HabitRules.period(schedule)
+        let count = "\(progress(habit, counts: counts, at: date)) of \(habit.target) \(unit.map { "this " + $0 } ?? "today")"
+        return schedule == "DAILY" || unit != nil ? count : HabitRules.label(schedule) + " · " + count
     }
 }

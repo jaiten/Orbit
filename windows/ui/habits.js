@@ -3,7 +3,9 @@
 // only as a calendar so daylight-saving changes never shift a day.
 // The same cases run on iOS: shared/test-cases/habits.json.
 (function (root) {
-  const SCHEDULES = ["DAILY", "WEEKDAYS", "WEEKENDS", "WEEKLY"];
+  const SCHEDULES = ["DAILY", "WEEKDAYS", "WEEKENDS", "WEEKLY", "MONTHLY"];
+  /** Weekly and monthly habits count towards a target over their week or calendar month, not each day. */
+  const PERIODS = ["WEEKLY", "MONTHLY"];
   /**
    * A counter is a habit with no target: every tap adds one to the day's count ("no phone in the
    * washroom: 3 today"). It is never due, never checked and never part of progress, streaks or
@@ -32,11 +34,26 @@
     return addDays(key, -((weekday(key) - weekStart + 7) % 7));
   }
 
+  /** First day of the calendar month containing `key`. */
+  const monthStartKey = (key) => key.slice(0, 8) + "01";
+  function nextMonthKey(key) {
+    const date = parseKey(monthStartKey(key));
+    date.setUTCMonth(date.getUTCMonth() + 1);
+    return formatKey(date);
+  }
+  function previousMonthKey(key) {
+    const date = parseKey(monthStartKey(key));
+    date.setUTCMonth(date.getUTCMonth() - 1);
+    return formatKey(date);
+  }
+
   function schedule(habit) {
     return SCHEDULES.includes(habit.frequencyRule) ? habit.frequencyRule : "DAILY";
   }
+  /** "week" or "month" for habits counted over a period, otherwise null. */
+  const period = (habit) => ({ WEEKLY: "week", MONTHLY: "month" })[schedule(habit)] ?? null;
   function dailyTarget(habit) {
-    return schedule(habit) === "WEEKLY" ? 1 : Math.max(1, habit.target || 1);
+    return PERIODS.includes(schedule(habit)) ? 1 : Math.max(1, habit.target || 1);
   }
   function scheduledOn(habit, key) {
     if (isCounter(habit)) return false;
@@ -58,19 +75,23 @@
       .filter((l) => l.habitID === habit.id && l.dayKey >= start && l.dayKey <= key)
       .reduce((sum, l) => sum + l.count, 0);
   }
-  /** Check-ins in the habit's period: the day, or the week for weekly habits. */
+  /** Check-ins in the habit's period: the day, the week for weekly habits, the month for monthly ones. */
   function periodProgress(habit, logs, key, weekStart = 0) {
-    if (schedule(habit) !== "WEEKLY") return dayCount(habit, logs, key);
-    const start = weekStartKey(key, weekStart),
-      end = addDays(start, 7);
+    if (!period(habit)) return dayCount(habit, logs, key);
+    const monthly = period(habit) === "month";
+    const start = monthly ? monthStartKey(key) : weekStartKey(key, weekStart),
+      end = monthly ? nextMonthKey(key) : addDays(start, 7);
     return logs
       .filter((l) => l.habitID === habit.id && l.dayKey >= start && l.dayKey < end)
       .reduce((sum, l) => sum + l.count, 0);
   }
-  /** A habit is shown on a day it is scheduled. A weekly habit stops asking once its weekly target is met. */
+  /**
+   * A habit is shown on a day it is scheduled. A weekly or monthly habit stops asking once its target
+   * for the week or month is met.
+   */
   function dueOn(habit, logs, key, weekStart = 0) {
     if (!scheduledOn(habit, key)) return false;
-    if (schedule(habit) !== "WEEKLY") return true;
+    if (!period(habit)) return true;
     return checkedOn(habit, logs, key) || periodProgress(habit, logs, key, weekStart) < Math.max(1, habit.target || 1);
   }
   /** Days checked in the last `days` days, ending with `key`. Missed days are not counted against anything. */
@@ -103,6 +124,14 @@
       }
       return count;
     }
+    if (schedule(habit) === "MONTHLY") {
+      const target = Math.max(1, habit.target || 1);
+      for (let month = monthStartKey(key); count < 120; month = previousMonthKey(month)) {
+        if (periodProgress(habit, logs, month, weekStart) < target) break;
+        count++;
+      }
+      return count;
+    }
     for (let day = key, i = 0; i < 3660; day = addDays(day, -1), i++) {
       if (!scheduledOn(habit, day)) continue;
       if (!checkedOn(habit, logs, day)) break;
@@ -110,18 +139,21 @@
     }
     return count;
   }
-  const DAY_MILESTONES = [7, 14, 30, 50, 100, 200, 365],
-    WEEK_MILESTONES = [4, 8, 12, 26, 52];
-  /** "7 days in a row" when a streak lands exactly on a milestone, otherwise null. */
+  const MILESTONES = {
+    day: [7, 14, 30, 50, 100, 200, 365],
+    week: [4, 8, 12, 26, 52],
+    month: [3, 6, 12, 24],
+  };
+  /** "7 days in a row" (or weeks, or months) when a streak lands exactly on a milestone, otherwise null. */
   function milestone(habit, count) {
-    const weekly = schedule(habit) === "WEEKLY";
-    return (weekly ? WEEK_MILESTONES : DAY_MILESTONES).includes(count)
-      ? `${count} ${weekly ? "weeks" : "days"} in a row`
-      : null;
+    const unit = period(habit) || "day";
+    return MILESTONES[unit].includes(count) ? `${count} ${unit}s in a row` : null;
   }
   function label(habit) {
     if (isCounter(habit)) return "Counter";
-    return { DAILY: "Daily", WEEKDAYS: "Weekdays", WEEKENDS: "Weekends", WEEKLY: "Weekly" }[schedule(habit)];
+    return { DAILY: "Daily", WEEKDAYS: "Weekdays", WEEKENDS: "Weekends", WEEKLY: "Weekly", MONTHLY: "Monthly" }[
+      schedule(habit)
+    ];
   }
   const COLORS = ["sage", "lavender", "clay", "honey"];
   /**
@@ -149,6 +181,7 @@
     weekday,
     weekStartKey,
     schedule,
+    period,
     dailyTarget,
     scheduledOn,
     dayCount,

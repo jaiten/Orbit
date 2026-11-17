@@ -68,11 +68,15 @@ function counterHistory(h, t) {
 }
 /** Streak, the last 7 days and the 12-week rate, as three quiet figures. */
 function habitStats(h, t) {
-  const weekly = OrbitHabits.schedule(h) === "WEEKLY";
-  // A streak still counts until today (or this week) is over: before today's check-in it runs to yesterday.
+  const unit = OrbitHabits.period(h) || "day";
+  // A streak still counts until today (or this week or month) is over: before its check-in it runs to the one before.
+  const before =
+    unit === "month"
+      ? OrbitHabits.addDays(t.slice(0, 8) + "01", -1)
+      : OrbitHabits.addDays(t, unit === "week" ? -7 : -1);
   const run = Math.max(
     OrbitHabits.streak(h, habitLogs(), t, weekStart),
-    OrbitHabits.streak(h, habitLogs(), OrbitHabits.addDays(t, weekly ? -7 : -1), weekStart),
+    OrbitHabits.streak(h, habitLogs(), before, weekStart),
   );
   const past = gridDays().filter((key) => key <= t);
   const rate = past.length
@@ -83,7 +87,7 @@ function habitStats(h, t) {
       )
     : 0;
   const stat = (value, label) => `<div class="history-stat"><b>${value}</b><span>${label}</span></div>`;
-  return `<div class="history-stats">${stat(run, weekly ? (run === 1 ? "week streak" : "weeks in a row") : run === 1 ? "day streak" : "days in a row")}${stat(`${OrbitHabits.checkedDays(h, habitLogs(), t, 7)}/7`, "last 7 days")}${stat(`${rate}%`, "12 weeks")}</div>`;
+  return `<div class="history-stats">${stat(run, run === 1 ? `${unit} streak` : `${unit}s in a row`)}${stat(`${OrbitHabits.checkedDays(h, habitLogs(), t, 7)}/7`, "last 7 days")}${stat(`${rate}%`, "12 weeks")}</div>`;
 }
 
 /** Every habit's history on one page, so there is nothing to open one by one. */

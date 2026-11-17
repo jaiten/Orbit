@@ -5,7 +5,9 @@ import Foundation
 /// Day arithmetic uses a UTC Gregorian calendar purely as a calendar, so daylight-saving
 /// changes never shift a day.
 enum HabitRules {
-    static let schedules = ["DAILY", "WEEKDAYS", "WEEKENDS", "WEEKLY"]
+    static let schedules = ["DAILY", "WEEKDAYS", "WEEKENDS", "WEEKLY", "MONTHLY"]
+    /// "week" or "month" for habits counted towards a target over their week or calendar month, else nil.
+    static func period(_ rule: String) -> String? { ["WEEKLY": "week", "MONTHLY": "month"][schedule(rule)] }
     /// A counter is a habit with no target: every tap adds one to the day's count ("no phone in the
     /// washroom: 3 today"). It is never due, never checked and never part of progress, streaks or
     /// reminders; its check-ins are simply how many times it happened that day. Same as Windows.
@@ -35,13 +37,19 @@ enum HabitRules {
     static func weekStartKey(_ key: String, weekStart: Int) -> String {
         addDays(key, -((weekday(key) - weekStart + 7) % 7))
     }
+    /// First day of the calendar month containing `key`, and of the months either side.
+    static func monthStartKey(_ key: String) -> String { String(key.prefix(8)) + "01" }
+    static func addMonths(_ key: String, _ months: Int) -> String {
+        guard let date = date(monthStartKey(key)), let moved = calendar.date(byAdding: .month, value: months, to: date) else { return key }
+        return self.key(moved)
+    }
     /// The device's first weekday in the same numbering (0 = Sunday).
     static func weekStart(_ calendar: Calendar = .current) -> Int { calendar.firstWeekday - 1 }
 
     static func schedule(_ rule: String) -> String { schedules.contains(rule) ? rule : "DAILY" }
     static func label(_ rule: String) -> String {
         if isCounter(rule) { return "Counter" }
-        return ["DAILY": "Daily", "WEEKDAYS": "Weekdays", "WEEKENDS": "Weekends", "WEEKLY": "Weekly"][schedule(rule)]!
+        return ["DAILY": "Daily", "WEEKDAYS": "Weekdays", "WEEKENDS": "Weekends", "WEEKLY": "Weekly", "MONTHLY": "Monthly"][schedule(rule)]!
     }
     static let colors = ["sage", "lavender", "clay", "honey"]
     /// A new habit's default colour, so habits mix: the least used so far, never the newest habit's,
@@ -55,7 +63,7 @@ enum HabitRules {
         let fewest = colors.map { counts[$0]! }.min() ?? 0
         return order.first { counts[$0] == fewest && $0 != last } ?? order.first { $0 != last } ?? "sage"
     }
-    static func dailyTarget(rule: String, target: Int) -> Int { schedule(rule) == "WEEKLY" ? 1 : max(1, target) }
+    static func dailyTarget(rule: String, target: Int) -> Int { period(rule) != nil ? 1 : max(1, target) }
     static func scheduledOn(rule: String, day: String) -> Bool {
         if isCounter(rule) { return false }
         switch schedule(rule) {
@@ -74,14 +82,15 @@ enum HabitRules {
         (0..<days).reduce(0) { $0 + (counts[addDays(day, -$1)] ?? 0) }
     }
     static func periodProgress(rule: String, counts: [String: Int], day: String, weekStart: Int) -> Int {
-        guard schedule(rule) == "WEEKLY" else { return counts[day] ?? 0 }
-        let start = weekStartKey(day, weekStart: weekStart), end = addDays(start, 7)
+        guard let unit = period(rule) else { return counts[day] ?? 0 }
+        let start = unit == "month" ? monthStartKey(day) : weekStartKey(day, weekStart: weekStart)
+        let end = unit == "month" ? addMonths(day, 1) : addDays(start, 7)
         return counts.filter { $0.key >= start && $0.key < end }.reduce(0) { $0 + $1.value }
     }
-    /// Shown on days it is scheduled; a weekly habit stops asking once the week's target is met.
+    /// Shown on days it is scheduled; a weekly or monthly habit stops asking once its period's target is met.
     static func due(rule: String, target: Int, counts: [String: Int], day: String, weekStart: Int) -> Bool {
         guard scheduledOn(rule: rule, day: day) else { return false }
-        guard schedule(rule) == "WEEKLY" else { return true }
+        guard period(rule) != nil else { return true }
         return checked(rule: rule, target: target, counts: counts, day: day)
             || periodProgress(rule: rule, counts: counts, day: day, weekStart: weekStart) < max(1, target)
     }
@@ -106,6 +115,13 @@ enum HabitRules {
             }
             return count
         }
+        if schedule(rule) == "MONTHLY" {
+            var month = monthStartKey(day)
+            while count < 120, periodProgress(rule: rule, counts: counts, day: month, weekStart: weekStart) >= max(1, target) {
+                count += 1; month = addMonths(month, -1)
+            }
+            return count
+        }
         var current = day
         for _ in 0..<3660 {
             defer { current = addDays(current, -1) }
@@ -115,11 +131,11 @@ enum HabitRules {
         }
         return count
     }
-    /// "7 days in a row" when a streak lands exactly on a milestone, otherwise nil.
+    /// "7 days in a row" (or weeks, or months) when a streak lands exactly on a milestone, otherwise nil.
     static func milestone(rule: String, streak: Int) -> String? {
-        let weekly = schedule(rule) == "WEEKLY"
-        return (weekly ? [4, 8, 12, 26, 52] : [7, 14, 30, 50, 100, 200, 365]).contains(streak)
-            ? "\(streak) \(weekly ? "weeks" : "days") in a row" : nil
+        let unit = period(rule) ?? "day"
+        let marks = ["day": [7, 14, 30, 50, 100, 200, 365], "week": [4, 8, 12, 26, 52], "month": [3, 6, 12, 24]][unit]!
+        return marks.contains(streak) ? "\(streak) \(unit)s in a row" : nil
     }
     /// Days checked in the `days` days ending with `day`. Missed days only lower the count.
     static func checkedDays(rule: String, target: Int, counts: [String: Int], day: String, days: Int = 7) -> Int {

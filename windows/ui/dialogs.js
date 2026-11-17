@@ -38,8 +38,8 @@ function openTask(id, date, draft = null, { expanded = false } = {}) {
 }
 
 function updateTargetLabel() {
-  const weekly = $("#habit-form").elements.frequency.value === "WEEKLY";
-  $("#habit-target-label").textContent = weekly ? "Times a week" : "Times a day";
+  const unit = { WEEKLY: "week", MONTHLY: "month" }[$("#habit-form").elements.frequency.value] || "day";
+  $("#habit-target-label").textContent = `Times a ${unit}`;
 }
 $("#habit-form").elements.frequency.onchange = updateTargetLabel;
 
@@ -72,6 +72,7 @@ function habitPickers() {
       ["WEEKDAYS", "Weekdays"],
       ["WEEKENDS", "Weekends"],
       ["WEEKLY", "Weekly"],
+      ["MONTHLY", "Monthly"],
     ],
     form.elements.frequency.value,
   );
