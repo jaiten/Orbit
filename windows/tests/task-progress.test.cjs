@@ -19,3 +19,10 @@ test("starting is durable activity, not completion, and can be reset or declined
   assert.equal(declined.startedAt, null);
   assert.equal(task.progressTracking, undefined);
 });
+
+const planner = require("../ui/planner.js");
+const learning = require("../../shared/test-cases/progress-learning.json");
+for (const c of learning.cases)
+  test(`learned progress: ${c.name}`, () => {
+    assert.equal(planner.learnedProgress(c.title, c.history, c.rules || []), c.expect);
+  });

@@ -3,10 +3,12 @@ const OrbitRewardsData = {
   "freeAccents": [
     "coral",
     "sage",
-    "lavender",
-    "honey",
-    "teal",
     "blue"
+  ],
+  "retiredAccents": [
+    "ocean",
+    "forest",
+    "gold"
   ],
   "badges": [
     {
@@ -21,7 +23,8 @@ const OrbitRewardsData = {
       "title": "Showing up",
       "detail": "Get something done on 3 days",
       "metric": "activeDays",
-      "goal": 3
+      "goal": 3,
+      "unlocks": "lavender"
     },
     {
       "id": "getting-going",
@@ -29,7 +32,7 @@ const OrbitRewardsData = {
       "detail": "10 things done",
       "metric": "completions",
       "goal": 10,
-      "unlocks": "rose"
+      "unlocks": "teal"
     },
     {
       "id": "a-week-in",
@@ -37,7 +40,21 @@ const OrbitRewardsData = {
       "detail": "Get something done on 7 days",
       "metric": "activeDays",
       "goal": 7,
-      "unlocks": "forest"
+      "unlocks": "honey"
+    },
+    {
+      "id": "twenty-five",
+      "title": "Twenty-five",
+      "detail": "25 things done",
+      "metric": "completions",
+      "goal": 25
+    },
+    {
+      "id": "two-weeks-in",
+      "title": "Two weeks in",
+      "detail": "Get something done on 14 days",
+      "metric": "activeDays",
+      "goal": 14
     },
     {
       "id": "momentum",
@@ -45,15 +62,14 @@ const OrbitRewardsData = {
       "detail": "50 things done",
       "metric": "completions",
       "goal": 50,
-      "unlocks": "ocean"
+      "unlocks": "rose"
     },
     {
       "id": "hundred",
       "title": "Hundred",
       "detail": "100 things done",
       "metric": "completions",
-      "goal": 100,
-      "unlocks": "plum"
+      "goal": 100
     },
     {
       "id": "a-month-in",
@@ -61,7 +77,14 @@ const OrbitRewardsData = {
       "detail": "Get something done on 30 days",
       "metric": "activeDays",
       "goal": 30,
-      "unlocks": "gold"
+      "unlocks": "plum"
+    },
+    {
+      "id": "two-months-in",
+      "title": "Two months in",
+      "detail": "Get something done on 60 days",
+      "metric": "activeDays",
+      "goal": 60
     },
     {
       "id": "steady",
@@ -86,11 +109,32 @@ const OrbitRewardsData = {
       "goal": 100
     },
     {
+      "id": "half-a-year",
+      "title": "Half a year",
+      "detail": "Get something done on 180 days",
+      "metric": "activeDays",
+      "goal": 180
+    },
+    {
       "id": "thousand",
       "title": "Thousand",
       "detail": "1,000 things done",
       "metric": "completions",
       "goal": 1000
+    },
+    {
+      "id": "a-year-in",
+      "title": "A year in",
+      "detail": "Get something done on 365 days",
+      "metric": "activeDays",
+      "goal": 365
+    },
+    {
+      "id": "two-thousand",
+      "title": "Two thousand",
+      "detail": "2,000 things done",
+      "metric": "completions",
+      "goal": 2000
     }
   ]
 };

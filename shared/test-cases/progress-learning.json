@@ -1,0 +1,28 @@
+{
+  "description": "Learned start & finish (windows/ui/planner.js learnedProgress, ios/Shared/TaskProgress.swift learned). History lists earlier tasks where start & finish was turned on (tracking: true) or off (false). One similar tracked task suggests it, two or more turn it on; rule words always turn it on.",
+  "cases": [
+    { "name": "nothing learned yet", "title": "Water the plants", "history": [], "expect": null },
+    { "name": "one similar tracked task suggests it", "title": "Water the plants", "history": [{ "title": "Water plants", "tracking": true }], "expect": "suggest" },
+    {
+      "name": "two similar tracked tasks turn it on",
+      "title": "Water the plants",
+      "history": [
+        { "title": "Water plants", "tracking": true },
+        { "title": "water the garden plants", "tracking": true }
+      ],
+      "expect": "auto"
+    },
+    {
+      "name": "turning it off counts against",
+      "title": "Water the plants",
+      "history": [
+        { "title": "Water plants", "tracking": true },
+        { "title": "Water plants", "tracking": false }
+      ],
+      "expect": null
+    },
+    { "name": "unrelated tasks don't count", "title": "Email the landlord", "history": [{ "title": "Water plants", "tracking": true }, { "title": "Wash the car", "tracking": true }], "expect": null },
+    { "name": "one shared word of two isn't enough", "title": "Wash dishes", "history": [{ "title": "Wash car", "tracking": true }], "expect": null },
+    { "name": "a rule word turns it on", "title": "Print the poster", "history": [], "rules": ["print"], "expect": "auto" }
+  ]
+}

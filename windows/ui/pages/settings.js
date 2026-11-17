@@ -164,6 +164,7 @@ function renderSettings() {
         localStorage.getItem("overallProgressRange") === "7" ? "7" : "30",
       )}</div>
     </section>
+    ${captureRulesSection()}
     <section class="settings-block" id="calendar-preferences"><h2>Calendar</h2>
       <div class="settings-field"><span>Clock format</span>${macPicker(
         "calendar-clock",
@@ -240,6 +241,7 @@ function bindSettings() {
       },
       $("#today-preferences"),
     );
+  bindCaptureRules();
   if ($("#progress-tasks"))
     $("#progress-tasks").onchange = (event) =>
       localStorage.setItem("progressIncludesTasks", String(event.target.checked));

@@ -235,6 +235,7 @@ async function offerEveningCheckIn() {
   card.setAttribute("role", "dialog");
   card.setAttribute("aria-label", "Evening check-in");
   card.innerHTML = `<strong>Want a gentle evening check-in?</strong><span>At 8 PM, only if something is still left that day.</span>
+    <button class="evening-close" data-evening="off" aria-label="Close" title="Close">×</button>
     <div><button class="primary" data-evening="on">Turn on</button><button data-evening="off">Not now</button></div>`;
   document.body.append(card);
   card.querySelectorAll("[data-evening]").forEach(

@@ -113,7 +113,7 @@ struct TaskEditor: View {
     private func populate() {
         guard let task else { if let initialDate { scheduled = true; date = initialDate }; return }
         progressTracking = task.progressTracking == true
-        title = task.title; notes = task.notes; listID = task.listID; scheduled = task.dueDate != nil
+        (title, notes) = NoteRules.withoutRepeat(title: task.title, notes: task.notes); listID = task.listID; scheduled = task.dueDate != nil
         date = task.dueDate ?? .now; hasTime = task.hasTime; duration = task.durationMinutes
         priority = task.priority; tags = task.tags.joined(separator: ", ")
         subtasks = task.subtasks; reminders = task.reminders

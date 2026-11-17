@@ -390,6 +390,12 @@ app.whenReady().then(async () => {
       undoAvailable: plannerTools.available,
       undoCreatedAt: plannerTools.last?.created,
       undoKind: plannerTools.last?.kind,
+      history: {
+        canUndo: plannerTools.canUndo,
+        canRedo: plannerTools.canRedo,
+        undoLabel: plannerTools.undoLabel,
+        redoLabel: plannerTools.redoLabel,
+      },
       recoveryReady,
       accountNotice: notice,
       status: sync.status,
@@ -439,6 +445,11 @@ app.whenReady().then(async () => {
   });
   handle("undo", () => {
     plannerTools.undo();
+    notify();
+    void sync.run();
+  });
+  handle("redo", () => {
+    plannerTools.redo();
     notify();
     void sync.run();
   });

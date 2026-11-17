@@ -1600,11 +1600,11 @@ body[data-view="today"] .capture-dock {
   cursor: not-allowed;
 }
 
-/* The one-time offer of the evening check-in, above the writing bar. */
+/* The one-time offer of the evening check-in, tucked into the bottom-right corner, with × to dismiss. */
 .evening-offer {
   position: fixed;
-  right: 24px;
-  bottom: 96px;
+  right: 14px;
+  bottom: 14px;
   z-index: 35;
   display: grid;
   gap: 6px;
@@ -1617,8 +1617,32 @@ body[data-view="today"] .capture-dock {
     0 12px 36px rgb(0 0 0 / 0.18);
   font-size: 13px;
 }
+.evening-offer {
+  padding-right: 40px;
+  animation: menu-appear 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transform-origin: bottom right;
+}
 .evening-offer span {
   color: var(--muted);
+}
+.evening-offer .evening-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+}
+.evening-offer .evening-close:hover {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--ink);
 }
 .evening-offer div {
   display: flex;
@@ -1996,4 +2020,59 @@ body.closing-pane :is(.sidebar, .notes-nav) {
 }
 .count-days {
   min-width: 210px;
+}
+
+/* Undo and Redo: always at the top of the window, quiet until there is something to undo. */
+.history-buttons {
+  position: fixed;
+  z-index: 30;
+  top: 8px;
+  left: calc(var(--sidebar-width) + (100vw - var(--sidebar-width)) / 2);
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  box-shadow: 0 0 0 0.5px var(--hair);
+  translate: -50% 0;
+  opacity: 0.75;
+  transition: opacity 150ms ease;
+}
+:root[data-sidebar-closed="true"] .history-buttons {
+  left: 50vw;
+}
+.history-buttons:hover,
+.history-buttons:focus-within {
+  opacity: 1;
+}
+.history-buttons .icon-button {
+  width: 28px;
+  height: 24px;
+  min-height: 0;
+  border-radius: 999px;
+}
+.history-buttons svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.history-buttons .icon-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* The task editor's title grows with long titles instead of hiding the end of them. */
+textarea.title-field {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.35;
+  font: inherit;
+  field-sizing: content;
 }

@@ -209,7 +209,7 @@ function generateOnboarding(data = JSON.parse(fs.readFileSync(path.join(root, "s
 /** Milestone badges and the accents they unlock, for both apps. */
 function generateRewards(data = JSON.parse(fs.readFileSync(path.join(root, "shared/rewards.json"), "utf8"))) {
   const header = "Generated from shared/rewards.json by windows/scripts/generate.cjs. Do not edit.";
-  const content = { freeAccents: data.freeAccents, badges: data.badges };
+  const content = { freeAccents: data.freeAccents, retiredAccents: data.retiredAccents || [], badges: data.badges };
   const rewardsJS = `// ${header}\nconst OrbitRewardsData = ${JSON.stringify(content, null, 2)};\nif (typeof module === "object") module.exports = OrbitRewardsData;\n`;
   const str = (value) => (value === undefined || value === null ? "nil" : JSON.stringify(value));
   const rewardsSwift = [
@@ -219,6 +219,7 @@ function generateRewards(data = JSON.parse(fs.readFileSync(path.join(root, "shar
     "enum RewardsData {",
     "    struct Badge: Identifiable, Hashable { let id: String; let title: String; let detail: String; let metric: String; let goal: Int; let unlocks: String? }",
     `    static let freeAccents = [${data.freeAccents.map(str).join(", ")}]`,
+    `    static let retiredAccents: [String] = [${(data.retiredAccents || []).map(str).join(", ")}]`,
     "    static let badges = [",
     ...data.badges.map(
       (b) =>

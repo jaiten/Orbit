@@ -16,9 +16,12 @@ const SHORTCUT_HELP = [
   ["E", "Edit the focused item"],
   ["Delete", "Delete the focused item (Undo appears)"],
   ["Esc", "Close a dialog"],
-  ["Ctrl+Z", "Undo a delete or move"],
+  ["Ctrl+Z", "Undo the last change"],
+  ["Ctrl+Y", "Redo"],
   ["Ctrl+/", "Show these shortcuts"],
   ["Just start typing", "Add a task (on Notes: start a new page)"],
+  ["Ctrl+Shift+Enter", "Add as a task, even when long text would make a note"],
+  ["Ctrl+click / Shift+click", "Select items, or a run of items; Ctrl+C copies them as a list"],
 ];
 
 function openShortcuts() {
@@ -93,14 +96,15 @@ document.addEventListener("keydown", (e) => {
       })();
     } else if (key === "/") openShortcuts();
     else if (
-      key === "z" &&
-      !e.shiftKey &&
+      (key === "z" || key === "y") &&
       !e.target.closest?.("[contenteditable=true]") &&
-      !["INPUT", "TEXTAREA"].includes(e.target.tagName) &&
-      !$("#undo-toast").hidden
-    )
-      void action(() => api.undo());
-    else return;
+      !["INPUT", "TEXTAREA"].includes(e.target.tagName)
+    ) {
+      // Ctrl+Z undoes; Ctrl+Y or Ctrl+Shift+Z redoes. Text fields keep their own undo.
+      const redo = key === "y" || e.shiftKey;
+      if (redo ? $("#redo-button").disabled : $("#undo-button").disabled) return;
+      void action(() => (redo ? api.redo() : api.undo()));
+    } else return;
     e.preventDefault();
     return;
   }

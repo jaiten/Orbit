@@ -1,32 +1,75 @@
-// Beta: select rows with Ctrl-click, or start from a row's context menu. Copy never mutates records.
+// Select rows with Ctrl-click (or a row's context menu), Shift-click for a run of rows, then Ctrl+C copies
+// them as a list. Tasks, notes and habits can all be selected. Copy never mutates records.
+// Keys are "task:id", "note:id" or "habit:id", as the rows' own data attributes name them.
 const selectedRows = new Set();
+let selectionAnchor = null;
+const rowKey = (row) => row.dataset.rowMenu || (row.dataset.noteMenu ? "note:" + row.dataset.noteMenu : "");
+const selectableRows = () => [...document.querySelectorAll("[data-row-menu], [data-note-menu]")];
+function selectionItem(key) {
+  const [kind, id] = key.split(":");
+  return rows(kind === "habit" ? "habits" : "tasks").find((item) => item.id === id);
+}
 function selectRow(kind, id) {
-  if (kind === "habit") return;
-  if (selectedRows.has(id)) selectedRows.delete(id);
-  else selectedRows.add(id);
+  const key = `${kind}:${id}`;
+  if (selectedRows.has(key)) selectedRows.delete(key);
+  else selectedRows.add(key);
+  selectionAnchor = key;
+  refreshSelection();
+}
+/** Shift-click: every row between the last one clicked and this one joins the selection. */
+function selectRange(key) {
+  const keys = [...new Set(selectableRows().map(rowKey))];
+  const from = keys.indexOf(selectionAnchor);
+  const to = keys.indexOf(key);
+  if (from < 0 || to < 0) return selectRow(...key.split(":"));
+  for (const between of keys.slice(Math.min(from, to), Math.max(from, to) + 1)) selectedRows.add(between);
   refreshSelection();
 }
 function refreshSelection() {
-  for (const id of selectedRows) if (!rows("tasks").some((item) => item.id === id)) selectedRows.delete(id);
-  document.querySelectorAll("[data-row-menu], [data-note-menu]").forEach((row) => {
-    const id = row.dataset.rowMenu?.split(":")[1] || row.dataset.noteMenu;
-    row.classList.toggle("is-selected", selectedRows.has(id));
-  });
+  for (const key of selectedRows) if (!selectionItem(key)) selectedRows.delete(key);
+  if (!selectedRows.size) selectionAnchor = null;
+  selectableRows().forEach((row) => row.classList.toggle("is-selected", selectedRows.has(rowKey(row))));
   const bar = $("#selection-bar");
   bar.hidden = !selectedRows.size;
   $("#selection-count").textContent = `${selectedRows.size} selected`;
 }
-async function copySelected() {
-  const text = [...selectedRows]
-    .map((id) => rows("tasks").find((item) => item.id === id))
+/** The selection as a list, in the order it appears on screen: "- title" per item, a note's text indented. */
+function selectionText() {
+  const order = [...new Set(selectableRows().map(rowKey))];
+  const keys = [...selectedRows].sort((a, b) => {
+    const ai = order.indexOf(a),
+      bi = order.indexOf(b);
+    return (ai < 0 ? Infinity : ai) - (bi < 0 ? Infinity : bi);
+  });
+  return keys
+    .map((key) => {
+      const item = selectionItem(key);
+      if (!item) return "";
+      const body = key.startsWith("note:") || item.isNote ? item.notes?.trim() : "";
+      const title = item.title?.trim() || body?.split("\n")[0] || "";
+      const rest = body && body.split("\n")[0].trim() === title ? body.split("\n").slice(1).join("\n").trim() : body;
+      return [`- ${title}`, ...(rest ? rest.split("\n").map((line) => `  ${line}`) : [])].join("\n");
+    })
     .filter(Boolean)
-    .map((item) => [item.title, item.notes].filter((value) => value?.trim()).join("\n\n"))
-    .join("\n\n");
+    .join("\n");
+}
+async function copySelected() {
   try {
-    await api.copy(text);
+    const sealed = [...selectedRows].some((key) => key.startsWith("note:") && OrbitLocks.isSealed(selectionItem(key)));
+    if (sealed && !(await OrbitLocks.unlock())) return;
+    await api.copy(selectionText());
+    showSelectionNotice(`Copied ${selectedRows.size} item${selectedRows.size === 1 ? "" : "s"}`);
   } catch (error) {
     showNotice(error.message);
   }
+}
+function showSelectionNotice(text) {
+  const count = $("#selection-count");
+  if (!count) return;
+  count.textContent = text;
+  setTimeout(() => {
+    if (selectedRows.size) count.textContent = `${selectedRows.size} selected`;
+  }, 1400);
 }
 $("#copy-selected").onclick = () => void copySelected();
 $("#clear-selection").onclick = () => {
@@ -47,12 +90,16 @@ document.addEventListener(
       selectedRows.clear();
       refreshSelection();
     }
-    if (!row || row.dataset.rowMenu?.startsWith("habit:") || !(event.ctrlKey || event.metaKey || selectedRows.size))
-      return;
+    if (!row) return;
+    // The pencil and the bin still edit and delete while selecting.
+    if (event.target.closest(".row-actions, [data-delete-row], [data-delete-note], .note-actions")) return;
+    const multi = event.ctrlKey || event.metaKey;
+    if (!(multi || event.shiftKey || selectedRows.size)) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    const id = row.dataset.rowMenu?.split(":")[1] || row.dataset.noteMenu;
-    selectRow("task", id);
+    const key = rowKey(row);
+    if (event.shiftKey && selectionAnchor) selectRange(key);
+    else selectRow(...key.split(":"));
   },
   true,
 );

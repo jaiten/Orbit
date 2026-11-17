@@ -118,7 +118,9 @@ const fs = require("node:fs");
   const syncBox = await p.locator("#sync-status").boundingBox();
   assert.ok(gearBox.x >= syncBox.x + syncBox.width && Math.abs(gearBox.y - syncBox.y) < 8);
   await p.locator('[data-page="settings"]').click();
-  for (const accent of ["teal", "blue"]) {
+  // Three accents to start with; teal waits for its badge.
+  assert.equal(await p.locator("button.locked-accent").count(), 6);
+  for (const accent of ["sage", "blue"]) {
     await p.locator(`button[data-accent="${accent}"]`).click();
     assert.equal(await p.locator("html").getAttribute("data-accent"), accent);
     assert.equal(await p.locator(`button[data-accent="${accent}"]`).getAttribute("aria-pressed"), "true");
@@ -168,7 +170,7 @@ const fs = require("node:fs");
   const taskRow = p.locator(".task-row").filter({ hasText: "Visit Japan" });
   await taskRow.hover();
   await taskRow.getByRole("button", { name: "Edit task: Visit Japan", exact: true }).click();
-  assert.equal(await p.locator("#task-form input[name=title]").inputValue(), "Visit Japan");
+  assert.equal(await p.locator("#task-form [name=title]").inputValue(), "Visit Japan");
   await p.mouse.click(230, 50);
   assert.equal(await p.locator("dialog[open]").count(), 0);
   await taskRow.hover();
@@ -426,7 +428,7 @@ const fs = require("node:fs");
   for (const dimension of ["x", "y", "width", "height"])
     assert.ok(Math.abs(hoveredTitle[dimension] - calendarTitle[dimension]) < 1);
   await calendarRow.getByRole("button", { name: "Edit task: Second selection", exact: true }).click();
-  assert.equal(await p.locator('#task-form input[name="title"]').inputValue(), "Second selection");
+  assert.equal(await p.locator('#task-form [name="title"]').inputValue(), "Second selection");
   await p.locator("#editor").getByRole("button", { name: "Close", exact: true }).click();
   if (process.env.ORBIT_SCREENSHOT) await p.screenshot({ path: process.env.ORBIT_SCREENSHOT });
   await p.locator('[data-page="today"]').click();
@@ -462,7 +464,7 @@ const fs = require("node:fs");
   await slot.click();
   assert.equal(await p.locator('#task-form input[name="time"]').inputValue(), "09:30");
   assert.equal(await p.locator('#task-form input[name="date"]').inputValue(), slotDate);
-  await p.locator('#task-form input[name="title"]').fill("Timeline sample");
+  await p.locator('#task-form [name="title"]').fill("Timeline sample");
   await p.locator("#task-form").getByRole("button", { name: "Save", exact: true }).click();
   await p.locator(".schedule-event", { hasText: "Timeline sample" }).waitFor();
   if (process.env.ORBIT_SCREENSHOT)
@@ -874,7 +876,7 @@ const fs = require("node:fs");
       .count(),
     0,
   );
-  // The row menu still moves it (Do tomorrow); here it is filed in Someday for the rest of the run.
+  // The row menu still moves it (Do on…); here it is filed in Someday for the rest of the run.
   await p.evaluate(async (id) => {
     const record = (await window.orbit.read()).records.find((record) => record.payload.id === id);
     await window.orbit.put(record.key, {
@@ -956,7 +958,7 @@ const fs = require("node:fs");
     ),
     false,
   );
-  // Right-click: Start a timer opens a submenu of lengths; Do tomorrow moves the task.
+  // Right-click: Start a timer opens a submenu of lengths; Do on… → Tomorrow moves the task.
   await p.keyboard.press("Control+1");
   await p.locator("#inline-task-input").fill("Submenu task");
   await p.locator("#inline-task-input").press("Enter");
@@ -972,7 +974,8 @@ const fs = require("node:fs");
   await menuRow.click({ button: "right" });
   await p.getByRole("menuitem", { name: "Stop timer", exact: true }).click();
   await menuRow.click({ button: "right" });
-  await p.getByRole("menuitem", { name: "Do tomorrow", exact: true }).click();
+  await p.getByRole("menuitem", { name: "Do on…", exact: true }).hover();
+  await p.getByRole("menuitem", { name: "Tomorrow", exact: true }).click();
   await p.waitForFunction(async () => {
     const d = new Date();
     d.setDate(d.getDate() + 1);

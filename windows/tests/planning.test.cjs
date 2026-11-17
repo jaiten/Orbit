@@ -6,7 +6,7 @@ const table = require("../../shared/test-cases/quick-add.json");
 const now = new Date(table.now);
 for (const c of table.cases) {
   test(`quick add: ${c.input}${c.defaultDate ? ` (viewing ${c.defaultDate})` : ""}`, () => {
-    const result = parse(c.input, c.defaultDate ?? null, now);
+    const result = parse(c.input, c.defaultDate ?? null, now, { places: c.places || [] });
     const expected = { someday: false, list: null, schedule: null, ...c.expect };
     if (expected.kind === "habit") delete expected.date;
     for (const [name, value] of Object.entries(expected)) assert.deepEqual(result[name], value, name);

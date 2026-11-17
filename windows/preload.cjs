@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld("orbit", {
   copyNotePhoto: (id) => ipcRenderer.invoke("copy-note-photo", id),
   timerDone: (title) => ipcRenderer.invoke("timer-done", title),
   undo: () => ipcRenderer.invoke("undo"),
+  redo: () => ipcRenderer.invoke("redo"),
   backup: (mode, options) => ipcRenderer.invoke("backup", { mode, ...options }),
   devices: () => ipcRenderer.invoke("devices"),
   removeDevice: (id) => ipcRenderer.invoke("remove-device", id),

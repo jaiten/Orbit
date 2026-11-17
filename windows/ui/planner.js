@@ -133,6 +133,29 @@
     const ranked = [...scores].sort((a, b) => b[1] - a[1]);
     return ranked.length && (ranked.length === 1 || ranked[0][1] > ranked[1][1]) ? ranked[0][0] : null;
   }
+  /**
+   * Learned start & finish: whether earlier tasks with similar titles were tracked. One similar task that
+   * was tracked suggests it ("suggest"); two or more turn it on for the new task ("auto"). Similar tasks
+   * where it was turned off count against. Rules (words the user listed) always turn it on.
+   * `history` is [{ title, tracking: true | false }]. Mirrors TaskProgress.learned on iPhone; cases in
+   * shared/test-cases/progress-learning.json.
+   */
+  function similarTitles(a, b) {
+    const one = categoryWords(a),
+      two = categoryWords(b);
+    if (!one.size || !two.size) return false;
+    const shared = [...one].filter((w) => two.has(w)).length;
+    return shared === one.size || shared === two.size || shared * 2 > Math.max(one.size, two.size);
+  }
+  function learnedProgress(title, history, ruleWords = []) {
+    const words = categoryWords(title);
+    if (ruleWords.some((rule) => [...categoryWords(rule)].some((w) => words.has(w)))) return "auto";
+    let tracked = 0,
+      declined = 0;
+    for (const item of history) if (similarTitles(title, item.title)) item.tracking ? tracked++ : declined++;
+    if (tracked <= declined) return null;
+    return tracked >= 2 ? "auto" : "suggest";
+  }
   function suggestsProgress(title) {
     const text =
       " " +
@@ -172,6 +195,7 @@
   }
   const api = {
     suggestsProgress,
+    learnedProgress,
     setProgress,
     dateGroup,
     taskGroups,

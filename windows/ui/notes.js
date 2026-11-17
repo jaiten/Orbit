@@ -66,6 +66,29 @@ const OrbitNotes = (() => {
     return { title: title + "…", body: value };
   }
 
+  /**
+   * A task whose notes repeat its title (made from a note before this was fixed): the repeat goes, and a
+   * title that was cut short with "…" gets its whole first line back. Mirrors NoteRules.withoutRepeat.
+   */
+  function withoutRepeat(title, notes) {
+    const text = String(notes ?? "")
+      .replace(/\r\n?/g, "\n")
+      .trim();
+    const stem = String(title ?? "")
+      .trim()
+      .replace(/…$/, "")
+      .trim();
+    if (!stem || !text.startsWith(stem)) return { title, notes };
+    if (String(title).trim().endsWith("…")) {
+      const [first, ...rest] = text.split("\n");
+      return first.length <= 500 ? { title: first.trim(), notes: rest.join("\n").trim() } : { title, notes };
+    }
+    // Only the old split's repeats: the title was the first line, or the first sentence.
+    const rest = text.slice(stem.length);
+    const repeat = !rest || /^\s*\n/.test(rest) || /^\.\s/.test(rest) || (/[!?]$/.test(stem) && /^\s/.test(rest));
+    return repeat ? { title, notes: rest.replace(/^\.?\s*/, "").trim() } : { title, notes };
+  }
+
   /** One line under a note's title: the start of its body. */
   const snippet = (body) =>
     String(body ?? "")
@@ -101,6 +124,17 @@ const OrbitNotes = (() => {
     return groups;
   }
 
-  return { THRESHOLD, WORD_LIMIT, isNote, split, snippet, icons, resolveIcon, dateGroupTitle, dateGroups };
+  return {
+    THRESHOLD,
+    WORD_LIMIT,
+    isNote,
+    split,
+    withoutRepeat,
+    snippet,
+    icons,
+    resolveIcon,
+    dateGroupTitle,
+    dateGroups,
+  };
 })();
 if (typeof module !== "undefined") module.exports = OrbitNotes;

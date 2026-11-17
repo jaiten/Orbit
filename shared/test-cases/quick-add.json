@@ -1,7 +1,22 @@
 {
-  "description": "Quick add phrases. Run by windows/tests/planning.test.cjs and ios/Tests/SharedCaseTests.swift. 'now' is local wall-clock time; date is a local calendar day, time is minutes after midnight. defaultDate is the day the user is viewing (omitted on Today). defaultDate 'undated' means the user is adding to a list: without date words the task stays undated.",
+  "description": "Quick add phrases. Run by windows/tests/planning.test.cjs and ios/Tests/SharedCaseTests.swift. 'now' is local wall-clock time; date is a local calendar day, time is minutes after midnight. defaultDate is the day the user is viewing (omitted on Today). defaultDate 'undated' means the user is adding to a list: without date words the task stays undated. 'places' are the user's @ rules (Settings → Quick add rules): @name puts the task on the next of those weekdays (0 = Sunday), today included; an @word with no rule stays in the title.",
   "now": "2026-10-20T12:00:00",
   "cases": [
+    {
+      "input": "Pack PE kit @mums",
+      "places": [{ "name": "mums", "days": [4, 5] }, { "name": "dads", "days": [0, 1, 2] }],
+      "expect": { "kind": "task", "title": "Pack PE kit", "date": "2026-10-22", "time": null }
+    },
+    {
+      "input": "@Dads homework 6pm",
+      "places": [{ "name": "mums", "days": [4, 5] }, { "name": "dads", "days": [0, 1, 2] }],
+      "expect": { "kind": "task", "title": "homework", "date": "2026-10-20", "time": 1080 }
+    },
+    {
+      "input": "Email @someone",
+      "places": [{ "name": "mums", "days": [4, 5] }],
+      "expect": { "kind": "task", "title": "Email @someone", "date": "2026-10-20", "time": null }
+    },
     {
       "input": "Buy milk",
       "expect": {

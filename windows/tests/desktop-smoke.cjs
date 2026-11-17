@@ -389,7 +389,7 @@ const remove = (folder) => {
       const r = (await window.orbit.read()).records.find((r) => r.payload.title === "Wash car");
       await window.orbit.put(r.key, { ...r.payload, notes: "Synced while the editor is open" });
     });
-    if ((await p.locator("#task-form input[name=title]").inputValue()) !== "Plan picnic")
+    if ((await p.locator("#task-form [name=title]").inputValue()) !== "Plan picnic")
       throw Error("Details lost the title");
     await p.getByRole("button", { name: "Cancel", exact: true }).click();
     await p.getByRole("textbox", { name: "New task", exact: true }).fill("");

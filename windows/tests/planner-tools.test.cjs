@@ -140,3 +140,33 @@ test("only deletions, moves and imports offer Undo; ticks, check-ins and edits d
     s.close();
   }
 });
+
+test("undo and redo walk back and forward through every change made here", () => {
+  const s = new Store(":memory:"),
+    t = new PlannerTools(s);
+  const title = () => s.rows().find((r) => r.key === "tasks/" + id && !r.deleted)?.payload.title ?? null;
+  try {
+    t.change([{ key: "tasks/" + id, payload: { id, title: "Read" } }]);
+    t.past.at(-1).updated = 0; // a later edit, not part of the same typing
+    t.change([{ key: "tasks/" + id, payload: { id, title: "Read more" } }]);
+    t.change([{ key: "tasks/" + id, payload: { id, title: "Read more!" } }]);
+    assert.equal(t.past.length, 2, "quick edits to the same item are one step");
+    assert.equal(t.undoLabel, "Undo change");
+    t.undo();
+    assert.equal(title(), "Read");
+    assert.ok(t.canRedo);
+    t.undo();
+    assert.equal(title(), null, "undoing the add removes it");
+    assert.equal(t.canUndo, false);
+    t.redo();
+    assert.equal(title(), "Read");
+    t.redo();
+    assert.equal(title(), "Read more!");
+    assert.equal(t.canRedo, false);
+    t.undo();
+    t.change([{ key: "tasks/" + id, payload: { id, title: "Something new" } }]);
+    assert.equal(t.canRedo, false, "a new change clears Redo");
+  } finally {
+    s.close();
+  }
+});

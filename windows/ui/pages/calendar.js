@@ -289,7 +289,7 @@ function bindCalendar() {
       localDate: null,
       durationMinutes: slots * 15,
     });
-    $("#task-form input[name=title]").focus();
+    $("#task-form [name=title]").focus();
   };
   document.querySelectorAll("[data-time-slot]").forEach((button) => {
     // Keyboard only (Enter/Space on a focused slot); the pointer goes through the column below.

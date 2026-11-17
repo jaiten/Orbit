@@ -17,6 +17,13 @@ test("every unlockable accent has colours and exactly one badge", () => {
   const unlocks = rewards.data.badges.filter((b) => b.unlocks).map((b) => b.unlocks);
   assert.equal(new Set(unlocks).size, unlocks.length);
   for (const accent of [...rewards.data.freeAccents, ...unlocks]) assert.ok(tokens.accents[accent], accent);
-  assert.equal(rewards.unlockedBy("rose").id, "getting-going");
+  assert.equal(rewards.unlockedBy("rose").id, "momentum");
   assert.equal(rewards.unlockedBy("coral"), null);
+  // Nine accents in all: three to start with, six to earn.
+  assert.equal(rewards.data.freeAccents.length, 3);
+  assert.equal(unlocks.length, 6);
+  for (const retired of rewards.data.retiredAccents) {
+    assert.ok(tokens.accents[retired], retired);
+    assert.ok(![...rewards.data.freeAccents, ...unlocks].includes(retired), retired);
+  }
 });

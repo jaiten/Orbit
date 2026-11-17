@@ -1,12 +1,13 @@
 // Shared renderer state and helpers. Loaded first; page scripts build on these globals.
 // Accent colours live in tokens.css, generated from shared/design-tokens.json.
-// The six free accents, then those unlocked by milestone badges (shared/rewards.json).
+// The three free accents, then the six unlocked by milestone badges (shared/rewards.json).
 const accents = [
   ...OrbitRewardsData.freeAccents,
   ...OrbitRewardsData.badges.filter((b) => b.unlocks).map((b) => b.unlocks),
 ];
 function applyAccent(name) {
-  if (!accents.includes(name)) name = "coral";
+  // A retired accent picked before stays until another is chosen; it is just no longer offered.
+  if (!accents.includes(name) && !OrbitRewardsData.retiredAccents?.includes(name)) name = "coral";
   document.documentElement.dataset.accent = name;
   localStorage.setItem("accent", name);
 }
@@ -481,7 +482,10 @@ function taskRow(t) {
     ? `<span class="progress-tick ${started ? "started" : ""} ${started && poppedID === t.id ? "pop" : ""}" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle class="progress-arc" cx="12" cy="12" r="10"/>${started ? '<path d="M7 12l3 3 7-7"/>' : '<path class="play" d="M10 7l7 5-7 5z"/>'}</svg></span>`
     : tick(!!t.completedAt, poppedID === t.id);
   const options =
-    !t.completedAt && (tracking || (t.progressTracking == null && OrbitPlanner.suggestsProgress(t.title)))
+    !t.completedAt &&
+    (tracking ||
+      (t.progressTracking == null &&
+        (OrbitPlanner.suggestsProgress(t.title) || learnedProgress(t.title, t.id) === "suggest")))
       ? `<details class="progress-options"><summary aria-label="Progress options for ${title}" title="Progress options">${tracking ? "⋯" : "✦"}</summary><div>${
           tracking
             ? `${started ? `<button data-progress="${id}" data-progress-action="reset">Reset progress</button>` : ""}<button data-progress="${id}" data-progress-action="dismiss">Turn off start &amp; finish</button>`
@@ -850,9 +854,24 @@ function keepsList(listID, otherKind) {
 }
 /** Note → task: it lands on Today, so it is easy to find, and leaves a note-only section (iOS: NoteRules). */
 function noteToTask(note) {
-  const title = note.title || OrbitNotes.split(note.notes).title || "Photo note";
   const listID = keepsList(note.listID, "notes") ? note.listID : null;
-  return OrbitPlanner.moveToDay({ ...note, title, listID, isNote: false, locked: null }, today());
+  let { title, notes } = note;
+  // An untitled note keeps all its words: its first line becomes the whole title (the row shortens it
+  // only when there is no room, and the editor shows it in full); any further lines stay as its notes.
+  if (!title?.trim()) {
+    const text = String(notes || "")
+      .replace(/\r\n?/g, "\n")
+      .trim();
+    const [first = "", ...rest] = text.split("\n");
+    if (first.length <= 500) {
+      title = first.trim();
+      notes = rest.join("\n").trim();
+    } else title = OrbitNotes.split(text).title;
+  }
+  return OrbitPlanner.moveToDay(
+    { ...note, title: title || "Photo note", notes, listID, isNote: false, locked: null },
+    today(),
+  );
 }
 /** Task → note: no date, reminders or progress, and out of a task-only category. */
 function taskToNote(task) {
@@ -890,7 +909,7 @@ function openRowMenu(e) {
       async () => (kind !== "note" || !OrbitLocks.isSealed(item) || (await OrbitLocks.unlock())) && api.copy(text),
     ],
   ];
-  if (kind !== "habit") entries.push(["Select item", () => selectRow(kind, id)]);
+  entries.push(["Select item", () => selectRow(kind, id)]);
   if (kind === "habit" && OrbitHabits.isCounter(item) && dailyCount(item) > 0)
     entries.push(["Take one off", () => tickAction(() => countUp(id, -1))]);
   if (kind === "habit") entries.push(["Edit…", () => openHabit(id)]);
@@ -911,8 +930,19 @@ function openRowMenu(e) {
         null,
         timerOptions(item).map(([minutes, label]) => [label, () => startTimer(id, Number(minutes))]),
       ]);
-    if (!item.completedAt && taskDate(item) !== tomorrow())
-      entries.push(["Do tomorrow", () => action(() => saveTasks([OrbitPlanner.moveToDay(item, tomorrow())]))]);
+    // Do on…: tomorrow and the days after it, by name, to move a task along the week quickly.
+    if (!item.completedAt) {
+      const days = [1, 2, 3, 4, 5, 6]
+        .map((n) => OrbitHabits.addDays(today(), n))
+        .filter((day) => day !== taskDate(item))
+        .map((day) => [
+          day === tomorrow()
+            ? "Tomorrow"
+            : new Date(day + "T12:00:00").toLocaleDateString(undefined, { weekday: "long" }),
+          () => action(() => saveTasks([OrbitPlanner.moveToDay(item, day)])),
+        ]);
+      entries.push(["Do on…", null, days]);
+    }
     if (item.localDate || (item.hasTime && item.dueDate)) entries.push(calendarEntry(item));
     entries.push(["Make it a Note", () => action(() => put("tasks", taskToNote(item)))]);
   }
@@ -976,6 +1006,21 @@ function showMenu(entries, x, y) {
           event.preventDefault();
           parent.focus();
         }
+      };
+      // Hover intent: the submenu stays open for a moment after the pointer leaves, so a diagonal
+      // path to it (across the gap or a neighbouring item) does not close it on the way.
+      let closing;
+      const show = () => {
+        clearTimeout(closing);
+        menu
+          .querySelectorAll(".row-menu-group.open")
+          .forEach((other) => other !== group && other.classList.remove("open"));
+        group.classList.add("open");
+      };
+      group.onpointerenter = show;
+      group.onpointerleave = () => {
+        clearTimeout(closing);
+        closing = setTimeout(() => group.classList.remove("open"), 400);
       };
       group.append(parent, submenu);
       return group;

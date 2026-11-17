@@ -18,8 +18,10 @@ function openTask(id, date, draft = null, { expanded = false } = {}) {
       .map((l) => `<option value="${esc(l.id)}">${esc(l.name)}</option>`)
       .join("");
   f.elements.listID.value = source?.listID || selectedList || "";
-  f.elements.title.value = source?.title || "";
-  f.elements.notes.value = source?.notes || "";
+  const text = editing ? OrbitNotes.withoutRepeat(source.title, source.notes) : source || {};
+  f.elements.title.value = text.title || "";
+  requestAnimationFrame(() => fitTitleField(f.elements.title));
+  f.elements.notes.value = text.notes || "";
   f.elements.date.value = editing ? taskDate(editing) || "" : (date ?? (page === "today" ? today() : ""));
   f.elements.time.value = source?.hasTime && source.dueDate ? new Date(source.dueDate).toTimeString().slice(0, 5) : "";
   f.elements.progressTracking.checked = source?.progressTracking === true;
@@ -254,6 +256,27 @@ $("#password-form").onsubmit = (e) => {
   });
 };
 
+/**
+ * The task editor's title is a one-line field that grows to show a long title in full (a note made into
+ * a task keeps all its words). Enter still saves; pasted line breaks become spaces.
+ */
+function fitTitleField(field) {
+  field.style.height = "auto";
+  field.style.height = field.scrollHeight + 2 + "px";
+}
+document.querySelectorAll("textarea.title-field").forEach((field) => {
+  field.addEventListener("input", () => {
+    if (/[\r\n]/.test(field.value)) field.value = field.value.replace(/\s*[\r\n]+\s*/g, " ");
+    fitTitleField(field);
+  });
+  field.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+      event.preventDefault();
+      field.form.requestSubmit();
+    }
+  });
+});
+
 // The toast only appears for deletions, moves and imports. It springs up and fades in, and slides
 // away the same way; Ctrl+Z undoes too.
 let undoTimer, lastUndoCreated;
@@ -293,7 +316,20 @@ function showUndo(visible) {
     out.cancel();
   };
 }
+/** The permanent Undo and Redo buttons at the top of the window, with what each would do as a tooltip. */
+function updateHistoryButtons(history = {}) {
+  const set = (button, enabled, label, keys) => {
+    button.disabled = !enabled;
+    button.title = `${label} (${keys})`;
+    button.setAttribute("aria-label", label);
+  };
+  set($("#undo-button"), history.canUndo, history.undoLabel || "Undo", "Ctrl+Z");
+  set($("#redo-button"), history.canRedo, history.redoLabel || "Redo", "Ctrl+Y");
+}
+$("#undo-button").onclick = () => action(() => api.undo());
+$("#redo-button").onclick = () => action(() => api.redo());
 function updateUndo(next) {
+  updateHistoryButtons(next.history);
   if (!next.undoAvailable) {
     showUndo(false);
     return;

@@ -25,7 +25,7 @@ enum DayTheme {
         UserDefaults.standard.string(forKey: "accentTheme") ?? sharedDefaults?.string(forKey: "accentTheme") ?? "coral"
     }
     static var accent: Color { accentColor(storedAccentName) }
-    /// The six free accents, then those unlocked by milestone badges (shared/rewards.json).
+    /// The three free accents, then the six unlocked by milestone badges (shared/rewards.json).
     static let accents = Rewards.allAccents
     /// Fills: ticks, progress, selection.
     static func accentColor(_ name: String) -> Color { Color(hex: DesignTokens.accentFill[name] ?? DesignTokens.accentFill["coral"]!) }

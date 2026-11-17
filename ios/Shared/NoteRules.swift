@@ -73,6 +73,43 @@ enum NoteRules {
         return (title + "…", value)
     }
 
+    /// An untitled note made into a task keeps all its words without repeating them: the whole first line
+    /// becomes the title (the row shortens it only when there is no room) and only the lines after it stay
+    /// as notes. Mirrors noteToTask in windows/ui/core.js.
+    static func taskParts(_ text: String) -> (title: String, notes: String) {
+        let value = text.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let lines = value.components(separatedBy: "\n")
+        let first = (lines.first ?? "").trimmingCharacters(in: .whitespaces)
+        guard first.count <= 500 else {
+            let parts = split(value)
+            return (parts.title, parts.body)
+        }
+        return (first, lines.dropFirst().joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    /// A task whose notes repeat its title (made from a note before this was fixed): the repeat goes, and a
+    /// title cut short with "…" gets its whole first line back. Mirrors withoutRepeat in windows/ui/notes.js.
+    static func withoutRepeat(title: String, notes: String) -> (title: String, notes: String) {
+        let text = notes.replacingOccurrences(of: "\r\n", with: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = title.trimmingCharacters(in: .whitespaces)
+        var stem = trimmed
+        if stem.hasSuffix("…") { stem.removeLast() }
+        stem = stem.trimmingCharacters(in: .whitespaces)
+        guard !stem.isEmpty, text.hasPrefix(stem) else { return (title, notes) }
+        if trimmed.hasSuffix("…") {
+            let parts = taskParts(text)
+            return parts.title.count <= 500 ? parts : (title: title, notes: notes)
+        }
+        // Only the old split's repeats: the title was the first line, or the first sentence.
+        var rest = Substring(text.dropFirst(stem.count))
+        let lineBreak = rest.drop { $0 == " " || $0 == "\t" }.first == "\n"
+        let sentence = rest.hasPrefix(". ") || ((stem.hasSuffix("!") || stem.hasSuffix("?")) && rest.first?.isWhitespace == true)
+        guard rest.isEmpty || lineBreak || sentence else { return (title, notes) }
+        if rest.hasPrefix(".") { rest = rest.dropFirst() }
+        return (title, rest.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
     /// One line under a note's title: the start of its body.
     static func snippet(_ body: String) -> String {
         String(body.split(whereSeparator: \.isWhitespace).joined(separator: " ").prefix(140))
@@ -83,7 +120,11 @@ enum NoteRules {
 @MainActor extension NoteRules {
     /// Note → task: it lands on Today, so it is easy to find, and leaves a note-only section.
     static func makeTask(_ note: PlannerTask, in context: ModelContext) throws {
-        if note.title.isEmpty { let title = split(note.notes).title; note.title = title.isEmpty ? "Photo note" : title }
+        if note.title.isEmpty {
+            let parts = taskParts(note.notes)
+            note.title = parts.title.isEmpty ? "Photo note" : parts.title
+            note.notes = parts.notes
+        }
         note.isNote = nil; note.locked = nil
         if try !keepsList(note.listID, otherKind: "notes", in: context) { note.listID = nil }
         TodayRules.moveToDay(note, day: PlannerLogic.todayDate)

@@ -29,7 +29,7 @@ function openQuickAdd(context = quickAddContext()) {
 }
 
 function parseCapture(text, date) {
-  const parsed = OrbitPlanning.parse(text, date, plannerNow());
+  const parsed = OrbitPlanning.parse(text, date, plannerNow(), captureRules());
   if (page === "habits" && parsed.kind !== "habit") return { ...parsed, kind: "habit", schedule: "DAILY" };
   return parsed;
 }
@@ -59,6 +59,7 @@ function updateQuickPreview() {
   if (text && quickContext.listID === SOMEDAY && result.kind === "task" && !result.date) text = "Someday";
   const suggestion = text && suggestedCategory(result);
   if (suggestion) text += " · " + suggestion.name;
+  if (text && result.kind === "task" && learnedProgress(result.title) === "auto") text += " · Start & finish";
   showChip($("#quick-add-preview"), text);
 }
 
@@ -158,6 +159,8 @@ function quickRecords(result) {
   if (result.someday) listID = SOMEDAY;
   if (listID === SOMEDAY && result.date) listID = null;
   const task = { ...newTask(result.title, result.date), listID };
+  // Start & finish, learned from similar earlier tasks (or a rule word): on from the second time.
+  if (learnedProgress(result.title) === "auto") task.progressTracking = true;
   if (result.time !== null && result.date) {
     const due = new Date(result.date + "T00:00:00");
     due.setHours(Math.floor(result.time / 60), result.time % 60, 0, 0);
@@ -167,10 +170,19 @@ function quickRecords(result) {
 }
 
 $("#quick-add-form").elements.text.oninput = updateQuickPreview;
+$("#quick-add-form").elements.text.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && event.ctrlKey && event.shiftKey && !event.isComposing) {
+    event.preventDefault();
+    forceTask = true;
+    $("#quick-add-form").requestSubmit();
+  }
+});
 $("#quick-add-form").onsubmit = (e) => {
   e.preventDefault();
+  const forced = forceTask;
+  forceTask = false;
   const text = $("#quick-add-form").elements.text.value;
-  if (OrbitNotes.isNote(text)) {
+  if (!forced && OrbitNotes.isNote(text)) {
     action(async () => {
       await saveTasks([{ ...newTask("", null), isNote: true, notes: text.trim() }]);
       inlineDraft = "";
@@ -224,7 +236,7 @@ function captureNoteHead(visible) {
   const section = quickAddContext().listID;
   const name =
     section && rows("lists").some((l) => l.id === section && l.kind === "notes") ? sectionName(section) : "Notes";
-  return `<div class="capture-note-head" ${visible ? "" : "hidden"}><span class="capture-note-where">${icon(ICONS.compose)}New note · ${esc(name)}</span><input id="inline-note-title" class="capture-note-title" placeholder="Title" aria-label="Note title" maxlength="500" value="${esc(inlineNoteTitle)}" tabindex="${visible ? 0 : -1}" /><span class="capture-note-hint">Ctrl+Enter to save</span></div>`;
+  return `<div class="capture-note-head" ${visible ? "" : "hidden"}><span class="capture-note-where">${icon(ICONS.compose)}New note · ${esc(name)}</span><input id="inline-note-title" class="capture-note-title" placeholder="Title" aria-label="Note title" maxlength="500" value="${esc(inlineNoteTitle)}" tabindex="${visible ? 0 : -1}" /><span class="capture-note-hint">Ctrl+Enter to save · Ctrl+Shift+Enter for a task</span></div>`;
 }
 /**
  * Switches the capture between a one-line task bar and a note card. The text field is never replaced,
@@ -262,6 +274,8 @@ function captureNoteMode(form, on) {
     );
 }
 let inlineFocusGeneration = 0;
+/** Set by Ctrl+Shift+Enter: the next save adds a task even if the text would make a note. */
+let forceTask = false;
 document.addEventListener(
   "pointerdown",
   (event) => {
@@ -292,6 +306,7 @@ function bindInlineCapture() {
           : [
               OrbitPlanning.describe(parsed, plannerNow(), undefined, { hour12: clockHour12() }),
               suggestedCategory(parsed, quickAddContext().listID)?.name,
+              parsed.kind === "task" && learnedProgress(parsed.title) === "auto" ? "Start & finish" : "",
             ]
               .filter(Boolean)
               .join(" · ");
@@ -317,8 +332,17 @@ function bindInlineCapture() {
   };
   // Return adds; Shift+Return starts a new line (which makes a note); Return on an empty field leaves it.
   // Once the capture is a note card, Return is a new line and Ctrl+Return saves.
+  // Ctrl+Shift+Return always adds a task, however long the text.
   input.onkeydown = (event) => {
     if (event.key !== "Enter" || event.isComposing) return;
+    if (event.ctrlKey && event.shiftKey) {
+      event.preventDefault();
+      if (!input.value.trim()) return;
+      inlineFocusGeneration++;
+      forceTask = true;
+      form.requestSubmit();
+      return;
+    }
     if (form.classList.contains("note-form") && !event.ctrlKey) return;
     if (event.shiftKey && !event.ctrlKey) return;
     event.preventDefault();
@@ -344,8 +368,10 @@ function bindInlineCapture() {
     event.preventDefault();
     const focusRequest = ++inlineFocusGeneration,
       capturePage = page;
+    const forced = forceTask;
+    forceTask = false;
     if (!input.value.trim()) return input.blur();
-    if (page === "lists" || captureBecomesNote(input.value)) {
+    if (!forced && (page === "lists" || captureBecomesNote(input.value))) {
       const captured = input.value;
       const title = inlineNoteTitle.trim(),
         body = captured.trim();
@@ -384,7 +410,14 @@ function bindInlineCapture() {
       })();
       return;
     }
-    const result = parseCapture(input.value, quickAddContext().defaultDate);
+    // A forced task keeps all its words on one line; a note title typed above them leads.
+    const taskText = forced
+      ? [inlineNoteTitle.trim(), input.value.trim()]
+          .filter(Boolean)
+          .join(" ")
+          .replace(/\s*\n+\s*/g, " ")
+      : input.value;
+    const result = parseCapture(taskText, quickAddContext().defaultDate);
     if (!result.title) return;
     quickContext = quickAddContext();
     const records = quickRecords(result);
@@ -410,6 +443,12 @@ function bindInlineCapture() {
       if (records.habit) await api.batch(records.changes);
       else await saveTasks([records.task], records.extra);
       inlineDraft = "";
+      if (forced) {
+        input.value = "";
+        inlineNoteTitle = "";
+        $("#inline-note-title").value = "";
+        preview();
+      }
     }).then(() => {
       const current = $("#inline-task-input");
       if (current) {

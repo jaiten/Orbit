@@ -20,7 +20,12 @@ function decodeBackup(data) {
       throw Error("Invalid backup record");
     seen.add(r.key);
     if (entity === "preferences") {
-      if (r.key !== `preferences/${p.id.toLowerCase()}` || !Number.isInteger(p.dayStartMinutes))
+      // Day start, or the quick add rules record (capture-rules.js).
+      const rules = p.id.toLowerCase() === "00000000-0000-4000-8000-000000000003";
+      if (
+        r.key !== `preferences/${p.id.toLowerCase()}` ||
+        (rules ? !Array.isArray(p.places ?? []) : !Number.isInteger(p.dayStartMinutes))
+      )
         throw Error("Invalid preferences");
     } else if (entity === "habit_logs") {
       if (
@@ -179,26 +184,44 @@ function undoKind(before, after) {
   return moved ? "moved" : null;
 }
 
+/** How many steps Undo can go back, and how close together edits to the same items join into one step. */
+const HISTORY_LIMIT = 100;
+const JOIN_WITHIN_MS = 2000;
+const describe = (step) => {
+  if (step.kind === "deleted") return "delete";
+  if (step.kind === "moved") return "move";
+  if (step.kind === "imported") return "import";
+  const keys = [...step.before.keys()];
+  if (keys.some((k) => step.before.get(k) && !step.after.get(k))) return "delete";
+  if (keys.some((k) => !step.before.get(k) && step.after.get(k))) return "add";
+  return "change";
+};
+
+/**
+ * Every change made here is a step that Undo and Redo walk through (changes arriving from other devices are
+ * not). Deletions, moves and imports also get the short-lived Undo toast (`last`, `available`): ticks,
+ * check-ins and edits are easy to redo by hand, so they get no toast, but they can still be undone.
+ */
 class PlannerTools {
   constructor(store) {
     this.store = store;
     this.last = null;
+    this.past = [];
+    this.future = [];
   }
-  /** Applies changes. Deletions and moves can be undone; `kind` forces one (imports are always undoable). */
+  current() {
+    return new Map(
+      this.store
+        .rows()
+        .filter((r) => !r.deleted)
+        .map((r) => [r.key, r.payload]),
+    );
+  }
+  /** Applies changes and records them as a step; `kind` forces a toast (imports are always undoable). */
   change(changes, kind = null) {
-    const before = new Map(
-      this.store
-        .rows()
-        .filter((r) => !r.deleted)
-        .map((r) => [r.key, r.payload]),
-    );
+    const before = this.current();
     this.store.batch(changes);
-    const after = new Map(
-      this.store
-        .rows()
-        .filter((r) => !r.deleted)
-        .map((r) => [r.key, r.payload]),
-    );
+    const after = this.current();
     const keys = [...new Set([...before.keys(), ...after.keys()])].filter(
       (k) => !isDeepStrictEqual(before.get(k), after.get(k)),
     );
@@ -208,32 +231,84 @@ class PlannerTools {
       after: new Map(keys.map((k) => [k, after.get(k)])),
     };
     const what = kind ?? undoKind(changed.before, changed.after);
-    if (what) this.last = { ...changed, kind: what, created: Date.now() };
-  }
-  get available() {
-    return !!this.last && Date.now() - this.last.created < 30000;
-  }
-  undo() {
-    if (!this.available) throw Error("Undo has expired");
-    const { before, after } = this.last;
-    const current = new Map(
-      this.store
-        .rows()
-        .filter((r) => !r.deleted)
-        .map((r) => [r.key, r.payload]),
-    );
-    if ([...after].some(([k, p]) => !isDeepStrictEqual(current.get(k), p))) {
-      this.last = null;
-      throw Error("This item changed on another device. Undo was stopped to preserve those changes.");
+    const now = Date.now();
+    this.future = [];
+    // Typing in a note or renaming saves often: changes to the same items close together are one step.
+    const top = this.past.at(-1);
+    if (
+      top &&
+      !what &&
+      !top.kind &&
+      now - top.updated < JOIN_WITHIN_MS &&
+      keys.length === top.after.size &&
+      keys.every((k) => top.after.has(k))
+    ) {
+      top.after = changed.after;
+      top.updated = now;
+      return;
     }
+    const step = { ...changed, kind: what, created: now, updated: now };
+    this.past.push(step);
+    if (this.past.length > HISTORY_LIMIT) this.past.shift();
+    this.last = what ? step : null;
+  }
+  /** The toast's Undo: only while it is fresh and nothing has happened since. */
+  get available() {
+    return !!this.last && this.past.at(-1) === this.last && Date.now() - this.last.created < 30000;
+  }
+  get canUndo() {
+    return this.past.length > 0;
+  }
+  get canRedo() {
+    return this.future.length > 0;
+  }
+  /** "Undo delete", "Redo change"…: what the next press would do, for the buttons' tooltips. */
+  get undoLabel() {
+    return this.past.length ? `Undo ${describe(this.past.at(-1))}` : "Nothing to undo";
+  }
+  get redoLabel() {
+    return this.future.length ? `Redo ${describe(this.future.at(-1))}` : "Nothing to redo";
+  }
+  /** Writes `to` over records that must still say what `expected` says, or stops if another device changed them. */
+  restore(expected, to) {
+    const current = this.current();
+    const differs = (now, then) => !now !== !then || (now && !sameContent(now, then));
+    if ([...expected].some(([k, p]) => differs(current.get(k), p)))
+      throw Error("This item changed on another device. Undo was stopped to preserve those changes.");
+    const now = Date.now();
     this.store.batch(
-      [...before].map(([key, p]) => ({
+      [...to].map(([key, p]) => ({
         key,
-        payload: { ...(p || after.get(key)), updatedAt: Date.now() },
+        payload: { ...(p || expected.get(key)), updatedAt: now },
         deleted: !p,
       })),
     );
+  }
+  undo() {
+    const step = this.past.at(-1);
+    if (!step) throw Error("Nothing to undo");
     this.last = null;
+    try {
+      this.restore(step.after, step.before);
+    } catch (error) {
+      this.past.pop();
+      throw error;
+    }
+    this.past.pop();
+    this.future.push(step);
+  }
+  redo() {
+    const step = this.future.at(-1);
+    if (!step) throw Error("Nothing to redo");
+    try {
+      this.restore(step.before, step.after);
+    } catch (error) {
+      this.future.pop();
+      throw error;
+    }
+    this.future.pop();
+    step.updated = 0;
+    this.past.push(step);
   }
 }
 module.exports = { decodeBackup, encodeBackup, planImport, encodeTasksCSV, PlannerTools, undoKind };

@@ -1727,6 +1727,7 @@ dialog footer .danger {
 }
 
 .sidebar {
+  overflow-x: hidden;
   overflow-y: auto;
 }
 .sidebar > * {
@@ -4602,13 +4603,21 @@ body:is([data-view="history"], [data-view="habit-history"]) .page-head {
   background: var(--surface);
 }
 /* One slim line: icon, "Update ready", and "Restart" at the end. */
+/* The pill always holds its words: it takes the sidebar's width (less a scrollbar, at any text size)
+   and the label gives way with an ellipsis before anything spills over the rounded edge. */
 .restart-update {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 30px;
-  margin: 4px 6px 6px;
-  padding: 0 10px;
+  box-sizing: border-box;
+  width: auto;
+  min-width: 0;
+  max-width: calc(100% - 8px);
+  min-height: 30px;
+  margin: 4px 4px 6px;
+  padding: 4px 12px 4px 10px;
+  overflow: hidden;
+  line-height: 1.2;
   border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
   border-radius: 999px;
   background: color-mix(in srgb, var(--accent) 10%, var(--surface));
@@ -4633,10 +4642,14 @@ body:is([data-view="history"], [data-view="habit-history"]) .page-head {
   white-space: nowrap;
 }
 .restart-update strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 12px;
   font-weight: 600;
 }
 .restart-update small {
+  flex: 0 0 auto;
   font-size: 11px;
   font-weight: 600;
 }
@@ -4817,9 +4830,22 @@ body:is([data-view="history"], [data-view="habit-history"]) .page-head {
     0 0 0 1px color-mix(in srgb, var(--line) 60%, transparent),
     0 12px 32px rgb(0 0 0 / 0.18);
 }
-.row-menu-group:hover .row-submenu,
+.row-menu-group.open .row-submenu,
 .row-menu-group:focus-within .row-submenu {
   display: grid;
+}
+/* An invisible bridge over the gap between an item and its submenu. */
+.row-submenu::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -10px;
+  width: 10px;
+}
+.row-menu.submenu-left .row-submenu::before {
+  left: auto;
+  right: -10px;
 }
 .row-menu.submenu-left .row-submenu {
   left: auto;
