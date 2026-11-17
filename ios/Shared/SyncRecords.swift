@@ -43,7 +43,11 @@ import SwiftData
         return payload
     }
     static func payload(_ h: Habit) -> [String: Any] {
-        ["conversionData": h.conversionData ?? NSNull() as Any, "id": id(h.id), "title": h.title, "frequencyRule": h.frequencyRule, "target": h.target, "color": h.color, "icon": h.icon, "reminderMinutes": h.reminderMinutes ?? NSNull() as Any, "nudgeMinutes": h.nudgeMinutes ?? NSNull() as Any, "goal": h.goal ?? NSNull() as Any, "goalKind": h.goalKind ?? NSNull() as Any, "createdAt": stamp(h.createdAt), "updatedAt": stamp(h.updatedAt)]
+        var payload: [String: Any] = ["conversionData": h.conversionData ?? NSNull() as Any, "id": id(h.id), "title": h.title, "frequencyRule": h.frequencyRule, "target": h.target, "color": h.color, "icon": h.icon, "reminderMinutes": h.reminderMinutes ?? NSNull() as Any, "nudgeMinutes": h.nudgeMinutes ?? NSNull() as Any, "createdAt": stamp(h.createdAt), "updatedAt": stamp(h.updatedAt)]
+        // Only a counter with a goal carries these, as on Windows (and in shared/test-cases/export-sample.json).
+        if let goal = h.goal { payload["goal"] = goal }
+        if let kind = h.goalKind { payload["goalKind"] = kind }
+        return payload
     }
     static func payload(_ l: HabitLog) -> [String: Any] {
         ["id": id(l.id), "habitID": id(l.habitID), "dayKey": l.dayKey, "count": l.count, "updatedAt": stamp(l.updatedAt)]
