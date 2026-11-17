@@ -49,3 +49,29 @@ class DeferToGitHubTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+KEY_BODY = 'MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQg' + 'A' * 100
+KEY_PEM = ('-----BEGIN PRIVATE KEY-----\n' + '\n'.join(KEY_BODY[i:i + 64] for i in range(0, len(KEY_BODY), 64))
+           + '\n-----END PRIVATE KEY-----\n')
+
+
+class PrivateKeyTests(unittest.TestCase):
+    PEM = KEY_PEM
+
+    def test_accepts_the_file_as_is(self):
+        self.assertEqual(prepare_testflight.private_key_pem(self.PEM), self.PEM)
+
+    def test_accepts_base64_of_the_file(self):
+        import base64
+        encoded = base64.b64encode(self.PEM.encode()).decode()
+        self.assertEqual(prepare_testflight.private_key_pem(encoded + '\n'), self.PEM)
+
+    def test_accepts_lost_line_breaks(self):
+        self.assertEqual(prepare_testflight.private_key_pem(self.PEM.replace('\n', ' ')), self.PEM)
+        self.assertEqual(prepare_testflight.private_key_pem(self.PEM.replace('\n', '\\n')), self.PEM)
+
+    def test_rejects_anything_else_without_echoing_it(self):
+        with self.assertRaises(ValueError) as caught:
+            prepare_testflight.private_key_pem('not a key at all')
+        self.assertNotIn('not a key', str(caught.exception))

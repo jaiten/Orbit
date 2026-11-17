@@ -14,6 +14,28 @@ TEAM = '5T6K789X4T'
 GROUP = 'group.com.jaiten.orbit.shared'
 
 
+def private_key_pem(value):
+    """The App Store Connect .p8 key as PEM text, however it was pasted into the CI secret.
+
+    Accepts the file as is, the file base64-encoded, or PEM whose line breaks became spaces or literal "\\n".
+    Raises ValueError (without showing the key) when it is none of these.
+    """
+    text = value.replace('\\n', '\n').strip()
+    if '-----BEGIN' not in text:
+        try:
+            decoded = base64.b64decode(''.join(text.split()), validate=True).decode('utf-8').strip()
+        except (ValueError, UnicodeDecodeError):
+            decoded = ''
+        text = decoded.replace('\\n', '\n').strip()
+    match = re.fullmatch(r'-----BEGIN PRIVATE KEY-----(.+?)-----END PRIVATE KEY-----', text, re.S)
+    body = ''.join(match.group(1).split()) if match else ''
+    if not body or not re.fullmatch(r'[A-Za-z0-9+/=]+', body):
+        raise ValueError('ASC_PRIVATE_KEY is not an App Store Connect key: paste the whole AuthKey_….p8 file '
+                         '(-----BEGIN PRIVATE KEY----- to -----END PRIVATE KEY-----), or the file base64-encoded.')
+    lines = [body[i:i + 64] for i in range(0, len(body), 64)]
+    return '-----BEGIN PRIVATE KEY-----\n' + '\n'.join(lines) + '\n-----END PRIVATE KEY-----\n'
+
+
 def build_number(now=None):
     """The TestFlight build number: minutes since 1 January 2026 (UTC), plus 20000.
 
@@ -85,7 +107,7 @@ def main():
     key_dir = Path.home() / '.appstoreconnect/private_keys'
     key_dir.mkdir(parents=True, exist_ok=True)
     key_path = key_dir / f'AuthKey_{key_id}.p8'
-    key_path.write_text(os.environ['ASC_PRIVATE_KEY'])
+    key_path.write_text(private_key_pem(os.environ['ASC_PRIVATE_KEY']))
     key_path.chmod(0o600)
     print(f'Validated {len(signed)} profiles and prepared signed build configuration.')
 
