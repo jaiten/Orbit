@@ -527,7 +527,8 @@ final class ChecklistUITests: XCTestCase {
         continueAfterFailure = false
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
         XCTAssertTrue(app.tabBars.buttons["Today"].waitForExistence(timeout: 15)); openSettings(app)
-        for name in ["Teal", "Blue"] {
+        // Coral, Sage and Blue are open from the start; the other six wait for badges.
+        for name in ["Blue", "Coral"] {
             reveal(app.buttons[name], in: app); app.buttons[name].tap()
             XCTAssertTrue(app.buttons[name + ", selected"].waitForExistence(timeout: 5))
         }

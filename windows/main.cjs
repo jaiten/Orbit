@@ -395,6 +395,7 @@ app.whenReady().then(async () => {
         canRedo: plannerTools.canRedo,
         undoLabel: plannerTools.undoLabel,
         redoLabel: plannerTools.redoLabel,
+        version: plannerTools.version,
       },
       recoveryReady,
       accountNotice: notice,

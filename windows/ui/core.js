@@ -904,13 +904,26 @@ function openRowMenu(e) {
   if (!item) return;
   const clean = kind === "task" ? OrbitNotes.withoutRepeat(item.title, item.notes) : item;
   const text = [clean.title, clean.notes?.trim()].filter(Boolean).join("\n\n");
+  // Right-clicking one of several selected rows acts on the whole selection.
+  if (selectedRows.size > 1 && selectedRows.has(`${kind}:${id}`)) {
+    const box = e.currentTarget.getBoundingClientRect();
+    showMenu(
+      [
+        [`Copy ${selectedRows.size} items`, () => copySelected()],
+        ["Clear selection", () => (selectedRows.clear(), refreshSelection())],
+      ],
+      e.clientX || box.left + 24,
+      e.clientY || box.bottom,
+    );
+    return;
+  }
   const entries = [
     [
       "Copy text",
       async () => (kind !== "note" || !OrbitLocks.isSealed(item) || (await OrbitLocks.unlock())) && api.copy(text),
     ],
   ];
-  entries.push(["Select item", () => selectRow(kind, id)]);
+  entries.push([selectedRows.has(`${kind}:${id}`) ? "Deselect item" : "Select item", () => selectRow(kind, id)]);
   if (kind === "habit" && OrbitHabits.isCounter(item) && dailyCount(item) > 0)
     entries.push(["Take one off", () => tickAction(() => countUp(id, -1))]);
   if (kind === "habit") entries.push(["Edit…", () => openHabit(id)]);

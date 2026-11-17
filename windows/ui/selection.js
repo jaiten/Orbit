@@ -76,6 +76,20 @@ $("#clear-selection").onclick = () => {
   selectedRows.clear();
   refreshSelection();
 };
+// A Ctrl- or Shift-click (or any click while selecting) neither moves focus nor selects text, so the row
+// shows only its selected look: no focus ring (pressing Shift otherwise counts as keyboard use).
+document.addEventListener(
+  "mousedown",
+  (event) => {
+    const row = event.target.closest?.("[data-row-menu], [data-note-menu]");
+    if (!row || event.button !== 0 || event.target.closest(".row-actions, [data-delete-row], .note-actions")) return;
+    if (event.ctrlKey || event.metaKey || event.shiftKey || selectedRows.size) {
+      event.preventDefault();
+      if (document.activeElement && row.contains(document.activeElement)) document.activeElement.blur();
+    }
+  },
+  true,
+);
 document.addEventListener(
   "click",
   (event) => {
@@ -100,6 +114,7 @@ document.addEventListener(
     const key = rowKey(row);
     if (event.shiftKey && selectionAnchor) selectRange(key);
     else selectRow(...key.split(":"));
+    window.getSelection()?.removeAllRanges();
   },
   true,
 );

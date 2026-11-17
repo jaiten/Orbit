@@ -316,18 +316,62 @@ function showUndo(visible) {
     out.cancel();
   };
 }
-/** The permanent Undo and Redo buttons at the top of the window, with what each would do as a tooltip. */
-function updateHistoryButtons(history = {}) {
-  const set = (button, enabled, label, keys) => {
-    button.disabled = !enabled;
-    button.title = `${label} (${keys})`;
+/**
+ * Undo and Redo. On Today they sit in the header beside Edit layout, always there; on other pages they
+ * pop up at the top for a few seconds after each change (staying while the pointer is on them).
+ * Every [data-history-action] button follows the same state, with what it would do as its tooltip.
+ */
+let historyState = {},
+  historyVersion = null,
+  historyPopupTimer;
+const historyIcons = {
+  undo: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>',
+  redo: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 14 5-5-5-5" /><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" /></svg>',
+};
+/** The two buttons for a page header (Today). */
+const historyButtonsHTML = () =>
+  `<span class="history-inline" role="toolbar" aria-label="Undo and redo">${["undo", "redo"]
+    .map((kind) => `<button class="icon-button" data-history-action="${kind}" disabled>${historyIcons[kind]}</button>`)
+    .join("")}</span>`;
+function paintHistoryButtons() {
+  const history = historyState;
+  document.querySelectorAll("[data-history-action]").forEach((button) => {
+    const undo = button.dataset.historyAction === "undo";
+    const label = (undo ? history.undoLabel : history.redoLabel) || (undo ? "Undo" : "Redo");
+    button.disabled = !(undo ? history.canUndo : history.canRedo);
+    button.title = `${label} (${undo ? "Ctrl+Z" : "Ctrl+Y"})`;
     button.setAttribute("aria-label", label);
-  };
-  set($("#undo-button"), history.canUndo, history.undoLabel || "Undo", "Ctrl+Z");
-  set($("#redo-button"), history.canRedo, history.redoLabel || "Redo", "Ctrl+Y");
+  });
 }
-$("#undo-button").onclick = () => action(() => api.undo());
-$("#redo-button").onclick = () => action(() => api.redo());
+function showHistoryPopup(visible) {
+  const box = $("#history-buttons");
+  clearTimeout(historyPopupTimer);
+  if (!visible) {
+    box.classList.remove("show");
+    historyPopupTimer = setTimeout(() => (box.hidden = !box.classList.contains("show")), 220);
+    return;
+  }
+  box.hidden = false;
+  requestAnimationFrame(() => box.classList.add("show"));
+  const hide = () => {
+    if (box.matches(":hover, :focus-within")) historyPopupTimer = setTimeout(hide, 1500);
+    else showHistoryPopup(false);
+  };
+  historyPopupTimer = setTimeout(hide, 5000);
+}
+function updateHistoryButtons(history = {}) {
+  historyState = history;
+  paintHistoryButtons();
+  const changed = historyVersion !== null && history.version !== historyVersion;
+  historyVersion = history.version ?? null;
+  if (page === "today") showHistoryPopup(false);
+  else if (changed && (history.canUndo || history.canRedo)) showHistoryPopup(true);
+}
+document.addEventListener("click", (event) => {
+  const button = event.target.closest?.("[data-history-action]");
+  if (!button || button.disabled) return;
+  void action(() => (button.dataset.historyAction === "undo" ? api.undo() : api.redo()));
+});
 function updateUndo(next) {
   updateHistoryButtons(next.history);
   if (!next.undoAvailable) {

@@ -2,12 +2,19 @@
 // unlock. Badges come from synced data (rewards.js), so Windows and iPhone agree; what has already been
 // celebrated is remembered on this PC so nothing is announced twice.
 
-/** Short synthesised sounds (no files): a soft tick, a rising chime for a finished day, a sparkle for a badge. */
+/**
+ * Short synthesised sounds (no files): a soft wooden pop for a check-off, a rising chime for a finished
+ * day, a sparkle for a badge. A note is [frequency, start, length, volume, end frequency?]: with an end
+ * frequency the pitch falls quickly towards it, which reads as a pop rather than a beep.
+ */
 const OrbitSounds = (() => {
   let context = null;
   const enabled = () => localStorage.getItem("sounds") !== "off";
   const notes = {
-    tick: [[1318.5, 0, 0.09, 0.06]],
+    tick: [
+      [620, 0, 0.11, 0.07, 340],
+      [1240, 0, 0.045, 0.012, 700],
+    ],
     day: [
       [523.25, 0, 0.5, 0.07],
       [659.25, 0.09, 0.5, 0.07],
@@ -24,13 +31,14 @@ const OrbitSounds = (() => {
     try {
       context ??= new AudioContext();
       const start = context.currentTime + 0.01;
-      for (const [frequency, at, length, volume] of notes[kind]) {
+      for (const [frequency, at, length, volume, endFrequency] of notes[kind]) {
         const tone = context.createOscillator(),
           gain = context.createGain();
         tone.type = "sine";
-        tone.frequency.value = frequency;
+        tone.frequency.setValueAtTime(frequency, start + at);
+        if (endFrequency) tone.frequency.exponentialRampToValueAtTime(endFrequency, start + at + length * 0.6);
         gain.gain.setValueAtTime(0, start + at);
-        gain.gain.linearRampToValueAtTime(volume, start + at + 0.012);
+        gain.gain.linearRampToValueAtTime(volume, start + at + (endFrequency ? 0.004 : 0.012));
         gain.gain.exponentialRampToValueAtTime(0.0001, start + at + length);
         tone.connect(gain).connect(context.destination);
         tone.start(start + at);

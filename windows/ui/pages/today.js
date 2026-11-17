@@ -215,6 +215,7 @@ function renderToday(tasks, allHabits) {
 `;
   return `<div class="today-layout">
     <header class="page-head"><div><div class="eyebrow">${eyebrow}</div><h1>Today</h1></div><div class="head-tools">
+      ${historyButtonsHTML()}
       <button id="home-update" class="icon-button home-update" hidden aria-label="Update available" title="Update available"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg><i aria-hidden="true"></i></button>
       <button id="edit-today-layout" class="icon-button" aria-label="${editingTodayLayout ? "Finish editing layout" : "Edit layout"}" title="${editingTodayLayout ? "Finish editing layout" : "Edit layout"}" aria-pressed="${editingTodayLayout}"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${editingTodayLayout ? "m5 12 4 4L19 6" : "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"}"/></svg></button>
     </div></header>
@@ -317,6 +318,7 @@ function renderAgenda(tasks, allHabits, head = "") {
 
 function bindToday() {
   applyCalendarStyles();
+  paintHistoryButtons();
   document.querySelectorAll(".upcoming-card [data-edit-event]").forEach((button) => {
     button.onclick = () => openEvent(button.dataset.editEvent);
     button.oncontextmenu = openEventMenu;

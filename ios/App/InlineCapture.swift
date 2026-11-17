@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import UIKit.UIGestureRecognizerSubclass
 
 /// Lets global transient controls (Undo) clear the docked capture bar, including Dynamic Type and chips.
 struct CaptureDockHeight: PreferenceKey {
@@ -27,17 +28,36 @@ extension View {
     }
 }
 
-/// Closes the docked capture (and its keyboard) when the person touches anything else in the app: a row,
-/// a card, a tab. The touch still does what it would have done; only touches on the capture itself, or in
-/// another text field, are left alone. One recognizer on the window, active only while a capture is open.
+/// A tap that never blocks anything: it ends when the finger lifts without having moved, and fails as soon
+/// as the touch travels (a swipe or a scroll), so swiping away the Undo note or scrolling keeps the keyboard.
+final class PassiveTapRecognizer: UIGestureRecognizer {
+    private var start: CGPoint?
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+        guard touches.count == 1, let touch = touches.first else { state = .failed; return }
+        start = touch.location(in: view)
+    }
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent) {
+        guard let start, let touch = touches.first else { return }
+        let point = touch.location(in: view)
+        if hypot(point.x - start.x, point.y - start.y) > 10 { state = .failed }
+    }
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) { state = state == .possible ? .ended : .failed }
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) { state = .failed }
+    override func reset() { start = nil }
+}
+
+/// Closes the docked capture (and its keyboard) when the person taps anything else in the app: a row,
+/// a card, a tab. The tap still does what it would have done; only taps on the capture itself (and the
+/// strip just above it, where its preview chip and the Undo note sit), or in another text field, are left
+/// alone. One recognizer on the window, active only while a capture is open.
 @MainActor final class CaptureOutsideTap: NSObject, UIGestureRecognizerDelegate {
     static let shared = CaptureOutsideTap()
     /// The open capture, in window coordinates, and what to do when something else is touched.
     var captureFrame: CGRect = .zero
     var onOutside: (() -> Void)?
     private weak var installed: UIWindow?
-    private lazy var recognizer: UITapGestureRecognizer = {
-        let tap = UITapGestureRecognizer(target: self, action: #selector(tapped))
+    private lazy var recognizer: PassiveTapRecognizer = {
+        let tap = PassiveTapRecognizer(target: self, action: #selector(tapped))
         tap.cancelsTouchesInView = false
         tap.delaysTouchesBegan = false
         tap.delaysTouchesEnded = false
@@ -56,7 +76,9 @@ extension View {
     @objc private func tapped() { onOutside?() }
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         guard onOutside != nil, let window = touch.window else { return false }
-        if captureFrame.insetBy(dx: -4, dy: -4).contains(touch.location(in: window)) { return false }
+        // The capture, plus the strip above it where its chip and the Undo note show.
+        let kept = CGRect(x: captureFrame.minX - 4, y: captureFrame.minY - 76, width: captureFrame.width + 8, height: captureFrame.height + 80)
+        if kept.contains(touch.location(in: window)) { return false }
         // Another text field takes focus by itself.
         var view = touch.view
         while let current = view { if current is UITextView || current is UITextField { return false }; view = current.superview }

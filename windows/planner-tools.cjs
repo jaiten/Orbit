@@ -208,6 +208,8 @@ class PlannerTools {
     this.last = null;
     this.past = [];
     this.future = [];
+    /** Goes up with every change, undo and redo, so the window knows when to show Undo and Redo. */
+    this.version = 0;
   }
   current() {
     return new Map(
@@ -226,6 +228,7 @@ class PlannerTools {
       (k) => !isDeepStrictEqual(before.get(k), after.get(k)),
     );
     if (!keys.length) return;
+    this.version++;
     const changed = {
       before: new Map(keys.map((k) => [k, before.get(k)])),
       after: new Map(keys.map((k) => [k, after.get(k)])),
@@ -296,6 +299,7 @@ class PlannerTools {
     }
     this.past.pop();
     this.future.push(step);
+    this.version++;
   }
   redo() {
     const step = this.future.at(-1);
@@ -309,6 +313,7 @@ class PlannerTools {
     this.future.pop();
     step.updated = 0;
     this.past.push(step);
+    this.version++;
   }
 }
 module.exports = { decodeBackup, encodeBackup, planImport, encodeTasksCSV, PlannerTools, undoKind };

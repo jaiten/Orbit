@@ -102,7 +102,7 @@ document.addEventListener("keydown", (e) => {
     ) {
       // Ctrl+Z undoes; Ctrl+Y or Ctrl+Shift+Z redoes. Text fields keep their own undo.
       const redo = key === "y" || e.shiftKey;
-      if (redo ? $("#redo-button").disabled : $("#undo-button").disabled) return;
+      if (!(redo ? historyState.canRedo : historyState.canUndo)) return;
       void action(() => (redo ? api.redo() : api.undo()));
     } else return;
     e.preventDefault();
