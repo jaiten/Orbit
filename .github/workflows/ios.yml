@@ -3,9 +3,9 @@ run-name: iOS ${{ inputs.test_scope || 'smoke' }} checks — ${{ github.ref_name
 on:
   push:
     branches: [main]
-    paths: ['ios/**', 'shared/**', '.github/workflows/ios.yml', '.github/workflows/testflight.yml', 'scripts/prepare_testflight.py', 'scripts/wait_for_testflight.py', 'scripts/run_ios_tests.sh', 'scripts/restore_source_mtimes.py']
+    paths: ['ios/**', 'shared/**', '.github/workflows/ios.yml', '.github/workflows/testflight.yml', 'scripts/prepare_testflight.py', 'scripts/wait_for_testflight.py', 'scripts/run_ios_tests.sh', 'scripts/restore_source_mtimes.py', 'scripts/check_ios_sdk.py', 'scripts/tests/**', 'codemagic.yaml']
   pull_request:
-    paths: ['ios/**', 'shared/**', '.github/workflows/ios.yml', '.github/workflows/testflight.yml', 'scripts/prepare_testflight.py', 'scripts/wait_for_testflight.py', 'scripts/run_ios_tests.sh', 'scripts/restore_source_mtimes.py']
+    paths: ['ios/**', 'shared/**', '.github/workflows/ios.yml', '.github/workflows/testflight.yml', 'scripts/prepare_testflight.py', 'scripts/wait_for_testflight.py', 'scripts/run_ios_tests.sh', 'scripts/restore_source_mtimes.py', 'scripts/check_ios_sdk.py', 'scripts/tests/**', 'codemagic.yaml']
   workflow_dispatch:
     inputs:
       test_scope:
@@ -23,15 +23,17 @@ concurrency:
 jobs:
   build-and-test:
     timeout-minutes: 35
-    runs-on: macos-15
+    runs-on: xcode-27
     env:
-      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Validate CI helpers
         run: python3 -m unittest discover -s scripts/tests -v
+      - name: Verify Xcode and iOS SDK requirements
+        run: python3 scripts/check_ios_sdk.py
       - name: Restore source timestamps for incremental builds
         run: python3 scripts/restore_source_mtimes.py
       - name: Identify Xcode cache
@@ -78,6 +80,10 @@ jobs:
             ${{ runner.temp }}/OrbitDerivedData/ModuleCache.noindex
             ${{ runner.temp }}/OrbitDerivedData/SDKStatCaches.noindex
           key: ${{ steps.build-cache.outputs.cache-primary-key }}
+      - name: Verify device archive SDK without distribution credentials
+        run: |
+          xcodebuild archive -project ios/Orbit.xcodeproj -scheme Orbit -configuration Release -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Orbit-SDK-check.xcarchive" -derivedDataPath "$RUNNER_TEMP/OrbitDerivedData" CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO
+          python3 scripts/check_ios_sdk.py --archive "$RUNNER_TEMP/Orbit-SDK-check.xcarchive"
       - name: Run selected tests without rebuilding
         env:
           IOS_TEST_SCOPE: ${{ inputs.test_scope || 'smoke' }}

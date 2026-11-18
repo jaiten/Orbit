@@ -19,10 +19,10 @@ jobs:
         github.event.workflow_run.event == 'push' &&
         !contains(github.event.workflow_run.head_commit.message, '[skip testflight]') &&
         github.event.workflow_run.head_repository.full_name == github.repository))
-    runs-on: macos-15
+    runs-on: xcode-27
     timeout-minutes: 45
     env:
-      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
       CERTIFICATE_P12_BASE64: ${{ secrets.CERTIFICATE_P12_BASE64 }}
       P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
       APP_PROFILE_BASE64: ${{ secrets.APP_PROFILE_BASE64 }}
@@ -35,6 +35,8 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Verify Xcode and iOS SDK requirements
+        run: python3 scripts/check_ios_sdk.py
       - name: Check required credentials
         run: |
           for name in CERTIFICATE_P12_BASE64 P12_PASSWORD APP_PROFILE_BASE64 WIDGET_PROFILE_BASE64 ASC_KEY_ID ASC_ISSUER_ID ASC_PRIVATE_KEY; do
@@ -67,6 +69,8 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild archive -project ios/Orbit.xcodeproj -scheme Orbit -configuration Release -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Orbit.xcarchive"
+      - name: Verify archived app and extension SDKs
+        run: python3 scripts/check_ios_sdk.py --archive "$RUNNER_TEMP/Orbit.xcarchive"
       - name: Export App Store package
         run: xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Orbit.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export"
       - name: Upload to TestFlight
