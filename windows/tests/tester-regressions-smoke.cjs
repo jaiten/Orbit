@@ -1,4 +1,4 @@
-/* global load, openEvent, actionBusy */
+/* global load, openEvent, actionBusy, render, today, OrbitHabits, pageHTML, buildPageHTML, withRenderRows: writable, rows, state */
 const { chromium } = require("playwright");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -103,6 +103,74 @@ const path = require("node:path");
     assert.equal(request.location, "123 Main Street");
     assert.equal(new Date(request.start).getMinutes(), 37);
     assert.equal(new Date(request.end).getMinutes(), 43);
+    const cacheChecks = await p.evaluate(() => {
+      const sameHTML = pageHTML() === buildPageHTML();
+      const before = withRenderRows(() => rows("events"))[0].location;
+      const record = state.records.find((r) => r.key === "events/e1");
+      record.payload.location = "Optimistic address";
+      const after = withRenderRows(() => rows("events"))[0].location;
+      record.payload.location = before;
+      return { sameHTML, after };
+    });
+    assert.deepEqual(cacheChecks, { sameHTML: true, after: "Optimistic address" });
+    if (process.env.ORBIT_BENCHMARK) {
+      await p.locator('[data-page="today"]').click();
+      const metrics = await p.evaluate(async () => {
+        const past = new Date().setDate(new Date().getDate() - 200);
+        for (let i = 0; i < 500; i++) {
+          const id = `benchmark-task-${i}`;
+          await window.orbit.put(`tasks/${id}`, {
+            id,
+            title: `History ${i}`,
+            dueDate: past,
+            completedAt: past,
+            createdAt: past,
+          });
+        }
+        for (let i = 0; i < 12; i++) {
+          const id = `benchmark-habit-${i}`;
+          await window.orbit.put(`habits/${id}`, {
+            id,
+            title: `Routine ${i}`,
+            frequencyRule: "DAILY",
+            target: 1,
+            color: "sage",
+            createdAt: past,
+          });
+          for (let offset = 1; offset <= 180; offset++) {
+            const log = `benchmark-log-${i}-${offset}`;
+            await window.orbit.put(`habit_logs/${log}`, {
+              id: log,
+              habitID: id,
+              dayKey: OrbitHabits.addDays(today(), -offset),
+              count: 1,
+            });
+          }
+        }
+        await load(true);
+        if (pageHTML() !== buildPageHTML()) throw Error("Cached render differs from uncached render");
+        const measure = () => {
+          const samples = [];
+          for (let i = 0; i < 20; i++) {
+            const start = performance.now();
+            render();
+            document.querySelector("#content").getBoundingClientRect();
+            samples.push(performance.now() - start);
+          }
+          samples.sort((a, b) => a - b);
+          return { samples: samples.length, p50_ms: samples[9], p95_ms: samples[18] };
+        };
+        const cached = measure();
+        const cache = withRenderRows;
+        try {
+          withRenderRows = (build) => build();
+          return { cached, uncached: measure() };
+        } finally {
+          withRenderRows = cache;
+        }
+      });
+      console.log("Today render + layout, 500 historical tasks / 12 habits / 2160 logs:", metrics);
+    }
     assert.deepEqual(errors, []);
     console.log("PASS: reopened appearance, empty auth, location/minutes and failed calendar draft retention");
   } finally {

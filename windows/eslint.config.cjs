@@ -28,6 +28,7 @@ const shared = Object.fromEntries(
     "localDay",
     "esc",
     "rows",
+    "withRenderRows",
     "taskDate",
     "clean",
     "put",
