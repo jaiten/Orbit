@@ -412,6 +412,7 @@ const fs = require("node:fs");
   assert.equal(await p.locator("#notice").isVisible(), false);
   await p.getByRole("checkbox", { name: "Complete First selection", exact: true }).click();
   await p.locator('[data-page="calendar"]').click();
+  await p.locator('[data-scope="month"]').click();
   await p.locator('[data-month="0"]').click();
   assert.equal(await p.locator("#calendar-completed").getAttribute("open"), null);
   const dock = await p.locator(".calendar-page > .capture-dock").boundingBox();
@@ -858,6 +859,7 @@ const fs = require("node:fs");
       ),
     { id: habitID, day: pastKey },
   );
+  await p.locator(".habit-history .box-grid").first().waitFor({ state: "visible" });
   const historyGrid = await p.locator(".habit-history .box-grid").first().boundingBox();
   assert.ok(historyGrid.width > historyGrid.height, "History uses compact horizontal weeks");
   if (process.env.ORBIT_SCREENSHOT)

@@ -6,7 +6,8 @@ const november = Date.UTC(2026, 10, 13, 18);
 
 test("offsets are read per zone and moment", () => {
   assert.equal(offsetIn("America/Los_Angeles", november), -480);
-  assert.equal(offsetIn("America/Vancouver", november), -420);
+  // This historical instant has the same rules in old and current host timezone databases.
+  assert.equal(offsetIn("America/Vancouver", Date.UTC(2025, 10, 13, 18)), -480);
   assert.equal(offsetIn("UTC", november), 0);
   assert.equal(offsetIn("Asia/Kolkata", november), 330);
 });
@@ -21,7 +22,10 @@ test("British Columbia on Windows corrects an engine that guessed Los Angeles", 
     offset: -420,
     daylight: false,
   });
-  assert.equal(correctedZone(windows, "America/Los_Angeles", { now: november }), "America/Vancouver");
+  const zone = correctedZone(windows, "America/Los_Angeles", { now: november });
+  assert.equal(offsetIn(zone, november), -420);
+  if (offsetIn("America/Vancouver", november) === -420) assert.equal(zone, "America/Vancouver");
+  else assert.notEqual(zone, "America/Vancouver", "old host rules must use the working fallback");
 });
 
 test("nothing changes when the engine already agrees with Windows", () => {

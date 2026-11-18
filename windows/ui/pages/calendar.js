@@ -526,6 +526,7 @@ function openEvent(id) {
   const writable = calendar?.writable !== false;
   const form = $("#event-form");
   form.title.value = event.title || "";
+  form.elements.location.value = event.location || "";
   form.allDay.checked = !!event.allDay;
   form.day.value = event.allDay ? event.startDay : dayKey(new Date(event.start));
   form.endDay.value = event.allDay
@@ -579,12 +580,13 @@ $("#event-form").onsubmit = (submit) => {
     if (end <= start) end += 86400000;
     changes = { title: form.title.value.trim(), allDay: false, start, end };
   }
-  $("#event-editor").close();
-  void action(() =>
-    record.provider
-      ? api.linkedCalendars({ command: "update", event: record.id, changes })
-      : put("events", OrbitCalendarEvents.editRequest(record, changes)),
-  );
+  changes.location = form.elements.location.value.trim();
+  // Keep the draft available if the provider or local store rejects the edit.
+  void action(async () => {
+    if (record.provider) await api.linkedCalendars({ command: "update", event: record.id, changes });
+    else await put("events", OrbitCalendarEvents.editRequest(record, changes));
+    $("#event-editor").close();
+  });
 };
 function deleteEventRecord(record) {
   return action(() =>
@@ -611,7 +613,7 @@ function openEventMenu(e) {
   const when = event.allDay ? "All day" : `${calendarTime(event.start)}–${calendarTime(event.end || event.start)}`;
   const entries = [
     ["Edit event…", () => openEvent(id)],
-    ["Copy text", () => api.copy([event.title || "Event", when].join("\n"))],
+    ["Copy text", () => api.copy([event.title || "Event", when, event.location].filter(Boolean).join("\n"))],
     [
       "Add as a task",
       () => {

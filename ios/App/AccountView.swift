@@ -60,25 +60,28 @@ private struct SignInSection: View {
     @State private var signingIn = false
     @State private var confirmationCode = ""
     @State private var resendAfter = Date.distantPast
+    private var validEmail: Bool {
+        AuthInput.validEmail(email)
+    }
     var body: some View {
         Section {
             TextField("Email", text: $email).textContentType(.emailAddress).keyboardType(.emailAddress).textInputAutocapitalization(.never).autocorrectionDisabled()
             SecureField("Password", text: $password).textContentType(.password)
-            Button("Sign in") { authenticate(create: false) }.disabled(signingIn || email.isEmpty || password.isEmpty)
+            Button("Sign in") { authenticate(create: false) }.disabled(signingIn || !validEmail || password.isEmpty)
             Button("Forgot password?") {
                 signingIn = true
                 Task { defer { signingIn = false }; do { try await sync.requestRecovery(email: email); message = "If this account exists, a recovery email is on its way. Open its newest link on this same device." } catch { message = error.localizedDescription } }
-            }.disabled(signingIn || email.isEmpty)
-            Button("Create account") { authenticate(create: true) }.disabled(signingIn || email.isEmpty || password.count < 8)
+            }.disabled(signingIn || !validEmail)
+            Button("Create account") { authenticate(create: true) }.disabled(signingIn || !validEmail || password.count < 8)
             DisclosureGroup("Email confirmation") {
                 Text("Open the newest confirmation email and tap its link, then sign in above. If you have a confirmation code, you can enter it below.").font(.footnote).foregroundStyle(.secondary)
                 TextField("Confirmation code (if provided)", text: $confirmationCode)
                     .textContentType(.oneTimeCode).keyboardType(.numberPad)
                 Button("Confirm account") { confirmAccount() }
-                    .disabled(signingIn || email.isEmpty || confirmationCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(signingIn || !validEmail || confirmationCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 TimelineView(.periodic(from: .now, by: 1)) { timeline in
                     Button(timeline.date < resendAfter ? "Resend available shortly" : "Resend confirmation email") { resendCode() }
-                        .disabled(signingIn || email.isEmpty || timeline.date < resendAfter)
+                        .disabled(signingIn || !validEmail || timeline.date < resendAfter)
                 }
                 Text("Enter the newest code from your email. Expired links cannot be reused.").font(.footnote).foregroundStyle(.secondary)
             }

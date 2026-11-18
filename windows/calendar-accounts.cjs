@@ -66,6 +66,7 @@ function googleEvent(calendar, item) {
     account: calendar.account,
     provider: "google",
     title: item.summary || "(No title)",
+    location: item.location || "",
     recurring: !!item.recurringEventId,
   };
   if (item.start?.date)
@@ -98,6 +99,7 @@ function microsoftEvent(calendar, item) {
     account: calendar.account,
     provider: "microsoft",
     title: item.subject || "(No title)",
+    location: item.location?.displayName || "",
     recurring: item.type === "occurrence" || item.type === "exception",
   };
   const utc = (value) => Date.parse(String(value || "").replace(/(\.\d{3})\d*$/, "$1") + "Z");
@@ -120,6 +122,7 @@ function microsoftEvent(calendar, item) {
 function googleBody(changes) {
   const body = {};
   if (changes.title !== undefined) body.summary = changes.title;
+  if (changes.location !== undefined) body.location = changes.location;
   if (changes.allDay === true)
     Object.assign(body, {
       start: { date: changes.startDay },
@@ -135,6 +138,7 @@ function googleBody(changes) {
 function microsoftBody(changes) {
   const body = {};
   if (changes.title !== undefined) body.subject = changes.title;
+  if (changes.location !== undefined) body.location = { displayName: changes.location };
   const utc = (stamp) => ({ dateTime: new Date(stamp).toISOString().slice(0, 19), timeZone: "UTC" });
   if (changes.allDay === true) {
     const end = changes.endDay || addDays(changes.startDay, 1);
@@ -508,7 +512,7 @@ h1{margin:20px 0 8px;font-size:26px;line-height:1.2}p{margin:0;color:var(--muted
       startDateTime: from.toISOString(),
       endDateTime: to.toISOString(),
       $top: "500",
-      $select: "id,subject,start,end,isAllDay,isCancelled,type",
+      $select: "id,subject,location,start,end,isAllDay,isCancelled,type",
     })}`;
     while (next) {
       const value = await this.call(account, next, { headers: { Prefer: 'outlook.timezone="UTC"' } });

@@ -82,6 +82,8 @@
           at: now,
         };
     const { pending, ...original } = event;
+    // Omission preserves the calendar's location; an explicit empty string clears it.
+    if (next.location !== undefined) request.location = next.location;
     return { ...original, request };
   }
 

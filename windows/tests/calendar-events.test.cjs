@@ -2,6 +2,15 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const events = require("../ui/calendar-events.js");
 
+test("location edits preserve, replace and explicitly clear addresses", () => {
+  const event = { id: "a", title: "Visit", allDay: true, startDay: "2026-11-18", location: "Old address" };
+  assert.equal(events.editRequest(event, { title: "Renamed" }).request.location, "Old address");
+  const edited = events.editRequest(event, { location: "123 Main St" });
+  assert.equal(events.effective(edited).location, "123 Main St");
+  assert.equal(events.editRequest(edited, { location: "" }).request.location, "");
+  assert.equal(events.editRequest({ ...event, location: undefined }, {}).request.location, undefined);
+});
+
 const at = (text) => new Date(text).getTime();
 const timed = (id, start, end, extra = {}) => ({
   id,

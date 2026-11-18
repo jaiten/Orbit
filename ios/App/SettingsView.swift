@@ -4,6 +4,7 @@ import EventKit
 
 /// Settings: appearance, accent, reminders, calendars, widgets and your data. Account has its own screen.
 struct SettingsView: View {
+    @AppStorage("appearance") private var appearance = "system"
     @Environment(\.dismiss) private var dismiss
     @Environment(\.orbitAccent) private var accent
     @Environment(\.colorScheme) private var scheme
@@ -52,6 +53,7 @@ struct SettingsView: View {
                     Button("OK") { message = nil }
                 } message: { Text(message ?? "") }
         }
+        .preferredColorScheme(appearance == "system" ? nil : (appearance == "dark" ? .dark : .light))
     }
 }
 
@@ -67,7 +69,10 @@ private struct AppearanceSection: View {
     var body: some View {
         let open = Set(Rewards.accents(earned: Rewards.earnedBadges(Rewards.metrics(tasks: tasks, logs: logs, counters: Rewards.counterIDs(habits)))))
         Section("Appearance") {
-            AccentPicker(title: "Appearance", selection: $appearance, choices: [("system", "System"), ("light", "Light"), ("dark", "Dark")])
+            // Keep the control in the form while the sheet's presentation appearance changes.
+            Picker("Appearance", selection: $appearance) {
+                Text("System").tag("system"); Text("Light").tag("light"); Text("Dark").tag("dark")
+            }.pickerStyle(.segmented).accessibilityIdentifier("appearance-picker")
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: typeSize.isAccessibilitySize ? 2 : 3), spacing: 12) {
                 ForEach(DayTheme.accents, id: \.self) { name in
                     let locked = !open.contains(name)
