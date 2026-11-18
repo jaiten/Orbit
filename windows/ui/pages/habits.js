@@ -2,7 +2,7 @@ function renderHabits(habits) {
   // Counters (no target; every click adds one) have their own list under the habits.
   const counters = habits.filter(OrbitHabits.isCounter);
   const regular = habits.filter((h) => !OrbitHabits.isCounter(h));
-  const head = `<header class="page-head"><div><h1>Habits</h1></div><div class="head-tools"><button id="new-counter" class="quiet-control" title="A counter goes up by one each time you click it">${plus}New counter</button><button id="habit-history" class="quiet-control" title="Habit history"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>History</button></div></header>`;
+  const head = `<header class="page-head"><div><h1>Habits</h1></div><div class="head-tools"><button id="add-habit-menu" class="icon-button" aria-label="Add habit" aria-haspopup="menu" title="Add habit">${plus}</button><button id="habit-history" class="quiet-control" title="Habit history"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>History</button></div></header>`;
   if (!habits.length)
     return `<div class="narrow habits-page">${head}<div class="empty-state"><svg class="doc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m17 2 4 4-4 4M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3"/></svg><p><strong>No habits yet</strong><br />Add one, or type “read every day” anywhere.</p></div><div class="capture-dock">${addField("Add a habit")}</div></div>`;
   return `<div class="narrow habits-page">${head}
@@ -174,7 +174,20 @@ function bindHabits() {
         render();
       }),
   );
-  if ($("#new-counter")) $("#new-counter").onclick = () => openHabit(null, { frequencyRule: OrbitHabits.COUNTER });
+  if ($("#add-habit-menu"))
+    $("#add-habit-menu").onclick = (event) => {
+      event.stopPropagation();
+      const box = event.currentTarget.getBoundingClientRect();
+      showMenu(
+        [
+          ["New habit", () => openHabit(null)],
+          ["New counter", () => openHabit(null, { frequencyRule: OrbitHabits.COUNTER })],
+          ["New avoid habit", () => openHabit(null, { frequencyRule: OrbitHabits.AVOID })],
+        ],
+        box.right - 180,
+        box.bottom + 6,
+      );
+    };
   document
     .querySelectorAll(".count-day i[data-bar]")
     .forEach((bar) => (bar.style.height = `${Math.round(4 + Number(bar.dataset.bar) * 30)}px`));

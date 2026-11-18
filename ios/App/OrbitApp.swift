@@ -10,7 +10,29 @@ import Combine
     init() {
         do {
             #if DEBUG
-            container = try Persistence.makeContainer(inMemory: ProcessInfo.processInfo.arguments.contains("--ui-testing"))
+            let loaded = try Persistence.makeContainer(inMemory: ProcessInfo.processInfo.arguments.contains("--ui-testing"))
+            if ProcessInfo.processInfo.arguments.contains("--ui-testing") && ProcessInfo.processInfo.arguments.contains("--today-load-fixture") {
+                let context = loaded.mainContext
+                let day = PlannerLogic.todayDate
+                // A populated planner exercises Today with regular, avoiding and counter rows together.
+                for i in 0..<500 {
+                    let task = PlannerTask(title: "History \(i)", dueDate: day.addingTimeInterval(-86_400 * 30))
+                    task.completedAt = day.addingTimeInterval(-86_400 * 30); context.insert(task)
+                }
+                context.insert(PlannerTask(title: "Today regression task", dueDate: day))
+                for i in 0..<12 {
+                    let habit = Habit(title: "Routine \(i)")
+                    habit.createdAt = day.addingTimeInterval(-86_400 * 181); context.insert(habit)
+                    for offset in 1...180 {
+                        let key = PlannerLogic.dayKey(Calendar.current.date(byAdding: .day, value: -offset, to: day)!)
+                        context.insert(HabitLog(habitID: habit.id, dayKey: key))
+                    }
+                }
+                context.insert(Habit(title: "Avoid regression", frequencyRule: HabitRules.avoid))
+                context.insert(Habit(title: "Counter regression", frequencyRule: HabitRules.counter))
+                try context.save()
+            }
+            container = loaded
             #else
             container = try Persistence.makeContainer()
             #endif

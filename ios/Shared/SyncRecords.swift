@@ -196,7 +196,7 @@ import SwiftData
         func uid(_ name: String) -> UUID? { (p[name] as? String).flatMap(UUID.init(uuidString:)) }
         switch key.split(separator: "/").first {
         case "tasks":
-            let old = try context.fetch(FetchDescriptor<PlannerTask>()).first { $0.id == uuid }
+            let old = try context.fetch(FetchDescriptor<PlannerTask>(predicate: #Predicate { $0.id == uuid })).first
             if deleted { if let old { context.delete(old) }; return }
             let t = old ?? PlannerTask(title: p["title"] as? String ?? "Task"); if old == nil { t.id = uuid; context.insert(t) }
             t.conversionData = p["conversionData"] as? String; t.title = p["title"] as? String ?? t.title; t.notes = p["notes"] as? String ?? ""; t.listID = uid("listID"); t.hasTime = p["hasTime"] as? Bool ?? false
@@ -213,24 +213,24 @@ import SwiftData
             }
             t.completedAt = date("completedAt"); t.nextOccurrenceID = uid("nextOccurrenceID"); t.sortOrder = p["sortOrder"] as? Int ?? 0; t.updatedAt = date("updatedAt") ?? .now
         case "habits":
-            let old = try context.fetch(FetchDescriptor<Habit>()).first { $0.id == uuid }
+            let old = try context.fetch(FetchDescriptor<Habit>(predicate: #Predicate { $0.id == uuid })).first
             if deleted { if let old { context.delete(old) }; return }
             let h = old ?? Habit(title: p["title"] as? String ?? "Habit"); if old == nil { h.id = uuid; context.insert(h) }
             h.conversionData = p["conversionData"] as? String; h.title = p["title"] as? String ?? h.title; h.target = max(1, p["target"] as? Int ?? 1); h.frequencyRule = p["frequencyRule"] as? String ?? "DAILY"; h.color = p["color"] as? String ?? "clay"; h.icon = p["icon"] as? String ?? "leaf"; h.reminderMinutes = p["reminderMinutes"] as? Int; h.nudgeMinutes = p["nudgeMinutes"] as? Int; h.goal = (p["goal"] as? Int).flatMap { $0 > 0 ? $0 : nil }; h.goalKind = p["goalKind"] as? String == "atMost" ? "atMost" : nil; h.createdAt = date("createdAt") ?? .now; h.updatedAt = date("updatedAt") ?? .now
         case "habit_logs":
             guard let habitID = uid("habitID"), let day = p["dayKey"] as? String else { throw CocoaError(.coderReadCorrupt) }
-            let old = try context.fetch(FetchDescriptor<HabitLog>()).first { $0.habitID == habitID && $0.dayKey == day }
+            let old = try context.fetch(FetchDescriptor<HabitLog>(predicate: #Predicate { $0.habitID == habitID && $0.dayKey == day })).first
             if deleted { if let old { context.delete(old) }; return }
             let l = old ?? HabitLog(habitID: habitID, dayKey: day); if old == nil { context.insert(l) }; l.id = uuid; l.count = max(HabitRules.slip, p["count"] as? Int ?? 0); l.updatedAt = date("updatedAt") ?? .now
         case "lists":
-            let old = try context.fetch(FetchDescriptor<TaskList>()).first { $0.id == uuid }; if deleted { if let old { context.delete(old) }; return }
+            let old = try context.fetch(FetchDescriptor<TaskList>(predicate: #Predicate { $0.id == uuid })).first; if deleted { if let old { context.delete(old) }; return }
             let l = old ?? TaskList(name: p["name"] as? String ?? "List"); if old == nil { l.id = uuid; context.insert(l) }; l.kind = p["kind"] as? String; l.locked = (p["locked"] as? Bool) == true ? true : nil; l.hidden = (p["hidden"] as? Bool) == true ? true : nil; l.name = p["name"] as? String ?? l.name; l.color = p["color"] as? String ?? "sage"; l.sortOrder = p["sortOrder"] as? Int ?? 0; l.updatedAt = date("updatedAt") ?? .now
         case "preferences":
             if uuid == CaptureRules.recordID { if !deleted { CaptureRules.receive(p) }; return }
             guard uuid == DayStart.recordID else { return }
             if !deleted { DayStart.receive(minutes: p["dayStartMinutes"] as? Int, updatedAt: p["updatedAt"] as? Double ?? 0) }
         case "idea_prompts":
-            let old = try context.fetch(FetchDescriptor<IdeaPrompt>()).first { $0.id == uuid }; if deleted { if let old { context.delete(old) }; return }
+            let old = try context.fetch(FetchDescriptor<IdeaPrompt>(predicate: #Predicate { $0.id == uuid })).first; if deleted { if let old { context.delete(old) }; return }
             let i = old ?? IdeaPrompt(text: p["text"] as? String ?? ""); if old == nil { i.id = uuid; context.insert(i) }; i.text = p["text"] as? String ?? ""; i.shownAt = date("shownAt"); i.dismissed = p["dismissed"] as? Bool ?? false; i.updatedAt = date("updatedAt") ?? .now
         default: throw CocoaError(.coderReadCorrupt)
         }

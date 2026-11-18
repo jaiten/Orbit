@@ -3,8 +3,7 @@
 # GitHub first (scripts/defer_to_github.py): if GitHub's iOS run got a runner, GitHub has it and this build
 # stops after a minute or so; if GitHub can't run it (no minutes, no runner), this cancels GitHub's queued run
 # and builds and uploads here instead. Both use scripts/prepare_testflight.py, so build numbers keep rising
-# whichever one builds. It doesn't wait for Apple to finish processing the upload (Apple emails when it has),
-# to save minutes. Setup: docs/testflight.md, "Codemagic".
+# whichever one builds. Both pipelines verify Apple has finished processing before reporting success. Setup: docs/testflight.md, "Codemagic".
 workflows:
   testflight:
     name: TestFlight
@@ -98,6 +97,10 @@ workflows:
           [ "${SKIP_BUILD:-}" = 1 ] && exit 0
           set -euo pipefail
           xcrun altool --upload-app --type ios --file "$RUNNER_TEMP/export/Orbit.ipa" --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+      - name: Verify Apple finished processing this build
+        script: |
+          [ "${SKIP_BUILD:-}" = 1 ] && exit 0
+          python3 scripts/wait_for_testflight.py
       - name: Remove signing material
         script: |
           [ "${SKIP_BUILD:-}" = 1 ] && exit 0

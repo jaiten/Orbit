@@ -224,7 +224,7 @@ function compactHabit(h) {
     id = esc(h.id),
     title = esc(h.title);
   return `<div class="row habit-row habit-${colorName(h.color)} check-tile ${done ? "complete" : ""}" data-flip="habit-${id}" data-row-menu="habit:${id}">
-    <button class="row-line habit-log" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-day="${today()}" data-habit-menu="${id}">${tick(done, poppedID === h.id)}<span class="row-title">${title}</span><span class="row-detail ${done ? "met" : ""}">${OrbitHabits.isAvoid(h) ? habitDetail(h) : `${progress(h)} of ${h.target}`}</span></button>
+    <button class="row-line habit-log" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-day="${today()}" data-habit-menu="${id}">${tick(done, poppedID === h.id)}<span class="row-title">${title}</span><span class="row-detail ${done ? "met" : ""}">${OrbitHabits.isAvoid(h) ? habitDetail(h) : `${progress(h)} of ${h.target}`}</span></button>${avoidSlipButton(h)}
   </div>`;
 }
 /**
@@ -270,7 +270,7 @@ function renderToday(tasks, allHabits) {
   const agenda = `      ${focusBanner()}
       ${conflictBanner()}
       ${timed.length ? sectionLabel("On the agenda", "Time blocks") + checklist(timed) : ""}
-      ${untimed.length ? sectionLabel("At your own pace", "To-dos") + checklist(untimed) : ""}
+      ${untimed.length ? sectionLabel("To-dos") + checklist(untimed) : ""}
       ${
         open.length
           ? ""
@@ -279,7 +279,7 @@ function renderToday(tasks, allHabits) {
             : `<div class="empty-state today-empty"><span class="today-empty-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span><p><strong>Nothing planned yet</strong><br />Start typing to add a task, or press Ctrl+N.</p></div>`
       }
 `;
-  // Completed tasks sit at the bottom of the page, below every card, so finishing one never moves a card.
+  // Completed belongs to the task panel and follows it when the layout changes.
   const completedBlock = complete.length
     ? `<details class="completed-items today-completed" ${completedOpen ? "open" : ""}>
               <summary class="section-label" aria-label="${complete.length} completed"><h2>${complete.length} completed</h2><svg class="ui-icon completed-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></summary>
@@ -295,7 +295,7 @@ function renderToday(tasks, allHabits) {
     ${editingTodayLayout ? todayLayoutOptions() : ""}
     <div class="today-board ${editingTodayLayout ? "editing" : ""}">
       ${editingTodayLayout ? `<div id="today-column-resizer" role="separator" tabindex="0" aria-label="Today column widths" aria-orientation="vertical" aria-valuemin="35" aria-valuemax="75" title="Drag to resize columns; arrow keys also adjust"></div>` : ""}
-      <section class="today-main today-panel-column" data-panel-drop="main">${todayPanel("tasks", agenda, "main")}</section>
+      <section class="today-main today-panel-column" data-panel-drop="main">${todayPanel("tasks", agenda + completedBlock, "main")}</section>
       <aside class="today-side today-panel-column" data-panel-drop="side" aria-label="Plan and progress">
         ${todayPanel("upcoming", upcomingCard(tasks))}
         ${todayPanel("recent", recentProgressCard(tasks, allHabits))}
@@ -304,7 +304,6 @@ function renderToday(tasks, allHabits) {
         ${todayPanel("heatmap", overallProgressCard(tasks, allHabits))}
       </aside>
     </div>
-    ${completedBlock}
     <div class="capture-dock">${addField()}</div>
   </div>`;
 }
@@ -445,32 +444,9 @@ function bindHabitColumns() {
   });
   lists.forEach((list) => habitColumnsObserver.observe(list));
 }
-/**
- * While Today stays open, its cards keep the height they reached: checking something off in one card (a
- * task leaving Your day, say) never pulls the cards below it upwards. Leaving the page, resizing the window
- * or editing the layout lets them settle again.
- */
-let todayHeldHeights = new Map();
-let todayHeldWidth = 0;
-function releaseTodayHeights() {
-  todayHeldHeights = new Map();
-}
-function holdTodayHeights() {
-  if (page !== "today" || editingTodayLayout || innerWidth !== todayHeldWidth) releaseTodayHeights();
-  todayHeldWidth = innerWidth;
-  if (page !== "today" || editingTodayLayout) return;
-  document.querySelectorAll(".today-panel[data-today-panel]").forEach((panel) => {
-    const id = panel.dataset.todayPanel;
-    const natural = panel.getBoundingClientRect().height;
-    const held = todayHeldHeights.get(id) || 0;
-    if (held > natural) panel.style.setProperty("min-height", `${held}px`);
-    todayHeldHeights.set(id, Math.max(held, natural));
-  });
-}
 function bindToday() {
   applyCalendarStyles();
-  holdTodayHeights();
-  bindHabitColumns();
+
   document.querySelectorAll(".upcoming-card [data-edit-event]").forEach((button) => {
     button.onclick = () => openEvent(button.dataset.editEvent);
     button.oncontextmenu = openEventMenu;
@@ -502,6 +478,7 @@ function bindToday() {
       $("#edit-today-layout")?.focus();
     };
   bindTodayBoard();
+  bindHabitColumns();
   document.querySelectorAll(".overall-day[data-o]").forEach((cell) => cell.style.setProperty("--o", cell.dataset.o));
   document.querySelectorAll("[data-upcoming-days]").forEach(
     (button) =>

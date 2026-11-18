@@ -1032,6 +1032,76 @@ const fs = require("node:fs");
   assert.equal(await opacity(), "0");
   // Completed tasks fold behind the arrow beside "N completed"; there is no separate menu.
   assert.equal(await p.locator("#today-completed").count(), 0);
+  // Today keeps Completed with its tasks, even when the right column is much taller.
+  await p.evaluate(async () => {
+    const localDate = new Date().toLocaleDateString("en-CA");
+    await window.orbit.put("tasks/layout-open", {
+      id: "layout-open",
+      title: "Layout open",
+      localDate,
+      updatedAt: Date.now(),
+    });
+    await window.orbit.put("tasks/layout-done", {
+      id: "layout-done",
+      title: "Layout done",
+      localDate,
+      completedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    for (const [id, frequencyRule] of [
+      ["avoid-action", "AVOID"],
+      ["weekly-layout", "WEEKLY"],
+    ]) {
+      await window.orbit.put("habits/" + id, {
+        id,
+        title: id,
+        frequencyRule,
+        target: 1,
+        color: "sage",
+        createdAt: Date.now() - 86400000,
+        updatedAt: Date.now(),
+      });
+    }
+  });
+  await p.locator('[data-today-panel="tasks"] .today-completed').waitFor();
+  assert.equal(await p.locator(".today-layout > .today-completed").count(), 0);
+  assert.equal(
+    await p.locator('[data-today-panel="tasks"] .section-label', { hasText: "At your own pace" }).count(),
+    0,
+  );
+  // Detached weekly habits stay directly after tasks rather than retaining an old panel height.
+  await p.evaluate(() => {
+    localStorage.setItem("todayHabitsSplit", "on");
+    localStorage.setItem(
+      "todayPanelLayout",
+      JSON.stringify({ tasks: { column: "main", order: 0 }, "habits-weekly": { column: "main", order: 1 } }),
+    );
+  });
+  await p.locator('nav [data-page="habits"]').click();
+  await p.locator('nav [data-page="today"]').click();
+  const taskBox = await p.locator('[data-today-panel="tasks"]').boundingBox();
+  const weeklyBox = await p.locator('[data-today-panel="habits-weekly"]').boundingBox();
+  assert.ok(
+    Math.abs(weeklyBox.y - taskBox.y - taskBox.height - 12) < 2,
+    "Weekly habits follow tasks with just the panel gap",
+  );
+  const slip = p.getByRole("button", { name: "Mark avoid-action as slipped today", exact: true });
+  await slip.locator("..").hover();
+  assert.equal(await slip.evaluate((button) => getComputedStyle(button).opacity), "1");
+  await slip.click();
+  await p.getByRole("button", { name: "avoid-action: slipped today. Take back the slip", exact: true }).waitFor();
+  assert.equal(
+    await p.evaluate(
+      async () =>
+        (await window.orbit.read()).records.find((r) => r.key.startsWith("habit_logs/avoid-action-"))?.payload.count,
+    ),
+    -1,
+  );
+  await p.locator('nav [data-page="habits"]').click();
+  await p.getByRole("button", { name: "Add habit", exact: true }).click();
+  await p.getByRole("menuitem", { name: "New avoid habit", exact: true }).click();
+  assert.equal(await p.locator('#habit-form [name="kind"]').inputValue(), "avoid");
+  await p.keyboard.press("Escape");
   assert.deepEqual(errors, []);
   console.log(
     "PASS: account keyboard/back, note sizing/scrolling, row actions/icons, settings races and planner flows",

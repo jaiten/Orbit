@@ -539,7 +539,7 @@ function habitCard(h, { fullWidth = false } = {}) {
     <div class="row-line">
       <button class="row-tick" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-day="${date}" data-habit-menu="${id}">${tick(done, poppedID === h.id)}</button>
       <div class="row-main"><button class="row-body" aria-label="${done ? "Undo" : "Log"} ${title}" data-habit-toggle="${id}" data-habit-day="${date}"><span class="row-title">${title}</span><span class="dot ${colorName(h.color)}" aria-hidden="true"></span><span class="row-detail ${done ? "met" : ""}">${habitDetail(h, date)}</span></button>
-      ${rowActions(id, title, true)}</div>
+      ${avoidSlipButton(h)}${rowActions(id, title, true)}</div>
     </div>
   </div>`;
 }
@@ -586,6 +586,11 @@ function avoidCard(h, { compact = false, fullWidth = false } = {}) {
       ${rowActions(id, title, true)}</div>
     </div>
   </div>`;
+}
+/** A separate action so marking a slip never also logs a successful day. */
+function avoidSlipButton(h) {
+  if (!OrbitHabits.isAvoid(h)) return "";
+  return `<button class="avoid-slip-action" data-mark-slip="${esc(h.id)}" aria-label="Mark ${esc(h.title)} as slipped today" title="I slipped today"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M7 17 17 7"/></svg></button>`;
 }
 /** An avoid habit's menu entry: mark today as a slip, or take it back. */
 function avoidEntries(h) {
@@ -823,6 +828,12 @@ function bindTiles() {
     .querySelectorAll("[data-counter]")
     .forEach((b) => (b.onclick = () => tickAction(() => countUp(b.dataset.counter))));
   document.querySelectorAll("[data-habit-edit]").forEach((b) => (b.onclick = () => openHabit(b.dataset.habitEdit)));
+  document.querySelectorAll("[data-mark-slip]").forEach((button) => {
+    button.onclick = (event) => {
+      event.stopPropagation();
+      void tickAction(() => markSlip(button.dataset.markSlip, true));
+    };
+  });
   document.querySelectorAll("[data-avoid]").forEach(
     (b) =>
       (b.onclick = (event) => {

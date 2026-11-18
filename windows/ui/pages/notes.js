@@ -48,7 +48,7 @@ const noteSearchText = (note) =>
 /** A page in the notes list: its icon (a lock when locked) and title. */
 function noteNavButton(n, openID) {
   const glyph = OrbitLocks.isLocked(n)
-    ? `<svg class="doc-icon note-lock-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="${LOCK_PATH}"/></svg>`
+    ? `<svg class="doc-icon note-lock-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="${OrbitLocks.isSealed(n) ? LOCK_PATH : UNLOCK_PATH}"/></svg>`
     : noteGlyph(n.noteIcon);
   const hidden = OrbitLocks.isHidden(n);
   // Under the title: when it was edited and the start of the text, as in Apple Notes. Locked and
@@ -111,7 +111,10 @@ function bindLists() {
       (b.onclick = async () => {
         if (page === "note") await saveNote();
         const id = b.dataset.noteSection;
-        if (collapsedNoteSections.has(id)) collapsedNoteSections.delete(id);
+        if (id !== "none" && OrbitLocks.sectionSealed(id)) {
+          if (!(await OrbitLocks.unlock())) return;
+          collapsedNoteSections.delete(id);
+        } else if (collapsedNoteSections.has(id)) collapsedNoteSections.delete(id);
         else collapsedNoteSections.add(id);
         localStorage.setItem("collapsedNoteSections", JSON.stringify([...collapsedNoteSections]));
         render();
@@ -241,7 +244,7 @@ function notesNav() {
       const items = notesIn(s.id);
       const sealed = OrbitLocks.sectionSealed(s.id);
       const section = rows("lists").find((l) => l.id === s.id);
-      const marks = `${section?.locked ? `<svg class="ui-icon section-mark" viewBox="0 0 24 24" aria-label="Locked"><path d="${LOCK_PATH}"/></svg>` : ""}${section?.hidden ? `<svg class="ui-icon section-mark" viewBox="0 0 24 24" aria-label="Titles hidden"><path d="${HIDDEN_PATH}"/></svg>` : ""}`;
+      const marks = `${section?.locked ? `<svg class="ui-icon section-mark" viewBox="0 0 24 24" aria-label="${sealed ? "Locked" : "Unlocked"}"><path d="${sealed ? LOCK_PATH : UNLOCK_PATH}"/></svg>` : ""}${section?.hidden ? `<svg class="ui-icon section-mark" viewBox="0 0 24 24" aria-label="Titles hidden"><path d="${HIDDEN_PATH}"/></svg>` : ""}`;
       if (s.optional && !items.length) return "";
       const key = s.id || "none";
       const open = !collapsedNoteSections.has(key) || !!noteFilter;
@@ -249,7 +252,7 @@ function notesNav() {
       return `<div class="notes-nav-group" data-note-drop="${esc(s.id || "")}" ${s.own ? `draggable="true" data-drag-section="${esc(s.id)}"` : ""}>
         <div class="notes-nav-row ${selected ? "selected" : ""}" data-section-menu="${esc(s.id)}">
           <button class="notes-nav-toggle" data-note-section="${esc(key)}" aria-expanded="${open}" aria-label="${open ? "Collapse" : "Expand"} ${esc(s.name)}"><span class="chevron ${open ? "open" : ""}">${icon(ICONS.chevron)}</span></button>
-          <button class="notes-nav-name" data-notes-home="${esc(s.id)}" title="${esc(s.name)}"><span class="list-dot ${s.color}"></span>${esc(s.name)}${marks}<span class="note-count">${sealed ? "" : items.length || ""}</span></button>
+          <button class="notes-nav-name" data-note-section="${esc(key)}" aria-expanded="${open}" title="${esc(s.name)}"><span class="list-dot ${s.color}"></span>${esc(s.name)}${marks}<span class="note-count">${sealed ? "" : items.length || ""}</span></button>
           <button class="icon-button small" data-new-note="${esc(s.id)}" aria-label="New note in ${esc(s.name)}" title="New note in ${esc(s.name)}">${icon(ICONS.plus)}</button>
         </div>
         ${
@@ -285,7 +288,7 @@ function noteCard(n) {
   const snippet = masked ? "" : OrbitNotes.snippet(n.notes);
   const search = noteSearchText(n);
   return `<button class="note-card" data-open-note="${esc(n.id)}" data-note-menu="${esc(n.id)}" title="${esc(noteDisplayTitle(n))}" data-search="${esc(search)}">
-    <span class="note-card-title">${noteGlyph(n.noteIcon)}<span>${esc(noteDisplayTitle(n))}</span></span>
+    <span class="note-card-title">${OrbitLocks.isLocked(n) ? icon(OrbitLocks.isSealed(n) ? LOCK_PATH : UNLOCK_PATH) : noteGlyph(n.noteIcon)}<span>${esc(noteDisplayTitle(n))}</span></span>
     <span class="note-card-text">${esc(snippet) || `<span class="muted">${OrbitLocks.isLocked(n) ? "Locked" : OrbitLocks.isHidden(n) ? "Hidden" : "Empty page"}</span>`}</span>
     <span class="note-card-meta">${esc(sectionName(n.listID))} · ${esc(edited(n))}</span>
   </button>`;
@@ -409,7 +412,7 @@ function renderNoteEditor() {
       <div class="note-toolbar"><button class="icon-button" data-toggle-notes aria-label="Hide note list"></button>
         <nav class="crumbs" aria-label="Location"><button data-back-notes>Back to notes</button><span>/</span><button data-notes-home="${esc(section)}">${esc(sectionName(section))}</button></nav>
         <span id="note-status" class="note-status"></span>
-        ${OrbitLocks.isLocked(note) ? `<span class="note-locked-mark" title="Locked">${icon(LOCK_PATH)}</span>` : ""}
+        ${OrbitLocks.isLocked(note) ? `<span class="note-locked-mark" title="Unlocked" aria-label="Unlocked">${icon(UNLOCK_PATH)}</span>` : ""}
         <input id="note-photo-file" type="file" accept="image/*" multiple hidden />
         <button class="icon-button" id="note-more" aria-label="More note options" aria-haspopup="menu" title="More">${icon(ICONS.more)}</button>
         ${historyButtonsHTML()}

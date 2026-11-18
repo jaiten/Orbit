@@ -10,6 +10,7 @@ case "$ORBIT_TEST_SCOPE" in
   smoke)
     ORBIT_TEST_FILTERS+=(
       "-only-testing:OrbitTests"
+      "-only-testing:OrbitUITests/ChecklistUITests/testPopulatedTodayRemainsResponsive"
       "-only-testing:OrbitUITests/ChecklistUITests/testBottomCaptureStaysReachableAndKeepsDraftWhenKeyboardCloses"
       "-only-testing:OrbitUITests/ChecklistUITests/testNotesHaveSectionsAndPages"
       "-only-testing:OrbitUITests/ChecklistUITests/testCalendarMakesAddingToAnotherDayExplicit"

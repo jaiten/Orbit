@@ -5100,3 +5100,40 @@ body[data-view="today"] .today-layout,
 #list-lock-row[hidden] {
   display: none;
 }
+
+/* Separate slip control stays reachable by keyboard and appears beside avoid habits on hover. */
+.habit-row {
+  position: relative;
+}
+.avoid-slip-action {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  margin-right: 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  opacity: 0;
+}
+.habit-row:hover .avoid-slip-action,
+.habit-row:focus-within .avoid-slip-action {
+  opacity: 1;
+}
+.avoid-slip-action:hover {
+  background: var(--surface);
+  color: var(--danger);
+}
+.compact-habits .habit-row:has(.avoid-slip-action) {
+  display: flex;
+  align-items: center;
+}
+.compact-habits .habit-row:has(.avoid-slip-action) .habit-log {
+  flex: 1;
+  min-width: 0;
+}
+@media (hover: none) {
+  .avoid-slip-action {
+    opacity: 1;
+  }
+}

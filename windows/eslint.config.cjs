@@ -212,6 +212,8 @@ const shared = Object.fromEntries(
     "sectionName",
     "OrbitLocks",
     "LOCK_PATH",
+    "UNLOCK_PATH",
+    "avoidSlipButton",
     "lockEntries",
     "sectionLockEntries",
     "noteMenuToTask",

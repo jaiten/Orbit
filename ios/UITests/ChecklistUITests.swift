@@ -16,6 +16,25 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
     }
 
+    func testPopulatedTodayRemainsResponsive() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing", "--today-load-fixture"]
+        app.launch()
+        let task = app.buttons["Complete Today regression task"]
+        XCTAssertTrue(task.waitForExistence(timeout: 30))
+        task.tap()
+        // Layout must settle and permit navigation even with all three routine groups and history.
+        selectTab("Notes", in: app)
+        selectTab("Today", in: app)
+        let input = app.textViews["inline-task-input"]
+        XCTAssertTrue(input.waitForExistence(timeout: 10))
+        input.tap(); input.typeText("Still responsive\n")
+        XCTAssertTrue(app.buttons["Complete Still responsive"].waitForExistence(timeout: 10))
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "Populated Today remains responsive"; shot.lifetime = .keepAlways; add(shot)
+    }
+
     func testSuggestedStartAndFinishForLaundry() {
         continueAfterFailure = false
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()

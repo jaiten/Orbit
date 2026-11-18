@@ -201,6 +201,26 @@ import UIKit
         context.delete(task); try Mutations.save(context)
         XCTAssertEqual(UndoJournal.shared.change?.kind, .deleted, "deleting")
     }
+    func testRemoteApplyUpdatesAndDeletesOnlyTheMatchingRecord() throws {
+        let context = ModelContext(try Persistence.makeContainer(inMemory: true))
+        let first = PlannerTask(title: "First"), second = PlannerTask(title: "Keep")
+        context.insert(first); context.insert(second)
+        let habit = Habit(title: "Water"); context.insert(habit)
+        let firstLog = HabitLog(habitID: habit.id, dayKey: "2026-11-16")
+        let secondLog = HabitLog(habitID: habit.id, dayKey: "2026-11-17")
+        context.insert(firstLog); context.insert(secondLog); try context.save()
+        var payload = SyncRecords.payload(first); payload["title"] = "Remote edit"
+        let key = "tasks/" + first.id.uuidString.lowercased()
+        try SyncRecords.apply(["key": key, "payload": payload], context: context); try context.save()
+        XCTAssertEqual(first.title, "Remote edit"); XCTAssertEqual(second.title, "Keep")
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<PlannerTask>()), 2)
+        let logKey = "habit_logs/" + habit.id.uuidString.lowercased() + "-" + firstLog.dayKey
+        try SyncRecords.apply(["key": logKey, "payload": SyncRecords.payload(firstLog), "deleted": true], context: context)
+        try context.save()
+        let remaining = try context.fetch(FetchDescriptor<HabitLog>())
+        XCTAssertEqual(remaining.map(\.id), [secondLog.id])
+    }
+
     /// A save records only what it touched, yet the outbox ends up the same as a full check would make it.
     func testSaveRecordsOnlyTheChangedItems() throws {
         let context = ModelContext(try Persistence.makeContainer(inMemory: true))

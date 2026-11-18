@@ -103,6 +103,7 @@ its first step, `scripts/defer_to_github.py`, asks GitHub whether its iOS run fo
 - A commit saying `[skip testflight]` is skipped on both. A build started by hand in Codemagic with the
   variable `FORCE_BUILD=true` skips the check and always builds.
 
+Both verify Apple processing with `scripts/wait_for_testflight.py` after uploading, before reporting success.
 Both run `scripts/prepare_testflight.py`, whose build number is minutes since 1 January 2026 (UTC) plus
 20000, so each upload is higher than the last whichever service built it.
 
@@ -124,3 +125,11 @@ Both run `scripts/prepare_testflight.py`, whose build number is minutes since 1 
 If a file is lost: a new App Store Connect API key can be made in App Store Connect → Users and Access →
 Integrations. A lost certificate or profile can be replaced from the Apple Developer website (Certificates,
 Identifiers & Profiles).
+
+## Apple SDK notices
+
+ITMS-90725 on build 482241 is an SDK deadline notice, not an upload rejection. Apple
+requires the iOS 27 SDK / Xcode 27 starting April 2027. The pipelines currently pin
+Xcode 26.3. Upgrade both `.github/workflows/ios.yml`,
+`.github/workflows/testflight.yml` and `codemagic.yaml` together when the required
+Xcode is available on both providers, then rerun simulator and signed archive checks.

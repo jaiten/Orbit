@@ -130,8 +130,16 @@ const shots = process.env.ORBIT_SCREENSHOT_DIR;
   // Notes: the toolbar keeps photo, copy and make-a-task behind ⋯.
   await p.keyboard.press("Control+4");
   await p.locator(".notes-nav-page", { hasText: "Groceries" }).first().click();
+  // A section name toggles its pages without leaving the current note.
+  const sectionName = p.locator('.notes-nav-name[data-note-section="s1"]');
+  await sectionName.click();
+  assert.equal(await sectionName.getAttribute("aria-expanded"), "false");
+  assert.equal(await p.locator("#note-title").inputValue(), "Groceries");
+  await sectionName.click();
+  assert.equal(await sectionName.getAttribute("aria-expanded"), "true");
+  assert.equal(await p.locator("#note-title").inputValue(), "Groceries");
   // Pages sit under date headings, as on iOS: Today first, older pages after.
-  await p.locator('.notes-nav-name[data-notes-home=""]').click();
+  await p.locator(".note-toolbar [data-back-notes]").click();
   const headings = await p.locator(".notes-overview .note-date-heading").allInnerTexts();
   assert.deepEqual(headings, ["Today", "Previous 7 Days"]);
   const navHeadings = await p
@@ -250,7 +258,7 @@ const shots = process.env.ORBIT_SCREENSHOT_DIR;
     false,
     "A locked note's text is not on the page",
   );
-  await p.locator('.notes-nav-name[data-notes-home=""]').click();
+  await p.locator(".note-toolbar [data-back-notes]").click();
   const overview = await p.locator(".notes-overview").innerText();
   for (const secret of ["Secret plans", "Surprise party", "Hidden thoughts", "Very private", "Milk, eggs"])
     assert.equal(overview.includes(secret), false, secret);
@@ -271,6 +279,8 @@ const shots = process.env.ORBIT_SCREENSHOT_DIR;
   await p.locator("#lock-dialog").getByRole("button", { name: "Unlock" }).click();
   await p.locator("#note-body").waitFor();
   assert.match(await p.locator("#note-body").innerText(), /Milk, eggs/);
+  assert.equal(await p.locator('.note-locked-mark[aria-label="Unlocked"]').count(), 1);
+  assert.equal(await p.locator('.notes-nav-group[data-note-drop="s2"] [aria-label="Unlocked"]').count(), 1);
   // Unlocked, the locked section's pages are listed again; Lock now hides them.
   await p.locator(".notes-nav-page", { hasText: "Secret plans" }).first().waitFor();
   await p.getByRole("button", { name: "Lock now" }).click();
@@ -297,7 +307,7 @@ const shots = process.env.ORBIT_SCREENSHOT_DIR;
     }),
   );
   // An open page doesn't redraw the list under the writer; going to the overview does.
-  await p.locator('.notes-nav-name[data-notes-home=""]').click();
+  await p.locator(".note-toolbar [data-back-notes]").click();
   await p.locator(".notes-nav-page", { hasText: "Long" }).first().click();
   await p.locator("#note-body").click();
   await p.keyboard.press("Control+End");
