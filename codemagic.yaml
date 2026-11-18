@@ -27,6 +27,15 @@ workflows:
         includes:
           - 'ios/**'
           - 'shared/**'
+          - 'codemagic.yaml'
+          - '.github/workflows/ios.yml'
+          - '.github/workflows/testflight.yml'
+          - 'scripts/check_ios_sdk.py'
+          - 'scripts/prepare_testflight.py'
+          - 'scripts/wait_for_testflight.py'
+          - 'scripts/run_ios_tests.sh'
+          - 'scripts/restore_source_mtimes.py'
+          - 'scripts/tests/**'
     scripts:
       - name: Leave it to GitHub if GitHub can build it
         script: python3 scripts/defer_to_github.py
