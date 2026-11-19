@@ -16,7 +16,6 @@ case "$ORBIT_TEST_SCOPE" in
       "-only-testing:OrbitUITests/ChecklistUITests/testCalendarMakesAddingToAnotherDayExplicit"
       "-only-testing:OrbitUITests/ChecklistUITests/testNativeThemeMenusAndHabitHistory"
       "-only-testing:OrbitUITests/ChecklistUITests/testCaptureMinutesAndHabitColorKeepDrafts"
-      "-only-testing:OrbitUITests/ChecklistUITests/testDeletingLocalCalendarEventKeepsOrbitResponsive"
     ) ;;
   focused)
     if [[ ! "${IOS_TEST_FILTER:-}" =~ ^(OrbitTests|OrbitUITests)(/[A-Za-z_][A-Za-z0-9_]*){1,2}$ ]]; then

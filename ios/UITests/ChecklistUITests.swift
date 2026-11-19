@@ -48,7 +48,7 @@ final class ChecklistUITests: XCTestCase {
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let allow = springboard.buttons["Allow Full Access"]
         if allow.waitForExistence(timeout: 5) { allow.tap() }
-        XCTAssertTrue(app.buttons["Disconnect Calendars"].waitForExistence(timeout: 12))
+        XCTAssertTrue(app.buttons["Disconnect Calendars"].waitForExistence(timeout: 12), app.debugDescription)
         selectTab("Calendar", in: app)
         let title = "Orbit disposable calendar event"
         let event = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", title)).firstMatch
