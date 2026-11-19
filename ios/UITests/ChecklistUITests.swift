@@ -622,7 +622,7 @@ final class ChecklistUITests: XCTestCase {
         if wheels.count > 2 { wheels.element(boundBy: 2).adjust(toPickerWheelValue: "AM") }
         XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "quick-add-preview").firstMatch.label.contains("9:37"))
         app.navigationBars.buttons["Save"].tap()
-        XCTAssertTrue(app.buttons["Minute regression"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Minute regression"].waitForExistence(timeout: 5), app.debugDescription)
 
         selectTab("Today", in: app)
         app.buttons["Add a habit"].tap()

@@ -114,7 +114,7 @@ struct QuickCapture: View {
                 .onChange(of: selectedListID) { _, id in if id == TodayRules.somedayID { scheduled = false } }
                 .onChange(of: scheduled) { _, on in if on && selectedListID == TodayRules.somedayID { selectedListID = nil } }
                 .onAppear { guard !populated else { return }; populated = true
-                    NotificationCenter.default.post(name: Notification.Name("orbitCaptureSubmitted"), object: nil); text = initialText; selectedDay = initialDate ?? .now; scheduled = !fromList || initialDate != nil; selectedListID = listID;
+                    NotificationCenter.default.post(name: Notification.Name("orbitCaptureSubmitted"), object: nil); text = initialText; selectedDay = QuickAdd.captureDay(initialDate: initialDate); scheduled = !fromList || initialDate != nil; selectedListID = listID;
                     let parsed = QuickAdd.parse(initialText)
                     hasTime = parsed.time != nil
                     if let minutes = parsed.time { time = Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: .now) ?? .now }
