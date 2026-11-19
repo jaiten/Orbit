@@ -35,14 +35,14 @@ const path = require("node:path");
         },
       };
     });
-    await p.route("http://orbit.test/**", (route) => {
+    await p.route("http://localhost/**", (route) => {
       const file = path.resolve(__dirname, "../ui", new URL(route.request().url()).pathname.slice(1) || "index.html");
       return route.fulfill({
         body: fs.readFileSync(file),
         contentType: file.endsWith(".js") ? "text/javascript" : file.endsWith(".css") ? "text/css" : "text/html",
       });
     });
-    await p.goto("http://orbit.test/");
+    await p.goto("http://localhost/");
     await p.locator('[data-page="settings"]').click();
     for (const appearance of ["dark", "light", "system"]) {
       await p.locator('[data-page="today"]').click();
@@ -171,8 +171,70 @@ const path = require("node:path");
       });
       console.log("Today render + layout, 500 historical tasks / 12 habits / 2160 logs:", metrics);
     }
+    await p.evaluate(async () => {
+      for (const [index, title] of ["Walk", "Read", "Water", "Stretch"].entries()) {
+        const id = "stable-" + index;
+        await window.orbit.put("habits/" + id, {
+          id,
+          title,
+          frequencyRule: "DAILY",
+          target: 1,
+          createdAt: Date.now() + index,
+        });
+      }
+      await load(true);
+    });
+    await p.locator('[data-page="today"]').click();
+    if (process.env.ORBIT_BENCHMARK) {
+      // Keep this geometry check independent of the optional populated-planner workload.
+      await p.evaluate(async () => {
+        for (const row of rows("habits").filter((habit) => habit.id.startsWith("benchmark-")))
+          await window.orbit.put(row._key, { ...row, createdAt: Date.now() + 172800000 });
+        await load(true);
+      });
+    }
+    await p.waitForFunction(() => document.querySelector(".compact-habits")?.classList.contains("columns"));
+    await p.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== "running"));
+    const selector = '.habits-compact-card [data-flip^="habit-stable-"]';
+    const before = await p.evaluate((selector) => {
+      return [...document.querySelectorAll(selector)].map((element) => {
+        const cell = element.getBoundingClientRect();
+        const list = element.closest(".check-list").getBoundingClientRect();
+        return [Math.round(cell.x - list.x), Math.round(cell.y - list.y)];
+      });
+    }, selector);
+    await p.locator(selector).first().getByRole("checkbox").click();
+    await p.waitForFunction(async () =>
+      (await window.orbit.read()).records.some(
+        (record) => record.payload.habitID === "stable-0" && record.payload.count === 1,
+      ),
+    );
+    const during = await p.evaluate(
+      (selector) =>
+        new Promise((resolve) => {
+          const start = performance.now();
+          const frames = [];
+          function sample(now) {
+            frames.push(
+              [...document.querySelectorAll(selector)].map((element) => {
+                const cell = element.getBoundingClientRect();
+                const list = element.closest(".check-list").getBoundingClientRect();
+                return [Math.round(cell.x - list.x), Math.round(cell.y - list.y)];
+              }),
+            );
+            if (now - start < 1000) requestAnimationFrame(sample);
+            else resolve(frames);
+          }
+          requestAnimationFrame(sample);
+        }),
+      selector,
+    );
+    for (const frame of during)
+      assert.deepEqual(frame, before, "Checking a habit must not move its grid or the other habits");
     assert.deepEqual(errors, []);
-    console.log("PASS: reopened appearance, empty auth, location/minutes and failed calendar draft retention");
+    console.log(
+      "PASS: reopened appearance, empty auth, location/minutes, failed calendar draft retention and stable habit grid",
+    );
   } finally {
     await browser.close();
   }
