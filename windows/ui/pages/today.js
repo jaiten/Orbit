@@ -251,7 +251,12 @@ function renderToday(tasks, allHabits) {
   // Today: dated today or earlier and still open, or finished today. Undated and Someday items stay in Notes.
   // Today is always the current day; past days are reviewed in Calendar.
   const day = today();
-  const relevant = tasks.filter((t) => OrbitPlanner.onDay(planItem(t), day, day));
+  const activeTags = activeSomedayTags(day);
+  const relevant = tasks.filter((t) =>
+    t.listID === SOMEDAY
+      ? OrbitSomedayRules.onToday(t, day, activeTags, plannerDay)
+      : OrbitPlanner.onDay(planItem(t), day, day),
+  );
   const habits = allHabits.filter((h) => (!h.createdAt || plannerDay(h.createdAt) <= day) && dueOn(h));
   const open = relevant.filter((t) => !t.completedAt),
     complete = relevant.filter((t) => t.completedAt);

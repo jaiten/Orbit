@@ -29,7 +29,9 @@ function openQuickAdd(context = quickAddContext()) {
 }
 
 function parseCapture(text, date) {
-  const parsed = OrbitPlanning.parse(text, date, plannerNow(), captureRules());
+  const tags = OrbitSomedayRules.tags(text);
+  const conditional = tags.size > 0 && somedayRules().some((rule) => tags.has(rule.tag));
+  const parsed = OrbitPlanning.parse(text, date, plannerNow(), { ...captureRules(), conditional });
   if (page === "habits" && parsed.kind !== "habit") return { ...parsed, kind: "habit", schedule: "DAILY" };
   return parsed;
 }

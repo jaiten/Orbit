@@ -69,7 +69,7 @@ const OrbitPlanning = (() => {
 
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     let date = null;
-    if (!schedule) {
+    if (!schedule && !rules.conditional) {
       for (const place of rules.places || []) {
         if (date || !place.name || !place.days?.length) continue;
         if (take(new RegExp(`\\s@${escape(place.name)}(?=\\s)`, "i"))) date = nextOf(today, place.days);
@@ -103,7 +103,8 @@ const OrbitPlanning = (() => {
       .trim()
       .replace(/\s(?:on|at|by)$/i, "");
     if (schedule) return { kind: "habit", title, schedule, time, date: null, someday: false, list };
-    if (someday) return { kind: "task", title, date: null, time: null, schedule: null, someday, list };
+    if (someday || rules.conditional)
+      return { kind: "task", title, date: null, time: null, schedule: null, someday: true, list };
     if (!date) {
       // Adding to a list: without date words the task stays in the list, undated.
       if (defaultDate === "undated" && time === null)

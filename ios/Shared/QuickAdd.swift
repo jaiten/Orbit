@@ -45,9 +45,11 @@ enum QuickAdd {
     /// `now` defaults to the planner clock (DayStart), so "today" and "tomorrow" follow the day start.
     /// `places` are the @ rules from Settings (CaptureRules): "@mums" lands on the next of those weekdays.
     static func parse(_ input: String, defaultDay: DefaultDay = .today, now: Date = DayStart.shifted(.now), calendar: Calendar = .current,
-                      places: [CaptureRules.Place] = CaptureRules.places) -> QuickAddResult {
+                      places: [CaptureRules.Place] = CaptureRules.places,
+                      visibilityRules: [SomedayRules.Rule] = SomedayRules.rules) -> QuickAddResult {
         var text = Text(value: " " + input.trimmingCharacters(in: .whitespacesAndNewlines) + " ")
         let someday = text.take(#"\ssomeday(?=\s)"#) != nil
+        let conditional = !SomedayRules.tags(in: input).isDisjoint(with: visibilityRules.map(\.tag))
         let list = text.take(#"\s#([\p{L}\p{N}_-]+)(?=\s)"#)?[1] ?? nil
 
         var schedule: String?
@@ -72,7 +74,7 @@ enum QuickAdd {
             return adding(.day, offset)
         }
         var date: Date?
-        if schedule == nil {
+        if schedule == nil && !conditional {
             for place in places where date == nil && !place.name.isEmpty && !place.days.isEmpty {
                 if text.take(#"\s@"# + NSRegularExpression.escapedPattern(for: place.name) + #"(?=\s)"#) != nil {
                     date = (0..<7).map { adding(.day, $0) }.first { place.days.contains(calendar.component(.weekday, from: $0) - 1) }
@@ -106,7 +108,7 @@ enum QuickAdd {
             .trimmingCharacters(in: .whitespaces)
             .replacingOccurrences(of: #"\s(?:on|at|by)$"#, with: "", options: [.regularExpression, .caseInsensitive])
         if let schedule { return QuickAddResult(kind: .habit, title: title, date: nil, time: time, schedule: schedule, list: list) }
-        if someday { return QuickAddResult(kind: .task, title: title, date: nil, time: nil, someday: true, list: list) }
+        if someday || conditional { return QuickAddResult(kind: .task, title: title, date: nil, time: nil, someday: true, list: list) }
         if date == nil {
             var fallback = defaultDay
             // Adding to a list: without date words the task stays in the list, undated.
