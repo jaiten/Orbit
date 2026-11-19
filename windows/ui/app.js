@@ -74,7 +74,7 @@ function render() {
   else enterPage();
   movePill();
   poppedID = null;
-  if (focusSelector) document.querySelector(focusSelector)?.focus();
+  if (focusSelector) document.querySelector(focusSelector)?.focus({ preventScroll: true });
   if (state.recoveryReady && !$("#password-editor").open) openDialog($("#password-editor"));
 }
 
