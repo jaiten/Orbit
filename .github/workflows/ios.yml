@@ -71,6 +71,21 @@ jobs:
           IOS_TEST_SCOPE: ${{ inputs.test_scope || 'smoke' }}
           IOS_TEST_FILTER: ${{ inputs.test_filter }}
         run: bash scripts/run_ios_tests.sh build
+      - name: Package Orbit for browser simulator testing
+        if: github.event_name != 'push'
+        run: |
+          set -euo pipefail
+          app="$RUNNER_TEMP/OrbitDerivedData/Build/Products/Debug-iphonesimulator/Orbit.app"
+          test -f "$app/Orbit"
+          xcrun lipo -verify_arch arm64 "$app/Orbit"
+          ditto -c -k --keepParent "$app" "$RUNNER_TEMP/Orbit-iOS-simulator.zip"
+      - uses: actions/upload-artifact@v7
+        if: github.event_name != 'push'
+        with:
+          name: Orbit-iOS-simulator
+          retention-days: 7
+          if-no-files-found: error
+          path: ${{ runner.temp }}/Orbit-iOS-simulator.zip
       - name: Save Xcode build cache
         if: steps.compile.outcome == 'success' && github.event_name != 'pull_request' && steps.build-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
