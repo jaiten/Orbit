@@ -28,6 +28,22 @@ struct CalendarDraft: Identifiable {
         guard try await store.requestFullAccessToEvents() else {
             throw NSError(domain: "Orbit", code: 1, userInfo: [NSLocalizedDescriptionKey: "Calendar access is off. You can enable it in iPhone Settings → Orbit → Calendars."])
         }
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("--ui-testing") && arguments.contains("--calendar-delete-fixture") {
+            let calendar = store.defaultCalendarForNewEvents
+            guard let calendar, calendar.source?.sourceType == .local else {
+                throw CocoaError(.fileNoSuchFile, userInfo: [NSLocalizedDescriptionKey: "The calendar test needs a local simulator calendar."])
+            }
+            let event = EKEvent(eventStore: store)
+            event.calendar = calendar
+            event.title = "Orbit disposable calendar event"
+            let day = Calendar.current.startOfDay(for: .now)
+            event.startDate = Calendar.current.date(byAdding: .hour, value: 9, to: day)
+            event.endDate = Calendar.current.date(byAdding: .hour, value: 10, to: day)
+            try store.save(event, span: .thisEvent)
+        }
+        #endif
         UserDefaults.standard.set(true, forKey: "calendarConnected")
         reload()
     }
@@ -187,8 +203,7 @@ struct CalendarEventRow: View {
     }
     private func delete() {
         let bridge = CalendarBridge.shared
-        let calendar: EKCalendar? = event.calendar
-        guard calendar?.allowsContentModifications == true else {
+        guard event.refresh(), event.calendar?.allowsContentModifications == true else {
             message = "This event is no longer available in a writable calendar."
             return
         }

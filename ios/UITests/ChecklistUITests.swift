@@ -35,6 +35,37 @@ final class ChecklistUITests: XCTestCase {
         shot.name = "Populated Today remains responsive"; shot.lifetime = .keepAlways; add(shot)
     }
 
+    func testDeletingLocalCalendarEventKeepsOrbitResponsive() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing", "--calendar-delete-fixture"]
+        app.launch()
+        openSettings(app)
+        let connect = app.buttons["Connect Calendars"]
+        reveal(connect, in: app)
+        XCTAssertTrue(connect.isHittable)
+        connect.tap()
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let allow = springboard.buttons["Allow Full Access"]
+        if allow.waitForExistence(timeout: 5) { allow.tap() }
+        XCTAssertTrue(app.buttons["Disconnect Calendars"].waitForExistence(timeout: 12))
+        selectTab("Calendar", in: app)
+        let title = "Orbit disposable calendar event"
+        let event = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", title)).firstMatch
+        reveal(event, in: app)
+        XCTAssertTrue(event.isHittable, app.debugDescription)
+        event.press(forDuration: 0.8)
+        let menuDelete = app.buttons["Delete event"]
+        XCTAssertTrue(menuDelete.waitForExistence(timeout: 5))
+        menuDelete.tap()
+        let confirm = app.buttons["Delete Event"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
+        XCTAssertTrue(event.waitForNonExistence(timeout: 10), app.debugDescription)
+        selectTab("Today", in: app)
+        XCTAssertTrue(app.textViews["inline-task-input"].isHittable)
+    }
+
     func testSuggestedStartAndFinishForLaundry() {
         continueAfterFailure = false
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
