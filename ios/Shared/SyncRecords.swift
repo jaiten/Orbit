@@ -96,6 +96,9 @@ import SwiftData
         if CaptureRules.updatedAt > 0 {
             result["preferences/" + CaptureRules.recordID.uuidString.lowercased()] = try json(CaptureRules.payload.merging(["id": id(CaptureRules.recordID)]) { $1 })
         }
+        if SomedayRules.updatedAt > 0 {
+            result["preferences/" + SomedayRules.recordID.uuidString.lowercased()] = try json(SomedayRules.record())
+        }
         return result
     }
     /// Every record, as the server should hold it. Reads everything: for sync's full check and backups,
@@ -227,6 +230,7 @@ import SwiftData
             let l = old ?? TaskList(name: p["name"] as? String ?? "List"); if old == nil { l.id = uuid; context.insert(l) }; l.kind = p["kind"] as? String; l.locked = (p["locked"] as? Bool) == true ? true : nil; l.hidden = (p["hidden"] as? Bool) == true ? true : nil; l.name = p["name"] as? String ?? l.name; l.color = p["color"] as? String ?? "sage"; l.sortOrder = p["sortOrder"] as? Int ?? 0; l.updatedAt = date("updatedAt") ?? .now
         case "preferences":
             if uuid == CaptureRules.recordID { if !deleted { CaptureRules.receive(p) }; return }
+            if uuid == SomedayRules.recordID { if !deleted { SomedayRules.receive(p) }; return }
             guard uuid == DayStart.recordID else { return }
             if !deleted { DayStart.receive(minutes: p["dayStartMinutes"] as? Int, updatedAt: p["updatedAt"] as? Double ?? 0) }
         case "idea_prompts":

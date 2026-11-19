@@ -231,6 +231,7 @@ struct CaptureRulesView: View {
     @State private var error: String?
     var body: some View {
         Form {
+            NavigationLink("Someday visibility rules") { SomedayRulesView() }
             Section {
                 TextEditor(text: $places).font(.body.monospaced()).frame(minHeight: 110)
                     .autocorrectionDisabled().textInputAutocapitalization(.never)
@@ -260,6 +261,102 @@ struct CaptureRulesView: View {
         CaptureRules.save(places: parsedPlaces, progressWords: parsedWords)
         // Saving records the rules for sync.
         do { try Mutations.save(context, undoable: false) } catch { self.error = error.localizedDescription }
+    }
+}
+
+private struct SomedayRulesView: View {
+    @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var bridge = CalendarBridge.shared
+    @State private var rules = SomedayRules.rules
+    @State private var error: String?
+
+    var body: some View {
+        Form {
+            Section {
+                Text("Type a configured @tag in a task to keep it in Someday. It appears in Today on matching days. Multiple rules for the same tag mean any can match.")
+                Button("Add rule") { rules.append(.init()) }
+                Button("Add Dad and Mum example") {
+                    var dad = SomedayRules.Rule()
+                    dad.tag = "dads"; dad.title = "Kidz @ James"
+                    var mum = SomedayRules.Rule()
+                    mum.tag = "mum"; mum.title = dad.title; mum.trigger = .noEvent
+                    rules.append(contentsOf: [dad, mum])
+                }
+            }
+            ForEach($rules) { $rule in
+                Section {
+                    TextField("Tag, e.g. dads", text: $rule.tag).textInputAutocapitalization(.never).autocorrectionDisabled()
+                    Picker("Show in Today when", selection: $rule.trigger) {
+                        ForEach(SomedayRules.Trigger.allCases, id: \.self) { Text($0.label).tag($0) }
+                    }
+                    if rule.trigger.usesCalendar {
+                        Picker("Calendar", selection: $rule.calendar) {
+                            Text("Select a calendar").tag("")
+                            ForEach(calendarNames(including: rule.calendar), id: \.self) { Text($0).tag($0) }
+                        }
+                        TextField("Event title contains", text: $rule.title)
+                        if rule.trigger == .noEvent {
+                            Text("A missing or hidden calendar cannot trigger this rule.").font(.caption).foregroundStyle(.secondary)
+                        }
+                    } else {
+                        DatePicker("Start date", selection: dayBinding($rule.start), displayedComponents: .date)
+                        if rule.trigger == .dates {
+                            Toggle("Use an end date", isOn: Binding(get: { !rule.end.isEmpty }, set: {
+                                rule.end = $0 ? (rule.start.isEmpty ? PlannerLogic.today : rule.start) : ""
+                            }))
+                            if !rule.end.isEmpty { DatePicker("End date", selection: dayBinding($rule.end), displayedComponents: .date) }
+                        } else {
+                            Stepper("Every \(rule.interval) \(rule.trigger == .weeks ? "week(s)" : "month(s)")",
+                                    value: $rule.interval, in: 1...52)
+                        }
+                    }
+                    Button("Remove rule", role: .destructive) { rules.removeAll { $0.id == rule.id } }
+                }
+                .onChange(of: rule.trigger) { _, value in
+                    if !value.usesCalendar && rule.start.isEmpty { rule.start = PlannerLogic.today }
+                }
+            }
+        }
+        .navigationTitle("Someday rules")
+        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Save", action: save) } }
+        .orbitFormBackground()
+        .modifier(MutationErrorModifier(error: $error))
+    }
+
+    private func calendarNames(including selection: String) -> [String] {
+        var names = Set(bridge.calendars.filter(bridge.isShown).map(\.title))
+        if !selection.isEmpty { names.insert(selection) }
+        return names.sorted()
+    }
+    private func dayBinding(_ key: Binding<String>) -> Binding<Date> {
+        Binding(get: {
+            let parts = key.wrappedValue.split(separator: "-").compactMap { Int($0) }
+            guard parts.count == 3 else { return PlannerLogic.todayDate }
+            return Calendar.current.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2])) ?? PlannerLogic.todayDate
+        }, set: { key.wrappedValue = PlannerLogic.dayKey($0) })
+    }
+    private func save() {
+        let values = rules.map { rule in
+            var value = rule
+            value.tag = value.tag.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if value.tag.hasPrefix("@") { value.tag.removeFirst() }
+            return value
+        }
+        guard values.allSatisfy(\.valid) else { error = "Give each rule a valid tag and select a calendar or dates."; return }
+        let old = SomedayRules.rules
+        let previousTimestamp = SomedayRules.updatedAt
+        do {
+            try SomedayRules.save(values)
+            try Mutations.save(context, undoable: false)
+            dismiss()
+        } catch {
+            if let previous = try? JSONEncoder().encode(old) {
+                SomedayRules.defaults.set(previous, forKey: SomedayRules.storageKey)
+                SomedayRules.defaults.set(previousTimestamp, forKey: SomedayRules.storageKey + "UpdatedAt")
+            }
+            self.error = error.localizedDescription
+        }
     }
 }
 
