@@ -16,7 +16,7 @@ final class QuickCaptureDayTests: XCTestCase {
         let selected = QuickAdd.captureDay(initialDate: nil, now: now, calendar: calendar, dayStartMinutes: 120)
         XCTAssertEqual(selected, date(18, 0))
         let parsed = QuickAdd.parse("Minute regression", defaultDay: .day(PlannerLogic.dayKey(selected, calendar: calendar)),
-                                    now: DayStart.shifted(now, minutes: 120), calendar: calendar, places: [])
+                                    now: DayStart.shifted(now, minutes: 120), calendar: calendar)
         XCTAssertEqual(parsed.date, "2026-11-18")
         XCTAssertEqual(QuickAdd.captureDay(initialDate: nil, now: date(19, 2), calendar: calendar, dayStartMinutes: 120), date(19, 0))
     }

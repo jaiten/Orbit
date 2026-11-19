@@ -4992,6 +4992,11 @@ body[data-view="today"] .today-layout,
   margin: 8px 0;
   font-size: 14px;
 }
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .settings-stack textarea {
   width: 100%;
   box-sizing: border-box;

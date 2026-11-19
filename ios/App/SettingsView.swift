@@ -222,71 +222,33 @@ private struct DataSection: View {
     }
 }
 
-/// Settings → Quick add rules: @ places with their days, and words that always track start & finish.
-/// Syncs to your other devices (CaptureRules).
+/// Settings → Quick add rules: Someday visibility rules for @tags, and words that always track start & finish.
+/// Both sync to your other devices (SomedayRules, CaptureRules).
 struct CaptureRulesView: View {
-    @Environment(\.modelContext) private var context
-    @State private var places = ""
-    @State private var words = ""
-    @State private var error: String?
-    var body: some View {
-        Form {
-            NavigationLink("Someday visibility rules") { SomedayRulesView() }
-            Section {
-                TextEditor(text: $places).font(.body.monospaced()).frame(minHeight: 110)
-                    .autocorrectionDisabled().textInputAutocapitalization(.never)
-                    .accessibilityLabel("Places, one per line")
-            } header: { Text("Places") } footer: {
-                Text("One per line, such as \"mums = Mon, Tue, Wed\" or \"dads = Thu-Sun\". Type @mums in a task to put it on the next of those days.")
-            }
-            Section {
-                TextField("laundry, print, bake", text: $words).autocorrectionDisabled().textInputAutocapitalization(.never)
-            } header: { Text("Always track start & finish") } footer: {
-                Text("Orbit also learns: after you track start & finish on a task, similar tasks suggest it, and from the second time on they start with it. Turn it off on one to teach it otherwise.")
-            }
-        }
-        .orbitFormBackground()
-        .navigationTitle("Quick add rules").navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            places = CaptureRules.placeLines(CaptureRules.places)
-            words = CaptureRules.progressWords.joined(separator: ", ")
-        }
-        .onDisappear(perform: save)
-        .modifier(MutationErrorModifier(error: $error))
-    }
-    private func save() {
-        let parsedPlaces = CaptureRules.parsePlaces(places)
-        let parsedWords = Array(Set(words.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces).lowercased() }.filter { !$0.isEmpty })).sorted()
-        guard parsedPlaces != CaptureRules.places || parsedWords != CaptureRules.progressWords.sorted() else { return }
-        CaptureRules.save(places: parsedPlaces, progressWords: parsedWords)
-        // Saving records the rules for sync.
-        do { try Mutations.save(context, undoable: false) } catch { self.error = error.localizedDescription }
-    }
-}
-
-private struct SomedayRulesView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var bridge = CalendarBridge.shared
     @State private var rules = SomedayRules.rules
+    @State private var words = ""
     @State private var error: String?
 
     var body: some View {
         Form {
             Section {
-                Text("Type a configured @tag in a task to keep it in Someday. It appears in Today on matching days. Multiple rules for the same tag mean any can match.")
                 Button("Add rule") { rules.append(.init()) }
-                Button("Add Dad and Mum example") {
-                    var dad = SomedayRules.Rule()
-                    dad.tag = "dads"; dad.title = "Kidz @ James"
-                    var mum = SomedayRules.Rule()
-                    mum.tag = "mum"; mum.title = dad.title; mum.trigger = .noEvent
-                    rules.append(contentsOf: [dad, mum])
+                Button("Add office and home example") {
+                    var office = SomedayRules.Rule()
+                    office.tag = "office"; office.title = "Office day"
+                    var home = SomedayRules.Rule()
+                    home.tag = "home"; home.title = office.title; home.trigger = .noEvent
+                    rules.append(contentsOf: [office, home])
                 }
+            } header: { Text("Someday visibility rules") } footer: {
+                Text("Type a configured @tag in a task to keep it in Someday. It appears in Today on matching days. Multiple rules for the same tag mean any can match.")
             }
             ForEach($rules) { $rule in
                 Section {
-                    TextField("Tag, e.g. dads", text: $rule.tag).textInputAutocapitalization(.never).autocorrectionDisabled()
+                    TextField("Tag, e.g. office", text: $rule.tag).textInputAutocapitalization(.never).autocorrectionDisabled()
                     Picker("Show in Today when", selection: $rule.trigger) {
                         ForEach(SomedayRules.Trigger.allCases, id: \.self) { Text($0.label).tag($0) }
                     }
@@ -317,11 +279,26 @@ private struct SomedayRulesView: View {
                     if !value.usesCalendar && rule.start.isEmpty { rule.start = PlannerLogic.today }
                 }
             }
+            Section {
+                TextField("laundry, print, bake", text: $words).autocorrectionDisabled().textInputAutocapitalization(.never)
+            } header: { Text("Always track start & finish") } footer: {
+                Text("Orbit also learns: after you track start & finish on a task, similar tasks suggest it, and from the second time on they start with it. Turn it off on one to teach it otherwise.")
+            }
         }
-        .navigationTitle("Someday rules")
-        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Save", action: save) } }
         .orbitFormBackground()
+        .navigationTitle("Quick add rules").navigationBarTitleDisplayMode(.inline)
+        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Save", action: saveRules) } }
+        .onAppear { words = CaptureRules.progressWords.joined(separator: ", ") }
+        .onDisappear(perform: saveWords)
         .modifier(MutationErrorModifier(error: $error))
+    }
+
+    private func saveWords() {
+        let parsedWords = Array(Set(words.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces).lowercased() }.filter { !$0.isEmpty })).sorted()
+        guard parsedWords != CaptureRules.progressWords.sorted() else { return }
+        CaptureRules.save(progressWords: parsedWords)
+        // Saving records the rules for sync.
+        do { try Mutations.save(context, undoable: false) } catch { self.error = error.localizedDescription }
     }
 
     private func calendarNames(including selection: String) -> [String] {
@@ -336,7 +313,8 @@ private struct SomedayRulesView: View {
             return Calendar.current.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2])) ?? PlannerLogic.todayDate
         }, set: { key.wrappedValue = PlannerLogic.dayKey($0) })
     }
-    private func save() {
+    private func saveRules() {
+        saveWords()
         let values = rules.map { rule in
             var value = rule
             value.tag = value.tag.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()

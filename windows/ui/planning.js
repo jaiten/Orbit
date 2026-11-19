@@ -27,18 +27,7 @@ const OrbitPlanning = (() => {
    * date is a local "YYYY-MM-DD" (null for habits and Someday); time is minutes after midnight or null.
    * defaultDate is the day being viewed when it is not today, or "undated" when adding to a list.
    */
-  /** The next day (today included) on one of `days` (0 = Sunday), for an @ rule like "@mums". */
-  function nextOf(from, days) {
-    for (let offset = 0; offset < 7; offset++)
-      if (days.includes(addDays(from, offset).getDay())) return addDays(from, offset);
-    return null;
-  }
-  const escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-  /**
-   * `rules.places`: [{ name, days }] from Settings → Quick add rules; "@name" puts the task on the next
-   * of those weekdays this week.
-   */
+  /** `rules.conditional`: the text has an @tag with a Someday visibility rule, so it stays in Someday. */
   function parse(input, defaultDate = null, now = new Date(), rules = {}) {
     let text = " " + input.trim() + " ";
     const take = (pattern) => {
@@ -69,13 +58,7 @@ const OrbitPlanning = (() => {
 
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     let date = null;
-    if (!schedule && !rules.conditional) {
-      for (const place of rules.places || []) {
-        if (date || !place.name || !place.days?.length) continue;
-        if (take(new RegExp(`\\s@${escape(place.name)}(?=\\s)`, "i"))) date = nextOf(today, place.days);
-      }
-    }
-    if (!schedule && !date) {
+    if (!schedule) {
       let match;
       if ((match = take(/\s(?:on\s+)?(today|tonight)(?=\s)/i))) date = today;
       else if ((match = take(/\s(?:on\s+)?(tomorrow|tmrw|tmr)(?=\s)/i))) date = addDays(today, 1);

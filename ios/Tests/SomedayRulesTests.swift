@@ -3,12 +3,12 @@ import XCTest
 
 final class SomedayRulesTests: XCTestCase {
     func testCalendarAbsenceNeedsAvailableCalendarData() {
-        let dad = SomedayRules.Rule(tag: "dads", trigger: .event, calendar: "Family", title: "Kidz @ James")
-        let mum = SomedayRules.Rule(tag: "mum", trigger: .noEvent, calendar: dad.calendar, title: dad.title)
-        XCTAssertTrue(dad.matches("2026-11-18", eventTitles: ["Pickup: kidz @ james"]))
-        XCTAssertFalse(mum.matches("2026-11-18", eventTitles: [dad.title]))
-        XCTAssertTrue(mum.matches("2026-11-18", eventTitles: []))
-        XCTAssertFalse(mum.matches("2026-11-18", eventTitles: nil))
+        let office = SomedayRules.Rule(tag: "office", trigger: .event, calendar: "Work", title: "Office day")
+        let home = SomedayRules.Rule(tag: "home", trigger: .noEvent, calendar: office.calendar, title: office.title)
+        XCTAssertTrue(office.matches("2026-11-18", eventTitles: ["Team office day"]))
+        XCTAssertFalse(home.matches("2026-11-18", eventTitles: [office.title]))
+        XCTAssertTrue(home.matches("2026-11-18", eventTitles: []))
+        XCTAssertFalse(home.matches("2026-11-18", eventTitles: nil))
     }
 
     func testCalendarDayRecurrenceAndRanges() {
@@ -23,12 +23,12 @@ final class SomedayRulesTests: XCTestCase {
         XCTAssertFalse(range.matches("2026-03-09", eventTitles: nil))
     }
 
-    func testTaggedCaptureStaysInSomedayEvenWithALegacyPlaceRule() {
-        XCTAssertEqual(SomedayRules.tags(in: "Email me@home, then pack @DADS."), ["dads"])
-        let dad = SomedayRules.Rule(tag: "dads", trigger: .event, calendar: "Family", title: "Kidz @ James")
-        let result = QuickAdd.parse("Pack @dads", places: [.init(name: "dads", days: [3])], visibilityRules: [dad])
+    func testTaggedCaptureStaysInSomeday() {
+        XCTAssertEqual(SomedayRules.tags(in: "Email me@home, then pack @OFFICE."), ["office"])
+        let office = SomedayRules.Rule(tag: "office", trigger: .event, calendar: "Work", title: "Office day")
+        let result = QuickAdd.parse("Pack laptop @office", visibilityRules: [office])
         XCTAssertTrue(result.someday)
         XCTAssertNil(result.date)
-        XCTAssertEqual(result.title, "Pack @dads")
+        XCTAssertEqual(result.title, "Pack laptop @office")
     }
 }

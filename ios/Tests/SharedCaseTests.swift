@@ -122,8 +122,7 @@ final class SharedCaseTests: XCTestCase {
             let input = c["input"] as! String
             var defaultDay = DefaultDay.today
             if let key = c["defaultDate"] as? String { defaultDay = key == "undated" ? .undated : .day(key) }
-            let places = (c["places"] as? [[String: Any]] ?? []).map { CaptureRules.Place(name: $0["name"] as! String, days: $0["days"] as! [Int]) }
-            let result = QuickAdd.parse(input, defaultDay: defaultDay, now: now, calendar: calendar, places: places)
+            let result = QuickAdd.parse(input, defaultDay: defaultDay, now: now, calendar: calendar, visibilityRules: [])
             let expect = c["expect"] as! [String: Any]
             XCTAssertEqual(result.kind.rawValue, expect["kind"] as? String, input)
             XCTAssertEqual(result.title, expect["title"] as? String, input)

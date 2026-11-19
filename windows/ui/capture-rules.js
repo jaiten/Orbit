@@ -1,47 +1,17 @@
 // Quick add rules (Settings → Quick add rules), synced as one preferences record like Day starts at.
-//   places: [{ name, days }]  "@mums" puts a task on the next of those weekdays (0 = Sunday), today included.
 //   progressWords: words that always turn on start & finish for a new task with one of them in its title.
+// The same screen holds the Someday visibility rules (someday-rules.js), synced as their own record.
 // iPhone: ios/Shared/CaptureRules.swift.
 const CAPTURE_RULES_ID = "00000000-0000-4000-8000-000000000003";
-const DAY_NAMES = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 function captureRules() {
   const record = rows("preferences").find((p) => p.id === CAPTURE_RULES_ID) || {};
   return {
-    places: Array.isArray(record.places) ? record.places.filter((p) => p?.name && Array.isArray(p.days)) : [],
     progressWords: Array.isArray(record.progressWords) ? record.progressWords.filter((w) => typeof w === "string") : [],
   };
 }
 function saveCaptureRules(change) {
   return put("preferences", { ...captureRules(), ...change, id: CAPTURE_RULES_ID, updatedAt: Date.now() });
 }
-/** "mums = Thu, Fri" per line → [{ name: "mums", days: [4, 5] }]. Also "weekdays", "weekends", "mon-wed". */
-function parsePlaceLines(text) {
-  const places = [];
-  for (const line of String(text).split("\n")) {
-    const match = line.match(/^\s*@?([\p{L}\p{N}_'-]+)\s*[=:]\s*(.+)$/u);
-    if (!match) continue;
-    const days = new Set();
-    for (const part of match[2]
-      .toLowerCase()
-      .split(/[,\s]+|\band\b/)
-      .filter(Boolean)) {
-      if (part.startsWith("weekday")) [1, 2, 3, 4, 5].forEach((d) => days.add(d));
-      else if (part.startsWith("weekend")) [0, 6].forEach((d) => days.add(d));
-      else {
-        const [from, to] = part.split("-").map((word) => DAY_NAMES.indexOf(word.slice(0, 3)));
-        if (from < 0) continue;
-        if (to === undefined || to < 0) days.add(from);
-        else for (let d = from; d !== (to + 1) % 7; d = (d + 1) % 7) days.add(d);
-      }
-    }
-    if (days.size) places.push({ name: match[1].toLowerCase(), days: [...days].sort() });
-  }
-  return places;
-}
-const placeLines = (places) =>
-  places
-    .map((p) => `${p.name} = ${p.days.map((d) => DAY_NAMES[d][0].toUpperCase() + DAY_NAMES[d].slice(1)).join(", ")}`)
-    .join("\n");
 /** Start & finish learned from earlier tasks (see OrbitPlanner.learnedProgress): null, "suggest" or "auto". */
 function learnedProgress(title, exceptID = null) {
   const history = rows("tasks")
@@ -52,22 +22,15 @@ function learnedProgress(title, exceptID = null) {
 function captureRulesSection() {
   const rules = captureRules();
   return `<section class="settings-block" id="capture-rules"><h2>Quick add rules</h2>
-    <label class="settings-stack" for="place-rules"><span>Places, one per line. Type @name in a task to put it on the next of those days.</span>
-      <textarea id="place-rules" rows="3" placeholder="mums = Mon, Tue, Wed&#10;dads = Thu-Sun" spellcheck="false">${esc(placeLines(rules.places))}</textarea></label>
+    ${somedayRulesBlock()}
     <label class="settings-stack" for="progress-rules"><span>Always track start &amp; finish for tasks with these words</span>
       <input id="progress-rules" placeholder="laundry, print, bake" spellcheck="false" value="${esc(rules.progressWords.join(", "))}" /></label>
     <p class="secondary">Orbit also learns: after you track start &amp; finish on a task, similar tasks suggest it, and from the second time on they start with it. Turn it off on one to teach it otherwise.</p>
-  </section>${somedayRulesSection()}`;
+  </section>`;
 }
 function bindCaptureRules() {
   bindSomedayRules();
-  const places = $("#place-rules"),
-    words = $("#progress-rules");
-  if (places)
-    places.onchange = () => {
-      const parsed = parsePlaceLines(places.value);
-      void action(() => saveCaptureRules({ places: parsed }));
-    };
+  const words = $("#progress-rules");
   if (words)
     words.onchange = () =>
       void action(() =>
@@ -123,15 +86,17 @@ function activeSomedayTags(day) {
   return new Set(active.map((rule) => rule.tag));
 }
 
-function somedayRulesSection() {
-  return `<section class="settings-block" id="someday-rules">
-    <h2>Someday visibility rules</h2>
+function somedayRulesBlock() {
+  return `<div class="settings-stack" id="someday-rules">
+    <span>Someday visibility rules</span>
     <p class="secondary">Type a configured @tag in a task to keep it in Someday. Any matching rule can show it in Today.</p>
     <div id="someday-rule-rows"></div>
-    <button type="button" id="someday-rule-add">Add rule</button>
-    <button type="button" id="someday-rule-homes">Add Dad and Mum example</button>
-    <button type="button" id="someday-rule-save">Save rules</button>
-  </section>`;
+    <div class="settings-actions">
+      <button type="button" id="someday-rule-add">Add rule</button>
+      <button type="button" id="someday-rule-example">Add office and home example</button>
+      <button type="button" id="someday-rule-save">Save rules</button>
+    </div>
+  </div>`;
 }
 
 function bindSomedayRules() {
@@ -168,7 +133,7 @@ function bindSomedayRules() {
                  : `<label>Every (in ${rule.trigger})<input name="interval" type="number" min="1" max="52" value="${rule.interval}"></label>`
              }`;
         return `<fieldset data-rule-index="${index}"><legend>Rule ${index + 1}</legend>
-          <label>Tag<input name="tag" placeholder="dads" value="${esc(rule.tag)}" maxlength="40"></label>
+          <label>Tag<input name="tag" placeholder="office" value="${esc(rule.tag)}" maxlength="40"></label>
           <label>Show in Today when<select name="trigger">${Object.entries(OrbitSomedayRules.triggers)
             .map(([key, label]) => option(key, label, rule.trigger))
             .join("")}</select></label>
@@ -194,10 +159,10 @@ function bindSomedayRules() {
     draft.push(empty());
     renderRules();
   };
-  $("#someday-rule-homes").onclick = () => {
+  $("#someday-rule-example").onclick = () => {
     draft.push(
-      { ...empty(), tag: "dads", title: "Kidz @ James" },
-      { ...empty(), tag: "mum", title: "Kidz @ James", trigger: "noEvent" },
+      { ...empty(), tag: "office", title: "Office day" },
+      { ...empty(), tag: "home", title: "Office day", trigger: "noEvent" },
     );
     renderRules();
   };
