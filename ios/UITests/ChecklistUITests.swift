@@ -563,8 +563,14 @@ final class ChecklistUITests: XCTestCase {
         }
         reveal(app.buttons["Sage"], in: app); app.buttons["Sage"].tap()
         XCTAssertTrue(app.buttons["Sage, selected"].waitForExistence(timeout: 5))
-        reveal(app.buttons["Appearance"], in: app); app.buttons["Appearance"].tap(); app.buttons["Light"].tap()
-        XCTAssertEqual(app.buttons["Appearance"].value as? String, "Light")
+        let appearance = app.segmentedControls["appearance-picker"]
+        reveal(appearance, in: app); appearance.buttons["Light"].tap()
+        XCTAssertTrue(appearance.buttons["Light"].isSelected)
+        // The tester reproduction: close Settings, reopen it, then change appearance again.
+        app.navigationBars["Settings"].buttons["Done"].tap(); openSettings(app)
+        reveal(appearance, in: app); appearance.buttons["Dark"].tap()
+        XCTAssertTrue(appearance.buttons["Dark"].isSelected)
+        XCTAssertTrue(app.navigationBars["Settings"].buttons["Done"].isHittable)
         let image = XCTAttachment(screenshot: app.screenshot()); image.name = "Sage appearance controls"; image.lifetime = .keepAlways; add(image)
         selectTab("Habits", in: app)
         let capture = app.textViews["inline-task-input"]
@@ -586,7 +592,7 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertGreaterThan(grid.frame.width, grid.frame.height)
         XCTAssertLessThan(grid.frame.height, 160)
         openSettings(app); reveal(app.buttons["Coral"], in: app); app.buttons["Coral"].tap()
-        app.buttons["Appearance"].tap(); app.buttons["System"].tap()
+        reveal(appearance, in: app); appearance.buttons["System"].tap()
         // Account has its own screen.
         // Scroll back to the top, however long Settings has grown.
         let account = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Account")).firstMatch
@@ -594,6 +600,42 @@ final class ChecklistUITests: XCTestCase {
         account.tap()
         XCTAssertTrue(app.navigationBars["Account"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Sign in"].exists)
+        for name in ["Sign in", "Forgot password?", "Create account"] { XCTAssertFalse(app.buttons[name].isEnabled) }
+        app.textFields["Email"].tap(); app.textFields["Email"].typeText("invalid")
+        XCTAssertFalse(app.buttons["Forgot password?"].isEnabled)
+    }
+
+    func testCaptureMinutesAndHabitColorKeepDrafts() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        XCTAssertTrue(app.buttons["Task options"].waitForExistence(timeout: 15)); app.buttons["Task options"].tap()
+        let input = app.textViews["task-title-input"]
+        XCTAssertTrue(input.waitForExistence(timeout: 5)); input.tap(); input.typeText("Minute regression")
+        app.switches["Time"].tap()
+        let picker = app.datePickers["quick-add-time"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        let wheels = picker.pickerWheels
+        wheels.element(boundBy: 0).adjust(toPickerWheelValue: "9")
+        wheels.element(boundBy: 1).adjust(toPickerWheelValue: "37")
+        if wheels.count > 2 { wheels.element(boundBy: 2).adjust(toPickerWheelValue: "AM") }
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "quick-add-preview").firstMatch.label.contains("9:37"))
+        app.navigationBars.buttons["Save"].tap()
+        XCTAssertTrue(app.buttons["Minute regression"].waitForExistence(timeout: 5))
+
+        selectTab("Today", in: app)
+        app.buttons["Add a habit"].tap()
+        let title = app.textFields["habit-title-input"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5)); title.tap(); title.typeText("Color regression")
+        for color in ["Blue", "Lavender", "Coral"] {
+            app.buttons["Color"].tap(); app.buttons[color].tap()
+            XCTAssertEqual(title.value as? String, "Color regression")
+            XCTAssertEqual(app.buttons["Color"].value as? String, color)
+            XCTAssertTrue(app.navigationBars.buttons["Save"].isHittable)
+        }
+        app.navigationBars.buttons["Save"].tap()
+        XCTAssertTrue(app.buttons["Color regression"].waitForExistence(timeout: 5))
     }
 
     func testQuickAddPreviewCreatesHabit() {

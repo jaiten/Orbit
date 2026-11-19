@@ -167,6 +167,9 @@ struct CalendarEventRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(event.title ?? "Event").font(.subheadline.weight(.medium))
                 Text(event.calendar.title).font(.caption).foregroundStyle(.secondary)
+                if let location = event.location, !location.isEmpty {
+                    Label(location, systemImage: "mappin.and.ellipse").font(.caption).foregroundStyle(.secondary)
+                }
                 if typeSize.isAccessibilitySize { timeLabel }
             }
             if !typeSize.isAccessibilitySize { Spacer(); timeLabel }

@@ -25,6 +25,7 @@ struct QuickCapture: View {
     @State private var time = Date.now
     @State private var editedDay = false
     @State private var ready = false
+    @State private var populated = false
     @State private var selectedDay = Date.now
     @State private var selectedListID: UUID?
     @State private var error: String?
@@ -78,7 +79,10 @@ struct QuickCapture: View {
                             .accessibilityIdentifier("quick-add-day")
                     }
                     Toggle(result.kind == .habit ? "Reminder time" : "Time", isOn: $hasTime).onChange(of: hasTime) { _, _ in editedTime = true }
-                    if hasTime { DatePicker("Time", selection: $time, displayedComponents: .hourAndMinute).onChange(of: time) { _, _ in editedTime = true } }
+                    if hasTime {
+                        DatePicker("Time", selection: Binding(get: { time }, set: { time = $0; editedTime = true }), displayedComponents: .hourAndMinute)
+                            .datePickerStyle(.wheel).accessibilityIdentifier("quick-add-time")
+                    }
                     if initialDate == nil && !habitsOnly {
                     Picker("Category", selection: $selectedListID) {
                         Text("No category").tag(nil as UUID?)
@@ -109,7 +113,8 @@ struct QuickCapture: View {
                 .onChange(of: selectedDay) { _, _ in if ready { editedDay = true } }
                 .onChange(of: selectedListID) { _, id in if id == TodayRules.somedayID { scheduled = false } }
                 .onChange(of: scheduled) { _, on in if on && selectedListID == TodayRules.somedayID { selectedListID = nil } }
-                .onAppear { NotificationCenter.default.post(name: Notification.Name("orbitCaptureSubmitted"), object: nil); text = initialText; selectedDay = initialDate ?? .now; scheduled = !fromList || initialDate != nil; selectedListID = listID;
+                .onAppear { guard !populated else { return }; populated = true
+                    NotificationCenter.default.post(name: Notification.Name("orbitCaptureSubmitted"), object: nil); text = initialText; selectedDay = initialDate ?? .now; scheduled = !fromList || initialDate != nil; selectedListID = listID;
                     let parsed = QuickAdd.parse(initialText)
                     hasTime = parsed.time != nil
                     if let minutes = parsed.time { time = Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: .now) ?? .now }

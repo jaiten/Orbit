@@ -79,6 +79,7 @@ struct RootView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         shell
+        .preferredColorScheme(appearance == "system" ? nil : (appearance == "dark" ? .dark : .light))
         .onOpenURL { url in
             if let code = RecoveryFlow.code(from: url) {
                 showAccount = true
@@ -163,7 +164,6 @@ struct RootView: View {
         .tint(DayTheme.accentText(accentTheme))
         // The one source for the accent: every view reads it from the environment and updates at once.
         .environment(\.orbitAccent, OrbitAccent(name: accentTheme))
-        .preferredColorScheme(appearance == "system" ? nil : (appearance == "dark" ? .dark : .light))
     }
 
     private var undoToast: some View {
