@@ -251,7 +251,12 @@ function renderToday(tasks, allHabits) {
   // Today: dated today or earlier and still open, or finished today. Undated and Someday items stay in Notes.
   // Today is always the current day; past days are reviewed in Calendar.
   const day = today();
-  const relevant = tasks.filter((t) => OrbitPlanner.onDay(planItem(t), day, day));
+  const activeTags = activeSomedayTags(day);
+  const relevant = tasks.filter((t) =>
+    t.listID === SOMEDAY
+      ? OrbitSomedayRules.onToday(t, day, activeTags, plannerDay)
+      : OrbitPlanner.onDay(planItem(t), day, day),
+  );
   const habits = allHabits.filter((h) => (!h.createdAt || plannerDay(h.createdAt) <= day) && dueOn(h));
   const open = relevant.filter((t) => !t.completedAt),
     complete = relevant.filter((t) => t.completedAt);
@@ -396,6 +401,8 @@ function renderAgenda(tasks, allHabits, head = "") {
  * rows, not 3 + 3 + 1). It runs again whenever the card changes width (window, panel resize, moving the card).
  */
 const HABIT_COLUMN_GAP = 18;
+// Counts and tick marks change much more often than a list's width or its membership.
+const habitColumnLayouts = new Map();
 /** The width of an element's text itself (the title stretches to fill its row, so its box won't do). */
 function textWidth(element) {
   if (!element) return 0;
@@ -405,9 +412,24 @@ function textWidth(element) {
 }
 function layoutHabitColumns(list) {
   const rows = [...list.querySelectorAll(":scope > .habit-row, :scope > .counter-row")];
+  const panel = list.closest("[data-today-panel]")?.dataset.todayPanel;
+  const width = list.clientWidth;
+  if (!width) return;
+  const signature = JSON.stringify(rows.map((row) => [row.dataset.flip, row.querySelector(".row-title")?.textContent]));
+  const previous = habitColumnLayouts.get(panel);
+  const columns =
+    previous?.width === width && previous.signature === signature
+      ? previous.columns
+      : measureHabitColumns(list, rows, width);
+  habitColumnLayouts.set(panel, { width, signature, columns });
+  list.classList.toggle("columns", columns > 1);
+  if (columns > 1) list.style.setProperty("grid-template-columns", `repeat(${columns}, minmax(0, 1fr))`);
+  else list.style.removeProperty("grid-template-columns");
+}
+function measureHabitColumns(list, rows, width) {
+  if (rows.length < 2) return 1;
   list.classList.remove("columns");
   list.style.removeProperty("grid-template-columns");
-  if (rows.length < 2) return;
   // A row's natural width: the line's padding and gaps around its title (at full length) and count.
   const need = Math.max(
     ...rows.map((row) => {
@@ -420,21 +442,17 @@ function layoutHabitColumns(list) {
       return Math.ceil(chrome + textWidth(title) + textWidth(detail) + 4);
     }),
   );
-  const width = list.clientWidth;
   const fit = Math.max(1, Math.floor((width + HABIT_COLUMN_GAP) / (need + HABIT_COLUMN_GAP)));
   // Balanced: the fewest rows that fit, then the fewest columns that still need only that many rows.
   const perColumn = Math.ceil(rows.length / fit);
-  const columns = Math.ceil(rows.length / perColumn);
-  if (columns < 2) return;
-  list.classList.add("columns");
-  list.style.setProperty("grid-template-columns", `repeat(${columns}, minmax(0, 1fr))`);
+  return Math.ceil(rows.length / perColumn);
 }
 let habitColumnsObserver = null;
 function bindHabitColumns() {
   habitColumnsObserver?.disconnect();
   const lists = [...document.querySelectorAll(".habits-compact-card .compact-habits")];
   if (!lists.length) return;
-  let lastWidths = new Map();
+  const lastWidths = new Map();
   habitColumnsObserver = new ResizeObserver(() => {
     for (const list of lists) {
       if (lastWidths.get(list) === list.clientWidth) continue;
@@ -442,7 +460,12 @@ function bindHabitColumns() {
       layoutHabitColumns(list);
     }
   });
-  lists.forEach((list) => habitColumnsObserver.observe(list));
+  lists.forEach((list) => {
+    // Apply the final grid before the row animation measures the replacement card.
+    lastWidths.set(list, list.clientWidth);
+    layoutHabitColumns(list);
+    habitColumnsObserver.observe(list);
+  });
 }
 function bindToday() {
   applyCalendarStyles();

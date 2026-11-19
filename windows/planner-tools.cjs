@@ -22,9 +22,14 @@ function decodeBackup(data) {
     if (entity === "preferences") {
       // Day start, or the quick add rules record (capture-rules.js).
       const rules = p.id.toLowerCase() === "00000000-0000-4000-8000-000000000003";
+      const visibility = p.id.toLowerCase() === "00000000-0000-4000-8000-000000000004";
       if (
         r.key !== `preferences/${p.id.toLowerCase()}` ||
-        (rules ? !Array.isArray(p.places ?? []) : !Number.isInteger(p.dayStartMinutes))
+        (visibility
+          ? !Array.isArray(p.rules)
+          : rules
+            ? !Array.isArray(p.places ?? [])
+            : !Number.isInteger(p.dayStartMinutes))
       )
         throw Error("Invalid preferences");
     } else if (entity === "habit_logs") {

@@ -33,6 +33,7 @@ struct TodayView: View {
     @AppStorage("showOverallProgress") private var showOverall = false
     @State private var day = PlannerLogic.todayDate
     @ObservedObject private var calendars = CalendarBridge.shared
+    @AppStorage(SomedayRules.storageKey, store: SomedayRules.defaults) private var visibilityData = Data()
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -51,6 +52,17 @@ struct TodayView: View {
         let key = PlannerLogic.dayKey(day), today = PlannerLogic.today
         // Tasks finished on another day are skipped by their time alone, before any day is worked out.
         let end = Calendar.current.date(byAdding: .day, value: 1, to: day) ?? day.addingTimeInterval(86_400)
+        let rules = SomedayRules.decode(visibilityData)
+        let sources = rules.contains { $0.trigger.usesCalendar } ? calendars.calendars.filter(calendars.isShown) : []
+        let events = sources.isEmpty ? [] : calendars.events(on: day)
+        let activeTags = Set(rules.filter { rule in
+            guard rule.trigger.usesCalendar else { return rule.matches(key, eventTitles: nil) }
+            let matches = sources.filter { $0.title == rule.calendar }
+            guard matches.count == 1, let source = matches.first else { return false }
+            let titles = events.filter { $0.calendar?.calendarIdentifier == source.calendarIdentifier && $0.status != .canceled }
+                .compactMap(\.title)
+            return rule.matches(key, eventTitles: titles)
+        }.map(\.tag))
         var result = DaySnapshot()
         result.relevant = tasks.filter { task in
             if task.note { return false }
@@ -58,7 +70,11 @@ struct TodayView: View {
                 let shifted = DayStart.shifted(finished)
                 if shifted < day || shifted >= end { return false }
             }
-            return TodayRules.onDay(TodayRules.item(task), day: key, today: today)
+            let item = TodayRules.item(task)
+            if item.someday && !activeTags.isEmpty {
+                return !SomedayRules.tags(in: task.title).isDisjoint(with: activeTags)
+            }
+            return TodayRules.onDay(item, day: key, today: today)
         }
         result.counts = PlannerLogic.countsByHabit(logs)
         result.dueHabits = habits.filter { PlannerLogic.plannerDay($0.createdAt) <= key && PlannerLogic.isDue($0, counts: result.counts[$0.id] ?? [:], at: day) }
