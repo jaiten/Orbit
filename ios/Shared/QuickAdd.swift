@@ -18,6 +18,12 @@ enum DefaultDay: Equatable { case today, day(String), undated }
 
 /// Quick add grammar. Mirrors windows/ui/planning.js; phrases in shared/test-cases/quick-add.json.
 enum QuickAdd {
+    /// Today capture follows the configured planner-day boundary; a selected Calendar date is exact.
+    static func captureDay(initialDate: Date?, now: Date = .now, calendar: Calendar = .current,
+                           dayStartMinutes: Int = DayStart.minutes) -> Date {
+        initialDate ?? calendar.startOfDay(for: DayStart.shifted(now, minutes: dayStartMinutes))
+    }
+
     private static let day = "(sun|mon|tues?|wed(?:nes)?|weds|thu(?:rs?)?|thurs|fri|sat(?:ur)?)(?:day)?"
     private static let month = "(jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)[a-z]*\\.?"
     private static let weekdays = ["sun": 0, "mon": 1, "tue": 2, "wed": 3, "thu": 4, "fri": 5, "sat": 6]

@@ -40,6 +40,7 @@ jobs:
       - run: npm test
       - run: npx playwright install chromium --only-shell
       - run: npm run test:refinements
+      - run: npm run test:regressions
       - run: npm run test:notes
       - run: npm run test:desktop
       # The Google sign-in client's secret stays out of the repository; release builds add it here.

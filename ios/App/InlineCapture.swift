@@ -144,10 +144,9 @@ struct InlineCapture: View {
                         else if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { focused = true }
                         else { save() }
                     } label: {
-                        // The arrow swaps quickly, so it never lingers after the bar has gone down.
+                        // Inherit the bar's transaction so the icon and field travel together.
                         Image(systemName: focused ? "chevron.down" : "plus").font(.system(size: 20)).frame(width: 44, height: lineHeight)
                             .contentTransition(.opacity)
-                            .animation(.easeOut(duration: 0.1), value: focused)
                     }.accessibilityLabel(focused ? "Dismiss keyboard" : notesOnly ? "Add a note" : "Add a task").disabled(saving)
                     // The same field throughout, so focus, the caret and the keyboard stay as the card unfolds.
                     CaptureTextField(text: $text, focused: $focused, identifier: notesOnly ? "note-capture-input" : "inline-task-input",

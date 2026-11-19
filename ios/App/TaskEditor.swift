@@ -16,6 +16,7 @@ struct TaskEditor: View {
     @State private var listID: UUID?
     @State private var scheduled = false
     @State private var date = Date.now
+    @State private var populated = false
     @State private var hasTime = false
     @State private var duration = 60
     @State private var priority = 0
@@ -47,6 +48,7 @@ struct TaskEditor: View {
                         Toggle("Time block", isOn: $hasTime)
                         if hasTime {
                             DatePicker("Start", selection: $date, displayedComponents: .hourAndMinute)
+                                .datePickerStyle(.wheel)
                         }
                     }
                 }
@@ -115,6 +117,8 @@ struct TaskEditor: View {
         }
     }
     private func populate() {
+        guard !populated else { return }
+        populated = true
         guard let task else { if let initialDate { scheduled = true; date = initialDate }; return }
         progressTracking = task.progressTracking == true
         (title, notes) = NoteRules.withoutRepeat(title: task.title, notes: task.notes); listID = task.listID; scheduled = task.dueDate != nil

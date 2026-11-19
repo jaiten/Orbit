@@ -62,6 +62,7 @@ import Foundation
     static func payload(_ event: EKEvent) -> [String: Any] {
         var value: [String: Any] = ["id": eventID(event), "device": device, "ref": event.eventIdentifier ?? event.calendarItemIdentifier, "occurrence": ms(occurrence(event)), "calendarID": calendarID(event.calendar), "title": event.title ?? "Event", "allDay": event.isAllDay, "recurring": event.hasRecurrenceRules]
         let startDate: Date = event.startDate, endDate: Date = event.endDate ?? event.startDate
+        value["location"] = event.location ?? ""
         if event.isAllDay {
             // EventKit ends an all-day event at the end of its last day; Orbit stores the day after.
             let last: Date = max(startDate, endDate.addingTimeInterval(-1))
@@ -90,7 +91,7 @@ import Foundation
         // Changes asked for on another device.
         var changed = false
         for (key, record) in mine where key.hasPrefix("events/") {
-            if let request = record.payload["request"] as? [String: Any] { apply(request, to: record.payload, store: bridge.store); changed = true }
+            if let request = record.payload["request"] as? [String: Any] { try apply(request, to: record.payload, store: bridge.store); changed = true }
         }
         if changed { bridge.reload() }
         // Calendars, keeping a show/hide choice made on another device.
@@ -118,28 +119,37 @@ import Foundation
         for (key, record) in mine where desired[key] == nil { try await put(key, record.payload, true, record.revision) }
     }
 
-    /// Makes a change asked for on another device. A change the calendar refuses is dropped: the event is
-    /// shared again as it is.
-    static func apply(_ request: [String: Any], to payload: [String: Any], store: EKEventStore) {
-        guard let ref = payload["ref"] as? String, let stamp = (payload["occurrence"] as? NSNumber)?.doubleValue else { return }
+    /// Mutates the EventKit draft before committing, preserving absent optional fields.
+    static func edit(_ request: [String: Any], event: EKEvent) {
+        if let location = request["location"] as? String { event.location = location }
+        if let title = (request["title"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty { event.title = title }
+        if request["allDay"] as? Bool == true, let first = (request["startDay"] as? String).flatMap(day) {
+            let after = (request["endDay"] as? String).flatMap(day) ?? Calendar.current.date(byAdding: .day, value: 1, to: first)!
+            event.isAllDay = true; event.startDate = first
+            event.endDate = max(first, Calendar.current.date(byAdding: .day, value: -1, to: after) ?? first)
+        } else if let start = (request["start"] as? NSNumber)?.doubleValue, let end = (request["end"] as? NSNumber)?.doubleValue {
+            event.isAllDay = false
+            event.startDate = Date(timeIntervalSince1970: start / 1000)
+            event.endDate = Date(timeIntervalSince1970: max(end, start + 5 * 60000) / 1000)
+        }
+    }
+
+    /// Failed writes must leave the request pending, rather than publishing the old event as success.
+    static func apply(_ request: [String: Any], to payload: [String: Any], store: EKEventStore) throws {
+        guard let ref = payload["ref"] as? String, let stamp = (payload["occurrence"] as? NSNumber)?.doubleValue else {
+            throw NSError(domain: "Orbit.Calendar", code: 1, userInfo: [NSLocalizedDescriptionKey: "The calendar change is missing its event reference."])
+        }
         let date = Date(timeIntervalSince1970: stamp / 1000)
         let nearby = store.events(matching: store.predicateForEvents(withStart: date.addingTimeInterval(-2 * 86400), end: date.addingTimeInterval(2 * 86400), calendars: nil))
-        guard let event = nearby.first(where: { $0.eventIdentifier == ref && abs(occurrence($0).timeIntervalSince(date)) < 1 }), event.calendar.allowsContentModifications else { return }
+        guard let event = nearby.first(where: { $0.eventIdentifier == ref && abs(occurrence($0).timeIntervalSince(date)) < 1 }), event.calendar.allowsContentModifications else {
+            throw NSError(domain: "Orbit.Calendar", code: 2, userInfo: [NSLocalizedDescriptionKey: "The calendar event could not be changed. Check that it still exists in a writable calendar."])
+        }
         switch request["kind"] as? String {
         case "delete":
-            try? store.remove(event, span: .thisEvent, commit: true)
+            try store.remove(event, span: .thisEvent, commit: true)
         case "edit":
-            if let title = (request["title"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty { event.title = title }
-            if request["allDay"] as? Bool == true, let first = (request["startDay"] as? String).flatMap(day) {
-                let after = (request["endDay"] as? String).flatMap(day) ?? Calendar.current.date(byAdding: .day, value: 1, to: first)!
-                event.isAllDay = true; event.startDate = first
-                event.endDate = max(first, Calendar.current.date(byAdding: .day, value: -1, to: after) ?? first)
-            } else if let start = (request["start"] as? NSNumber)?.doubleValue, let end = (request["end"] as? NSNumber)?.doubleValue {
-                event.isAllDay = false
-                event.startDate = Date(timeIntervalSince1970: start / 1000)
-                event.endDate = Date(timeIntervalSince1970: max(end, start + 5 * 60000) / 1000)
-            }
-            try? store.save(event, span: .thisEvent, commit: true)
+            edit(request, event: event)
+            try store.save(event, span: .thisEvent, commit: true)
         default: break
         }
     }

@@ -128,8 +128,27 @@ Identifiers & Profiles).
 
 ## Apple SDK notices
 
-ITMS-90725 on build 482241 is an SDK deadline notice, not an upload rejection. Apple
-requires the iOS 27 SDK / Xcode 27 starting April 2027. The pipelines currently pin
-Xcode 26.3. Upgrade both `.github/workflows/ios.yml`,
-`.github/workflows/testflight.yml` and `codemagic.yaml` together when the required
-Xcode is available on both providers, then rerun simulator and signed archive checks.
+ITMS-90725 on builds 482241 and 482285 is an SDK deadline notice, not an upload
+rejection: Apple's delivery email says the delivery succeeded and gives an April
+2027 deadline for the iOS 27 SDK / Xcode 27. Xcode 26.3 includes the iOS 26.2 SDK,
+which explains the warning on the previous build.
+
+The simulator and TestFlight workflows now use GitHub's `xcode-27` runner with
+Xcode 27.2 selected explicitly. The Codemagic fallback also selects Xcode 27.2.
+`scripts/check_ios_sdk.py` rejects a toolchain below Xcode/iOS SDK 27 and checks
+the actual `DTSDKName` in the archived app and every extension before export or
+upload. PR CI builds an unsigned device archive and verifies that metadata as
+well as running simulator tests; it needs no distribution credentials and does
+not upload to Apple.
+
+The minimum supported device OS remains iOS 17. Building with a newer SDK does
+not require raising the deployment target. An already delivered binary cannot
+be updated in place: after merging the reviewed changes, the next signed build
+gets a new build number, is uploaded, and must finish Apple processing. Do not
+call the warning resolved for a delivery until that new package is verified.
+Codemagic's runtime and the real signed upload still need verification when used.
+
+Toolchain references:
+- [Apple's Xcode SDK table](https://developer.apple.com/xcode/system-requirements)
+- [GitHub Xcode 27 runner software](https://github.com/actions/runner-images/blob/main/images/macos/xcode-27-arm64-Readme.md)
+- [Codemagic Xcode 27.2 image](https://docs.codemagic.io/specs-macos/xcode-27-2/)

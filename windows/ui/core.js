@@ -46,8 +46,24 @@ function esc(s) {
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
   );
 }
-const rows = (entity) =>
-  state.records.filter((r) => r.key.startsWith(entity + "/") && !r.deleted).map((r) => ({ ...r.payload, _key: r.key }));
+let renderRows = null;
+function withRenderRows(build) {
+  const previous = renderRows;
+  renderRows = new Map();
+  try {
+    return build();
+  } finally {
+    renderRows = previous;
+  }
+}
+const rows = (entity) => {
+  if (renderRows?.has(entity)) return renderRows.get(entity).slice();
+  const result = state.records
+    .filter((r) => r.key.startsWith(entity + "/") && !r.deleted)
+    .map((r) => ({ ...r.payload, _key: r.key }));
+  renderRows?.set(entity, result);
+  return result.slice();
+};
 function taskDate(t) {
   return t.hasTime && t.dueDate ? dayKey(new Date(t.dueDate)) : t.localDate;
 }

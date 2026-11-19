@@ -2,6 +2,11 @@
 let shownView = null;
 /** The current page as HTML, from what is in memory now. */
 function pageHTML() {
+  // Reuse entity snapshots only while building this synchronous page. Every later build,
+  // including optimistic edits and sync refreshes, starts from the current records again.
+  return withRenderRows(buildPageHTML);
+}
+function buildPageHTML() {
   // Notes are task records too, but never to-dos: only the Notes page shows them.
   const tasks = rows("tasks")
     .filter((t) => !t.isNote)

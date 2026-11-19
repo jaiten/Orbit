@@ -10,7 +10,7 @@ workflows:
     instance_type: mac_mini_m2
     max_build_duration: 45
     environment:
-      xcode: 26.3
+      xcode: 27.2
       groups:
         # CERTIFICATE_P12_BASE64, P12_PASSWORD, APP_PROFILE_BASE64, WIDGET_PROFILE_BASE64,
         # SHARE_PROFILE_BASE64 (optional), ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY, GITHUB_TOKEN
@@ -27,9 +27,22 @@ workflows:
         includes:
           - 'ios/**'
           - 'shared/**'
+          - 'codemagic.yaml'
+          - '.github/workflows/ios.yml'
+          - '.github/workflows/testflight.yml'
+          - 'scripts/check_ios_sdk.py'
+          - 'scripts/prepare_testflight.py'
+          - 'scripts/wait_for_testflight.py'
+          - 'scripts/run_ios_tests.sh'
+          - 'scripts/restore_source_mtimes.py'
+          - 'scripts/tests/**'
     scripts:
       - name: Leave it to GitHub if GitHub can build it
         script: python3 scripts/defer_to_github.py
+      - name: Verify Xcode and iOS SDK requirements
+        script: |
+          [ "${SKIP_BUILD:-}" = 1 ] && exit 0
+          python3 scripts/check_ios_sdk.py
       - name: Check required credentials
         script: |
           [ "${SKIP_BUILD:-}" = 1 ] && exit 0
@@ -88,6 +101,10 @@ workflows:
           WATCHDOG=$!
           trap 'kill $WATCHDOG 2>/dev/null' EXIT
           xcodebuild archive -project ios/Orbit.xcodeproj -scheme Orbit -configuration Release -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Orbit.xcarchive"
+      - name: Verify archived app and extension SDKs
+        script: |
+          [ "${SKIP_BUILD:-}" = 1 ] && exit 0
+          python3 scripts/check_ios_sdk.py --archive "$RUNNER_TEMP/Orbit.xcarchive"
       - name: Export App Store package
         script: |
           [ "${SKIP_BUILD:-}" = 1 ] && exit 0

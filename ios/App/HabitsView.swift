@@ -235,6 +235,7 @@ struct HabitEditor: View {
     @State private var frequency = "DAILY"
     @State private var target = 1
     @State private var color = "sage"
+    @State private var populated = false
     @State private var icon = "automatic"
     @State private var reminderEnabled = false
     @State private var reminder = Date.now
@@ -252,7 +253,7 @@ struct HabitEditor: View {
                     Picker("Type", selection: Binding(get: { counter ? "counter" : avoid ? "avoid" : "habit" }, set: { kind in
                         withAnimation(.orbit) { counter = kind == "counter"; avoid = kind == "avoid" }
                     })) { Text("Habit").tag("habit"); Text("Counter").tag("counter"); Text("Avoid").tag("avoid") }
-                    Picker("Color", selection: $color) { ForEach(DayTheme.colors, id: \.self) { Text($0 == "clay" ? "Coral" : $0.capitalized).tag($0) } }
+                    AccentPicker(title: "Color", selection: $color, choices: DayTheme.colors.map { ($0, $0 == "clay" ? "Coral" : $0.capitalized) })
                     Picker("Icon", selection: $icon) {
                         Label("Automatic", systemImage: ItemIcons.suggested(for: title)).tag("automatic")
                         ForEach(ItemIcons.all) { Label($0.name, systemImage: $0.id).tag($0.id) }
@@ -292,6 +293,8 @@ struct HabitEditor: View {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Save", action: save).disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
                 }.onAppear {
+                    guard !populated else { return }
+                    populated = true
                     // A new habit starts in the next colour, so habits mix; any colour can still be chosen.
                     guard let habit else { counter = startsAs == "counter"; avoid = startsAs == "avoid"; color = (try? QuickAddSaver.nextHabitColor(in: context)) ?? "sage"; return }
                     counter = habit.isCounter; avoid = habit.isAvoid

@@ -11,6 +11,22 @@ const {
 const json = (value, status = 200) => ({ ok: status < 400, status, json: async () => value });
 const jwt = (claims) => `x.${Buffer.from(JSON.stringify(claims)).toString("base64url")}.y`;
 
+test("Google and Outlook read, write and clear calendar locations", () => {
+  const calendar = { id: "c", account: "a" };
+  const start = { date: "2026-11-18", dateTime: "2026-11-18T09:37:00" };
+  assert.equal(googleEvent(calendar, { id: "e", start, location: "123 Main St" }).location, "123 Main St");
+  assert.equal(
+    microsoftEvent(calendar, { id: "e", start, location: { displayName: "123 Main St" } }).location,
+    "123 Main St",
+  );
+  for (const location of ["123 Main St", ""]) {
+    assert.equal(googleBody({ location }).location, location);
+    assert.deepEqual(microsoftBody({ location }).location, { displayName: location });
+  }
+  assert.equal(Object.hasOwn(googleBody({ title: "Rename" }), "location"), false);
+  assert.equal(Object.hasOwn(microsoftBody({ title: "Rename" }), "location"), false);
+});
+
 /** A stand-in Google: token endpoint, calendar list, events, and a log of every request. */
 function fakeGoogle() {
   const calls = [];
@@ -168,6 +184,7 @@ test("Microsoft and Google events become Orbit events; edits become each service
       account: "acct",
       provider: "microsoft",
       title: "Trip",
+      location: "",
       recurring: false,
       allDay: true,
       startDay: "2026-11-20",
