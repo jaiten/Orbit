@@ -56,6 +56,7 @@ import Combine
 
 struct RootView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var phase
     @AppStorage("appearance") private var appearance = "system"
     @AppStorage("accentTheme") private var accentTheme = "coral"
@@ -144,6 +145,9 @@ struct RootView: View {
 
     private var shell: some View {
         plannerTabs
+        .background {
+            DayTheme.canvas(colorScheme).ignoresSafeArea()
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in keyboardVisible = true }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in keyboardVisible = false }
         .onPreferenceChange(CaptureDockHeight.self) { captureDockHeight = $0 }

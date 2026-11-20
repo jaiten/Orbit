@@ -127,7 +127,13 @@ jobs:
         env:
           IOS_TEST_SCOPE: ${{ inputs.test_scope || 'smoke' }}
           IOS_TEST_FILTER: ${{ inputs.test_filter }}
-        run: bash scripts/run_ios_tests.sh test
+        run: |
+          if [[ "$IOS_TEST_SCOPE" == full || "$IOS_TEST_FILTER" == *testDeletingLocalCalendarEventKeepsOrbitResponsive ]]; then
+            app="$RUNNER_TEMP/OrbitDerivedData/Build/Products/Debug-iphonesimulator/Orbit.app"
+            xcrun simctl install "$DEVICE_ID" "$app"
+            xcrun simctl privacy "$DEVICE_ID" grant calendar com.jaiten.orbit
+          fi
+          bash scripts/run_ios_tests.sh test
       - name: Export simulator screenshots
         if: always()
         run: |

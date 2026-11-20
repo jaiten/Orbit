@@ -28,6 +28,22 @@ struct CalendarDraft: Identifiable {
         guard try await store.requestFullAccessToEvents() else {
             throw NSError(domain: "Orbit", code: 1, userInfo: [NSLocalizedDescriptionKey: "Calendar access is off. You can enable it in iPhone Settings → Orbit → Calendars."])
         }
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("--ui-testing") && arguments.contains("--calendar-delete-fixture") {
+            let calendar = store.defaultCalendarForNewEvents
+            guard let calendar, calendar.source?.sourceType == .local else {
+                throw CocoaError(.fileNoSuchFile, userInfo: [NSLocalizedDescriptionKey: "The calendar test needs a local simulator calendar."])
+            }
+            let event = EKEvent(eventStore: store)
+            event.calendar = calendar
+            event.title = "Orbit disposable calendar event"
+            let day = Calendar.current.startOfDay(for: .now)
+            event.startDate = Calendar.current.date(byAdding: .hour, value: 9, to: day)
+            event.endDate = Calendar.current.date(byAdding: .hour, value: 10, to: day)
+            try store.save(event, span: .thisEvent)
+        }
+        #endif
         UserDefaults.standard.set(true, forKey: "calendarConnected")
         reload()
     }
@@ -115,59 +131,92 @@ struct CalendarEventEditor: UIViewControllerRepresentable {
 /// A calendar event on Today. Tap opens it to view or edit; touch and hold for Edit, Show in Calendar,
 /// Copy text, Add as a task and Delete event.
 struct CalendarEventRow: View {
-    let event: EKEvent
+    private let event: EKEvent
+    // SwiftUI can keep rendering the outgoing row after EventKit invalidates the event.
+    private let title: String
+    private let calendarTitle: String
+    private let calendarColor: Color
+    private let writable: Bool
+    private let recurring: Bool
+    private let start: Date?
+    private let end: Date?
+    private let allDay: Bool
+    private let location: String
+    private let notes: String
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.modelContext) private var context
     @Environment(\.openURL) private var openURL
     @State private var editing: CalendarDraft?
     @State private var confirmDelete = false
     @State private var message: String?
+
+    init(event: EKEvent) {
+        self.event = event
+        let calendar: EKCalendar? = event.calendar
+        title = event.title ?? "Event"
+        calendarTitle = calendar?.title ?? "Calendar"
+        let color: CGColor? = calendar?.cgColor
+        calendarColor = color.map { Color(cgColor: $0) } ?? .secondary
+        writable = calendar?.allowsContentModifications == true
+        recurring = event.hasRecurrenceRules
+        start = event.startDate
+        end = event.endDate
+        allDay = event.isAllDay
+        location = event.location ?? ""
+        notes = event.notes ?? ""
+    }
     var body: some View {
         Button { editing = CalendarDraft(taskID: nil, event: event) } label: { row }
             .buttonStyle(.plain)
             .contextMenu {
                 Button("Edit event", systemImage: "pencil") { editing = CalendarDraft(taskID: nil, event: event) }
                 Button("Show in Calendar", systemImage: "calendar") {
-                    if let url = URL(string: "calshow:\(event.startDate.timeIntervalSinceReferenceDate)") { openURL(url) }
+                    if let start, let url = URL(string: "calshow:\(start.timeIntervalSinceReferenceDate)") { openURL(url) }
                 }
                 Button("Copy text", systemImage: "doc.on.doc") { UIPasteboard.general.string = copyText }
                 Button("Add as a task", systemImage: "checklist") { addTask() }
-                if event.calendar.allowsContentModifications {
+                if writable {
                     Divider()
                     Button("Delete event", systemImage: "trash", role: .destructive) { confirmDelete = true }
                 }
             }
             .accessibilityHint("Opens the event. Touch and hold for more.")
             .sheet(item: $editing) { draft in CalendarEventEditor(draft: draft).ignoresSafeArea() }
-            .confirmationDialog("Delete \(event.title ?? "this event")?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            .confirmationDialog("Delete \(title)?", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Delete Event", role: .destructive) { delete() }
-            } message: { Text(event.hasRecurrenceRules ? "Only this occurrence is deleted." : "It is removed from \(event.calendar.title).") }
+            } message: { Text(recurring ? "Only this occurrence is deleted." : "It is removed from \(calendarTitle).") }
             .alert("Calendar", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
                 Button("OK", role: .cancel) {}
             } message: { Text(message ?? "") }
     }
     private var copyText: String {
-        let when = event.isAllDay ? "All day" : event.startDate.formatted(date: .omitted, time: .shortened) + "–" + event.endDate.formatted(date: .omitted, time: .shortened)
-        return [event.title ?? "Event", when, event.location ?? "", event.notes ?? ""].filter { !$0.isEmpty }.joined(separator: "\n")
+        let times = [start, end].compactMap { $0?.formatted(date: .omitted, time: .shortened) }
+        return [title, allDay ? "All day" : times.joined(separator: "–"), location, notes].filter { !$0.isEmpty }.joined(separator: "\n")
     }
     /// A to-do for the same day (and time, for a timed event), so prep or follow-up can be ticked off.
     private func addTask() {
-        let task = PlannerTask(title: event.title ?? "Event", dueDate: event.isAllDay ? Calendar.current.startOfDay(for: event.startDate) : event.startDate, hasTime: !event.isAllDay)
-        if !event.isAllDay { task.durationMinutes = min(1440, max(5, Int(event.endDate.timeIntervalSince(event.startDate) / 60))) }
+        guard let start else { message = "This event no longer has a start date."; return }
+        let task = PlannerTask(title: title, dueDate: allDay ? Calendar.current.startOfDay(for: start) : start, hasTime: !allDay)
+        if !allDay, let end { task.durationMinutes = min(1440, max(5, Int(end.timeIntervalSince(start) / 60))) }
         context.insert(task)
         do { try Mutations.save(context) } catch { message = error.localizedDescription }
     }
     private func delete() {
-        do { try CalendarBridge.shared.store.remove(event, span: .thisEvent); CalendarBridge.shared.reload() }
+        let bridge = CalendarBridge.shared
+        guard event.refresh(), event.calendar?.allowsContentModifications == true else {
+            message = "This event is no longer available in a writable calendar."
+            return
+        }
+        do { try bridge.store.remove(event, span: .thisEvent); bridge.reload() }
         catch { message = error.localizedDescription }
     }
     private var row: some View {
         HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 2).fill(Color(cgColor: event.calendar.cgColor)).frame(width: 3)
+            RoundedRectangle(cornerRadius: 2).fill(calendarColor).frame(width: 3)
             VStack(alignment: .leading, spacing: 4) {
-                Text(event.title ?? "Event").font(.subheadline.weight(.medium))
-                Text(event.calendar.title).font(.caption).foregroundStyle(.secondary)
-                if let location = event.location, !location.isEmpty {
+                Text(title).font(.subheadline.weight(.medium))
+                Text(calendarTitle).font(.caption).foregroundStyle(.secondary)
+                if !location.isEmpty {
                     Label(location, systemImage: "mappin.and.ellipse").font(.caption).foregroundStyle(.secondary)
                 }
                 if typeSize.isAccessibilitySize { timeLabel }
@@ -178,8 +227,11 @@ struct CalendarEventRow: View {
     }
     private var timeLabel: some View {
             VStack(alignment: .leading, spacing: 4) {
-                Text(event.isAllDay ? "All day" : event.startDate.formatted(date: .omitted, time: .shortened))
-                if !event.isAllDay { Text(event.endDate.formatted(date: .omitted, time: .shortened)).foregroundStyle(.secondary) }
+                if allDay { Text("All day") }
+                else {
+                    if let start { Text(start.formatted(date: .omitted, time: .shortened)) }
+                    if let end { Text(end.formatted(date: .omitted, time: .shortened)).foregroundStyle(.secondary) }
+                }
             }.font(.caption).monospacedDigit()
     }
 }
