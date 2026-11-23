@@ -37,8 +37,10 @@ enum TaskProgress {
 }
 
 @MainActor extension TaskProgress {
-    /// Tasks where start & finish was chosen either way, read at most once a second so rows stay cheap.
+    /// Tasks where start & finish was chosen either way, read at most once a second so rows stay cheap, and
+    /// each row's answer kept for the same second (every visible row asks whenever Today redraws).
     private static var cache: (at: Date, history: [(id: UUID, title: String, tracking: Bool)])?
+    private static var answers: [String: Learned?] = [:]
     static func learned(for title: String, excluding id: UUID? = nil, in context: ModelContext) -> Learned? {
         if cache == nil || Date.now.timeIntervalSince(cache!.at) > 1 {
             let tasks = (try? context.fetch(FetchDescriptor<PlannerTask>())) ?? []
@@ -46,10 +48,15 @@ enum TaskProgress {
                 guard !task.note, let tracking = task.progressTracking else { return nil }
                 return (task.id, task.title, tracking)
             })
+            answers = [:]
         }
+        let question = title + "|" + (id?.uuidString ?? "")
+        if let known = answers[question] { return known }
         let history = cache!.history.filter { $0.id != id }.map { (title: $0.title, tracking: $0.tracking) }
-        return learned(title, history: history, ruleWords: CaptureRules.progressWords)
+        let answer = learned(title, history: history, ruleWords: CaptureRules.progressWords)
+        answers[question] = answer
+        return answer
     }
     /// After start & finish is turned on or off, the next read sees it.
-    static func forget() { cache = nil }
+    static func forget() { cache = nil; answers = [:] }
 }
