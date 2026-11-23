@@ -7,6 +7,8 @@ import Foundation
     private var reader: Task<Void, Never>?
     private var heartbeat: Task<Void, Never>?
     private var accessToken: String?
+    /// Joined and listening: other devices' changes arrive as they happen, so polling can be rare.
+    private(set) var listening = false
     func start(token: String, userID: String, changed: @escaping @MainActor () -> Void) {
         guard !token.isEmpty, socket == nil || accessToken != token else { return }
         stop(); accessToken = token
@@ -26,6 +28,7 @@ import Foundation
                     if event == "postgres_changes" { changed() }
                     if event == "phx_reply", frame[1] as? String == "1" {
                         guard (frame[4] as? [String: Any])?["status"] as? String == "ok" else { throw URLError(.cannotConnectToHost) }
+                        self?.listening = true
                         changed()
                     }
                     if event == "phx_error" || event == "phx_close" { throw URLError(.networkConnectionLost) }
@@ -41,7 +44,7 @@ import Foundation
             } catch { if self?.socket === connection { self?.stop() } }
         }
     }
-    func stop() { reader?.cancel(); heartbeat?.cancel(); socket?.cancel(with: .normalClosure, reason: nil); socket = nil; accessToken = nil }
+    func stop() { listening = false; reader?.cancel(); heartbeat?.cancel(); socket?.cancel(with: .normalClosure, reason: nil); socket = nil; accessToken = nil }
     private static func frame(join: String?, ref: String, topic: String, event: String, payload: [String: Any]) throws -> String {
         let frame: [Any] = [join.map { $0 as Any } ?? NSNull(), ref, topic, event, payload]
         return String(data: try JSONSerialization.data(withJSONObject: frame), encoding: .utf8)!

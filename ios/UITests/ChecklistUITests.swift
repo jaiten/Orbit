@@ -693,6 +693,34 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertEqual(app.state, .runningForeground, "Completing a task must not close Orbit")
     }
 
+    /// Lag check: scrolls a full Today and reports how often Today and its rows redraw, idle and while
+    /// scrolling (they shouldn't redraw just because the page moves), plus the scroll hitch ratio.
+    func testTodayScrollingRedraws() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing", "--today-load-fixture", "--today-scroll-fixture", "--render-counts"]
+        app.launch()
+        XCTAssertTrue(app.buttons["Complete Today regression task"].waitForExistence(timeout: 30))
+        let counts = app.buttons["render-counts"]
+        XCTAssertTrue(counts.waitForExistence(timeout: 5))
+        sleep(3)
+        counts.tap(); sleep(5)
+        print("ORBIT_RENDERS idle 5s: " + counts.label)
+        counts.tap()
+        let page = app.scrollViews.firstMatch
+        for _ in 0..<3 { page.swipeUp(velocity: .fast); page.swipeDown(velocity: .fast) }
+        sleep(1)
+        print("ORBIT_RENDERS scrolling: " + counts.label)
+        counts.tap()
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Complete Scroll task 1")).firstMatch.tap()
+        sleep(2)
+        print("ORBIT_RENDERS one tick: " + counts.label)
+        let options = XCTMeasureOptions(); options.iterationCount = 3
+        measure(metrics: [XCTOSSignpostMetric.scrollingAndDecelerationMetric], options: options) {
+            page.swipeUp(velocity: .fast); page.swipeDown(velocity: .fast)
+        }
+    }
+
     func testTodayWithSampleDataScreenshot() {
         continueAfterFailure = false
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing", "--onboarding"]; app.launch()

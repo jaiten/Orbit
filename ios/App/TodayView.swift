@@ -104,6 +104,7 @@ struct TodayView: View {
     }
 
     private var content: some View {
+        RenderCounter.hit("Today")
         let today = snapshot, shown = sections
         return VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
             header

@@ -91,6 +91,7 @@ struct SwipeRow<Content: View>: View {
     private var deleteMark: CGFloat { max(150, width * 0.55) }
 
     var body: some View {
+        let _ = RenderCounter.hit("SwipeRow")
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         ZStack {
             actions

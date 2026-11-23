@@ -30,6 +30,15 @@ import Combine
                 }
                 context.insert(Habit(title: "Avoid regression", frequencyRule: HabitRules.avoid))
                 context.insert(Habit(title: "Counter regression", frequencyRule: HabitRules.counter))
+                // A full day to scroll through (testTodayScrollingRedraws).
+                if ProcessInfo.processInfo.arguments.contains("--today-scroll-fixture") {
+                    for i in 0..<40 {
+                        let timed = i % 3 == 0
+                        let due = timed ? Calendar.current.date(bySettingHour: 7 + i / 3, minute: (i % 2) * 30, second: 0, of: day)! : day
+                        let task = PlannerTask(title: "Scroll task \(i)", dueDate: due, hasTime: timed); task.sortOrder = i
+                        context.insert(task)
+                    }
+                }
                 try context.save()
             }
             container = loaded
@@ -111,7 +120,7 @@ struct RootView: View {
         .task {
             while !Task.isCancelled {
                 if phase == .active { await SyncService.shared.run(context) }
-                try? await Task.sleep(for: .seconds(20))
+                try? await Task.sleep(for: .seconds(SyncService.shared.pollInterval))
             }
         }
         // Travel or midnight: all-day dates stay on their day, habit reminders follow local time,
@@ -121,7 +130,7 @@ struct RootView: View {
             Task { await refreshNotifications() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .init("OrbitLocalChange"))) { _ in
-            Task { await SyncService.shared.run(context) }
+            Task { await SyncService.shared.runAfterLocalChange(context) }
         }
         .onChange(of: phase) { _, value in
             if value == .active { UsageSignals.recordVisit(); SyncService.shared.resumeRealtime(); Task { await refreshNotifications(); await SyncService.shared.run(context) } }
@@ -142,6 +151,7 @@ struct RootView: View {
             ForEach(OrbitTab.ordered(tabOrder)) { tab in
                 tabPage(tab)
                     .statusBarScrim()
+                    .overlay(alignment: .topLeading) { RenderCountsBadge() }
                     .tabItem { Label(tab.title, systemImage: tab.symbol).environment(\.symbolVariants, .none) }
                     .tag(tab)
             }

@@ -177,8 +177,9 @@ import SwiftData
         for entry in entries where snapshots[entry.key] == nil && !entry.tombstone { entry.tombstone = true; entry.dirty = true; entry.mutation = UUID().uuidString.lowercased() }
     }
     static func bind(_ user: String, context: ModelContext) throws {
-        let entries = try context.fetch(FetchDescriptor<SyncEntry>())
-        if let owner = entries.first(where: { $0.key == "owner" }) {
+        // Only the owner entry: this runs on every sync pass.
+        let owner = try context.fetch(FetchDescriptor<SyncEntry>(predicate: #Predicate { $0.key == "owner" })).first
+        if let owner {
             guard owner.payload == user else { throw NSError(domain: "Orbit", code: 1, userInfo: [NSLocalizedDescriptionKey: "This planner belongs to another account. Sign in with the original account."]) }
         } else { let owner = SyncEntry(key: "owner", payload: user); owner.dirty = false; context.insert(owner); try context.save() }
     }

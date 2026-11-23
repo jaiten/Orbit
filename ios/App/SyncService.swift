@@ -19,6 +19,8 @@ import OSLog
     private var lastDeviceCheck = Date.distantPast
     /// When sync last compared every record with the outbox (see run).
     private var lastFullCapture = Date.distantPast
+    /// A full pass was asked for while another pass ran.
+    private var againFull = false
     /// Shared-calendar records as last seen, and when this iPhone's calendars were last shared (see run).
     private var lastCalendarRevisions: [String: Int] = [:]
     private var lastCalendarChange = -1
@@ -95,6 +97,14 @@ import OSLog
     }
     func suspendRealtime() { realtimeAllowed = false; realtime.stop() }
     func resumeRealtime() { realtimeAllowed = true }
+    /// Seconds between background checks while Orbit is open: rare while realtime is listening (it wakes
+    /// sync on every change), frequent when it isn't.
+    var pollInterval: Double { realtime.listening ? 120 : 20 }
+    /// A pass after an edit on this device only needs to upload; anything another device changed arrives
+    /// through realtime (or the next poll). Falls back to a full pass when realtime isn't listening.
+    func runAfterLocalChange(_ context: ModelContext) async {
+        await run(context, uploadOnly: realtime.listening)
+    }
     func devices() async throws -> [ConnectedDevice] {
         guard let values = try await request("/rest/v1/rpc/orbit_devices_list", body: ["p_name": UIDevice.current.model]) as? [[String: Any]] else { throw CocoaError(.coderReadCorrupt) }
         return values.compactMap { value in
@@ -125,15 +135,17 @@ import OSLog
         WidgetCenter.shared.reloadAllTimelines()
         try? await refreshReminders(context)
     }
-    func run(_ context: ModelContext) async {
-        if busy { again = true; return }
+    func run(_ context: ModelContext, uploadOnly: Bool = false) async {
+        if busy { if !uploadOnly { againFull = true }; again = true; return }
+        let uploadOnly = uploadOnly && !againFull
+        againFull = false
         guard session != nil else { return }
         busy = true; syncing = true; again = false
         let started = Date.now
         var uploaded = 0, pulled = 0
         defer {
             busy = false; syncing = false
-            if again { Task { await self.run(context) } }
+            if again { let full = againFull; Task { await self.run(context, uploadOnly: !full && self.realtime.listening) } }
         }
         do {
             if let expires = session?["expires_at"] as? Double, expires < Date.now.timeIntervalSince1970 + 60, let token = session?["refresh_token"] as? String {
@@ -163,10 +175,19 @@ import OSLog
                 else { try receive(record, context: context) }
                 uploaded += 1
             }
+            if uploadOnly {
+                if uploaded > 0 { WidgetCenter.shared.reloadAllTimelines() }
+                let conflicts = try context.fetchCount(FetchDescriptor<SyncEntry>(predicate: #Predicate { $0.conflict != nil }))
+                let waiting = try context.fetchCount(FetchDescriptor<SyncEntry>(predicate: #Predicate { $0.dirty && $0.conflict == nil && $0.key != "owner" }))
+                status = conflicts > 0 ? "Changes need review in Settings" : waiting > 0 ? "Changes waiting to sync" : "All changes synced"
+                if waiting > 0 { again = true }
+                return
+            }
             // A light list of every key and revision first; only records newer than this device's copy are
             // downloaded and applied. (Downloading and checking every record on each 20-second pass, on the
             // main thread, stalled scrolling more as history grew.)
-            let known = Dictionary(try context.fetch(FetchDescriptor<SyncEntry>()).map { ($0.key, $0.revision) }, uniquingKeysWith: max)
+            var light = FetchDescriptor<SyncEntry>(); light.propertiesToFetch = [\.key, \.revision]
+            let known = Dictionary(try context.fetch(light).map { ($0.key, $0.revision) }, uniquingKeysWith: max)
             var stale: [String] = [], calendarRevisions: [String: Int] = [:], offset = 0
             while true {
                 guard let rows = try await request("/rest/v1/orbit_records?select=key,revision&order=key&limit=1000&offset=\(offset)") as? [[String: Any]] else { throw CocoaError(.coderReadCorrupt) }
@@ -203,11 +224,13 @@ import OSLog
             let changed = uploaded > 0 || pulled > 0 || fullCheck
             // Records from older devices may still contain repeating tasks.
             if changed, try Migrations.run(context) > 0 { again = true }
-            let entries = try context.fetch(FetchDescriptor<SyncEntry>())
-            status = entries.contains { $0.conflict != nil } ? "Changes need review in Settings" : entries.contains { $0.dirty } ? "Changes waiting to sync" : "All changes synced"
+            // Counts, not every entry: this runs on every pass.
+            let conflicts = try context.fetchCount(FetchDescriptor<SyncEntry>(predicate: #Predicate { $0.conflict != nil }))
+            let waiting = try context.fetchCount(FetchDescriptor<SyncEntry>(predicate: #Predicate { $0.dirty && $0.conflict == nil && $0.key != "owner" }))
+            status = conflicts > 0 ? "Changes need review in Settings" : waiting > 0 ? "Changes waiting to sync" : "All changes synced"
             // Widgets and reminders are rebuilt only when something actually changed.
             if changed { WidgetCenter.shared.reloadAllTimelines(); try await refreshReminders(context) }
-            if entries.contains(where: { $0.dirty && $0.conflict == nil && $0.key != "owner" }) { again = true }
+            if waiting > 0 { again = true }
             logger.info("completed duration_ms=\(Int(Date.now.timeIntervalSince(started) * 1000), privacy: .public) uploaded=\(uploaded, privacy: .public) pulled=\(pulled, privacy: .public)")
         } catch {
             again = false; status = "Saved locally · " + error.localizedDescription

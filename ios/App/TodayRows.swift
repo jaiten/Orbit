@@ -80,6 +80,7 @@ struct CheckTile: View {
     private var tint: Double { progress == 2 ? 0.16 : grouped ? 0 : done ? 0.04 : 0.07 }
 
     var body: some View {
+        let _ = RenderCounter.hit("CheckTile")
         SwipeRow(radius: grouped ? 0 : DayTheme.rowRadius, edit: edit, remove: remove) { swipe in
             row(swipe)
                 .background { RowHighlight(pressed: pressed) }
@@ -248,6 +249,7 @@ struct TaskRow: View {
         return parts.joined(separator: " · ")
     }
     var body: some View {
+        let _ = RenderCounter.hit("TaskRow")
         CheckTile(title: task.title, subtitle: subtitle, done: done, color: accent.fill,
                   completionLabel: completionLabel,
                   toggle: toggle, edit: edit, remove: remove, moves: moves, icon: ItemIcons.suggested(for: task.title), progress: progress, progressOptions: progressOptions, tapChecks: tapChecks)
@@ -320,6 +322,7 @@ struct HabitRow: View {
     private var canLog: Bool { PlannerLogic.dayKey(date) == PlannerLogic.today && !slipped }
     private var holdKey: String { "habit-" + habit.id.uuidString }
     var body: some View {
+        let _ = RenderCounter.hit("HabitRow")
         CheckTile(title: habit.title, subtitle: PlannerLogic.detail(habit, counts: counts, at: date), done: checked, color: DayTheme.color(habit.color),
                   completionLabel: (checked ? "Undo " : "Log ") + habit.title,
                   toggle: toggle, edit: edit, remove: remove, met: checked, icon: slipped ? "xmark.circle" : ItemIcons.symbol(habit.icon, title: habit.title), allowsToggle: canLog, tapChecks: tapChecks)
