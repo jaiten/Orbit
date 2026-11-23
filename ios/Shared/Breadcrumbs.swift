@@ -21,15 +21,3 @@ enum Breadcrumbs {
     static func takeUnfinished() -> String? { nil }
     #endif
 }
-
-/// Debug builds only: launch arguments such as `-debugNoHoldAnimation YES` switch off one effect at a time,
-/// to find which one closes Orbit in a simulator without crash logs. Always off in release builds.
-enum DebugSwitch {
-    static func on(_ name: String) -> Bool {
-        #if DEBUG
-        UserDefaults.standard.bool(forKey: name)
-        #else
-        false
-        #endif
-    }
-}

@@ -260,7 +260,7 @@ private struct SidewaysDrag<Legacy: Gesture>: ViewModifier {
         waiting = []
         guard !work.isEmpty else { return }
         Breadcrumbs.mark("hold: flushing \(work.count)")
-        if animated && !UIAccessibility.isReduceMotionEnabled && !DebugSwitch.on("debugNoHoldAnimation") {
+        if animated && !UIAccessibility.isReduceMotionEnabled {
             withAnimation(.orbitFold) { for item in work { item.commit() } } completion: { Breadcrumbs.mark("finished: hold animation") }
             Breadcrumbs.mark("hold: committed, animating")
         } else {
