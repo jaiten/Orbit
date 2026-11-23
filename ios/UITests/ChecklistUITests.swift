@@ -686,7 +686,12 @@ final class ChecklistUITests: XCTestCase {
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let deny = springboard.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Don")).firstMatch
         if deny.waitForExistence(timeout: 5) { deny.tap() }
-        let task = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Complete ")).firstMatch
+        // An earlier test in the same run may have left the saved store already onboarded (no examples):
+        // add a task to tick.
+        let input = app.textViews["inline-task-input"]
+        XCTAssertTrue(input.waitForExistence(timeout: 10), app.debugDescription)
+        input.tap(); input.typeText("Saved store tick\n")
+        let task = app.buttons["Complete Saved store tick"]
         XCTAssertTrue(task.waitForExistence(timeout: 10), app.debugDescription)
         task.tap()
         sleep(4)
