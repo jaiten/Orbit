@@ -132,11 +132,18 @@ with a short menu: Edit, Do on… (tomorrow and the next few days), Start focus 
 Delete. On Windows, dragging a task in Calendar's week and day views outlines the time it will
 land on, and it can be dropped on a time that already has something.
 
-**Quick add rules** (Settings, synced): list places with their days, such as `mums = Mon, Tue, Wed`,
-and type `@mums` in a task to put it on the next of those days this week. Start & finish is learned:
-after you track it on a task, a similar new task suggests it, and from the second time on it starts
-tracked (turning it off on one teaches it otherwise); words listed in the rules always turn it on.
-On Windows, Ctrl+Shift+Enter adds a task even when long text would otherwise make a note.
+**Quick add rules** (Settings, synced) hold three things. *Someday visibility rules*: type an
+@tag that has a rule (`water plants @home`) and the task stays in Someday, showing on Today, in
+Calendar and in Coming up on the days a rule matches (a calendar event, no matching event, a date
+range, or every few weeks or months). Saving a rule offers to hand over open tasks that already
+carry its tag. *Abbreviations*: `gs = grocery shopping #errands` per line; in quick add the word
+expands as soon as you type a space after it, and the text can use quick add words
+([cases](shared/test-cases/shortcuts.json)). *Start & finish* is learned: after you track it on a
+task, a similar new task suggests it, and from the second time on it starts tracked (turning it off
+on one teaches it otherwise); words listed in the rules always turn it on.
+On Windows, Ctrl+Shift+Enter adds a task even when long text would otherwise make a note. It stays
+on the day you are viewing unless date words close the text ("… tomorrow"), and the bar says where
+a capture went when it lands somewhere the page doesn't show (iPhone does the same).
 
 **Selecting and undo on Windows.** Ctrl-click selects rows (tasks, notes and habits), Shift-click
 selects a run of them, and Ctrl+C copies the selection as a list; the pencil and bin still edit
@@ -144,7 +151,9 @@ and delete while selecting. Undo and Redo sit at the top of the window and walk 
 through every change made on the PC (Ctrl+Z, Ctrl+Y); deletes and moves also show the Undo toast.
 
 **Calendar events on Today** open on tap or click; touch and hold (right-click on Windows) for
-Edit, Copy text, Add as a task and Delete event (and Show in Calendar on iPhone).
+Edit, Copy text, Add as a task and Delete event (and Show in Calendar on iPhone). An event's address
+shows under its title; tap it (or Open address in maps on Windows) to open it in Maps, or to join
+when the location is a meeting link.
 
 **Accents and milestones.** Nine accent colours: Coral, Sage and Blue to start with, and six
 (Lavender, Teal, Honey, Rose, Plum, Midnight) unlocked by badges, out of 17 milestones in all

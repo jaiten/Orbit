@@ -119,6 +119,8 @@ struct CalendarEventRow: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.modelContext) private var context
     @Environment(\.openURL) private var openURL
+    /// Inside a grouped card (Calendar's day list) the row draws no card of its own.
+    @Environment(\.groupedRows) private var grouped
     @State private var editing: CalendarDraft?
     @State private var confirmDelete = false
     @State private var message: String?
@@ -200,7 +202,8 @@ struct CalendarEventRow: View {
                 if typeSize.isAccessibilitySize { timeLabel }
             }
             if !typeSize.isAccessibilitySize { Spacer(); timeLabel }
-        }.padding(12).frame(minHeight: 60).background(DayTheme.surface, in: RoundedRectangle(cornerRadius: DayTheme.rowRadius, style: .continuous))
+        }.padding(.horizontal, grouped ? 14 : 12).padding(.vertical, grouped ? 10 : 12).frame(minHeight: grouped ? 50 : 60)
+            .background(grouped ? Color.clear : DayTheme.surface, in: RoundedRectangle(cornerRadius: grouped ? 0 : DayTheme.rowRadius, style: .continuous))
             .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: DayTheme.rowRadius, style: .continuous))
     }
     private var timeLabel: some View {
