@@ -33,7 +33,15 @@ function exampleChanges(now = new Date()) {
   const live = new Set(state.records.filter((r) => !r.deleted).map((r) => r.key));
   const lists = examples.lists.map((l, i) => ({
     key: "lists/" + l.id,
-    payload: { id: l.id, name: l.name, color: l.color, sortOrder: rows("lists").length + i, updatedAt: stamp },
+    // A task category, so it doesn't also show as a note section.
+    payload: {
+      id: l.id,
+      name: l.name,
+      color: l.color,
+      kind: "tasks",
+      sortOrder: rows("lists").length + i,
+      updatedAt: stamp,
+    },
   }));
   const tasks = examples.tasks.map((e, i) => {
     const task = {

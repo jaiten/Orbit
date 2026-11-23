@@ -369,3 +369,23 @@ struct PreviewChip: View {
         }
     }
 }
+
+/// Pages hide the navigation bar, so content scrolled up would pass under the clock and Dynamic Island.
+/// A band of the page colour sits behind the status bar instead, fading out just below it.
+struct StatusBarScrim: ViewModifier {
+    @Environment(\.colorScheme) private var scheme
+    func body(content: Content) -> some View {
+        content.overlay(alignment: .top) {
+            let canvas = DayTheme.canvas(scheme)
+            VStack(spacing: 0) {
+                // Zero height inside the safe area; the colour itself fills the status bar above it.
+                canvas.ignoresSafeArea(edges: .top).frame(height: 0)
+                LinearGradient(colors: [canvas, canvas.opacity(0)], startPoint: .top, endPoint: .bottom).frame(height: 8)
+            }
+            .allowsHitTesting(false).accessibilityHidden(true)
+        }
+    }
+}
+extension View {
+    func statusBarScrim() -> some View { modifier(StatusBarScrim()) }
+}

@@ -14,6 +14,11 @@ struct OnboardingView: View {
     @State private var error: String?
     @FocusState private var focused: Bool
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Query private var existingHabits: [Habit]
+    /// Habits already in the planner (the examples add some), so a suggestion never makes a second copy.
+    private func alreadyAdded(_ suggestion: OnboardingData.HabitSuggestion) -> Bool {
+        existingHabits.contains { $0.title.localizedCaseInsensitiveCompare(suggestion.title) == .orderedSame }
+    }
     private var suggestions: [OnboardingData.HabitSuggestion] { OnboardingData.habitSuggestions.filter { $0.title != "Plan tomorrow" } }
 
     private var result: QuickAddResult { QuickAdd.parse(text) }
@@ -36,8 +41,11 @@ struct OnboardingView: View {
             }
             .padding(24).tint(accent.fill)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(step == 2 ? "Start using Orbit" : "Skip") { next() }.accessibilityIdentifier("onboarding-skip")
+                // The last page has its own Start button.
+                if step < 2 {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Skip") { next() }.accessibilityIdentifier("onboarding-skip")
+                    }
                 }
             }
             .modifier(MutationErrorModifier(error: $error))
@@ -67,22 +75,23 @@ struct OnboardingView: View {
             Text("Choose routines you want to repeat. Check them off as you go. You can change their schedules and reminders later.").foregroundStyle(.secondary)
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: typeSize.isAccessibilitySize ? 1 : 2), spacing: 10) {
                 ForEach(Array(suggestions.enumerated()), id: \.offset) { index, suggestion in
-                    let on = chosen.contains(index)
+                    let added = alreadyAdded(suggestion)
+                    let on = added || chosen.contains(index)
                     Button { if !chosen.insert(index).inserted { chosen.remove(index) } } label: {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(suggestion.title).font(.body.weight(.medium)).foregroundStyle(.primary)
-                            Text(detail(suggestion)).font(.caption).foregroundStyle(.secondary)
+                            Text(added ? "Already added" : detail(suggestion)).font(.caption).foregroundStyle(.secondary)
                         }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
                             .background(on ? accent.fill.opacity(0.14) : Color.orbitSurface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                             .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(on ? accent.fill : Color.orbitLine, lineWidth: on ? 1.5 : 1))
                             .animation(.orbit, value: on)
-                    }.buttonStyle(.plain).accessibilityAddTraits(on ? .isSelected : [])
+                    }.buttonStyle(.plain).disabled(added).accessibilityAddTraits(on ? .isSelected : [])
                 }
             }
             Button("Continue") {
                 save {
                     var picked: [String] = []
-                    for index in chosen.sorted() {
+                    for index in chosen.sorted() where !alreadyAdded(suggestions[index]) {
                         let suggestion = suggestions[index]
                         // Each new habit gets the next colour, counting the ones picked just before it.
                         let color = try QuickAddSaver.nextHabitColor(in: context, adding: picked); picked.append(color)
@@ -100,7 +109,10 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Use Orbit on your devices").font(.largeTitle.bold()).tracking(-1)
             Text("Sign in to share your tasks and habits between iPhone and Windows. This is optional: you can use Orbit on this iPhone without an account.").foregroundStyle(.secondary)
-            Button("Sign in for sync") { finish(needsReminders, true) }.buttonStyle(.borderedProminent)
+            Button { next() } label: { Text("Start using Orbit").frame(maxWidth: .infinity) }
+                .buttonStyle(.borderedProminent).controlSize(.large).accessibilityIdentifier("onboarding-skip")
+            Button { finish(needsReminders, true) } label: { Text("Sign in for sync").frame(maxWidth: .infinity) }
+                .buttonStyle(.bordered).controlSize(.large)
         }
     }
 

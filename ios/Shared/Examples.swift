@@ -15,7 +15,8 @@ import SwiftData
         let habits = Set(try context.fetch(FetchDescriptor<Habit>()).map(\.id))
         for (index, example) in OnboardingData.exampleLists.enumerated() {
             guard let id = UUID(uuidString: example.id), !lists.contains(where: { $0.id == id }) else { continue }
-            let list = TaskList(name: example.name, color: example.color, sortOrder: lists.count + index); list.id = id
+            // A task category, so it doesn't also show as a note section.
+            let list = TaskList(name: example.name, color: example.color, sortOrder: lists.count + index, kind: "tasks"); list.id = id
             context.insert(list)
         }
         let day = calendar.startOfDay(for: now)

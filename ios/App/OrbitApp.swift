@@ -136,6 +136,7 @@ struct RootView: View {
         TabView(selection: $selectedTab) {
             ForEach(OrbitTab.ordered(tabOrder)) { tab in
                 tabPage(tab)
+                    .statusBarScrim()
                     .tabItem { Label(tab.title, systemImage: tab.symbol).environment(\.symbolVariants, .none) }
                     .tag(tab)
             }

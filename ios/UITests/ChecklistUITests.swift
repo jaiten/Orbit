@@ -652,6 +652,26 @@ final class ChecklistUITests: XCTestCase {
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Log Stretch")).firstMatch.waitForExistence(timeout: 5))
     }
 
+    /// Found in the browser simulator: finishing the first example task closed the app.
+    func testCompletingAnExampleTaskKeepsTheAppRunning() {
+        continueAfterFailure = false
+        let app = XCUIApplication(); app.launchArguments = ["--ui-testing", "--onboarding"]; app.launch()
+        XCTAssertTrue(app.staticTexts["Welcome to Orbit"].waitForExistence(timeout: 15))
+        app.buttons["Try example tasks"].tap()
+        XCTAssertTrue(app.staticTexts["Choose your first habits"].waitForExistence(timeout: 5))
+        // The examples already include Drink water: it shows as added and is never added twice.
+        app.buttons["Continue"].tap()
+        XCTAssertTrue(app.staticTexts["Use Orbit on your devices"].waitForExistence(timeout: 5))
+        app.buttons["onboarding-skip"].tap()
+        let task = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Complete Morning walk")).firstMatch
+        XCTAssertTrue(task.waitForExistence(timeout: 10))
+        task.tap()
+        sleep(3)
+        XCTAssertEqual(app.state, .runningForeground, "Completing a task must not close Orbit")
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Completed")).firstMatch.waitForExistence(timeout: 5)
+                      || app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Completed")).firstMatch.waitForExistence(timeout: 2))
+    }
+
     func testTodayWithSampleDataScreenshot() {
         continueAfterFailure = false
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing", "--onboarding"]; app.launch()
