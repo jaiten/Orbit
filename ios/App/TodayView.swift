@@ -138,7 +138,7 @@ struct TodayView: View {
     @ViewBuilder private func homeSection(_ id: String, _ today: DaySnapshot, _ sections: [String]) -> some View {
         switch id {
         case "consistency":
-            if !habits.isEmpty || tasks.contains(where: { !$0.note }) { ConsistencyStrip(habits: habits, logs: logs, tasks: tasks).orbitCard() }
+            if !DebugSwitch.on("debugNoRecentProgress"), !habits.isEmpty || tasks.contains(where: { !$0.note }) { ConsistencyStrip(habits: habits, logs: logs, tasks: tasks).orbitCard() }
         case "overall": OverallProgressCard(habits: habits, logs: logs, tasks: tasks)
         case "today":
             // Tasks from earlier days simply stay on Today with the rest; move them whenever you like.
@@ -197,7 +197,7 @@ struct TodayView: View {
         case "completed":
             let completedItems = (sections.contains("today") ? today.relevant.filter { $0.completedAt != nil }.map { TodayItem(task: $0) } : []) +
                 (sections.contains("routine") ? today.checkedHabits.filter { !$0.isAvoid }.map { TodayItem(habit: $0) } : [])
-            if !completedItems.isEmpty {
+            if !completedItems.isEmpty, !DebugSwitch.on("debugNoCompleted") {
                 DisclosureGroup(isExpanded: $showingCompleted) {
                     checklist(completedItems, counts: today.counts).padding(.top, 8)
                 } label: {
@@ -245,7 +245,7 @@ struct TodayView: View {
                     VStack(spacing: 0) {
                         if index > 0 { Divider().padding(.leading, 56) }
                         itemView(item, counts: counts)
-                    }.transition(.orbitRow)
+                    }.transition(DebugSwitch.on("debugNoRowTransition") ? .identity : .orbitRow)
                 }
             }
             .animation(reduceMotion ? nil : .orbitFold, value: items.map(\.id))
