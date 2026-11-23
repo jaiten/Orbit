@@ -240,7 +240,7 @@ struct PlanCard: View {
             }.frame(width: 44, height: 44)
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(done) of \(total) done").font(.headline).monospacedDigit()
-                    .contentTransition(.numericText()).animation(reduceMotion ? nil : .orbitFold, value: done)
+                    .contentTransition(.opacity).animation(reduceMotion ? nil : .orbitFold, value: done)
                 Text("Your plan for today").font(.subheadline).foregroundStyle(.secondary)
             }
         }

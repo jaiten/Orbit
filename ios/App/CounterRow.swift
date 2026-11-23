@@ -39,7 +39,7 @@ struct CounterRow: View {
                     Spacer(minLength: 8)
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text("\(today)").font(.body.weight(.semibold)).monospacedDigit()
-                            .contentTransition(.numericText(value: Double(today)))
+                            .contentTransition(.opacity)
                             .animation(reduceMotion ? nil : .snappy, value: today)
                         // A goal: "/ 8" (at least) or "/ 2 max" (at most), tinted once met or passed.
                         if let goal = habit.goal, goalState != nil {

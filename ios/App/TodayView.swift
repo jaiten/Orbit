@@ -202,7 +202,7 @@ struct TodayView: View {
                     checklist(completedItems, counts: today.counts).padding(.top, 8)
                 } label: {
                     Text("Completed (\(completedItems.count))").font(.subheadline.weight(.medium)).foregroundStyle(.secondary)
-                        .monospacedDigit().contentTransition(.numericText())
+                        .monospacedDigit().contentTransition(.opacity)
                         .animation(reduceMotion ? nil : .orbitFold, value: completedItems.count)
                 }.accessibilityIdentifier("today-completed")
                     .onAppear { Breadcrumbs.mark("today: completed section appeared") }
