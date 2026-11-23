@@ -672,6 +672,27 @@ final class ChecklistUITests: XCTestCase {
                       || app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Completed")).firstMatch.waitForExistence(timeout: 2))
     }
 
+    /// The same, with the saved store and everything a normal launch runs (no --ui-testing).
+    func testCompletingAnExampleTaskWithTheSavedStore() {
+        continueAfterFailure = false
+        let app = XCUIApplication(); app.launch()
+        if app.staticTexts["Welcome to Orbit"].waitForExistence(timeout: 15) {
+            app.buttons["Try example tasks"].tap()
+            XCTAssertTrue(app.staticTexts["Choose your first habits"].waitForExistence(timeout: 5))
+            app.buttons["Continue"].tap()
+            XCTAssertTrue(app.staticTexts["Use Orbit on your devices"].waitForExistence(timeout: 5))
+            app.buttons["onboarding-skip"].tap()
+        }
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let deny = springboard.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Don")).firstMatch
+        if deny.waitForExistence(timeout: 5) { deny.tap() }
+        let task = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Complete ")).firstMatch
+        XCTAssertTrue(task.waitForExistence(timeout: 10), app.debugDescription)
+        task.tap()
+        sleep(4)
+        XCTAssertEqual(app.state, .runningForeground, "Completing a task must not close Orbit")
+    }
+
     func testTodayWithSampleDataScreenshot() {
         continueAfterFailure = false
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing", "--onboarding"]; app.launch()
