@@ -263,6 +263,7 @@ struct TaskRow: View {
             return
         }
         let saved = task.completedAt != nil, target = !done
+        Breadcrumbs.mark("task tick tapped")
         feedback += 1
         if target { Sounds.play(.tick) }
         if target == saved { pending = nil; CompletionHold.shared.cancel(holdKey); return }
@@ -273,13 +274,16 @@ struct TaskRow: View {
         pending = nil
         guard task.modelContext != nil, !task.isDeleted, (task.completedAt != nil) != target else { return }
         do {
+            Breadcrumbs.mark("task commit: saving")
             try Mutations.toggle(task, at: completionDate, in: context)
+            Breadcrumbs.mark("task commit: saved")
             if task.completedAt != nil {
                 let id = task.id
-                Task { await FocusSession.shared.stopIfMatching(id) }
+                Task { Breadcrumbs.mark("focus: stopIfMatching"); await FocusSession.shared.stopIfMatching(id); Breadcrumbs.mark("finished: focus checked") }
                 Celebration.shared.settled(context: context)
             }
             ReminderRefresh.soon(context)
+            Breadcrumbs.mark("finished: task commit")
         } catch { self.error = error.localizedDescription }
     }
     private func remove() {
@@ -333,6 +337,7 @@ struct HabitRow: View {
             return
         }
         let target = !checked
+        Breadcrumbs.mark("habit tick tapped")
         if target { Sounds.play(.tick) }
         if target == saved { pending = nil; CompletionHold.shared.cancel(holdKey); return }
         pending = target

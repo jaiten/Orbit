@@ -11,16 +11,22 @@ import SwiftUI
     @Published var taskID: UUID?
     private var activity: Activity<FocusAttributes>?
     private let defaults = UserDefaults.standard
+    /// Reads the running timer back. Published values are only set when they differ: every task row watches
+    /// this, and Today calls it each minute, so setting them unchanged redrew every row each time.
     func restore() {
         activity = Activity<FocusAttributes>.activities.first
+        var next: (title: String?, taskID: UUID?, endsAt: Date?, startedAt: Date?) = (nil, nil, nil, nil)
         if let activity {
-            title = activity.attributes.title; taskID = activity.attributes.taskID
-            endsAt = activity.content.state.endsAt; startedAt = activity.content.state.startedAt
+            next = (activity.attributes.title, activity.attributes.taskID, activity.content.state.endsAt, activity.content.state.startedAt)
         } else if let saved = defaults.string(forKey: "focus.title"), defaults.double(forKey: "focus.endsAt") > 0 {
-            title = saved; taskID = defaults.string(forKey: "focus.taskID").flatMap(UUID.init(uuidString:))
-            endsAt = Date(timeIntervalSince1970: defaults.double(forKey: "focus.endsAt"))
-            startedAt = Date(timeIntervalSince1970: defaults.double(forKey: "focus.startedAt"))
-        } else { title = nil; endsAt = nil; taskID = nil }
+            next = (saved, defaults.string(forKey: "focus.taskID").flatMap(UUID.init(uuidString:)),
+                    Date(timeIntervalSince1970: defaults.double(forKey: "focus.endsAt")),
+                    Date(timeIntervalSince1970: defaults.double(forKey: "focus.startedAt")))
+        }
+        if title != next.title { title = next.title }
+        if taskID != next.taskID { taskID = next.taskID }
+        if endsAt != next.endsAt { endsAt = next.endsAt }
+        if let started = next.startedAt, startedAt != started { startedAt = started }
         if let endsAt, endsAt <= .now { Task { await stop() } }
     }
     /// Timer lengths offered for a task: these, plus the task's own duration (Windows: TIMER_CHOICES).

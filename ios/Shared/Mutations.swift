@@ -16,11 +16,16 @@ import WidgetKit
             for (key, payload) in try SyncRecords.preferenceSnapshots() { after[key] = payload }
             let entries = try SyncRecords.entries(Set(after.keys).union(removed), context: context)
             let before = entries.filter { !$0.value.tombstone }.mapValues(\.payload)
+            Breadcrumbs.mark("save: writing")
             SyncRecords.capture(context, records: after, removed: removed, entries: entries); try context.save()
+            Breadcrumbs.mark("save: written")
             // Both hold just the touched keys: unchanged ones match and drop out, deleted ones are only in `before`.
             if undoable { UndoJournal.shared.record(before: before, after: after, kind: undoKind) }
             TaskProgress.forget()
-            WidgetCenter.shared.reloadAllTimelines(); NotificationCenter.default.post(name: .init("OrbitLocalChange"), object: nil)
+            WidgetCenter.shared.reloadAllTimelines()
+            Breadcrumbs.mark("save: telling sync")
+            NotificationCenter.default.post(name: .init("OrbitLocalChange"), object: nil)
+            Breadcrumbs.mark("finished: save")
         }
         catch { context.rollback(); throw error }
     }

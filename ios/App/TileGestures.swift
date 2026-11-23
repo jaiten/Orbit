@@ -259,6 +259,7 @@ private struct SidewaysDrag<Legacy: Gesture>: ViewModifier {
         let work = waiting
         waiting = []
         guard !work.isEmpty else { return }
+        Breadcrumbs.mark("hold: flushing \(work.count)")
         if animated && !UIAccessibility.isReduceMotionEnabled {
             withAnimation(.orbitFold) { for item in work { item.commit() } }
         } else {
@@ -281,7 +282,9 @@ enum MenuDismissal {
         waiting = Task {
             try? await Task.sleep(for: .milliseconds(900))
             guard !Task.isCancelled else { return }
+            Breadcrumbs.mark("reminders: refreshing")
             try? await refreshReminders(context)
+            Breadcrumbs.mark("finished: reminders refreshed")
         }
     }
 }

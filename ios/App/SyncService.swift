@@ -19,6 +19,10 @@ import OSLog
     private var lastDeviceCheck = Date.distantPast
     /// When sync last compared every record with the outbox (see run).
     private var lastFullCapture = Date.distantPast
+    /// Shared-calendar records as last seen, and when this iPhone's calendars were last shared (see run).
+    private var lastCalendarRevisions: [String: Int] = [:]
+    private var lastCalendarChange = -1
+    private var lastCalendarShare = Date.distantPast
     @Published var syncing = false
     private let realtime = RealtimeWakeup()
     private var realtimeAllowed = true
@@ -143,7 +147,8 @@ import OSLog
             try SyncRecords.bind(uid, context: context)
             // Each edit records itself (Mutations.save); the full check that reads everything is a safety net,
             // so it runs when Orbit opens and then at most every few minutes, not after every tick.
-            if Date.now.timeIntervalSince(lastFullCapture) > 300 { try SyncRecords.capture(context); lastFullCapture = .now }
+            let fullCheck = Date.now.timeIntervalSince(lastFullCapture) > 300
+            if fullCheck { try SyncRecords.capture(context); lastFullCapture = .now }
             try context.save(); status = "Syncing…"
             try await uploadPhotos(context, uid: uid)
             for entry in try context.fetch(FetchDescriptor<SyncEntry>(predicate: #Predicate { $0.conflict != nil })) {
@@ -158,26 +163,50 @@ import OSLog
                 else { try receive(record, context: context) }
                 uploaded += 1
             }
-            var offset = 0, calendarRecords: [[String: Any]] = []
+            // A light list of every key and revision first; only records newer than this device's copy are
+            // downloaded and applied. (Downloading and checking every record on each 20-second pass, on the
+            // main thread, stalled scrolling more as history grew.)
+            let known = Dictionary(try context.fetch(FetchDescriptor<SyncEntry>()).map { ($0.key, $0.revision) }, uniquingKeysWith: max)
+            var stale: [String] = [], calendarRevisions: [String: Int] = [:], offset = 0
             while true {
-                guard let records = try await request("/rest/v1/orbit_records?select=*&order=key&limit=500&offset=\(offset)") as? [[String: Any]] else { throw CocoaError(.coderReadCorrupt) }
-                for record in records {
-                    // Shared calendars are kept by CalendarShare, not in the planner.
-                    if CalendarShare.owns(record["key"] as? String ?? "") { calendarRecords.append(record) } else { try receive(record, context: context) }
+                guard let rows = try await request("/rest/v1/orbit_records?select=key,revision&order=key&limit=1000&offset=\(offset)") as? [[String: Any]] else { throw CocoaError(.coderReadCorrupt) }
+                for row in rows {
+                    guard let key = row["key"] as? String, let revision = row["revision"] as? Int else { continue }
+                    if CalendarShare.owns(key) { calendarRevisions[key] = revision }
+                    else if revision > (known[key] ?? 0) { stale.append(key) }
                 }
-                pulled += records.count
-                if records.count < 500 { break }; offset += 500
+                if rows.count < 1000 { break }; offset += 1000
             }
-            try await CalendarShare.sync(calendarRecords) { key, payload, deleted, base in
-                // A refused write means another device changed the record first; the next sync looks again.
-                _ = try await self.request("/rest/v1/rpc/orbit_put", body: ["p_key": key, "p_payload": payload, "p_deleted": deleted, "p_base": base, "p_mutation": UUID().uuidString.lowercased()])
+            if stale.count > 400 {
+                // Mostly new to this device (a first sync): whole pages are fewer requests than batches of keys.
+                let wanted = Set(stale)
+                var page = 0
+                while true {
+                    guard let rows = try await request("/rest/v1/orbit_records?select=*&order=key&limit=500&offset=\(page)") as? [[String: Any]] else { throw CocoaError(.coderReadCorrupt) }
+                    for row in rows where wanted.contains(row["key"] as? String ?? "") { try receive(row, context: context) }
+                    if rows.count < 500 { break }; page += 500
+                }
+            } else {
+                for record in try await records(stale) { try receive(record, context: context) }
             }
+            pulled = stale.count
+            // Calendars: only when a shared calendar record changed, the iPhone's calendars changed, or every few minutes.
+            let calendarsChanged = calendarRevisions != lastCalendarRevisions || CalendarBridge.shared.changeCount != lastCalendarChange
+            if calendarsChanged || Date.now.timeIntervalSince(lastCalendarShare) > 300 {
+                let calendarRecords = try await records(prefix: "calendars/") + records(prefix: "events/")
+                try await CalendarShare.sync(calendarRecords) { key, payload, deleted, base in
+                    // A refused write means another device changed the record first; the next sync looks again.
+                    _ = try await self.request("/rest/v1/rpc/orbit_put", body: ["p_key": key, "p_payload": payload, "p_deleted": deleted, "p_base": base, "p_mutation": UUID().uuidString.lowercased()])
+                }
+                lastCalendarRevisions = calendarRevisions; lastCalendarChange = CalendarBridge.shared.changeCount; lastCalendarShare = .now
+            }
+            let changed = uploaded > 0 || pulled > 0 || fullCheck
             // Records from older devices may still contain repeating tasks.
-            if try Migrations.run(context) > 0 { again = true }
+            if changed, try Migrations.run(context) > 0 { again = true }
             let entries = try context.fetch(FetchDescriptor<SyncEntry>())
             status = entries.contains { $0.conflict != nil } ? "Changes need review in Settings" : entries.contains { $0.dirty } ? "Changes waiting to sync" : "All changes synced"
-            WidgetCenter.shared.reloadAllTimelines()
-            try await refreshReminders(context)
+            // Widgets and reminders are rebuilt only when something actually changed.
+            if changed { WidgetCenter.shared.reloadAllTimelines(); try await refreshReminders(context) }
             if entries.contains(where: { $0.dirty && $0.conflict == nil && $0.key != "owner" }) { again = true }
             logger.info("completed duration_ms=\(Int(Date.now.timeIntervalSince(started) * 1000), privacy: .public) uploaded=\(uploaded, privacy: .public) pulled=\(pulled, privacy: .public)")
         } catch {
@@ -185,6 +214,33 @@ import OSLog
             let value = error as NSError
             logger.error("failed duration_ms=\(Int(Date.now.timeIntervalSince(started) * 1000), privacy: .public) domain=\(value.domain, privacy: .public) code=\(value.code, privacy: .public)")
         }
+    }
+    /// Full records for these keys, a batch at a time.
+    private func records(_ keys: [String]) async throws -> [[String: Any]] {
+        var result: [[String: Any]] = []
+        for start in stride(from: 0, to: keys.count, by: 80) {
+            let list = keys[start..<min(start + 80, keys.count)].map { "\"" + $0 + "\"" }.joined(separator: ",")
+            var parts = URLComponents()
+            parts.queryItems = [URLQueryItem(name: "select", value: "*"), URLQueryItem(name: "key", value: "in.(" + list + ")")]
+            guard let query = parts.percentEncodedQuery,
+                  let rows = try await request("/rest/v1/orbit_records?" + query) as? [[String: Any]] else { throw CocoaError(.coderReadCorrupt) }
+            result += rows
+        }
+        return result
+    }
+    /// Every record whose key starts with `prefix`, a page at a time.
+    private func records(prefix: String) async throws -> [[String: Any]] {
+        var result: [[String: Any]] = [], page = 0
+        while true {
+            var parts = URLComponents()
+            parts.queryItems = [URLQueryItem(name: "select", value: "*"), URLQueryItem(name: "key", value: "like." + prefix + "*"),
+                                URLQueryItem(name: "order", value: "key"), URLQueryItem(name: "limit", value: "500"), URLQueryItem(name: "offset", value: String(page))]
+            guard let query = parts.percentEncodedQuery,
+                  let rows = try await request("/rest/v1/orbit_records?" + query) as? [[String: Any]] else { throw CocoaError(.coderReadCorrupt) }
+            result += rows
+            if rows.count < 500 { break }; page += 500
+        }
+        return result
     }
     private func photoRequest(_ path: String, bytes: Data? = nil) async throws -> Data {
         guard let token = session?["access_token"] as? String else { throw CocoaError(.fileReadNoPermission) }

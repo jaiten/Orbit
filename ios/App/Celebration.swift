@@ -26,6 +26,7 @@ import UserNotifications
     func settled(context: ModelContext, habit: Habit? = nil, at date: Date = PlannerLogic.todayDate) {
         Task {
             try? await Task.sleep(for: .milliseconds(450))
+            Breadcrumbs.mark("celebration: settled")
             if let habit, habit.modelContext != nil, !habit.isDeleted, let logs = try? context.fetch(FetchDescriptor<HabitLog>()) {
                 checkIn(habit, logs: logs, at: date)
             }
@@ -40,12 +41,14 @@ import UserNotifications
         let habits = (try? context.fetch(FetchDescriptor<Habit>())) ?? []
         let logs = (try? context.fetch(FetchDescriptor<HabitLog>())) ?? []
         let defaults = UserDefaults.standard
+        Breadcrumbs.mark("celebration: badges")
         let earned = Rewards.earned(Rewards.metrics(tasks: tasks, logs: logs, counters: Rewards.counterIDs(habits)))
         let firstTime = defaults.object(forKey: "earnedBadges") == nil
         let seen = Set(defaults.stringArray(forKey: "earnedBadges") ?? [])
         let fresh = firstTime ? [] : earned.filter { !seen.contains($0) }
         defaults.set(Array(seen.union(earned)).sorted(), forKey: "earnedBadges")
 
+        Breadcrumbs.mark("celebration: day check")
         let today = PlannerLogic.today, date = PlannerLogic.todayDate
         let dayTasks = tasks.filter { !$0.note && TodayRules.onDay(TodayRules.item($0), day: today, today: today) }
         let due = habits.filter { PlannerLogic.plannerDay($0.createdAt) <= today && PlannerLogic.isDue($0, logs: logs, at: date) }
@@ -59,7 +62,9 @@ import UserNotifications
             Sounds.play(.badge)
             show(Moment(title: "Badge: \(badge.title)", text: badge.unlocks.map { "\($0.capitalized) accent unlocked" } ?? badge.detail, color: "", big: true))
         }
+        Breadcrumbs.mark("celebration: evening offer")
         offerCheckInOnce()
+        Breadcrumbs.mark("finished: celebration")
     }
 
     /// After the first thing finished, offer the evening check-in once (never during UI tests).
@@ -69,7 +74,9 @@ import UserNotifications
         defaults.set(true, forKey: "eveningOffered")
         guard defaults.object(forKey: "eveningCheckIn") == nil else { return }
         Task {
+            Breadcrumbs.mark("celebration: notification settings")
             let status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+            Breadcrumbs.mark("finished: notification settings read")
             if status != .denied { offerCheckIn = true }
         }
     }

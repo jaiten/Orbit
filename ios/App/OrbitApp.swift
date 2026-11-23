@@ -62,7 +62,8 @@ struct RootView: View {
     @AppStorage("consistencyRange") private var consistencyRange = 7
     @AppStorage("progressIncludesTasks") private var progressIncludesTasks = true
     @ObservedObject private var undo = UndoJournal.shared
-    @ObservedObject private var sync = SyncService.shared
+    /// Not observed here: sync status changes several times a pass, and observing it at the root redrew every page.
+    private var sync: SyncService { SyncService.shared }
     @State private var selectedTab = OrbitTab.today
     @AppStorage("tabOrder") private var tabOrder = OrbitTab.defaultOrder
     /// Where the Undo toast has been dragged. It keeps going in that direction when swiped away, rather
@@ -88,7 +89,7 @@ struct RootView: View {
             else if let notice = AuthConfirmation.notice(for: url) { showAccount = true; errorMessage = notice }
             else { selectedTab = .today }
         }
-        .sheet(isPresented: $sync.recoveryReady) { NavigationStack { PasswordChangeView() } }
+        .modifier(RecoverySheet())
         .fullScreenCover(isPresented: $showOnboarding, onDismiss: { if openAccountAfterOnboarding { showAccount = true } }) {
             OnboardingView { needsReminders, openAccount in
                 onboarded = true; openAccountAfterOnboarding = openAccount; showOnboarding = false
@@ -98,7 +99,11 @@ struct RootView: View {
         .sheet(isPresented: $showAccount) {
             NavigationStack { AccountView().toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showAccount = false } } } }
         }
-        .task { decideOnboarding() }
+        .task {
+            decideOnboarding()
+            // Debug builds: say where Orbit was when it last closed unexpectedly (see Breadcrumbs).
+            if let step = Breadcrumbs.takeUnfinished() { errorMessage = "Debug: Orbit last closed during “\(step)”." }
+        }
         .task { do { try Migrations.run(context) } catch { errorMessage = error.localizedDescription }; applyNativeAccent(); DayTheme.sharedDefaults?.set(progressIncludesTasks, forKey: "progressIncludesTasks"); DayTheme.sharedDefaults?.set(consistencyRange, forKey: "consistencyRange"); DayTheme.sharedDefaults?.set(accentTheme, forKey: "accentTheme"); UsageSignals.recordVisit(); await refreshNotifications() }
         .onChange(of: progressIncludesTasks) { _, value in DayTheme.sharedDefaults?.set(value, forKey: "progressIncludesTasks"); WidgetCenter.shared.reloadAllTimelines() }
         .onChange(of: consistencyRange) { _, range in DayTheme.sharedDefaults?.set(range, forKey: "consistencyRange"); WidgetCenter.shared.reloadAllTimelines() }
@@ -271,4 +276,13 @@ extension UIWindow {
 
 @MainActor func refreshReminders(_ context: ModelContext) async throws {
     try await NotificationScheduler.shared.replace(with: NotificationScheduler.reminders(context: context))
+}
+
+/// The password-change sheet after a recovery link. It watches sync on its own, so the rest of the app
+/// doesn't redraw whenever sync status changes.
+private struct RecoverySheet: ViewModifier {
+    @ObservedObject private var sync = SyncService.shared
+    func body(content: Content) -> some View {
+        content.sheet(isPresented: $sync.recoveryReady) { NavigationStack { PasswordChangeView() } }
+    }
 }

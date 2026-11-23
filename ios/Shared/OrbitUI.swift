@@ -191,6 +191,7 @@ struct OrbitTick: View {
         .overlay { if let burst { CompletionBurst(color: color, size: size).id(burst) } }
         .onChange(of: done) { _, now in
             guard now, !reduceMotion else { return }
+            Breadcrumbs.mark("tick: pop and burst")
             withAnimation(.easeOut(duration: 0.16)) { pop = DesignTokens.tickPop } completion: { withAnimation(.orbit) { pop = 1 } }
             let id = UUID(); burst = id
             Task { try? await Task.sleep(for: .milliseconds(600)); if burst == id { burst = nil } }

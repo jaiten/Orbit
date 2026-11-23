@@ -15,12 +15,14 @@ struct CalendarDraft: Identifiable {
     let store = EKEventStore()
     @Published var events: [EKEvent] = []
     @Published var connected = false
+    /// Goes up when the iPhone's calendars or events change, so sync shares them again only then.
+    private(set) var changeCount = 0
     /// Calendars turned off in Settings (here or on another device), by calendar identifier.
     @Published private(set) var hidden = Set(UserDefaults.standard.stringArray(forKey: "hiddenCalendars") ?? [])
     private var observer: NSObjectProtocol?
     private init() {
         observer = NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: nil, queue: .main) { _ in
-            Task { @MainActor in CalendarBridge.shared.reload() }
+            Task { @MainActor in CalendarBridge.shared.changeCount += 1; CalendarBridge.shared.reload() }
         }
         reload()
     }
@@ -29,9 +31,10 @@ struct CalendarDraft: Identifiable {
             throw NSError(domain: "Orbit", code: 1, userInfo: [NSLocalizedDescriptionKey: "Calendar access is off. You can enable it in iPhone Settings → Orbit → Calendars."])
         }
         UserDefaults.standard.set(true, forKey: "calendarConnected")
+        changeCount += 1
         reload()
     }
-    func disconnect() { UserDefaults.standard.set(false, forKey: "calendarConnected"); reload() }
+    func disconnect() { UserDefaults.standard.set(false, forKey: "calendarConnected"); changeCount += 1; reload() }
     /// Every calendar on the iPhone, grouped by account, for the per-calendar switches in Settings.
     var calendars: [EKCalendar] {
         guard connected else { return [] }
@@ -41,6 +44,7 @@ struct CalendarDraft: Identifiable {
     func setShown(_ calendar: EKCalendar, _ shown: Bool) {
         if shown { hidden.remove(calendar.calendarIdentifier) } else { hidden.insert(calendar.calendarIdentifier) }
         UserDefaults.standard.set(Array(hidden), forKey: "hiddenCalendars")
+        changeCount += 1
         reload()
     }
     /// The calendars Orbit shows; nil when every calendar is off.
@@ -49,10 +53,14 @@ struct CalendarDraft: Identifiable {
         return shown.isEmpty ? nil : shown
     }
     func reload() {
-        connected = UserDefaults.standard.bool(forKey: "calendarConnected") && EKEventStore.authorizationStatus(for: .event) == .fullAccess
-        guard connected else { events = []; return }
+        // Published values are only set when they differ, so the pages that watch them don't redraw for nothing.
+        let now = UserDefaults.standard.bool(forKey: "calendarConnected") && EKEventStore.authorizationStatus(for: .event) == .fullAccess
+        if connected != now { connected = now }
+        guard connected else { if !events.isEmpty { events = [] }; return }
         let start = Calendar.current.startOfDay(for: .now), end = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: .now))!
-        events = events(from: start, to: end)
+        let fresh = events(from: start, to: end)
+        let signature = { (list: [EKEvent]) in list.map { "\($0.calendarItemIdentifier)|\($0.startDate.timeIntervalSince1970)|\($0.lastModifiedDate?.timeIntervalSince1970 ?? 0)" } }
+        if signature(fresh) != signature(events) { events = fresh }
     }
     func events(on day: Date) -> [EKEvent] {
         guard connected else { return [] }
