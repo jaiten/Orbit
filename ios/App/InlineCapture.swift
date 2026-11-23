@@ -110,6 +110,8 @@ struct InlineCapture: View {
     /// Where the bar is on screen, so touches on it don't count as touching something else.
     @State private var barFrame: CGRect = .zero
     @State private var confirmConflict = false
+    /// "Added to Tomorrow": shown for a moment when a capture lands somewhere this screen doesn't show.
+    @State private var receipt: String?
     private var result: QuickAddResult {
         var parsed = QuickAdd.parse(text, defaultDay: defaultDay)
         if habitsOnly { parsed.kind = .habit; parsed.schedule = parsed.schedule ?? "DAILY" }
@@ -130,6 +132,15 @@ struct InlineCapture: View {
         VStack(alignment: .leading, spacing: 8) {
             // The chip belongs to the keyboard: it leaves when the keyboard is swiped away. The note card
             // says what it is itself.
+            if let receipt, text.isEmpty {
+                Label(receipt, systemImage: "checkmark.circle.fill").font(.subheadline.weight(.medium)).foregroundStyle(accent.text)
+                    .padding(.horizontal, 14).padding(.vertical, 8)
+                    .background(Color.orbitSurface, in: Capsule())
+                    .overlay(Capsule().strokeBorder(accent.fill.opacity(0.35), lineWidth: 1))
+                    .shadow(color: .black.opacity(0.1), radius: 6, y: 2)
+                    .accessibilityIdentifier("capture-receipt")
+                    .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
+            }
             if focused && !noteCard && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Button { options = true } label: { PreviewChip(text: preview, identifier: "inline-preview-text") }.buttonStyle(.plain).accessibilityLabel(preview).accessibilityHint("Change date and time").accessibilityIdentifier("quick-add-preview")
                     .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
@@ -253,11 +264,31 @@ struct InlineCapture: View {
             try QuickAddSaver.save(draft, listID: listID, in: context)
             text = ""; focused = true
             saving = false
+            showReceipt(for: draft)
             Task {
                 if draft.time != nil { _ = await NotificationScheduler.shared.requestIfUndecided() }
                 do { try await refreshReminders(context) } catch { self.error = "Item added, but reminders could not update: \(error.localizedDescription)" }
             }
         } catch { context.rollback(); saving = false; self.error = error.localizedDescription }
+    }
+    /// Where a capture went when this screen won't show it: another day, Someday or Habits.
+    private func showReceipt(for draft: QuickAddResult) {
+        let shownDay: String? = switch defaultDay { case .today: PlannerLogic.today; case .day(let key): key; case .undated: nil }
+        var message: String?
+        if draft.kind == .habit, !habitsOnly { message = "Added to Habits" }
+        else if draft.kind == .task, draft.someday, listID != TodayRules.somedayID { message = "Added to Someday" }
+        else if draft.kind == .task, let day = draft.date, let shownDay, day != shownDay,
+                !(shownDay == PlannerLogic.today && day < shownDay), let date = CalendarShare.day(day) {
+            let tomorrow = PlannerLogic.dayKey(Calendar.current.date(byAdding: .day, value: 1, to: PlannerLogic.todayDate) ?? .now)
+            message = "Added to " + (day == tomorrow ? "Tomorrow" : date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
+        }
+        guard let message else { return }
+        UIAccessibility.post(notification: .announcement, argument: message)
+        withAnimation(reduceMotion ? nil : .orbitFold) { receipt = message }
+        Task {
+            try? await Task.sleep(for: .seconds(2.5))
+            if receipt == message { withAnimation(reduceMotion ? nil : .orbit) { receipt = nil } }
+        }
     }
     private func saveNote() {
         guard !saving else { return }

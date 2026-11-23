@@ -58,6 +58,38 @@ enum SomedayRules {
 
     }
 
+    /// Tags whose rules match `day`. `calendars` are the titles of the shown calendars; `events` gives the
+    /// day's events in them as (calendar title, event title), read only when a calendar rule needs it.
+    /// Every calendar with a rule's title counts, so one that appears twice still works. Same as Windows.
+    static func activeTags(on day: String, rules: [Rule], calendars: () -> Set<String>,
+                           events: () -> [(calendar: String, title: String)]) -> Set<String> {
+        guard !rules.isEmpty else { return [] }
+        let usesCalendar = rules.contains { $0.trigger.usesCalendar }
+        let shown = usesCalendar ? calendars() : []
+        let found = usesCalendar && !shown.isEmpty ? events() : []
+        return Set(rules.filter { rule in
+            guard rule.trigger.usesCalendar else { return rule.matches(day, eventTitles: nil) }
+            guard shown.contains(rule.calendar) else { return false }
+            return rule.matches(day, eventTitles: found.filter { $0.calendar == rule.calendar }.map(\.title))
+        }.map(\.tag))
+    }
+
+    /// Whether a task is on Today for `day`: a Someday task with an active @tag, otherwise the usual rules.
+    static func isSomedayShown(_ title: String, active: Set<String>) -> Bool {
+        !active.isEmpty && !tags(in: title).isDisjoint(with: active)
+    }
+
+    /// Calendar rules need EventKit, which widgets don't read: the app keeps today's result for them.
+    private static let cacheKey = "somedayCalendarTags"
+    static func cacheCalendarTags(_ tags: Set<String>, on day: String) {
+        let value = [day] + tags.sorted()
+        if defaults.stringArray(forKey: cacheKey) != value { defaults.set(value, forKey: cacheKey) }
+    }
+    static func cachedCalendarTags(on day: String) -> Set<String> {
+        guard let value = defaults.stringArray(forKey: cacheKey), value.first == day else { return [] }
+        return Set(value.dropFirst())
+    }
+
     static let recordID = UUID(uuidString: "00000000-0000-4000-8000-000000000004")!
     static let storageKey = "somedayVisibilityRules"
     static var defaults: UserDefaults { DayTheme.sharedDefaults ?? .standard }

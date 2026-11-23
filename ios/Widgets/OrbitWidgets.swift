@@ -66,19 +66,36 @@ struct DayProvider: TimelineProvider {
             completion(Timeline(entries: [entry], policy: .after(refresh)))
         }
     }
+    /// Today's active Someday tags: date rules worked out here, calendar rules as the app last found them today.
+    @MainActor static func widgetSomedayTags() -> Set<String> {
+        let rules = SomedayRules.rules
+        guard !rules.isEmpty else { return [] }
+        let cached = SomedayRules.cachedCalendarTags(on: PlannerLogic.today)
+        return SomedayRules.activeTags(on: PlannerLogic.today, rules: rules.filter { !$0.trigger.usesCalendar },
+                                       calendars: { [] }, events: { [] }).union(cached)
+    }
     @MainActor static func read(gridHabitIDs: [UUID]? = nil) -> DayEntry {
         do {
             let container = try Persistence.makeContainer()
             let context = ModelContext(container)
             let allTasks = try context.fetch(FetchDescriptor<PlannerTask>())
-            let tasks = allTasks.filter { $0.completedAt == nil && !$0.note && TodayRules.onDay(TodayRules.item($0), day: PlannerLogic.today, today: PlannerLogic.today) }
+            // Someday tasks whose @tag rule matches today count, as on Today.
+            let active = widgetSomedayTags()
+            func onToday(_ task: PlannerTask) -> Bool {
+                let item = TodayRules.item(task)
+                if item.someday, SomedayRules.isSomedayShown(task.title, active: active) {
+                    return task.completedAt.map { PlannerLogic.plannerDay($0) == PlannerLogic.today } ?? true
+                }
+                return TodayRules.onDay(item, day: PlannerLogic.today, today: PlannerLogic.today)
+            }
+            let tasks = allTasks.filter { $0.completedAt == nil && !$0.note && onToday($0) }
                 .sorted {
                     if $0.hasTime != $1.hasTime { return $0.hasTime }
                     if $0.hasTime { return ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture) }
                     return $0.sortOrder < $1.sortOrder
                 }
             let today = PlannerLogic.today
-            let planned = allTasks.filter { !$0.note && TodayRules.onDay(TodayRules.item($0), day: today, today: today) }
+            let planned = allTasks.filter { !$0.note && onToday($0) }
             let allHabits = try context.fetch(FetchDescriptor<Habit>(sortBy: [SortDescriptor(\Habit.createdAt)]))
             let logs = try context.fetch(FetchDescriptor<HabitLog>())
             let gridHabits = gridHabitIDs.flatMap { ids in

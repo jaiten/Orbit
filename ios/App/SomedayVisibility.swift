@@ -2,21 +2,24 @@ import EventKit
 import Foundation
 
 extension SomedayRules {
-    /// Tags whose rules match `day`. A calendar rule reads every shown calendar with its title, so a calendar
-    /// that appears twice (for example iCloud and a subscribed copy) still works. Same as Windows.
+    /// Tags whose rules match `day`, reading the shown calendars through CalendarBridge.
     @MainActor static func activeTags(on day: Date, rules: [Rule], bridge: CalendarBridge) -> Set<String> {
-        guard !rules.isEmpty else { return [] }
         let key = PlannerLogic.dayKey(day)
-        let sources = rules.contains { $0.trigger.usesCalendar } ? bridge.calendars.filter(bridge.isShown) : []
-        let events = sources.isEmpty ? [] : bridge.events(on: day)
-        return Set(rules.filter { rule in
-            guard rule.trigger.usesCalendar else { return rule.matches(key, eventTitles: nil) }
-            let ids = Set(sources.filter { $0.title == rule.calendar }.map(\.calendarIdentifier))
-            guard !ids.isEmpty else { return false }
-            let titles = events.filter { ids.contains($0.calendar?.calendarIdentifier ?? "") && $0.status != .canceled }
-                .compactMap(\.title)
-            return rule.matches(key, eventTitles: titles)
-        }.map(\.tag))
+        let active = activeTags(on: key, rules: rules,
+                   calendars: { Set(bridge.calendars.filter(bridge.isShown).map(\.title)) },
+                   events: {
+                       let shown = Set(bridge.calendars.filter(bridge.isShown).map(\.calendarIdentifier))
+                       return bridge.events(on: day)
+                           .filter { $0.status != .canceled && shown.contains($0.calendar?.calendarIdentifier ?? "") }
+                           .map { (calendar: $0.calendar?.title ?? "", title: $0.title ?? "") }
+                   })
+        // Widgets can't read calendars: keep today's calendar-rule result for them.
+        if key == PlannerLogic.today, bridge.connected {
+            let calendarTags = Set(rules.filter { $0.trigger.usesCalendar && active.contains($0.tag) }.map(\.tag))
+                .subtracting(rules.filter { !$0.trigger.usesCalendar && $0.matches(key, eventTitles: nil) }.map(\.tag))
+            cacheCalendarTags(calendarTags, on: key)
+        }
+        return active
     }
 
     /// Open Someday tasks a rule brings to `day` (today or later), for Calendar.

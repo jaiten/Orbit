@@ -19,7 +19,10 @@ function setupDesktop({ window, store, iconPath }) {
     window.webContents.send("quick-add");
   };
 
+  // Set when the saved shortcut could not be registered (another app holds it), so Settings can say so.
+  let shortcutTaken = false;
   const settings = () => ({
+    shortcutTaken,
     notifications: store.setting("notifications") !== "off",
     shortcut: store.setting("globalShortcut") ?? DEFAULT_SHORTCUT,
     shortcuts: SHORTCUTS,
@@ -61,9 +64,14 @@ function setupDesktop({ window, store, iconPath }) {
     if (typeof shortcut === "string") {
       if (!SHORTCUTS.includes(shortcut)) throw Error("Choose one of the offered shortcuts");
       if (!applyShortcut(shortcut)) {
-        applyShortcut(settings().shortcut);
-        message = "That shortcut is used by another app. Your previous shortcut is still active.";
-      } else store.setting("globalShortcut", shortcut);
+        shortcutTaken = !applyShortcut(settings().shortcut);
+        message = shortcutTaken
+          ? "That shortcut is used by another app, and so is your previous one. Choose another."
+          : "That shortcut is used by another app. Your previous shortcut is still active.";
+      } else {
+        shortcutTaken = false;
+        store.setting("globalShortcut", shortcut);
+      }
     }
     scheduler.reschedule();
     return { ...settings(), message };
@@ -98,7 +106,7 @@ function setupDesktop({ window, store, iconPath }) {
   });
   app.on("will-quit", () => globalShortcut.unregisterAll());
 
-  applyShortcut(settings().shortcut);
+  shortcutTaken = !applyShortcut(settings().shortcut);
   scheduler.reschedule();
   return { scheduler, settings, update, quickAdd };
 }

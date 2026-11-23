@@ -117,8 +117,13 @@ function activeSomedayTags(day) {
     const sources = calendars.filter((calendar) => calendar.title === rule.calendar);
     if (!sources.length) return false;
     const accounts = sources.map((source) => linked().accounts.find((item) => item.id === source.account));
-    // A mirrored Apple calendar may be stale or only partially synced. Its absence proves nothing.
-    if (rule.trigger === "noEvent" && !accounts.some((account) => account && !account.error)) return false;
+    // A linked calendar that loaded proves an absence. So does an iPhone calendar for a day inside the window of
+    // events the iPhone says it shares (eventsFrom ≤ day < eventsThrough); outside it, absence proves nothing.
+    const proves = (source, index) =>
+      accounts[index]
+        ? !accounts[index].error
+        : !!source.eventsFrom && source.eventsFrom <= day && day < (source.eventsThrough || "");
+    if (rule.trigger === "noEvent" && !sources.some(proves)) return false;
     if (rule.trigger === "event" && accounts.every((account) => account?.error)) return false;
     const ids = new Set(sources.map((source) => source.id));
     const titles = events
@@ -198,7 +203,7 @@ function bindSomedayRules() {
         const condition = OrbitSomedayRules.usesCalendar(rule.trigger)
           ? `<label>Calendar<select name="calendar">${option("", "Select a calendar", rule.calendar)}${sources.map((name) => option(name, name, rule.calendar)).join("")}</select></label>
              <label>Event title contains<input name="title" value="${esc(rule.title)}" maxlength="200"></label>
-             ${rule.trigger === "noEvent" ? '<p class="secondary">This rule needs a directly linked, available calendar on Windows.</p>' : ""}`
+             ${rule.trigger === "noEvent" ? '<p class="secondary">Uses what your iPhone last shared, or a calendar linked on this PC.</p>' : ""}`
           : `<label>Start date<input name="start" type="date" value="${esc(rule.start)}"></label>
              ${
                rule.trigger === "dates"

@@ -412,6 +412,12 @@ async function loadDesktopSettings() {
       settings.shortcuts.map((shortcut) => [shortcut, shortcutLabel(shortcut)]),
       settings.shortcut,
     );
+    // The saved shortcut can be taken by another app since Orbit last started; say so here.
+    if (settings.shortcutTaken && settings.shortcut)
+      wrap.insertAdjacentHTML(
+        "beforeend",
+        `<p class="secondary shortcut-taken" role="status">${esc(shortcutLabel(settings.shortcut))} is used by another app, so it does nothing right now. Choose another.</p>`,
+      );
     const change = async (values) => {
       try {
         show(await api.desktopSettings(values));

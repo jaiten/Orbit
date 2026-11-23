@@ -141,6 +141,57 @@ const path = require("node:path");
     await p.locator(`[data-day="${later}"] .cal-item.ruled`, { hasText: "Water plants" }).waitFor();
     await p.locator(`[data-day="${later}"] .cal-item.ruled`, { hasText: "Tidy desk" }).waitFor();
 
+    // 3b. "No matching event" works for an iPhone calendar on days inside the window it shares.
+    await p.evaluate(async () => {
+      const day = today();
+      await window.orbit.put("calendars/w1", {
+        id: "w1",
+        title: "Work",
+        shown: true,
+        eventsFrom: OrbitHabits.addDays(day, -14),
+        eventsThrough: OrbitHabits.addDays(day, 106),
+      });
+      await window.orbit.put("preferences/00000000-0000-4000-8000-000000000004", {
+        id: "00000000-0000-4000-8000-000000000004",
+        rules: [
+          {
+            id: "r2",
+            tag: "remote",
+            trigger: "noEvent",
+            calendar: "Work",
+            title: "Office day",
+            start: "",
+            end: "",
+            interval: 1,
+          },
+        ],
+        updatedAt: Date.now(),
+      });
+      await window.orbit.put("tasks/s3", {
+        id: "s3",
+        title: "Deep work @remote",
+        listID: "00000000-0000-4000-8000-000000000001",
+        localDate: null,
+        sortOrder: 3,
+        updatedAt: 1,
+      });
+      await load(true);
+    });
+    await p.locator('[data-page="today"]').click();
+    await p.locator(".today-main .task-row", { hasText: "Deep work" }).first().waitFor();
+    await p.evaluate(async () => {
+      await window.orbit.put("events/o1", {
+        id: "o1",
+        calendarID: "w1",
+        title: "Office day",
+        allDay: true,
+        startDay: today(),
+      });
+      await load(true);
+    });
+    await p.waitForFunction(() => !document.querySelector(".today-main")?.textContent.includes("Deep work"));
+    await p.locator('[data-page="calendar"]').click();
+
     // 4. Event addresses show in the day list and Coming up, and open in maps.
     await p.evaluate(async (later) => {
       await window.orbit.put("calendars/c1", { id: "c1", title: "Personal", writable: true, color: "#3366cc" });

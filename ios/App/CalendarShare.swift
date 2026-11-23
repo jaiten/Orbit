@@ -56,8 +56,12 @@ import Foundation
         return String(format: "#%02x%02x%02x", Int(max(0, min(1, rgb[0])) * 255), Int(max(0, min(1, rgb[1])) * 255), Int(max(0, min(1, rgb[2])) * 255))
     }
 
-    static func payload(_ calendar: EKCalendar, shown: Bool) -> [String: Any] {
-        ["id": calendarID(calendar), "device": device, "title": calendar.title, "account": calendar.source?.title ?? "", "color": hex(calendar.cgColor), "writable": calendar.allowsContentModifications, "shown": shown]
+    /// `window` is the days whose events are shared (first day, day after the last), so another device can tell
+    /// that a day inside it really has no matching event (Someday "no matching event" rules).
+    static func payload(_ calendar: EKCalendar, shown: Bool, window: (from: String, through: String)? = nil) -> [String: Any] {
+        var value: [String: Any] = ["id": calendarID(calendar), "device": device, "title": calendar.title, "account": calendar.source?.title ?? "", "color": hex(calendar.cgColor), "writable": calendar.allowsContentModifications, "shown": shown]
+        if let window { value["eventsFrom"] = window.from; value["eventsThrough"] = window.through }
+        return value
     }
     static func payload(_ event: EKEvent) -> [String: Any] {
         var value: [String: Any] = ["id": eventID(event), "device": device, "ref": event.eventIdentifier ?? event.calendarItemIdentifier, "occurrence": ms(occurrence(event)), "calendarID": calendarID(event.calendar), "title": event.title ?? "Event", "allDay": event.isAllDay, "recurring": event.hasRecurrenceRules]
@@ -96,6 +100,8 @@ import Foundation
         if changed { bridge.reload() }
         // Calendars, keeping a show/hide choice made on another device.
         var desired: [String: [String: Any]] = [:]
+        let start = Calendar.current.date(byAdding: .day, value: -daysBack, to: Calendar.current.startOfDay(for: .now))!
+        let end = Calendar.current.date(byAdding: .day, value: daysAhead, to: start)!
         var synced = UserDefaults.standard.dictionary(forKey: "calendarShownSynced") as? [String: Bool] ?? [:]
         for calendar in bridge.store.calendars(for: .event) where isApple(calendar) {
             let id = calendarID(calendar), local = bridge.isShown(calendar), last = synced[id]
@@ -104,12 +110,10 @@ import Foundation
                 shown = value; bridge.setShown(calendar, value)
             }
             synced[id] = shown
-            desired["calendars/" + id] = payload(calendar, shown: shown)
+            desired["calendars/" + id] = payload(calendar, shown: shown, window: shown ? (dayKey(start), dayKey(end)) : nil)
         }
         UserDefaults.standard.set(synced, forKey: "calendarShownSynced")
         // Events in the shared window, from the calendars that are shown.
-        let start = Calendar.current.date(byAdding: .day, value: -daysBack, to: Calendar.current.startOfDay(for: .now))!
-        let end = Calendar.current.date(byAdding: .day, value: daysAhead, to: start)!
         for event in bridge.events(from: start, to: end) where isApple(event.calendar) { desired["events/" + eventID(event)] = payload(event) }
         for (key, value) in desired {
             if let current = server[key], !current.deleted, NSDictionary(dictionary: current.payload).isEqual(to: value) { continue }

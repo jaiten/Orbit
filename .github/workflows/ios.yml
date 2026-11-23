@@ -109,7 +109,9 @@ jobs:
             exit 1
           fi
           python3 -c 'import json, sys; response=json.load(open(sys.argv[1])); assert response.get("publicKey"), "Appetize did not return a build identifier"' "$RUNNER_TEMP/appetize-response.json"
-          echo "Appetize accepted the Orbit iOS simulator build."
+          key=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["publicKey"])' "$RUNNER_TEMP/appetize-response.json")
+          echo "Appetize accepted the Orbit iOS simulator build: https://appetize.io/app/$key"
+          echo "::notice title=Appetize preview::https://appetize.io/app/$key"
       - name: Save Xcode build cache
         if: steps.compile.outcome == 'success' && github.event_name != 'pull_request' && steps.build-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
