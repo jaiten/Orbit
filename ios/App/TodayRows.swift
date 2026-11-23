@@ -254,6 +254,7 @@ struct TaskRow: View {
             .modifier(TaskActions(task: task, edit: edit)).modifier(MutationErrorModifier(error: $error))
             .sensoryFeedback(.impact(weight: .light), trigger: feedback)
             .sensoryFeedback(.impact(weight: .medium), trigger: startedFeedback)
+            .onDisappear { Breadcrumbs.mark("task row left") }
     }
     /// The tick answers at once; the task itself is saved after a short pause (CompletionHold), when
     /// the row folds away. Tapping again inside the pause simply takes the tick back.

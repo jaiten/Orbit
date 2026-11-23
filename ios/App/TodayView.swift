@@ -105,6 +105,7 @@ struct TodayView: View {
 
     private var content: some View {
         let today = snapshot, shown = sections
+        Breadcrumbs.mark("today: drawing")
         return VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
             header
             FocusBanner()
@@ -204,6 +205,7 @@ struct TodayView: View {
                         .monospacedDigit().contentTransition(.numericText())
                         .animation(reduceMotion ? nil : .orbitFold, value: completedItems.count)
                 }.accessibilityIdentifier("today-completed")
+                    .onAppear { Breadcrumbs.mark("today: completed section appeared") }
                     .accessibilityValue(showingCompleted ? "Expanded" : "Collapsed")
                     .transition(.opacity)
             }
