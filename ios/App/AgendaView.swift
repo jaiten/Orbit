@@ -130,7 +130,7 @@ struct AgendaView: View {
 
     private func rows(_ items: [PlannerTask]) -> some View {
         VStack(spacing: rowSpacing) {
-            ForEach(items.sorted(by: order)) { task in TaskRow(task: task) { edit(task) }.transition(.orbitRow) }
+            ForEach(items.sorted(by: order)) { task in TaskRow(task: task) { edit(task) }.equatable().transition(.orbitRow) }
         }.animation(reduceMotion ? nil : .orbitFold, value: items.sorted(by: order).map(\.id))
     }
 
@@ -307,7 +307,7 @@ struct TasksView: View {
     }
     private func rows(_ items: [PlannerTask]) -> some View {
         VStack(spacing: DayTheme.rowSpacing(compact: compactRows, typeSize: typeSize)) {
-            ForEach(items) { task in TaskRow(task: task) { editing = task }.transition(.orbitRow) }
+            ForEach(items) { task in TaskRow(task: task) { editing = task }.equatable().transition(.orbitRow) }
         }.padding(.top, CGFloat(DesignTokens.spaceS))
             .animation(reduceMotion ? nil : .orbitFold, value: items.map(\.id))
     }

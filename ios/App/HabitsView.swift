@@ -36,7 +36,7 @@ struct HabitsView: View {
                         SectionLabel(title: group.name, note: group.note)
                         VStack(spacing: DayTheme.rowSpacing(compact: compactRows, typeSize: typeSize)) {
                             ForEach(group.habits) { habit in
-                                HabitRow(habit: habit, counts: counts[habit.id] ?? [:], date: PlannerLogic.todayDate, edit: { editing = habit })
+                                HabitRow(habit: habit, counts: counts[habit.id] ?? [:], date: PlannerLogic.todayDate, edit: { editing = habit }).equatable()
                                     .transition(.orbitRow)
                             }
                         }.animation(reduceMotion ? nil : .orbitFold, value: group.habits.map(\.id))
@@ -46,7 +46,7 @@ struct HabitsView: View {
                         SectionLabel(title: "Avoiding", note: "Hold to mark a slip")
                         VStack(spacing: DayTheme.rowSpacing(compact: compactRows, typeSize: typeSize)) {
                             ForEach(avoiding) { habit in
-                                HabitRow(habit: habit, counts: counts[habit.id] ?? [:], date: PlannerLogic.todayDate, edit: { editing = habit })
+                                HabitRow(habit: habit, counts: counts[habit.id] ?? [:], date: PlannerLogic.todayDate, edit: { editing = habit }).equatable()
                                     .transition(.orbitRow)
                             }
                         }.animation(reduceMotion ? nil : .orbitFold, value: avoiding.map(\.id))

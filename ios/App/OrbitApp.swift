@@ -88,6 +88,7 @@ struct RootView: View {
     @State private var confirmShakeUndo = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
+        let _ = RenderCounter.hit("Root")
         shell
         .preferredColorScheme(appearance == "system" ? nil : (appearance == "dark" ? .dark : .light))
         .onOpenURL { url in
@@ -151,7 +152,7 @@ struct RootView: View {
             ForEach(OrbitTab.ordered(tabOrder)) { tab in
                 tabPage(tab)
                     .statusBarScrim()
-                    .overlay(alignment: .topLeading) { RenderCountsBadge() }
+                    .overlay(alignment: .bottomLeading) { RenderCountsBadge().padding(.bottom, 130).padding(.leading, 8) }
                     .tabItem { Label(tab.title, systemImage: tab.symbol).environment(\.symbolVariants, .none) }
                     .tag(tab)
             }

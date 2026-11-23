@@ -10,6 +10,8 @@ import SwiftUI
     static let enabled = false
     #endif
     private(set) var counts: [String: Int] = [:]
+    /// Today's inputs at its last redraw, to tell which one changed.
+    var last: [String: AnyHashable] = [:]
     static func hit(_ name: String) {
         guard enabled else { return }
         shared.counts[name, default: 0] += 1

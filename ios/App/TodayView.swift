@@ -105,6 +105,16 @@ struct TodayView: View {
 
     private var content: some View {
         RenderCounter.hit("Today")
+        if RenderCounter.enabled {
+            // Which input changed since the last redraw (render-count runs only).
+            let inputs: [(String, AnyHashable)] = [("tasks", tasks.map(\.persistentModelID)), ("habits", habits.map(\.persistentModelID)),
+                ("logs", logs.count), ("lists", lists.count), ("day", day), ("events", calendars.events.count),
+                ("connected", calendars.connected), ("completedOpen", showingCompleted), ("sections", homeSections + hiddenSections),
+                ("rules", visibilityData), ("sheet", (editing != nil) || (editingHabit != nil) || customizing || showSettings || addingHabit)]
+            let changed = inputs.filter { RenderCounter.shared.last[$0.0] != $0.1 }.map(\.0)
+            for (name, value) in inputs { RenderCounter.shared.last[name] = value }
+            RenderCounter.hit("TodayWhy:" + (changed.isEmpty ? "none" : changed.joined(separator: "+")))
+        }
         let today = snapshot, shown = sections
         return VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceL)) {
             header
@@ -174,7 +184,7 @@ struct TodayView: View {
                         ForEach(Array(avoiding.enumerated()), id: \.element.id) { index, habit in
                             VStack(spacing: 0) {
                                 if index > 0 { Divider().padding(.leading, 56) }
-                                HabitRow(habit: habit, counts: today.counts[habit.id] ?? [:], date: PlannerLogic.todayDate, tapChecks: true, edit: { editingHabit = habit })
+                                HabitRow(habit: habit, counts: today.counts[habit.id] ?? [:], date: PlannerLogic.todayDate, tapChecks: true, edit: { editingHabit = habit }).equatable()
                             }.transition(.orbitRow)
                         }
                     }.animation(reduceMotion ? nil : .orbitFold, value: avoiding.map(\.id))
@@ -275,10 +285,10 @@ struct TodayView: View {
                 .accessibilityAddTraits(.isHeader)
         }
         if let task = item.task {
-            TaskRow(task: task, tapChecks: true) { editing = task }
+            TaskRow(task: task, tapChecks: true) { editing = task }.equatable()
         }
         if let habit = item.habit {
-            HabitRow(habit: habit, counts: counts[habit.id] ?? [:], date: day, tapChecks: true, edit: { editingHabit = habit })
+            HabitRow(habit: habit, counts: counts[habit.id] ?? [:], date: day, tapChecks: true, edit: { editingHabit = habit }).equatable()
         }
     }
 

@@ -368,3 +368,19 @@ struct HabitRow: View {
         catch { self.error = error.localizedDescription }
     }
 }
+
+// Rows compare only what they are given to show, never their closures. A row's own task or habit changing
+// still redraws it (SwiftData observes the properties its body reads); without this, every update of a
+// page redrew every row on it, because closures and `completionDate: .now` always differ.
+extension TaskRow: Equatable {
+    nonisolated static func == (lhs: TaskRow, rhs: TaskRow) -> Bool {
+        lhs.task === rhs.task && lhs.tapChecks == rhs.tapChecks
+            && Calendar.current.isDate(lhs.completionDate, inSameDayAs: rhs.completionDate)
+    }
+}
+extension HabitRow: Equatable {
+    nonisolated static func == (lhs: HabitRow, rhs: HabitRow) -> Bool {
+        lhs.habit === rhs.habit && lhs.counts == rhs.counts && lhs.tapChecks == rhs.tapChecks
+            && Calendar.current.isDate(lhs.date, inSameDayAs: rhs.date)
+    }
+}

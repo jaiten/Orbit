@@ -95,7 +95,7 @@ struct CalendarView: View {
                                 VStack(spacing: 0) {
                                     if index > 0 { Divider().padding(.leading, 16) }
                                     // Dragging lifts a small card with the task's name, not a see-through row.
-                                    if let task = entry.task { TaskRow(task: task) { editing = task }.draggable(task.id.uuidString) { DragChip(title: task.title) } }
+                                    if let task = entry.task { TaskRow(task: task) { editing = task }.equatable().draggable(task.id.uuidString) { DragChip(title: task.title) } }
                                     if let event = entry.event { CalendarEventRow(event: event) }
                                 }.transition(.orbitRow)
                             }
@@ -107,7 +107,7 @@ struct CalendarView: View {
                             GroupedRows {
                                 ForEach(Array(completed.enumerated()), id: \.element.id) { index, task in
                                     if index > 0 { Divider().padding(.leading, 56) }
-                                    TaskRow(task: task) { editing = task }
+                                    TaskRow(task: task) { editing = task }.equatable()
                                 }
                             }.padding(.top, 8)
                         } label: { Text("Completed (\(completed.count))").font(.subheadline).foregroundStyle(.secondary) }
