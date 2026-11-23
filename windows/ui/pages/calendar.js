@@ -26,10 +26,20 @@ const calendarColor = (event) => {
   const color = eventCalendar(event)?.color;
   return /^#[0-9a-f]{6}$/i.test(color || "") ? color : "var(--muted)";
 };
+/** An event's address on one line, for titles, tooltips and rows ("" when it has none). */
+const eventPlace = (event) =>
+  String(event.location || "")
+    .replace(/\s*\n+\s*/g, ", ")
+    .trim();
+const eventTooltip = (event) => [event.title || "Event", eventPlace(event)].filter(Boolean).join(" · ");
+const pinIcon = `<svg class="ui-icon pin" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6-5.3-6-11a6 6 0 0 1 12 0c0 5.7-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>`;
 /** A shared event in the Any time row or the month grid: opens the event editor. */
 function eventChip(event, withTime = false) {
   const time = withTime ? `<b>${event.allDay ? "All day" : calendarTime(event.start).replace(/:00(?= )/, "")}</b>` : "";
-  return `<button class="schedule-anytime calendar-event-chip${event.pending ? " pending" : ""}" data-event-color="${calendarColor(event)}" data-edit-event="${esc(event.id)}" title="${esc(event.title)}"><i></i><span>${esc(event.title || "Event")}</span>${time}</button>`;
+  // In the chosen day's list (withTime) the address shows under the title; elsewhere it is in the tooltip.
+  const place =
+    withTime && eventPlace(event) ? `<small class="event-place">${pinIcon}${esc(eventPlace(event))}</small>` : "";
+  return `<button class="schedule-anytime calendar-event-chip${event.pending ? " pending" : ""}${place ? " has-place" : ""}" data-event-color="${calendarColor(event)}" data-edit-event="${esc(event.id)}" title="${esc(eventTooltip(event))}"><i></i><span class="event-chip-text"><span>${esc(event.title || "Event")}</span>${place}</span>${time}</button>`;
 }
 function shiftMonth(key, delta) {
   const date = localDay(key);
@@ -60,10 +70,12 @@ function renderCalendar(tasks) {
     },
     (_, index) => OrbitHabits.addDays(start, index),
   );
+  // Someday tasks with an @tag show on the days one of their rules matches.
+  const ruled = somedayMatcher(tasks);
   const on = (key) =>
-    tasks
-      .filter((task) => taskDate(task) === key)
-      .sort((a, b) => !!a.completedAt - !!b.completedAt || (a.dueDate || 0) - (b.dueDate || 0));
+    [...tasks.filter((task) => taskDate(task) === key), ...ruled(key)].sort(
+      (a, b) => !!a.completedAt - !!b.completedAt || (a.dueDate || 0) - (b.dueDate || 0),
+    );
   const shared = calendarEvents();
   const eventsOn = (key) => [
     ...OrbitCalendarEvents.allDayOn(shared, key),
@@ -89,7 +101,7 @@ function renderCalendar(tasks) {
                 .replace(/:00(?= )/, "")
                 .replace(" ", "")
                 .toLowerCase();
-          return `<span class="cal-item cal-event" data-event-color="${calendarColor(event)}"><i></i>${time ? `<b>${time}</b>` : ""}<em>${esc(event.title || "Event")}</em></span>`;
+          return `<span class="cal-item cal-event" data-event-color="${calendarColor(event)}" title="${esc(eventTooltip(event))}"><i></i>${time ? `<b>${time}</b>` : ""}<em>${esc(event.title || "Event")}</em></span>`;
         })
         .join("");
       const total = items.length + dayEvents.length;
@@ -99,7 +111,7 @@ function renderCalendar(tasks) {
           .slice(0, Math.max(0, 3 - dayEvents.length))
           .map((task) => {
             const time = task.hasTime ? calendarTime(task.dueDate) : "";
-            return `<span class="cal-item ${task.completedAt ? "done" : ""}"><i></i>${
+            return `<span class="cal-item ${task.completedAt ? "done" : ""} ${task.listID === SOMEDAY ? "ruled" : ""}"><i></i>${
               time
                 ? `<b>${time
                     .replace(/:00(?= )/, "")
@@ -176,7 +188,7 @@ function renderSchedule(tasks) {
       ])
         .map(({ task, start, end, lane, lanes }) =>
           task.event
-            ? `<button class="schedule-event calendar-event${task.event.pending ? " pending" : ""}" data-event-color="${calendarColor(task.event)}" data-edit-event="${esc(task.event.id)}" data-event-start="${start}" data-event-end="${end}" data-lane="${lane}" data-lanes="${lanes}" title="${esc(task.event.title)}"><strong>${esc(task.event.title || "Event")}</strong><span>${calendarTime(task.event.start)}</span></button>`
+            ? `<button class="schedule-event calendar-event${task.event.pending ? " pending" : ""}" data-event-color="${calendarColor(task.event)}" data-edit-event="${esc(task.event.id)}" data-event-start="${start}" data-event-end="${end}" data-lane="${lane}" data-lanes="${lanes}" title="${esc(eventTooltip(task.event))}"><strong>${esc(task.event.title || "Event")}</strong><span>${calendarTime(task.event.start)}</span>${eventPlace(task.event) ? `<span class="event-place">${pinIcon}${esc(eventPlace(task.event))}</span>` : ""}</button>`
             : `<div draggable="true" data-drag-task="${esc(task.id)}" class="schedule-event check-tile" data-event-start="${start}" data-event-end="${end}" data-lane="${lane}" data-lanes="${lanes}" data-row-menu="task:${esc(task.id)}"><button class="schedule-check" role="checkbox" aria-checked="false" aria-label="Complete ${esc(task.title)}" data-toggle="${esc(task.id)}">${tick(false)}</button><button class="schedule-event-body" data-edit="${esc(task.id)}" aria-label="Edit ${esc(task.title)}" title="${esc(task.title)}"><strong>${esc(task.title)}</strong><span>${calendarTime(task.dueDate)}</span></button><button class="calendar-resize" data-resize-task="${esc(task.id)}" aria-label="Change duration of ${esc(task.title)}" title="Drag to change duration; arrow keys adjust by 15 minutes"></button>${rowActions(esc(task.id), esc(task.title))}</div>`,
         )
         .join("");
@@ -511,7 +523,8 @@ function bindCalendar() {
 
 // Editing a shared calendar event. This PC can't reach the calendar itself, so a change is saved as a
 // request on the event's record; Orbit on iPhone makes the change in the calendar when it next syncs.
-let editingEvent = null;
+let editingEvent = null,
+  editingEventPlace = "";
 const timeOf = (stamp) => {
   const date = new Date(stamp);
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
@@ -526,7 +539,11 @@ function openEvent(id) {
   const writable = calendar?.writable !== false;
   const form = $("#event-form");
   form.title.value = event.title || "";
-  form.elements.location.value = event.location || "";
+  // Apple addresses often span two lines ("Place\nStreet, City"); the field shows them on one, and an
+  // untouched field saves the original back unchanged.
+  editingEventPlace = event.location || "";
+  form.elements.location.value = eventPlace(event);
+  syncMapButton();
   form.allDay.checked = !!event.allDay;
   form.day.value = event.allDay ? event.startDay : dayKey(new Date(event.start));
   form.endDay.value = event.allDay
@@ -560,6 +577,11 @@ function syncEventFields() {
   $("#event-end-row").hidden = allDay;
 }
 $("#event-form").allDay.onchange = syncEventFields;
+function syncMapButton() {
+  $("#event-open-map").disabled = !$("#event-form").elements.location.value.trim();
+}
+$("#event-form").elements.location.addEventListener("input", syncMapButton);
+$("#event-open-map").onclick = () => void action(() => api.openMap($("#event-form").elements.location.value));
 $("#event-form").onsubmit = (submit) => {
   submit.preventDefault();
   const form = submit.target;
@@ -580,7 +602,8 @@ $("#event-form").onsubmit = (submit) => {
     if (end <= start) end += 86400000;
     changes = { title: form.title.value.trim(), allDay: false, start, end };
   }
-  changes.location = form.elements.location.value.trim();
+  const place = form.elements.location.value.trim();
+  changes.location = place === eventPlace({ location: editingEventPlace }) ? editingEventPlace : place;
   // Keep the draft available if the provider or local store rejects the edit.
   void action(async () => {
     if (record.provider) await api.linkedCalendars({ command: "update", event: record.id, changes });
@@ -613,6 +636,7 @@ function openEventMenu(e) {
   const when = event.allDay ? "All day" : `${calendarTime(event.start)}–${calendarTime(event.end || event.start)}`;
   const entries = [
     ["Edit event…", () => openEvent(id)],
+    ...(eventPlace(event) ? [["Open address in maps", () => void action(() => api.openMap(event.location))]] : []),
     ["Copy text", () => api.copy([event.title || "Event", when, event.location].filter(Boolean).join("\n"))],
     [
       "Add as a task",

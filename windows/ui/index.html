@@ -293,7 +293,20 @@
         </div>
         <p class="secondary" id="event-calendar"></p>
         <label>Title<input name="title" required maxlength="500" /></label>
-        <label>Location / address<input name="location" maxlength="2000" /></label>
+        <label class="event-location-field"
+          >Location / address<span class="event-location-row"
+            ><input name="location" maxlength="2000" autocomplete="street-address" /><button
+              type="button"
+              id="event-open-map"
+              class="icon-button"
+              aria-label="Open address in maps"
+              title="Open in maps"
+            >
+              <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 21s-6-5.3-6-11a6 6 0 0 1 12 0c0 5.7-6 11-6 11z" />
+                <circle cx="12" cy="10" r="2.2" />
+              </svg></button></span
+        ></label>
         <label class="toggle"><input type="checkbox" name="allDay" /> All day</label>
         <div class="fields">
           <label>Date<input name="day" type="date" required /></label>

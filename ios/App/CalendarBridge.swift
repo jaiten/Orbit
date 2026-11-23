@@ -123,10 +123,22 @@ struct CalendarEventRow: View {
     @State private var confirmDelete = false
     @State private var message: String?
     var body: some View {
-        Button { editing = CalendarDraft(taskID: nil, event: event) } label: { row }
-            .buttonStyle(.plain)
+        // The row opens the event; its address is a button of its own that opens Maps (or a meeting link).
+        row
+            .contentShape(Rectangle())
+            .onTapGesture { editing = CalendarDraft(taskID: nil, event: event) }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { editing = CalendarDraft(taskID: nil, event: event) }
+            .accessibilityAction(named: place.map { EventPlace.isLink($0) ? "Join Meeting" : "Open in Maps" } ?? "Copy Text") {
+                if let place { open(place) } else { UIPasteboard.general.string = copyText }
+            }
             .contextMenu {
                 Button("Edit event", systemImage: "pencil") { editing = CalendarDraft(taskID: nil, event: event) }
+                if let place {
+                    Button(EventPlace.isLink(place) ? "Join Meeting" : "Open in Maps", systemImage: EventPlace.isLink(place) ? "video" : "map") { open(place) }
+                    Button("Copy Address", systemImage: "mappin.and.ellipse") { UIPasteboard.general.string = event.location }
+                }
                 Button("Show in Calendar", systemImage: "calendar") {
                     if let url = URL(string: "calshow:\(event.startDate.timeIntervalSinceReferenceDate)") { openURL(url) }
                 }
@@ -145,6 +157,14 @@ struct CalendarEventRow: View {
             .alert("Calendar", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
                 Button("OK", role: .cancel) {}
             } message: { Text(message ?? "") }
+    }
+    private var place: String? {
+        let value = event.location?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return value.isEmpty ? nil : value
+    }
+    private func open(_ place: String) {
+        guard let url = EventPlace.url(place) else { return }
+        openURL(url)
     }
     private var copyText: String {
         let when = event.isAllDay ? "All day" : event.startDate.formatted(date: .omitted, time: .shortened) + "–" + event.endDate.formatted(date: .omitted, time: .shortened)
@@ -167,8 +187,15 @@ struct CalendarEventRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(event.title ?? "Event").font(.subheadline.weight(.medium))
                 Text(event.calendar.title).font(.caption).foregroundStyle(.secondary)
-                if let location = event.location, !location.isEmpty {
-                    Label(location, systemImage: "mappin.and.ellipse").font(.caption).foregroundStyle(.secondary)
+                if let place {
+                    Button { open(place) } label: {
+                        Label(EventPlace.oneLine(place), systemImage: EventPlace.isLink(place) ? "video" : "mappin.and.ellipse")
+                            .font(.caption).lineLimit(1).truncationMode(.tail)
+                            .foregroundStyle(.secondary)
+                            .padding(.vertical, 4).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint(EventPlace.isLink(place) ? "Opens the meeting link" : "Opens the address in Maps")
                 }
                 if typeSize.isAccessibilitySize { timeLabel }
             }
@@ -181,5 +208,23 @@ struct CalendarEventRow: View {
                 Text(event.isAllDay ? "All day" : event.startDate.formatted(date: .omitted, time: .shortened))
                 if !event.isAllDay { Text(event.endDate.formatted(date: .omitted, time: .shortened)).foregroundStyle(.secondary) }
             }.font(.caption).monospacedDigit()
+    }
+}
+
+/// An event's location: an address (two lines from Apple Maps, "Place\nStreet, City") or a meeting link.
+enum EventPlace {
+    static func oneLine(_ text: String) -> String {
+        text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }.joined(separator: ", ")
+    }
+    static func isLink(_ text: String) -> Bool {
+        let value = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return value.hasPrefix("https://") && !value.contains(" ")
+    }
+    /// A meeting link opens as itself; anything else searches Apple Maps.
+    static func url(_ text: String) -> URL? {
+        if isLink(text) { return URL(string: text.trimmingCharacters(in: .whitespacesAndNewlines)) }
+        var parts = URLComponents(string: "maps://")
+        parts?.queryItems = [URLQueryItem(name: "q", value: oneLine(text))]
+        return parts?.url
     }
 }

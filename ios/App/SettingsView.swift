@@ -222,7 +222,7 @@ private struct DataSection: View {
     }
 }
 
-/// Settings → Quick add rules: Someday visibility rules for @tags, and words that always track start & finish.
+/// Settings → Quick add rules: Someday visibility rules for @tags, abbreviations, and words that always track start & finish.
 /// Both sync to your other devices (SomedayRules, CaptureRules).
 struct CaptureRulesView: View {
     @Environment(\.modelContext) private var context
@@ -230,7 +230,12 @@ struct CaptureRulesView: View {
     @ObservedObject private var bridge = CalendarBridge.shared
     @State private var rules = SomedayRules.rules
     @State private var words = ""
+    @State private var shortcuts = ""
     @State private var error: String?
+    @Query private var tasks: [PlannerTask]
+    /// Open tasks that already had a ruled tag before the rule was saved.
+    @State private var alreadyTagged: [PlannerTask] = []
+    @State private var askingAboutTagged = false
 
     var body: some View {
         Form {
@@ -280,6 +285,13 @@ struct CaptureRulesView: View {
                 }
             }
             Section {
+                TextField("mtg = meeting with the team", text: $shortcuts, axis: .vertical)
+                    .lineLimit(3...10).font(.body.monospaced()).autocorrectionDisabled().textInputAutocapitalization(.never)
+                    .accessibilityIdentifier("capture-shortcuts")
+            } header: { Text("Abbreviations") } footer: {
+                Text("One per line, like “gs = grocery shopping #errands”. In quick add the word expands when you type a space after it, here and on Windows. The text can use quick add words like #category, a day or a time.")
+            }
+            Section {
                 TextField("laundry, print, bake", text: $words).autocorrectionDisabled().textInputAutocapitalization(.never)
             } header: { Text("Always track start & finish") } footer: {
                 Text("Orbit also learns: after you track start & finish on a task, similar tasks suggest it, and from the second time on they start with it. Turn it off on one to teach it otherwise.")
@@ -288,12 +300,36 @@ struct CaptureRulesView: View {
         .orbitFormBackground()
         .navigationTitle("Quick add rules").navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Save", action: saveRules) } }
-        .onAppear { words = CaptureRules.progressWords.joined(separator: ", ") }
+        .onAppear {
+            words = CaptureRules.progressWords.joined(separator: ", ")
+            shortcuts = CaptureRules.lines(CaptureRules.shortcuts)
+        }
         .onDisappear(perform: saveWords)
+        .confirmationDialog(alreadyTaggedQuestion, isPresented: $askingAboutTagged, titleVisibility: .visible) {
+            Button("Let the Rules Show Them") { moveTaggedToSomeday() }
+            Button("Leave Them on Their Days", role: .cancel) { dismiss() }
+        } message: { Text("They move to Someday and come back to Today on days a rule matches.") }
         .modifier(MutationErrorModifier(error: $error))
     }
 
+    private var alreadyTaggedQuestion: String {
+        alreadyTagged.count == 1 ? "1 open task already has a ruled tag" : "\(alreadyTagged.count) open tasks already have a ruled tag"
+    }
+    private func moveTaggedToSomeday() {
+        do {
+            for task in alreadyTagged { try TodayRules.moveToSomeday(task, in: context); task.updatedAt = .now }
+            try Mutations.save(context)
+            Task { try? await refreshReminders(context) }
+        } catch { context.rollback(); self.error = error.localizedDescription; return }
+        dismiss()
+    }
+
     private func saveWords() {
+        let parsedShortcuts = CaptureRules.parseShortcuts(shortcuts)
+        if parsedShortcuts != CaptureRules.shortcuts {
+            CaptureRules.save(shortcuts: parsedShortcuts)
+            do { try Mutations.save(context, undoable: false) } catch { self.error = error.localizedDescription }
+        }
         let parsedWords = Array(Set(words.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces).lowercased() }.filter { !$0.isEmpty })).sorted()
         guard parsedWords != CaptureRules.progressWords.sorted() else { return }
         CaptureRules.save(progressWords: parsedWords)
@@ -327,7 +363,8 @@ struct CaptureRulesView: View {
         do {
             try SomedayRules.save(values)
             try Mutations.save(context, undoable: false)
-            dismiss()
+            let tagged = SomedayRules.untaggedByRule(tasks, rules: values)
+            if tagged.isEmpty { dismiss() } else { alreadyTagged = tagged; askingAboutTagged = true }
         } catch {
             if let previous = try? JSONEncoder().encode(old) {
                 SomedayRules.defaults.set(previous, forKey: SomedayRules.storageKey)

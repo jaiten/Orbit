@@ -21,7 +21,8 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "generate": "node scripts/generate.cjs",
-    "test:installer": "node tests/installer-smoke.cjs"
+    "test:installer": "node tests/installer-smoke.cjs",
+    "test:audit": "node tests/audit-smoke.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0",

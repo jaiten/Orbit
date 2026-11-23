@@ -52,17 +52,7 @@ struct TodayView: View {
         let key = PlannerLogic.dayKey(day), today = PlannerLogic.today
         // Tasks finished on another day are skipped by their time alone, before any day is worked out.
         let end = Calendar.current.date(byAdding: .day, value: 1, to: day) ?? day.addingTimeInterval(86_400)
-        let rules = SomedayRules.decode(visibilityData)
-        let sources = rules.contains { $0.trigger.usesCalendar } ? calendars.calendars.filter(calendars.isShown) : []
-        let events = sources.isEmpty ? [] : calendars.events(on: day)
-        let activeTags = Set(rules.filter { rule in
-            guard rule.trigger.usesCalendar else { return rule.matches(key, eventTitles: nil) }
-            let matches = sources.filter { $0.title == rule.calendar }
-            guard matches.count == 1, let source = matches.first else { return false }
-            let titles = events.filter { $0.calendar?.calendarIdentifier == source.calendarIdentifier && $0.status != .canceled }
-                .compactMap(\.title)
-            return rule.matches(key, eventTitles: titles)
-        }.map(\.tag))
+        let activeTags = SomedayRules.activeTags(on: day, rules: SomedayRules.decode(visibilityData), bridge: calendars)
         var result = DaySnapshot()
         result.relevant = tasks.filter { task in
             if task.note { return false }

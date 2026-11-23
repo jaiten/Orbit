@@ -122,7 +122,7 @@ final class SharedCaseTests: XCTestCase {
             let input = c["input"] as! String
             var defaultDay = DefaultDay.today
             if let key = c["defaultDate"] as? String { defaultDay = key == "undated" ? .undated : .day(key) }
-            let result = QuickAdd.parse(input, defaultDay: defaultDay, now: now, calendar: calendar, visibilityRules: [])
+            let result = QuickAdd.parse(input, defaultDay: defaultDay, now: now, calendar: calendar, visibilityRules: [], shortcuts: [])
             let expect = c["expect"] as! [String: Any]
             XCTAssertEqual(result.kind.rawValue, expect["kind"] as? String, input)
             XCTAssertEqual(result.title, expect["title"] as? String, input)
@@ -135,6 +135,27 @@ final class SharedCaseTests: XCTestCase {
         XCTAssertEqual(QuickAdd.describe(QuickAdd.parse("stretch weekdays 7am", now: now), now: now), "Habit · Weekdays · 7:00 AM")
         XCTAssertEqual(QuickAdd.describe(QuickAdd.parse("gym tomorrow 6pm #health", now: now), now: now), "Task · Tomorrow · 6:00 PM · List: health")
         XCTAssertEqual(QuickAdd.describe(QuickAdd.parse("learn piano someday", now: now), now: now), "Someday")
+    }
+
+    func testAbbreviationCases() throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../shared/test-cases/shortcuts.json").standardizedFileURL
+        let table = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let shortcuts = (table["shortcuts"] as! [[String: String]]).map { CaptureRules.Shortcut(abbr: $0["abbr"]!, text: $0["text"]!) }
+        for c in table["expand"] as! [[String: String]] {
+            XCTAssertEqual(CaptureRules.expand(c["input"]!, shortcuts: shortcuts), c["expect"]!, c["input"]!)
+        }
+        let parts = (table["now"] as! String).split(whereSeparator: { "-T:".contains($0) }).map { Int($0)! }
+        let now = try XCTUnwrap(Calendar.current.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2], hour: parts[3], minute: parts[4])))
+        for c in table["cases"] as! [[String: Any]] {
+            let input = c["input"] as! String, expect = c["expect"] as! [String: Any]
+            let result = QuickAdd.parse(input, now: now, visibilityRules: [], shortcuts: shortcuts)
+            XCTAssertEqual(result.title, expect["title"] as? String, input)
+            XCTAssertEqual(result.date, expect["date"] as? String, input)
+            XCTAssertEqual(result.time, expect["time"] as? Int, input)
+            XCTAssertEqual(result.list, expect["list"] as? String, input)
+        }
+        XCTAssertEqual(CaptureRules.parseShortcuts("MTG = meeting\nbad line\ngs -> groceries #errands\nmtg = team meeting"),
+                       [.init(abbr: "mtg", text: "team meeting"), .init(abbr: "gs", text: "groceries #errands")])
     }
 
     func testConsistencyCases() throws {

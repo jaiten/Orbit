@@ -29,11 +29,45 @@ function openQuickAdd(context = quickAddContext()) {
 }
 
 function parseCapture(text, date) {
-  const tags = OrbitSomedayRules.tags(text);
+  const tags = OrbitSomedayRules.tags(OrbitPlanning.expand(text, captureRules().shortcuts));
   const conditional = tags.size > 0 && somedayRules().some((rule) => tags.has(rule.tag));
   const parsed = OrbitPlanning.parse(text, date, plannerNow(), { ...captureRules(), conditional });
   if (page === "habits" && parsed.kind !== "habit") return { ...parsed, kind: "habit", schedule: "DAILY" };
   return parsed;
+}
+/**
+ * Ctrl+Shift+Enter: the capture becomes one task, however long. Date and time words count only when they
+ * close the text ("… call the bank friday"); words like "on monday" in the middle of a long thought are part
+ * of the task, which stays on the day being viewed. It never becomes a habit.
+ */
+function forcedTaskParse(text, date) {
+  const flat = OrbitPlanning.expand(String(text).replace(/\s+/g, " ").trim(), captureRules().shortcuts);
+  const parsed = parseCapture(flat, date);
+  const lower = flat.toLowerCase();
+  const trailing = parsed.kind === "task" && !!parsed.title && lower.startsWith(parsed.title.toLowerCase());
+  if (trailing) return parsed;
+  // Where an undated "x" would go on this page, keeping the whole text as the title.
+  const base = parseCapture("x", date);
+  const tags = OrbitSomedayRules.tags(flat);
+  const conditional = tags.size > 0 && somedayRules().some((rule) => tags.has(rule.tag));
+  return conditional
+    ? { ...base, kind: "task", title: flat, date: null, time: null, schedule: null, someday: true, list: null }
+    : { ...base, kind: "task", title: flat, time: null, schedule: null, list: null };
+}
+/** Where a saved capture went, when that is not on the page in front of you: "Added to Fri, Nov 27". */
+function captureReceipt(task) {
+  if (!task) return "";
+  const day = taskDate(task);
+  if (task.listID === SOMEDAY && !day) return page === "tasks" ? "" : "Added to Someday";
+  if (!day) return "";
+  const visible =
+    page === "today" ? OrbitPlanner.onDay(planItem(task), today()) : page === "calendar" ? day === calendarDay : true;
+  if (visible) return "";
+  const label =
+    day === OrbitHabits.addDays(today(), 1)
+      ? "Tomorrow"
+      : localDay(day).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+  return `Added to ${label}${task.hasTime ? " · " + calendarTime(task.dueDate) : ""}`;
 }
 function quickParse() {
   return parseCapture($("#quick-add-form").elements.text.value, quickContext.defaultDate);
@@ -172,6 +206,7 @@ function quickRecords(result) {
 }
 
 $("#quick-add-form").elements.text.oninput = updateQuickPreview;
+attachShortcuts($("#quick-add-form").elements.text);
 $("#quick-add-form").elements.text.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && event.ctrlKey && event.shiftKey && !event.isComposing) {
     event.preventDefault();
@@ -192,7 +227,7 @@ $("#quick-add-form").onsubmit = (e) => {
     });
     return;
   }
-  const result = quickParse();
+  const result = forced ? forcedTaskParse(text, quickContext.defaultDate) : quickParse();
   if (!result.title) return;
   action(async () => {
     const records = quickRecords(result);
@@ -200,6 +235,8 @@ $("#quick-add-form").onsubmit = (e) => {
     else await saveTasks([records.task], records.extra);
     inlineDraft = "";
     $("#quick-add-dialog").close();
+    const receipt = captureReceipt(records.task);
+    if (receipt) showNotice(receipt, { dismissAfter: 4000 });
   });
 };
 /**
@@ -313,9 +350,23 @@ function bindInlineCapture() {
               .filter(Boolean)
               .join(" · ");
     showChip($("#inline-preview"), text);
-    $("#inline-receipt").textContent = "";
+    const hint = form.querySelector(".capture-note-hint");
+    if (hint && asNote && page !== "lists") {
+      const forced = forcedTaskParse(
+        [inlineNoteTitle.trim(), inlineDraft].filter(Boolean).join(" "),
+        quickAddContext().defaultDate,
+      );
+      const where = OrbitPlanning.describe(forced, plannerNow(), undefined, { hour12: clockHour12() }).replace(
+        /^Task · /,
+        "",
+      );
+      hint.textContent = `Ctrl+Enter to save · Ctrl+Shift+Enter for a task${where ? " (" + where + ")" : ""}`;
+    }
+    if (inlineDraft) captureReceiptNote = { text: "", at: 0 };
+    $("#inline-receipt").textContent = recentReceipt();
   };
   input.oninput = preview;
+  attachShortcuts(input);
   OrbitAutocorrect.attach(input);
   const title = $("#inline-note-title");
   OrbitAutocorrect.attach(title);
@@ -413,13 +464,12 @@ function bindInlineCapture() {
       return;
     }
     // A forced task keeps all its words on one line; a note title typed above them leads.
-    const taskText = forced
-      ? [inlineNoteTitle.trim(), input.value.trim()]
-          .filter(Boolean)
-          .join(" ")
-          .replace(/\s*\n+\s*/g, " ")
-      : input.value;
-    const result = parseCapture(taskText, quickAddContext().defaultDate);
+    const result = forced
+      ? forcedTaskParse(
+          [inlineNoteTitle.trim(), input.value.trim()].filter(Boolean).join(" "),
+          quickAddContext().defaultDate,
+        )
+      : parseCapture(input.value, quickAddContext().defaultDate);
     if (!result.title) return;
     quickContext = quickAddContext();
     const records = quickRecords(result);
@@ -456,7 +506,10 @@ function bindInlineCapture() {
       if (current) {
         if (focusRequest === inlineFocusGeneration && capturePage === page) current.focus();
         // No success message: the cleared field is the confirmation. Only failures are reported.
-        $("#inline-receipt").textContent = inlineDraft ? "Could not add this item. Your draft is still here." : "";
+        $("#inline-receipt").textContent = inlineDraft
+          ? "Could not add this item. Your draft is still here."
+          : captureReceipt(records.task);
+        captureReceiptNote = { text: $("#inline-receipt").textContent, at: Date.now() };
       }
       $('#inline-add-form button[type="submit"]')?.removeAttribute("disabled");
     });

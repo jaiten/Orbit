@@ -183,6 +183,10 @@ struct InlineCapture: View {
                     }
                 }
             }
+            // An abbreviation from Settings → Quick add rules expands when a space finishes it.
+            .onChange(of: text) { old, new in
+                if !notesOnly, !NoteRules.isNote(new), let expanded = CaptureRules.expandingLastWord(new, previous: old) { text = expanded }
+            }
             .onChange(of: focused) { _, now in
                 if now {
                     CaptureOutsideTap.shared.captureFrame = barFrame

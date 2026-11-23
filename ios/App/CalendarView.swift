@@ -9,6 +9,7 @@ struct CalendarView: View {
     @Environment(\.colorScheme) private var scheme
     @Query(sort: \PlannerTask.sortOrder) private var tasks: [PlannerTask]
     @ObservedObject private var calendars = CalendarBridge.shared
+    @AppStorage(SomedayRules.storageKey, store: SomedayRules.defaults) private var visibilityData = Data()
     @State private var selected = Date.now
     @State private var mode = "Week"
     @State private var editing: PlannerTask?
@@ -33,8 +34,10 @@ struct CalendarView: View {
         }
         return result
     }
+    /// The chosen day's tasks, with Someday tasks whose @tag rule matches the day.
     private var selectedTasks: [PlannerTask] {
-        tasks.filter { !$0.note && $0.day == PlannerLogic.dayKey(selected) }
+        (tasks.filter { !$0.note && $0.day == PlannerLogic.dayKey(selected) }
+            + SomedayRules.tasks(tasks, on: selected, rules: SomedayRules.decode(visibilityData), bridge: calendars))
             .sorted { ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture) }
     }
     var body: some View {

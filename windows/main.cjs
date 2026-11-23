@@ -342,6 +342,14 @@ app.whenReady().then(async () => {
     const problem = await shell.openPath(file);
     if (problem) throw Error("No calendar app opened the event: " + problem);
   });
+  // An event's address opens as a map search (or, for an https meeting link, that link).
+  handle("open-map", async ({ location } = {}) => {
+    const text = String(location || "").trim();
+    if (!text || text.length > 2000) throw Error("This event has no address.");
+    // A meeting link in the location opens as itself (https only); anything else is searched as a place.
+    if (/^https:\/\/\S+$/i.test(text) && URL.canParse(text)) return shell.openExternal(new URL(text).toString());
+    return shell.openExternal("https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(text));
+  });
   // Settings → Appearance also sets the window's own theme, so Mica and the title bar match it.
   handle("appearance", async (name) => {
     nativeTheme.themeSource = ["light", "dark"].includes(name) ? name : "system";

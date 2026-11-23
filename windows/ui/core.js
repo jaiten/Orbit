@@ -115,7 +115,7 @@ function put(entity, data, deleted = false) {
 
 let noticeTimer = null;
 /** A message at the top of the window; with dismissAfter (ms) it goes away by itself. */
-function showNotice(message, { dismissAfter = 0 } = {}) {
+function showNotice(message, { dismissAfter = 0, action: choice = null } = {}) {
   clearTimeout(noticeTimer);
   if (dismissAfter) noticeTimer = setTimeout(() => ($("#notice").hidden = true), dismissAfter);
   const notice = $("#notice"),
@@ -127,7 +127,18 @@ function showNotice(message, { dismissAfter = 0 } = {}) {
   close.onclick = () => {
     notice.hidden = true;
   };
-  notice.replaceChildren(text, close);
+  const extra = [];
+  if (choice) {
+    const button = document.createElement("button");
+    button.className = "notice-action";
+    button.textContent = choice.label;
+    button.onclick = () => {
+      notice.hidden = true;
+      choice.run();
+    };
+    extra.push(button);
+  }
+  notice.replaceChildren(text, ...extra, close);
   notice.hidden = false;
 }
 
@@ -461,9 +472,12 @@ function addField(placeholder = "Add a task · gym tomorrow 6pm") {
       </span>
     </div><div class="chip-row inline-chip" aria-live="polite"><p id="inline-preview" class="chip" hidden></p></div>
     <div id="inline-overlap" hidden><p id="inline-overlap-text"></p><button type="button" id="inline-save-overlap">Add anyway</button></div>
-    <p id="inline-receipt" class="secondary" role="status"></p>
+    <p id="inline-receipt" class="secondary" role="status">${esc(recentReceipt())}</p>
   </form>`;
 }
+/** The last capture's "Added to …" line survives the re-render that follows saving, for a few seconds. */
+let captureReceiptNote = { text: "", at: 0 };
+const recentReceipt = () => (Date.now() - captureReceiptNote.at < 6000 ? captureReceiptNote.text : "");
 /** "Your plan": the day's count and a bar that fills with a spring. */
 function planCard(done, total) {
   return `<div class="card plan-card">

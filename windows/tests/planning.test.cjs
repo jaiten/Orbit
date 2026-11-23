@@ -1,6 +1,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { parse, describe } = require("../ui/planning.js");
+const { parse, describe, expand } = require("../ui/planning.js");
+const shortcutTable = require("../../shared/test-cases/shortcuts.json");
 const table = require("../../shared/test-cases/quick-add.json");
 
 const now = new Date(table.now);
@@ -23,3 +24,12 @@ test("the preview chip says what will be created", () => {
   assert.equal(describe(parse("Buy milk", null, now), now, "en-US"), "Task · Today");
   assert.equal(describe(parse("", null, now), now, "en-US"), "");
 });
+
+for (const c of shortcutTable.expand)
+  test(`abbreviations: ${c.input}`, () => assert.equal(expand(c.input, shortcutTable.shortcuts), c.expect));
+for (const c of shortcutTable.cases)
+  test(`abbreviations in quick add: ${c.input}`, () => {
+    const result = parse(c.input, null, new Date(shortcutTable.now), { shortcuts: shortcutTable.shortcuts });
+    const expected = { someday: false, list: null, schedule: null, ...c.expect };
+    for (const [name, value] of Object.entries(expected)) assert.deepEqual(result[name], value, name);
+  });

@@ -1,0 +1,32 @@
+{
+  "description": "Quick add abbreviations (Settings → Quick add rules). A whole word that matches an abbreviation, ignoring case and trailing punctuation, is replaced by its text before quick add reads the phrase, so the text can carry quick add words (#category, times, days, @tags). Run by windows/tests/planning.test.cjs and ios/Tests/SharedCaseTests.swift.",
+  "now": "2026-10-20T12:00:00",
+  "shortcuts": [
+    { "abbr": "mtg", "text": "meeting with the team" },
+    { "abbr": "gs", "text": "grocery shopping #errands" },
+    { "abbr": "standup", "text": "Standup 9:30am" },
+    { "abbr": "w/e", "text": "weekend" }
+  ],
+  "expand": [
+    { "input": "mtg", "expect": "meeting with the team" },
+    { "input": "Prep for mtg, then lunch", "expect": "Prep for meeting with the team, then lunch" },
+    { "input": "MTG notes", "expect": "meeting with the team notes" },
+    { "input": "mtgs and xmtg stay", "expect": "mtgs and xmtg stay" },
+    { "input": "plan the w/e", "expect": "plan the weekend" },
+    { "input": "email@mtg.com", "expect": "email@mtg.com" }
+  ],
+  "cases": [
+    {
+      "input": "gs tomorrow",
+      "expect": { "kind": "task", "title": "grocery shopping", "date": "2026-10-21", "time": null, "list": "errands" }
+    },
+    {
+      "input": "standup",
+      "expect": { "kind": "task", "title": "Standup", "date": "2026-10-21", "time": 570 }
+    },
+    {
+      "input": "Book room for mtg",
+      "expect": { "kind": "task", "title": "Book room for meeting with the team", "date": "2026-10-20", "time": null }
+    }
+  ]
+}

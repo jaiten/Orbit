@@ -150,6 +150,12 @@ function upcomingCard(tasks) {
   const taskItems = tasks
     .filter((task) => !task.isNote && !task.completedAt && taskDate(task) > t && taskDate(task) <= end)
     .map((task) => ({ key: taskDate(task), at: task.hasTime ? task.dueDate : null, task }));
+  // Someday tasks a rule brings back on a coming day (today's are already in Your day).
+  const ruled = somedayMatcher(tasks);
+  for (let offset = 1; offset <= ahead; offset++) {
+    const key = OrbitHabits.addDays(t, offset);
+    for (const task of ruled(key)) taskItems.push({ key, at: null, task, ruled: true });
+  }
   const shared = calendarEvents();
   const eventItems = [];
   for (let offset = 0; offset <= ahead; offset++) {
@@ -166,7 +172,7 @@ function upcomingCard(tasks) {
   const shown = items.slice(0, 10);
   let lastDay = "";
   const rows = shown
-    .map(({ key, at, task, event }) => {
+    .map(({ key, at, task, event, ruled: fromRule }) => {
       const label =
         key === t
           ? "Later today"
@@ -175,9 +181,9 @@ function upcomingCard(tasks) {
             : localDay(key).toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
       const head = key !== lastDay ? `<div class="upcoming-day">${esc(label)}</div>` : "";
       lastDay = key;
-      const time = `<span class="upcoming-time">${at != null ? esc(calendarTime(at)) : event ? "All day" : ""}</span>`;
+      const time = `<span class="upcoming-time">${at != null ? esc(calendarTime(at)) : event ? "All day" : fromRule ? "Someday" : ""}</span>`;
       return event
-        ? `${head}<button class="upcoming-row upcoming-event" data-event-color="${calendarColor(event)}" data-edit-event="${esc(event.id)}" aria-label="${esc(event.title)}">${time}<span class="upcoming-title"><i></i>${esc(event.title || "Event")}</span></button>`
+        ? `${head}<button class="upcoming-row upcoming-event" data-event-color="${calendarColor(event)}" data-edit-event="${esc(event.id)}" aria-label="${esc(eventTooltip(event))}" title="${esc(eventTooltip(event))}">${time}<span class="upcoming-title"><i></i><span class="upcoming-event-text">${esc(event.title || "Event")}${eventPlace(event) ? `<small class="event-place">${pinIcon}${esc(eventPlace(event))}</small>` : ""}</span></span></button>`
         : `${head}<button class="upcoming-row" data-edit="${esc(task.id)}" aria-label="Edit ${esc(task.title)}">${time}<span class="upcoming-title">${esc(task.title)}</span></button>`;
     })
     .join("");

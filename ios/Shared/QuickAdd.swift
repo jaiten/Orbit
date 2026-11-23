@@ -44,8 +44,11 @@ enum QuickAdd {
 
     /// `now` defaults to the planner clock (DayStart), so "today" and "tomorrow" follow the day start.
     /// An @tag with a Someday visibility rule (`visibilityRules`) keeps the task in Someday.
+    /// Abbreviations (`shortcuts`) are expanded before anything else is read.
     static func parse(_ input: String, defaultDay: DefaultDay = .today, now: Date = DayStart.shifted(.now), calendar: Calendar = .current,
-                      visibilityRules: [SomedayRules.Rule] = SomedayRules.rules) -> QuickAddResult {
+                      visibilityRules: [SomedayRules.Rule] = SomedayRules.rules,
+                      shortcuts: [CaptureRules.Shortcut] = CaptureRules.shortcuts) -> QuickAddResult {
+        let input = CaptureRules.expand(input, shortcuts: shortcuts)
         var text = Text(value: " " + input.trimmingCharacters(in: .whitespacesAndNewlines) + " ")
         let someday = text.take(#"\ssomeday(?=\s)"#) != nil
         let conditional = !SomedayRules.tags(in: input).isDisjoint(with: visibilityRules.map(\.tag))

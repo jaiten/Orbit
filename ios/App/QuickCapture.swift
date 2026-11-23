@@ -66,6 +66,9 @@ struct QuickCapture: View {
                     HStack(spacing: 10) {
                         Image(systemName: "plus").font(.system(size: 18, weight: .medium)).foregroundStyle(.secondary)
                         CaptureTextField(text: $text, focused: $focused) { save(keepAdding: true) }
+                            .onChange(of: text) { old, new in
+                                if !NoteRules.isNote(new), let expanded = CaptureRules.expandingLastWord(new, previous: old) { text = expanded }
+                            }
                         DictationButton(text: $text)
                     }
                     .padding(.horizontal, 14).frame(minHeight: 52)
@@ -211,8 +214,11 @@ struct CaptureTextField: UIViewRepresentable {
         if field.text != text, field.markedTextRange == nil,
            text.isEmpty || !field.isFirstResponder || !context.coordinator.recentEdits.contains(text) {
             let selection = field.selectedRange
+            // A caret at the end stays at the end (an abbreviation that expanded as you typed).
+            let atEnd = selection.location >= ((field.text ?? "") as NSString).length
             field.text = text
-            field.selectedRange = NSRange(location: min(selection.location, (text as NSString).length), length: 0)
+            let length = (text as NSString).length
+            field.selectedRange = NSRange(location: atEnd ? length : min(selection.location, length), length: 0)
             field.textChanged()
         }
         // A capture that becomes a note switches to body text, and Return then starts a new line.

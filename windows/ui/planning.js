@@ -27,9 +27,28 @@ const OrbitPlanning = (() => {
    * date is a local "YYYY-MM-DD" (null for habits and Someday); time is minutes after midnight or null.
    * defaultDate is the day being viewed when it is not today, or "undated" when adding to a list.
    */
-  /** `rules.conditional`: the text has an @tag with a Someday visibility rule, so it stays in Someday. */
+  /**
+   * Quick add abbreviations: a whole word matching `abbr` (ignoring case and trailing punctuation) becomes
+   * its text. Cases in shared/test-cases/shortcuts.json.
+   */
+  function expand(input, shortcuts = []) {
+    if (!shortcuts?.length) return input;
+    const table = new Map(
+      shortcuts.filter((s) => s?.abbr && s?.text).map((s) => [String(s.abbr).toLowerCase(), String(s.text)]),
+    );
+    return String(input).replace(/(^|\s)(\S+)(?=\s|$)/g, (whole, space, word) => {
+      if (table.has(word.toLowerCase())) return space + table.get(word.toLowerCase());
+      const [, bare, tail] = word.match(/^(.*?)([.,!?;:]*)$/);
+      return bare && table.has(bare.toLowerCase()) ? space + table.get(bare.toLowerCase()) + tail : whole;
+    });
+  }
+
+  /**
+   * `rules.conditional`: the text has an @tag with a Someday visibility rule, so it stays in Someday.
+   * `rules.shortcuts`: abbreviations expanded before anything else is read.
+   */
   function parse(input, defaultDate = null, now = new Date(), rules = {}) {
-    let text = " " + input.trim() + " ";
+    let text = " " + expand(input, rules.shortcuts).trim() + " ";
     const take = (pattern) => {
       const match = text.match(pattern);
       if (match) text = text.replace(match[0], " ");
@@ -133,6 +152,6 @@ const OrbitPlanning = (() => {
     return ["Task", day, clock, result.list ? "#" + result.list : ""].filter(Boolean).join(" · ");
   }
 
-  return { parse, describe };
+  return { parse, describe, expand };
 })();
 if (typeof module !== "undefined") module.exports = OrbitPlanning;
