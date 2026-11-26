@@ -32,6 +32,27 @@ enum TodayRules {
         style.timeZone = utc.timeZone
         return "from " + date.formatted(style)
     }
+
+    /// How close a task's due date is: past, today, within the next 6 days, or later.
+    enum DeadlineState: String { case overdue, today, soon, later }
+    /// A task's optional due date ("YYYY-MM-DD"), apart from the day it is planned for: "Due Fri",
+    /// "Due today", "Overdue · Nov 20". Mirrors windows/ui/planner.js `deadlineLabel`; cases in
+    /// shared/test-cases/deadlines.json.
+    static func deadlineLabel(_ deadline: String?, today: String) -> (text: String, state: DeadlineState)? {
+        guard let deadline, deadline.count == 10, let due = HabitRules.date(deadline), let now = HabitRules.date(today) else { return nil }
+        var utc = Calendar(identifier: .gregorian); utc.timeZone = TimeZone(identifier: "UTC")!
+        let days = utc.dateComponents([.day], from: now, to: due).day ?? 0
+        let parts = deadline.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3, (1...12).contains(parts[1]) else { return nil }
+        let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        let weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        let date = "\(months[parts[1] - 1]) \(parts[2])" + (deadline.prefix(4) == today.prefix(4) ? "" : ", \(parts[0])")
+        if days < 0 { return ("Overdue · " + date, .overdue) }
+        if days == 0 { return ("Due today", .today) }
+        if days == 1 { return ("Due tomorrow", .soon) }
+        if days < 7 { return ("Due " + weekdays[utc.component(.weekday, from: due) - 1], .soon) }
+        return ("Due " + date, .later)
+    }
 }
 
 @MainActor extension TodayRules {

@@ -179,7 +179,7 @@ struct TodayView: View {
             }
             if !avoiding.isEmpty {
                 VStack(alignment: .leading, spacing: CGFloat(DesignTokens.spaceS)) {
-                    SectionLabel(title: "Avoiding", note: "Tick tonight · hold if you slip")
+                    SectionLabel(title: "Avoiding", note: "Tick tonight · × if you slip")
                     GroupedRows {
                         ForEach(Array(avoiding.enumerated()), id: \.element.id) { index, habit in
                             VStack(spacing: 0) {

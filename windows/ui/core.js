@@ -515,6 +515,9 @@ function taskRow(t) {
   const timing = focusTimer?.taskID === t.id;
   // Progress shows in the ring and the row tint, so the title keeps the room (no "In progress" text).
   const detail = [time, length].filter(Boolean).join(" · ");
+  // An open task with a due date says when it is due ("Due Fri"), in red once it has passed.
+  const due = !t.completedAt && !t.isNote ? OrbitPlanner.deadlineLabel(t.deadline, today()) : null;
+  const dueChip = due ? `<span class="due-chip due-${due.state}">${esc(due.text)}</span>` : "";
   const onToday = OrbitPlanner.onDay(planItem(t), today());
   const id = esc(t.id),
     title = esc(t.title);
@@ -552,7 +555,7 @@ function taskRow(t) {
   return `<div class="row task-row check-tile ${t.completedAt ? "complete" : ""} ${started ? "in-progress" : ""}" data-flip="task-${id}" data-search="${esc(search)}" data-row-menu="task:${id}">
     <div class="row-line">
       <button class="row-tick" role="checkbox" aria-label="${controlLabel} ${title}" aria-checked="${!!t.completedAt}" data-toggle="${id}">${control}</button
-      ><div class="row-main"><button class="row-body" aria-label="Edit ${title}" data-edit="${id}"><span class="row-title">${title}</span>${detail ? `<span class="row-detail">${detail}</span>` : ""}</button
+      ><div class="row-main"><button class="row-body" aria-label="Edit ${title}" data-edit="${id}"><span class="row-title">${title}</span>${dueChip}${detail ? `<span class="row-detail">${detail}</span>` : ""}</button
       >${rowActions(id, title)}</div>${timer}${addToToday}${options}
     </div>
   </div>`;
@@ -569,7 +572,7 @@ function habitCard(h, { fullWidth = false } = {}) {
     <div class="row-line">
       <button class="row-tick" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-day="${date}" data-habit-menu="${id}">${tick(done, poppedID === h.id)}</button>
       <div class="row-main"><button class="row-body" aria-label="${done ? "Undo" : "Log"} ${title}" data-habit-toggle="${id}" data-habit-day="${date}"><span class="row-title">${title}</span><span class="dot ${colorName(h.color)}" aria-hidden="true"></span><span class="row-detail ${done ? "met" : ""}">${habitDetail(h, date)}</span></button>
-      ${avoidSlipButton(h)}${rowActions(id, title, true)}</div>
+      ${avoidSlipButton(h)}${habitMinusButton(h, date)}${rowActions(id, title, true)}</div>
     </div>
   </div>`;
 }
@@ -621,6 +624,14 @@ function avoidCard(h, { compact = false, fullWidth = false } = {}) {
 function avoidSlipButton(h) {
   if (!OrbitHabits.isAvoid(h)) return "";
   return `<button class="avoid-slip-action" data-mark-slip="${esc(h.id)}" aria-label="Mark ${esc(h.title)} as slipped today" title="I slipped today"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M7 17 17 7"/></svg></button>`;
+}
+/**
+ * A habit with several check-ins (3 a day) that is partway there shows a minus beside its count, so a
+ * check-in clicked by mistake comes straight off. Once done, clicking the row takes one off as before.
+ */
+function habitMinusButton(h, date = today()) {
+  if (OrbitHabits.isCounter(h) || OrbitHabits.isAvoid(h) || dailyCount(h, date) <= 0 || checked(h, date)) return "";
+  return `<button class="habit-minus-action" data-habit-minus="${esc(h.id)}" aria-label="Take one check-in off ${esc(h.title)}" title="Take one off"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 12h11"/></svg></button>`;
 }
 /** An avoid habit's menu entry: mark today as a slip, or take it back. */
 function avoidEntries(h) {
@@ -858,6 +869,12 @@ function bindTiles() {
     .querySelectorAll("[data-counter]")
     .forEach((b) => (b.onclick = () => tickAction(() => countUp(b.dataset.counter))));
   document.querySelectorAll("[data-habit-edit]").forEach((b) => (b.onclick = () => openHabit(b.dataset.habitEdit)));
+  document.querySelectorAll("[data-habit-minus]").forEach((button) => {
+    button.onclick = (event) => {
+      event.stopPropagation();
+      void tickAction(() => log(button.dataset.habitMinus, true));
+    };
+  });
   document.querySelectorAll("[data-mark-slip]").forEach((button) => {
     button.onclick = (event) => {
       event.stopPropagation();
@@ -1046,6 +1063,9 @@ function openRowMenu(e) {
   if (kind === "habit" && OrbitHabits.isAvoid(item)) entries.push(...avoidEntries(item));
   if (kind === "habit" && OrbitHabits.isCounter(item) && dailyCount(item) > 0)
     entries.push(["Take one off", () => tickAction(() => countUp(id, -1))]);
+  // A habit's check-ins come off one at a time too (2 of 3 back to 1 of 3).
+  else if (kind === "habit" && !OrbitHabits.isAvoid(item) && dailyCount(item) > 0)
+    entries.push(["Take one off", () => tickAction(() => log(id, true))]);
   if (kind === "habit") entries.push(["Edit…", () => openHabit(id)]);
   if (kind === "note") {
     entries.push(["Open", () => openNote(id)]);

@@ -34,6 +34,7 @@ import SwiftData
         if t.isNote == true { payload["isNote"] = true }
         if let icon = t.noteIcon { payload["noteIcon"] = icon }
         if t.locked == true { payload["locked"] = true }
+        if let deadline = t.deadline { payload["deadline"] = deadline }
         if !t.photos.isEmpty { payload["photos"] = t.photos.map { photo -> [String: String] in
             var value = ["id": photo.id, "contentType": photo.contentType]
             if let position = photo.position { value["position"] = position }
@@ -211,6 +212,7 @@ import SwiftData
             t.progressTracking = p["progressTracking"] as? Bool; t.startedAt = date("startedAt"); t.isNote = (p["isNote"] as? Bool) == true ? true : nil
             t.noteIcon = p["noteIcon"] as? String
             t.locked = (p["locked"] as? Bool) == true ? true : nil
+            t.deadline = (p["deadline"] as? String).flatMap { $0.isEmpty ? nil : $0 }
             t.photos = (p["photos"] as? [[String: String]] ?? []).compactMap { value in
                 guard let id = value["id"], UUID(uuidString: id) != nil else { return nil }
                 return NotePhoto(id: id.lowercased(), position: value["position"], wrap: value["wrap"])

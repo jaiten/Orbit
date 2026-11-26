@@ -193,7 +193,30 @@
   function setProgress(task, enabled, start = false, now = Date.now()) {
     return { ...task, progressTracking: enabled, startedAt: enabled && start ? now : null, updatedAt: now };
   }
+  /**
+   * A task's optional due date (`deadline`, "YYYY-MM-DD"), apart from the day it is planned for:
+   * { text: "Due Fri", state } where state is "overdue", "today", "soon" (within 6 days) or "later".
+   * Cases in shared/test-cases/deadlines.json; mirrors ios/Shared/TodayRules.swift.
+   */
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  function deadlineLabel(deadline, today) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(deadline || "")) return null;
+    const utc = (key) => {
+      const [y, m, d] = key.split("-").map(Number);
+      return Date.UTC(y, m - 1, d);
+    };
+    const [year, month, day] = deadline.split("-").map(Number);
+    const days = Math.round((utc(deadline) - utc(today)) / 86400000);
+    const date = `${MONTHS[month - 1]} ${day}${String(year) === today.slice(0, 4) ? "" : `, ${year}`}`;
+    if (days < 0) return { text: `Overdue · ${date}`, state: "overdue" };
+    if (days === 0) return { text: "Due today", state: "today" };
+    if (days === 1) return { text: "Due tomorrow", state: "soon" };
+    if (days < 7) return { text: `Due ${WEEKDAYS[new Date(utc(deadline)).getUTCDay()]}`, state: "soon" };
+    return { text: `Due ${date}`, state: "later" };
+  }
   const api = {
+    deadlineLabel,
     suggestsProgress,
     learnedProgress,
     setProgress,

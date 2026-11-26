@@ -55,6 +55,8 @@ function render() {
     (page === "calendar" ? calendarView : "");
   const changedPage = view !== shownView;
   const before = !changedPage ? captureRows() : null;
+  // Redrawing the same page (a tick, a check-in, a sync) keeps the window where it was scrolled to.
+  const keptScroll = !changedPage ? { x: scrollX, y: scrollY } : null;
   shownView = view;
   // Notes fill the window edge to edge, like a document app; other pages keep the reading width.
   document.body.dataset.view = page === "note" ? "lists" : page;
@@ -70,6 +72,7 @@ function render() {
     if (page === "settings") void checkForUpdates();
   }
   applyFills();
+  if (keptScroll && (scrollY !== keptScroll.y || scrollX !== keptScroll.x)) window.scrollTo(keptScroll.x, keptScroll.y);
   if (before) settleRows(before);
   else enterPage();
   movePill();

@@ -1,0 +1,61 @@
+{
+  "description": "A task's optional due date (`deadline`, a local calendar day) and how its label reads. Separate from the day a task is planned for. Run by windows/tests/deadlines.test.cjs and ios/Tests/SharedCaseTests.swift.",
+  "cases": [
+    {
+      "name": "past due",
+      "today": "2026-11-26",
+      "deadline": "2026-11-20",
+      "text": "Overdue · Nov 20",
+      "state": "overdue"
+    },
+    {
+      "name": "due yesterday",
+      "today": "2026-11-26",
+      "deadline": "2026-11-25",
+      "text": "Overdue · Nov 25",
+      "state": "overdue"
+    },
+    {
+      "name": "due today",
+      "today": "2026-11-26",
+      "deadline": "2026-11-26",
+      "text": "Due today",
+      "state": "today"
+    },
+    {
+      "name": "due tomorrow",
+      "today": "2026-11-26",
+      "deadline": "2026-11-27",
+      "text": "Due tomorrow",
+      "state": "soon"
+    },
+    {
+      "name": "due later this week, by weekday",
+      "today": "2026-11-26",
+      "deadline": "2026-12-01",
+      "text": "Due Tue",
+      "state": "soon"
+    },
+    {
+      "name": "a week or more away, by date",
+      "today": "2026-11-26",
+      "deadline": "2026-12-03",
+      "text": "Due Dec 3",
+      "state": "later"
+    },
+    {
+      "name": "another year adds the year",
+      "today": "2026-11-26",
+      "deadline": "2027-01-15",
+      "text": "Due Jan 15, 2027",
+      "state": "later"
+    },
+    {
+      "name": "overdue from last year adds the year",
+      "today": "2027-01-04",
+      "deadline": "2026-12-28",
+      "text": "Overdue · Dec 28, 2026",
+      "state": "overdue"
+    }
+  ]
+}

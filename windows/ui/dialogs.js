@@ -27,12 +27,13 @@ function openTask(id, date, draft = null, { expanded = false } = {}) {
   f.elements.progressTracking.checked = source?.progressTracking === true;
   f.elements.duration.value = (editing ?? source)?.durationMinutes || 60;
   f.elements.priority.value = editing?.priority || 0;
+  f.elements.deadline.value = source?.deadline || "";
   $("#editor-title").textContent = editing ? "Edit Task" : "New Task";
   $("#delete-task").hidden = !editing;
   $("#move-task").hidden = !editing;
   $("#task-to-calendar").hidden = !editing || !(editing.localDate || (editing.hasTime && editing.dueDate));
   f.querySelectorAll("details.capture-options").forEach((section, index) => {
-    section.open = expanded || (index === 0 && !editing && page === "calendar");
+    section.open = expanded || (index === 0 && ((!editing && page === "calendar") || !!source?.deadline));
   });
   openDialog($("#editor"));
   focusTitle($("#editor"));
@@ -234,6 +235,9 @@ $("#task-form").onsubmit = (e) => {
       priority: Number(f.elements.priority.value),
       updatedAt: Date.now(),
     };
+    // A due date is optional and separate from the day the task is planned for.
+    if (f.elements.deadline.value) saved.deadline = f.elements.deadline.value;
+    else delete saved.deadline;
     // Someday items have no date and never remind.
     await saveTasks([saved.listID === SOMEDAY ? OrbitPlanner.moveToSomeday(saved) : saved]);
     afterCaptureSave();

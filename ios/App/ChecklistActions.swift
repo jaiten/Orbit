@@ -95,12 +95,16 @@ struct HabitActions: ViewModifier {
     var edit: (() -> Void)? = nil
     /// An avoid habit marked as slipped today.
     var slipped = false
+    /// Today's check-ins, for Take One Off (0 hides it).
+    var todayCount = 0
     @State private var error: String?
     func body(content: Content) -> some View {
         content.contextMenu {
             if habit.isAvoid {
                 if slipped { Button("Take Back Today's Slip", systemImage: "arrow.uturn.backward") { mark(false) } }
                 else { Button("I Slipped Today", systemImage: "xmark.circle") { mark(true) } }
+            } else if !habit.isCounter && todayCount > 0 {
+                Button("Take One Off", systemImage: "minus.circle") { takeOneOff() }
             }
             if let edit { Button("Edit", systemImage: "pencil", action: edit) }
             Button("Copy text", systemImage: "doc.on.doc") { UIPasteboard.general.string = habit.title }
@@ -110,6 +114,10 @@ struct HabitActions: ViewModifier {
         }.modifier(MutationErrorModifier(error: $error))
     }
 
+    private func takeOneOff() {
+        CompletionHold.shared.cancel("habit-" + habit.id.uuidString)
+        apply { try Mutations.undoLog(habit, at: PlannerLogic.todayDate, in: context) }
+    }
     private func mark(_ slip: Bool) {
         CompletionHold.shared.cancel("habit-" + habit.id.uuidString)
         apply { try Mutations.slip(habit, at: PlannerLogic.todayDate, slipped: slip, in: context) }

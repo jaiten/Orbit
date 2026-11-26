@@ -111,6 +111,16 @@ final class SharedCaseTests: XCTestCase {
         XCTAssertEqual(TodayRules.overdueLabel("2026-10-20", today: "2026-10-22"), "from Tue")
     }
 
+    func testDeadlineCases() throws {
+        for c in try Self.cases("deadlines") {
+            let label = TodayRules.deadlineLabel(c["deadline"] as? String, today: c["today"] as! String)
+            XCTAssertEqual(label?.text, c["text"] as? String, c["name"] as! String)
+            XCTAssertEqual(label?.state.rawValue, c["state"] as? String, c["name"] as! String)
+        }
+        XCTAssertNil(TodayRules.deadlineLabel(nil, today: "2026-11-26"))
+        XCTAssertNil(TodayRules.deadlineLabel("soon", today: "2026-11-26"))
+    }
+
     func testQuickAddPhrases() throws {
         let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../shared/test-cases/quick-add.json").standardizedFileURL
         let table = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])

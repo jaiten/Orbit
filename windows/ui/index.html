@@ -177,6 +177,7 @@
             ><label>Time (optional)<input name="time" type="time" /></label
             ><label>Minutes<input name="duration" type="number" min="5" max="1440" value="30" /></label>
           </div>
+          <label class="deadline-field">Due date (optional)<input name="deadline" type="date" /></label>
         </details>
         <details class="capture-options">
           <summary>More options</summary>
@@ -221,8 +222,8 @@
           A counter adds one each time you click it, so you can see how often it happens.
         </p>
         <p id="habit-avoid-hint" class="secondary" hidden>
-          Something to stay away from. Tick it off at night when you've kept it. If you slip, right-click it and choose
-          I slipped today: that day is marked as failed.
+          Something to stay away from. Tick it off at night when you've kept it. If you slip, click the × beside it:
+          that day is marked as failed.
         </p>
         <div class="fields" id="habit-goal-fields" hidden>
           <label>Daily goal (optional)<input name="goal" type="number" min="1" max="1000" placeholder="None" /></label>

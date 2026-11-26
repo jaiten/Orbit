@@ -92,7 +92,16 @@
     return { ...original, request: { kind: "delete", at: now } };
   }
 
-  const api = { effective, visible, allDayOn, timedOn, editRequest, deleteRequest, addDays };
+  /**
+   * An event that is over: a timed event once its end has passed, an all-day event once its last day
+   * is behind today. Calendar shows these faded, like finished tasks.
+   */
+  function ended(event, now = Date.now()) {
+    if (event.allDay) return (event.endDay || addDays(event.startDay, 1)) <= dayKey(new Date(now));
+    return Math.max(event.end || 0, event.start) <= now;
+  }
+
+  const api = { effective, visible, allDayOn, timedOn, ended, editRequest, deleteRequest, addDays };
   if (typeof module === "object") module.exports = api;
   else root.OrbitCalendarEvents = api;
 })(typeof globalThis === "undefined" ? this : globalThis);

@@ -5123,7 +5123,7 @@ body[data-view="today"] .today-layout,
   display: none;
 }
 
-/* Separate slip control stays reachable by keyboard and appears beside avoid habits on hover. */
+/* Separate slip control: always shown beside avoid habits, so a slip is one click away. */
 .habit-row {
   position: relative;
 }
@@ -5136,7 +5136,7 @@ body[data-view="today"] .today-layout,
   border-radius: 6px;
   background: transparent;
   color: var(--muted);
-  opacity: 0;
+  opacity: 0.7;
 }
 .habit-row:hover .avoid-slip-action,
 .habit-row:focus-within .avoid-slip-action {
@@ -5146,16 +5146,31 @@ body[data-view="today"] .today-layout,
   background: var(--surface);
   color: var(--danger);
 }
-.compact-habits .habit-row:has(.avoid-slip-action) {
+/* A habit partway through its check-ins (1 of 3) shows a minus to take one off. */
+.habit-minus-action {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  margin-right: 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  opacity: 0.7;
+}
+.habit-row:hover .habit-minus-action,
+.habit-minus-action:focus-visible {
+  opacity: 1;
+}
+.habit-minus-action:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+.compact-habits .habit-row:has(.avoid-slip-action, .habit-minus-action) {
   display: flex;
   align-items: center;
 }
-.compact-habits .habit-row:has(.avoid-slip-action) .habit-log {
+.compact-habits .habit-row:has(.avoid-slip-action, .habit-minus-action) .habit-log {
   flex: 1;
   min-width: 0;
-}
-@media (hover: none) {
-  .avoid-slip-action {
-    opacity: 1;
-  }
 }

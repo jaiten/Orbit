@@ -20,6 +20,9 @@ struct TaskEditor: View {
     @State private var hasTime = false
     @State private var duration = 60
     @State private var priority = 0
+    /// An optional due date, apart from the day the task is planned for (PlannerTask.deadline).
+    @State private var hasDeadline = false
+    @State private var deadline = Date.now
     @State private var tags = ""
     @State private var subtasks: [Subtask] = []
     @State private var subtaskTitle = ""
@@ -54,6 +57,10 @@ struct TaskEditor: View {
                 }
                 }
                 }
+                Section {
+                    Toggle("Due date", isOn: $hasDeadline.animation())
+                    if hasDeadline { DatePicker("Due", selection: $deadline, displayedComponents: .date) }
+                } footer: { if hasDeadline { Text("When it needs to be done by. The day it's planned for stays the same.") } }
                 Section {
                     Toggle("Track start & finish", isOn: $progressTracking)
                 } footer: { Text("Start shows this task as in progress. Finish marks it complete.") }
@@ -124,6 +131,7 @@ struct TaskEditor: View {
         (title, notes) = NoteRules.withoutRepeat(title: task.title, notes: task.notes); listID = task.listID; scheduled = task.dueDate != nil
         date = task.dueDate ?? .now; hasTime = task.hasTime; duration = task.durationMinutes
         priority = task.priority; tags = task.tags.joined(separator: ", ")
+        if let due = task.deadline.flatMap({ QuickAdd.start(of: $0, time: nil) }) { hasDeadline = true; deadline = due }
         subtasks = task.subtasks; reminders = task.reminders
     }
     private func save() {
@@ -138,6 +146,7 @@ struct TaskEditor: View {
         item.title = title.trimmingCharacters(in: .whitespacesAndNewlines); item.notes = notes; item.listID = listID
         item.schedule(scheduled ? date : nil, hasTime: hasTime); item.durationMinutes = duration
         item.priority = priority; item.recurrenceRule = ""
+        item.deadline = hasDeadline ? PlannerLogic.dayKey(deadline) : nil
         item.tags = Array(Set(tags.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })).sorted()
         item.subtasks = subtasks.filter { !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         // Keep an unanswered suggestion available when the option was left off.

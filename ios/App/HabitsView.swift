@@ -43,7 +43,7 @@ struct HabitsView: View {
                     }
                     // Avoid habits: ticked off at night; touch and hold to mark a slip.
                     if !avoiding.isEmpty {
-                        SectionLabel(title: "Avoiding", note: "Hold to mark a slip")
+                        SectionLabel(title: "Avoiding", note: "Tap × if you slip")
                         VStack(spacing: DayTheme.rowSpacing(compact: compactRows, typeSize: typeSize)) {
                             ForEach(avoiding) { habit in
                                 HabitRow(habit: habit, counts: counts[habit.id] ?? [:], date: PlannerLogic.todayDate, edit: { editing = habit }).equatable()
@@ -275,7 +275,7 @@ struct HabitEditor: View {
                 }
                 if avoid {
                     Section { EmptyView() } footer: {
-                        Text("Something to stay away from, like alcohol or late-night snacks. Tick it off at night when you've kept it. If you slip, touch and hold it and choose I Slipped Today: that day is marked as failed.")
+                        Text("Something to stay away from, like alcohol or late-night snacks. Tick it off at night when you've kept it. If you slip, tap the × beside it: that day is marked as failed.")
                     }
                 }
                 if !counter && !avoid { Section {

@@ -2391,3 +2391,145 @@ html {
 .event-location-row .icon-button:disabled {
   opacity: 0.35;
 }
+
+/* Calendar fits the window: no page scrollbar on Month, Week or Day. The month's weeks share the
+   height left under the header and above the writing bar, and each day shows as many items as fit
+   (fitCalendarCells), with "N more" for the rest. The chosen day sits beside the month in a
+   narrower column and scrolls inside itself if it has a lot on. */
+:root:has(> body[data-view="calendar"]) {
+  overflow: hidden;
+}
+body[data-view="calendar"] {
+  --cal-pane: clamp(210px, 19vw, 320px);
+  --cal-dock: 84px;
+}
+body[data-view="calendar"] .page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding-bottom: 0;
+}
+body[data-view="calendar"] #content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+body[data-view="calendar"] .calendar-page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
+  max-width: none;
+  min-height: 0;
+}
+body[data-view="calendar"] .calendar-page > .page-head {
+  flex: none;
+}
+body[data-view="calendar"] .cal-layout {
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) var(--cal-pane);
+  gap: var(--space-l);
+  align-items: stretch;
+  min-height: 0;
+  padding-bottom: 16px;
+}
+body[data-view="calendar"] .cal-month {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin-bottom: var(--cal-dock);
+}
+body[data-view="calendar"] .cal-weekdays {
+  flex: none;
+}
+body[data-view="calendar"] .cal-grid {
+  flex: 1;
+  grid-auto-rows: minmax(0, 1fr);
+  min-height: 0;
+}
+body[data-view="calendar"] .cal-cell {
+  min-height: 0;
+  overflow: hidden;
+}
+body[data-view="calendar"] .cal-cell .cal-item[hidden] {
+  display: none;
+}
+body[data-view="calendar"] .cal-day {
+  position: static;
+  align-content: start;
+  min-height: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+body[data-view="calendar"] .calendar-page:not(.timeline-page) > .capture-dock {
+  left: calc(var(--sidebar-width) + var(--content-inset));
+  width: calc(100vw - var(--sidebar-width) - 2 * var(--content-inset) - var(--cal-pane) - var(--space-l));
+  transform: none;
+}
+body[data-view="calendar"] .calendar-timeline {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  margin-bottom: var(--cal-dock);
+}
+body[data-view="calendar"] .cal-more[hidden] {
+  display: none;
+}
+/* Calendar events that are over fade like finished tasks: in the month, the chosen day and the
+   week and day grids. */
+.cal-item.cal-event.past,
+.calendar-event-chip.past,
+.schedule-event.calendar-event.past {
+  opacity: 0.5;
+}
+.cal-item.cal-event.past b,
+.cal-item.cal-event.past em {
+  color: var(--muted);
+}
+body[data-view="calendar"] .cal-cell > * {
+  flex-shrink: 0;
+}
+/* The week and day grids still scroll through the hours, without showing a scrollbar. */
+body[data-view="calendar"] .calendar-timeline {
+  scrollbar-width: none;
+}
+body[data-view="calendar"] .cal-more {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* A task's due date beside its title: quiet until it is close, red once it has passed. */
+.due-chip {
+  flex: none;
+  align-self: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 18px;
+  white-space: nowrap;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.due-chip.due-today,
+.due-chip.due-soon {
+  color: var(--accent-text);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.due-chip.due-overdue {
+  color: var(--danger, #d14b4b);
+  background: color-mix(in srgb, var(--danger, #d14b4b) 12%, transparent);
+}
+.habit-row .row-main > :is(.avoid-slip-action, .habit-minus-action) {
+  display: grid;
+  place-items: center;
+  align-self: center;
+  margin: 0;
+}
+/* On Habits, the pencil and bin that float in on hover sit beside the minus or slip button, not over it. */
+.habit-row:has(.habit-minus-action, .avoid-slip-action) .row-actions {
+  right: 46px;
+}

@@ -46,6 +46,10 @@ private struct RowChrome: ViewModifier {
 
 /// A choice under a row (such as starting a timer). With `options` it is a menu.
 struct TileMove { let title: String; let action: () -> Void; var options: [TileMove] = [] }
+/// A short coloured label beside a row's title, such as a task's due date ("Due Fri").
+struct TileBadge { let text: String; let tint: Color }
+/// A one-tap button at the end of a row: a habit's minus (take one check-in off) or an avoid habit's slip.
+struct TileAccessory { let systemImage: String; let label: String; let action: () -> Void }
 
 /// Tasks and habits share the same controls: the check logs progress; the title opens details.
 /// Swipe left for Delete (all the way deletes), right for Edit; touch and hold for everything else.
@@ -65,6 +69,8 @@ struct CheckTile: View {
     var progress = 0 // 0: ordinary, 1: ready, 2: in progress
     var progressOptions: [TileMove] = []
     var allowsToggle = true
+    var badge: TileBadge? = nil
+    var accessory: TileAccessory? = nil
     /// On Today a tap on the title checks the item off too; editing is a swipe right or in the touch-and-hold menu.
     var tapChecks = false
     @Environment(\.orbitAccent) private var accent
@@ -133,6 +139,13 @@ struct CheckTile: View {
                             .font(.system(size: 16, weight: .medium)).frame(width: 44, height: rowHeight)
                     }.foregroundStyle(accent.text).accessibilityLabel("Progress options for " + title)
                 }
+                if let accessory {
+                    Button { if !swipe.takesTap() { accessory.action() } } label: {
+                        Image(systemName: accessory.systemImage).font(.system(size: 15, weight: .semibold))
+                            .frame(width: 44, height: rowHeight).contentShape(Rectangle())
+                    }.buttonStyle(.plain).foregroundStyle(.secondary).accessibilityLabel(accessory.label)
+                        .padding(.leading, -10)
+                }
             }
             if !moves.isEmpty {
                 ViewThatFits(in: .horizontal) {
@@ -169,9 +182,9 @@ struct CheckTile: View {
     private var line: some View {
         Group {
             if typeSize.isAccessibilitySize {
-                VStack(alignment: .leading, spacing: 7) { titleText; detailText }
+                VStack(alignment: .leading, spacing: 7) { titleText; badgeText; detailText }
             } else {
-                HStack(spacing: 12) { titleText; Spacer(minLength: 8); detailText }
+                HStack(spacing: 12) { titleText; Spacer(minLength: 8); badgeText; detailText }
             }
         }.padding(.trailing, 14).padding(.vertical, typeSize.isAccessibilitySize ? 10 : 4)
             .frame(maxWidth: .infinity, minHeight: rowHeight, alignment: .leading).contentShape(Rectangle())
@@ -181,6 +194,14 @@ struct CheckTile: View {
             .strikethrough(done, color: .secondary)
             .lineLimit(typeSize.isAccessibilitySize ? nil : 2).fixedSize(horizontal: false, vertical: true)
             .animation(reduceMotion ? nil : .orbit, value: done)
+    }
+    @ViewBuilder private var badgeText: some View {
+        if let badge {
+            Text(badge.text).font(.caption.weight(.medium)).foregroundStyle(badge.tint).lineLimit(1)
+                .padding(.horizontal, 7).padding(.vertical, 2)
+                .background(badge.tint.opacity(0.12), in: Capsule())
+                .fixedSize()
+        }
     }
     @ViewBuilder private var detailText: some View {
         if !subtitle.isEmpty {
@@ -248,11 +269,20 @@ struct TaskRow: View {
         if !task.subtasks.isEmpty { parts.append("\(task.subtasks.filter(\.completed).count)/\(task.subtasks.count) steps") }
         return parts.joined(separator: " · ")
     }
+    /// An open task's due date ("Due Fri"), in red once it has passed (TodayRules.deadlineLabel).
+    private var dueBadge: TileBadge? {
+        guard !done, let due = TodayRules.deadlineLabel(task.deadline, today: PlannerLogic.today) else { return nil }
+        switch due.state {
+        case .overdue: return TileBadge(text: due.text, tint: .red)
+        case .today, .soon: return TileBadge(text: due.text, tint: accent.text)
+        case .later: return TileBadge(text: due.text, tint: .secondary)
+        }
+    }
     var body: some View {
         let _ = RenderCounter.hit("TaskRow")
         CheckTile(title: task.title, subtitle: subtitle, done: done, color: accent.fill,
                   completionLabel: completionLabel,
-                  toggle: toggle, edit: edit, remove: remove, moves: moves, icon: ItemIcons.suggested(for: task.title), progress: progress, progressOptions: progressOptions, tapChecks: tapChecks)
+                  toggle: toggle, edit: edit, remove: remove, moves: moves, icon: ItemIcons.suggested(for: task.title), progress: progress, progressOptions: progressOptions, badge: dueBadge, tapChecks: tapChecks)
             .modifier(TaskActions(task: task, edit: edit)).modifier(MutationErrorModifier(error: $error))
             .sensoryFeedback(.impact(weight: .light), trigger: feedback)
             .sensoryFeedback(.impact(weight: .medium), trigger: startedFeedback)
@@ -319,14 +349,37 @@ struct HabitRow: View {
     private var checked: Bool { pending ?? saved }
     /// An avoid habit marked as slipped: that day can't be ticked (touch and hold to take the slip back).
     private var slipped: Bool { HabitRules.slipped(rule: habit.frequencyRule, counts: counts, day: PlannerLogic.dayKey(date)) }
-    private var canLog: Bool { PlannerLogic.dayKey(date) == PlannerLogic.today && !slipped }
+    private var isToday: Bool { PlannerLogic.dayKey(date) == PlannerLogic.today }
+    private var canLog: Bool { isToday && !slipped }
+    private var todayCount: Int { counts[PlannerLogic.dayKey(date)] ?? 0 }
+    /// One tap, no menu: an avoid habit's slip (or taking it back), or a minus on a habit partway through
+    /// its check-ins (1 of 3) to take one off.
+    private var accessory: TileAccessory? {
+        guard isToday else { return nil }
+        if habit.isAvoid {
+            return slipped
+                ? TileAccessory(systemImage: "arrow.uturn.backward", label: "Take back today's slip: " + habit.title) { markSlip(false) }
+                : TileAccessory(systemImage: "xmark", label: "I slipped today: " + habit.title) { markSlip(true) }
+        }
+        guard !habit.isCounter, pending == nil, !saved, todayCount > 0 else { return nil }
+        return TileAccessory(systemImage: "minus", label: "Take one check-in off " + habit.title) { takeOneOff() }
+    }
+    private func markSlip(_ slip: Bool) {
+        CompletionHold.shared.cancel(holdKey); pending = nil
+        feedback += 1
+        withAnimation(reduceMotion ? nil : .orbit) { change { try Mutations.slip(habit, at: date, slipped: slip, in: context) } }
+    }
+    private func takeOneOff() {
+        feedback += 1
+        change { try Mutations.undoLog(habit, at: date, in: context) }
+    }
     private var holdKey: String { "habit-" + habit.id.uuidString }
     var body: some View {
         let _ = RenderCounter.hit("HabitRow")
         CheckTile(title: habit.title, subtitle: PlannerLogic.detail(habit, counts: counts, at: date), done: checked, color: DayTheme.color(habit.color),
                   completionLabel: (checked ? "Undo " : "Log ") + habit.title,
-                  toggle: toggle, edit: edit, remove: remove, met: checked, icon: slipped ? "xmark.circle" : ItemIcons.symbol(habit.icon, title: habit.title), allowsToggle: canLog, tapChecks: tapChecks)
-            .modifier(HabitActions(habit: habit, edit: edit, slipped: slipped))
+                  toggle: toggle, edit: edit, remove: remove, met: checked, icon: slipped ? "xmark.circle" : ItemIcons.symbol(habit.icon, title: habit.title), allowsToggle: canLog, accessory: accessory, tapChecks: tapChecks)
+            .modifier(HabitActions(habit: habit, edit: edit, slipped: slipped, todayCount: isToday && !habit.isAvoid ? todayCount : 0))
             .modifier(MutationErrorModifier(error: $error))
             .sensoryFeedback(.impact(weight: .light), trigger: feedback)
     }

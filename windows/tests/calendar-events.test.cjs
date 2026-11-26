@@ -99,3 +99,14 @@ test("edits and deletes keep the phone's snapshot and add a request for the iPho
   assert.deepEqual(events.deleteRequest({ ...event, pending: true }, 9).request, { kind: "delete", at: 9 });
   assert.equal("pending" in events.deleteRequest({ ...event, pending: true }, 9), false);
 });
+
+test("an event is over once its end has passed; an all-day event once its last day is behind today", () => {
+  const { ended } = require("../ui/calendar-events.js");
+  const now = new Date(2026, 10, 26, 12, 0).getTime();
+  assert.equal(ended({ start: now - 7200000, end: now - 3600000 }, now), true);
+  assert.equal(ended({ start: now - 3600000, end: now + 3600000 }, now), false);
+  assert.equal(ended({ start: now - 3600000 }, now), true);
+  assert.equal(ended({ allDay: true, startDay: "2026-11-25", endDay: "2026-11-26" }, now), true);
+  assert.equal(ended({ allDay: true, startDay: "2026-11-26" }, now), false);
+  assert.equal(ended({ allDay: true, startDay: "2026-11-24", endDay: "2026-11-28" }, now), false);
+});

@@ -230,7 +230,7 @@ function compactHabit(h) {
     id = esc(h.id),
     title = esc(h.title);
   return `<div class="row habit-row habit-${colorName(h.color)} check-tile ${done ? "complete" : ""}" data-flip="habit-${id}" data-row-menu="habit:${id}">
-    <button class="row-line habit-log" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-day="${today()}" data-habit-menu="${id}">${tick(done, poppedID === h.id)}<span class="row-title">${title}</span><span class="row-detail ${done ? "met" : ""}">${OrbitHabits.isAvoid(h) ? habitDetail(h) : `${progress(h)} of ${h.target}`}</span></button>${avoidSlipButton(h)}
+    <button class="row-line habit-log" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-day="${today()}" data-habit-menu="${id}">${tick(done, poppedID === h.id)}<span class="row-title">${title}</span><span class="row-detail ${done ? "met" : ""}">${OrbitHabits.isAvoid(h) ? habitDetail(h) : `${progress(h)} of ${h.target}`}</span></button>${avoidSlipButton(h)}${habitMinusButton(h)}
   </div>`;
 }
 /**
@@ -421,7 +421,9 @@ function layoutHabitColumns(list) {
   const panel = list.closest("[data-today-panel]")?.dataset.todayPanel;
   const width = list.clientWidth;
   if (!width) return;
-  const signature = JSON.stringify(rows.map((row) => [row.dataset.flip, row.querySelector(".row-title")?.textContent]));
+  const signature = JSON.stringify(
+    rows.map((row) => [row.dataset.flip, row.querySelector(".row-title")?.textContent, sideButtons(row)]),
+  );
   const previous = habitColumnLayouts.get(panel);
   const columns =
     previous?.width === width && previous.signature === signature
@@ -432,6 +434,8 @@ function layoutHabitColumns(list) {
   if (columns > 1) list.style.setProperty("grid-template-columns", `repeat(${columns}, minmax(0, 1fr))`);
   else list.style.removeProperty("grid-template-columns");
 }
+/** The slip and take-one-off buttons beside a habit's row (32px wide, 6px apart). */
+const sideButtons = (row) => row.querySelectorAll(".avoid-slip-action, .habit-minus-action").length;
 function measureHabitColumns(list, rows, width) {
   if (rows.length < 2) return 1;
   list.classList.remove("columns");
@@ -445,7 +449,7 @@ function measureHabitColumns(list, rows, width) {
       const style = getComputedStyle(line);
       const chrome =
         parseFloat(style.paddingLeft) + parseFloat(style.paddingRight) + 10 + 2 * (parseFloat(style.columnGap) || 10);
-      return Math.ceil(chrome + textWidth(title) + textWidth(detail) + 4);
+      return Math.ceil(chrome + textWidth(title) + textWidth(detail) + 4 + sideButtons(row) * 38);
     }),
   );
   const fit = Math.max(1, Math.floor((width + HABIT_COLUMN_GAP) / (need + HABIT_COLUMN_GAP)));

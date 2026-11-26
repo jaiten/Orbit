@@ -39,7 +39,43 @@ function eventChip(event, withTime = false) {
   // In the chosen day's list (withTime) the address shows under the title; elsewhere it is in the tooltip.
   const place =
     withTime && eventPlace(event) ? `<small class="event-place">${pinIcon}${esc(eventPlace(event))}</small>` : "";
-  return `<button class="schedule-anytime calendar-event-chip${event.pending ? " pending" : ""}${place ? " has-place" : ""}" data-event-color="${calendarColor(event)}" data-edit-event="${esc(event.id)}" title="${esc(eventTooltip(event))}"><i></i><span class="event-chip-text"><span>${esc(event.title || "Event")}</span>${place}</span>${time}</button>`;
+  return `<button class="schedule-anytime calendar-event-chip${event.pending ? " pending" : ""}${place ? " has-place" : ""}${OrbitCalendarEvents.ended(event) ? " past" : ""}" data-event-color="${calendarColor(event)}" data-edit-event="${esc(event.id)}" title="${esc(eventTooltip(event))}"><i></i><span class="event-chip-text"><span>${esc(event.title || "Event")}</span>${place}</span>${time}</button>`;
+}
+/** The most items a month day draws; fitCalendarCells shows as many of them as its height allows. */
+const CAL_CELL_MOST = 12;
+/**
+ * Each month day shows the items that fit its height and "N more" for the rest, so the month always
+ * fits the window without a scrollbar: a tall window shows more per day, a short one fewer.
+ */
+function fitCalendarCells() {
+  document.querySelectorAll(".cal-grid .cal-cell").forEach((cell) => {
+    const items = [...cell.querySelectorAll(".cal-item")],
+      more = cell.querySelector(".cal-more");
+    if (!more) return;
+    const total = Number(more.dataset.total) || 0;
+    items.forEach((item) => (item.hidden = false));
+    more.hidden = total <= items.length;
+    let shown = items.length;
+    const fits = () => cell.scrollHeight <= cell.clientHeight + 1;
+    while (shown > 0 && !fits()) {
+      items[--shown].hidden = true;
+      more.hidden = false;
+    }
+    more.textContent = `${total - shown} more`;
+    // A narrow day says "+2" instead of cutting "2 more" short.
+    if (!more.hidden && more.scrollWidth > more.clientWidth + 1) more.textContent = `+${total - shown}`;
+    // With nothing left to hide, "N more" alone still says the day has something on.
+    if (!fits() && shown === 0) more.hidden = false;
+  });
+}
+let calendarCellsObserver = null;
+function bindCalendarCells() {
+  calendarCellsObserver?.disconnect();
+  const grid = document.querySelector(".cal-grid");
+  if (!grid) return;
+  fitCalendarCells();
+  calendarCellsObserver = new ResizeObserver(() => fitCalendarCells());
+  calendarCellsObserver.observe(grid);
 }
 function shiftMonth(key, delta) {
   const date = localDay(key);
@@ -92,8 +128,10 @@ function renderCalendar(tasks) {
       const date = localDay(key),
         items = on(key),
         dayEvents = eventsOn(key);
+      // Every item is drawn (up to a dozen); fitCalendarCells then hides the ones that don't fit the
+      // day's height and says how many more there are.
       const eventLines = dayEvents
-        .slice(0, 3)
+        .slice(0, CAL_CELL_MOST)
         .map((event) => {
           const time = event.allDay
             ? ""
@@ -101,14 +139,14 @@ function renderCalendar(tasks) {
                 .replace(/:00(?= )/, "")
                 .replace(" ", "")
                 .toLowerCase();
-          return `<span class="cal-item cal-event" data-event-color="${calendarColor(event)}" title="${esc(eventTooltip(event))}"><i></i>${time ? `<b>${time}</b>` : ""}<em>${esc(event.title || "Event")}</em></span>`;
+          return `<span class="cal-item cal-event${OrbitCalendarEvents.ended(event) ? " past" : ""}" data-event-color="${calendarColor(event)}" title="${esc(eventTooltip(event))}"><i></i>${time ? `<b>${time}</b>` : ""}<em>${esc(event.title || "Event")}</em></span>`;
         })
         .join("");
       const total = items.length + dayEvents.length;
       const lines =
         eventLines +
         items
-          .slice(0, Math.max(0, 3 - dayEvents.length))
+          .slice(0, Math.max(0, CAL_CELL_MOST - dayEvents.length))
           .map((task) => {
             const time = task.hasTime ? calendarTime(task.dueDate) : "";
             return `<span class="cal-item ${task.completedAt ? "done" : ""} ${task.listID === SOMEDAY ? "ruled" : ""}"><i></i>${
@@ -122,7 +160,7 @@ function renderCalendar(tasks) {
           })
           .join("");
       const label = date.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
-      return `<button class="day-tile cal-cell ${key === calendarDay ? "selected" : ""} ${key === current ? "today" : ""} ${date.getMonth() !== first.getMonth() ? "outside" : ""}" data-day="${key}" aria-pressed="${key === calendarDay}" aria-label="${label}${total ? `, ${total} ${total === 1 ? "item" : "items"}` : ""}"><span class="cal-date">${date.getDate()}</span>${lines}${total > 3 ? `<span class="cal-more">${total - 3} more</span>` : ""}</button>`;
+      return `<button class="day-tile cal-cell ${key === calendarDay ? "selected" : ""} ${key === current ? "today" : ""} ${date.getMonth() !== first.getMonth() ? "outside" : ""}" data-day="${key}" aria-pressed="${key === calendarDay}" aria-label="${label}${total ? `, ${total} ${total === 1 ? "item" : "items"}` : ""}"><span class="cal-date">${date.getDate()}</span>${lines}<span class="cal-more" data-total="${total}" ${total > CAL_CELL_MOST ? "" : "hidden"}>${Math.max(0, total - CAL_CELL_MOST)} more</span></button>`;
     })
     .join("");
   const chosen = localDay(calendarDay),
@@ -188,7 +226,7 @@ function renderSchedule(tasks) {
       ])
         .map(({ task, start, end, lane, lanes }) =>
           task.event
-            ? `<button class="schedule-event calendar-event${task.event.pending ? " pending" : ""}" data-event-color="${calendarColor(task.event)}" data-edit-event="${esc(task.event.id)}" data-event-start="${start}" data-event-end="${end}" data-lane="${lane}" data-lanes="${lanes}" title="${esc(eventTooltip(task.event))}"><strong>${esc(task.event.title || "Event")}</strong><span>${calendarTime(task.event.start)}</span>${eventPlace(task.event) ? `<span class="event-place">${pinIcon}${esc(eventPlace(task.event))}</span>` : ""}</button>`
+            ? `<button class="schedule-event calendar-event${task.event.pending ? " pending" : ""}${OrbitCalendarEvents.ended(task.event) ? " past" : ""}" data-event-color="${calendarColor(task.event)}" data-edit-event="${esc(task.event.id)}" data-event-start="${start}" data-event-end="${end}" data-lane="${lane}" data-lanes="${lanes}" title="${esc(eventTooltip(task.event))}"><strong>${esc(task.event.title || "Event")}</strong><span>${calendarTime(task.event.start)}</span>${eventPlace(task.event) ? `<span class="event-place">${pinIcon}${esc(eventPlace(task.event))}</span>` : ""}</button>`
             : `<div draggable="true" data-drag-task="${esc(task.id)}" class="schedule-event check-tile" data-event-start="${start}" data-event-end="${end}" data-lane="${lane}" data-lanes="${lanes}" data-row-menu="task:${esc(task.id)}"><button class="schedule-check" role="checkbox" aria-checked="false" aria-label="Complete ${esc(task.title)}" data-toggle="${esc(task.id)}">${tick(false)}</button><button class="schedule-event-body" data-edit="${esc(task.id)}" aria-label="Edit ${esc(task.title)}" title="${esc(task.title)}"><strong>${esc(task.title)}</strong><span>${calendarTime(task.dueDate)}</span></button><button class="calendar-resize" data-resize-task="${esc(task.id)}" aria-label="Change duration of ${esc(task.title)}" title="Drag to change duration; arrow keys adjust by 15 minutes"></button>${rowActions(esc(task.id), esc(task.title))}</div>`,
         )
         .join("");
@@ -216,6 +254,7 @@ function applyCalendarStyles(root = document) {
 let draggedTask = null;
 function bindCalendar() {
   applyCalendarStyles();
+  bindCalendarCells();
   if ($("#calendar-completed"))
     $("#calendar-completed").ontoggle = (event) => {
       calendarCompletedOpen = event.target.open;
