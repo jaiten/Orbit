@@ -357,12 +357,13 @@ struct HabitRow: View {
     private var accessory: TileAccessory? {
         guard isToday else { return nil }
         if habit.isAvoid {
-            return slipped
-                ? TileAccessory(systemImage: "arrow.uturn.backward", label: "Take back today's slip: " + habit.title) { markSlip(false) }
-                : TileAccessory(systemImage: "xmark", label: "I slipped today: " + habit.title) { markSlip(true) }
+            if slipped {
+                return TileAccessory(systemImage: "arrow.uturn.backward", label: "Take back today's slip: " + habit.title, action: { markSlip(false) })
+            }
+            return TileAccessory(systemImage: "xmark", label: "I slipped today: " + habit.title, action: { markSlip(true) })
         }
         guard !habit.isCounter, pending == nil, !saved, todayCount > 0 else { return nil }
-        return TileAccessory(systemImage: "minus", label: "Take one check-in off " + habit.title) { takeOneOff() }
+        return TileAccessory(systemImage: "minus", label: "Take one check-in off " + habit.title, action: { takeOneOff() })
     }
     private func markSlip(_ slip: Bool) {
         CompletionHold.shared.cancel(holdKey); pending = nil

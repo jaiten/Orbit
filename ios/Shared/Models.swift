@@ -10,8 +10,6 @@ import SwiftData
     var isUserCategory: Bool { isTaskCategory && id != TodayRules.somedayID }
     /// A note section whose pages need Face ID or the passcode (the password on Windows).
     var locked: Bool? = nil
-    /// An optional due date ("YYYY-MM-DD"), separate from the day the task is planned for. Nil means none.
-    var deadline: String? = nil
     /// A note section whose pages show without their titles or text in lists and search.
     var hidden: Bool? = nil
 
@@ -36,6 +34,8 @@ import SwiftData
     var noteIcon: String? = nil
     /// A note that needs Face ID or the passcode (the password on Windows) to open. Nil means unlocked.
     var locked: Bool? = nil
+    /// An optional due date ("YYYY-MM-DD"), separate from the day the task is planned for. Nil means none.
+    var deadline: String? = nil
     var photoData: String? = nil
     @Attribute(.unique) var id: UUID
     var title: String
