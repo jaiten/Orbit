@@ -179,6 +179,8 @@ struct CaptureTextField: UIViewRepresentable {
     var onPasteImage: ((UIImage) -> Void)? = nil
     var textStyle: UIFont.TextStyle = .title3
     var bold = false
+    /// Web and email addresses in the text show as links; a tap opens them (note text).
+    var detectsLinks = false
     var onSubmit: () -> Void
 
     func makeUIView(context: Context) -> Input {
@@ -197,6 +199,7 @@ struct CaptureTextField: UIViewRepresentable {
         field.textContainerInset = UIEdgeInsets(top: 11, left: 0, bottom: 11, right: 0)
         field.textContainer.lineFragmentPadding = 0
         field.delegate = context.coordinator
+        field.detectsLinks = detectsLinks
         // The title and text of a note share one keyboard bar, so moving between them never changes the keyboard.
         if identifier == "note-body" { field.configureNoteToolbar(); Input.noteBody = field }
         if identifier == "note-title" { field.configureNoteToolbar(forwardsLists: true) }
@@ -407,7 +410,65 @@ struct CaptureTextField: UIViewRepresentable {
         func textChanged() {
             placeholderLabel.font = font
             placeholderLabel.isHidden = !text.isEmpty
+            styleLinks()
             invalidateIntrinsicContentSize()
+        }
+
+        // MARK: Links
+        private static let linkDetector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+        private static let linkSchemes: Set<String> = ["http", "https", "mailto"]
+        private var linkTap: UITapGestureRecognizer?
+        /// Lets the link tap run alongside the text view's own taps (placing the caret).
+        private final class LinkTapDelegate: NSObject, UIGestureRecognizerDelegate {
+            func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
+        }
+        private let linkTapDelegate = LinkTapDelegate()
+        var detectsLinks = false {
+            didSet {
+                guard detectsLinks != oldValue else { return }
+                if detectsLinks {
+                    let tap = UITapGestureRecognizer(target: self, action: #selector(openTappedLink(_:)))
+                    tap.cancelsTouchesInView = false
+                    tap.delegate = linkTapDelegate
+                    addGestureRecognizer(tap); linkTap = tap
+                    linkTextAttributes = [.foregroundColor: tintColor as Any, .underlineStyle: NSUnderlineStyle.single.rawValue]
+                } else if let linkTap { removeGestureRecognizer(linkTap); self.linkTap = nil }
+                styleLinks()
+            }
+        }
+        override func tintColorDidChange() {
+            super.tintColorDidChange()
+            if detectsLinks { linkTextAttributes = [.foregroundColor: tintColor as Any, .underlineStyle: NSUnderlineStyle.single.rawValue] }
+        }
+        /// Marks every web or email address with a link (only the attribute changes, so the caret stays put).
+        func styleLinks() {
+            guard detectsLinks, markedTextRange == nil else { return }
+            let storage = textStorage, full = NSRange(location: 0, length: storage.length)
+            storage.beginEditing()
+            storage.removeAttribute(.link, range: full)
+            Self.linkDetector?.enumerateMatches(in: storage.string, range: full) { match, _, _ in
+                guard let match, let url = match.url, Self.linkSchemes.contains(url.scheme?.lowercased() ?? "") else { return }
+                storage.addAttribute(.link, value: url, range: match.range)
+            }
+            storage.endEditing()
+            // Typing right after a link starts plain text, not more link.
+            typingAttributes[.link] = nil
+        }
+        @objc private func openTappedLink(_ tap: UITapGestureRecognizer) {
+            let point = tap.location(in: self)
+            guard let position = closestPosition(to: point) else { return }
+            let index = offset(from: beginningOfDocument, to: position)
+            for candidate in [index, index - 1] where candidate >= 0 && candidate < textStorage.length {
+                var range = NSRange()
+                guard let url = textStorage.attribute(.link, at: candidate, effectiveRange: &range) as? URL,
+                      let start = self.position(from: beginningOfDocument, offset: range.location),
+                      let end = self.position(from: start, offset: range.length),
+                      let textRange = self.textRange(from: start, to: end) else { continue }
+                // Only a tap on the link's own text opens it.
+                guard selectionRects(for: textRange).contains(where: { $0.rect.insetBy(dx: -4, dy: -4).contains(point) }) else { return }
+                UIApplication.shared.open(url)
+                return
+            }
         }
 
         // UIKit can synchronously trigger keyboard layout and delegate callbacks here.

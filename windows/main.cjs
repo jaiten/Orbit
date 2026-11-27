@@ -423,6 +423,13 @@ app.whenReady().then(async () => {
       linkedCalendars: calendarAccounts.snapshot(),
     };
   });
+  // Links in notes and tasks: only web and email addresses open, in the default browser or mail app.
+  handle("open-link", (url) => {
+    if (typeof url !== "string" || url.length > 4000 || !URL.canParse(url)) throw Error("Invalid link");
+    const parsed = new URL(url);
+    if (!["http:", "https:", "mailto:"].includes(parsed.protocol)) throw Error("Invalid link");
+    return shell.openExternal(parsed.toString());
+  });
   handle("put", ({ key, payload, deleted }) => {
     plannerTools.change([{ key, payload, deleted: deleted === true }]);
     notify();

@@ -2823,3 +2823,22 @@ body[data-view="calendar"] .cal-more {
   flex: none;
   justify-content: center;
 }
+
+/* Links in notes (a highlight over the text) and in task titles. */
+::highlight(note-link) {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent-text) 55%, transparent);
+}
+.note-document.over-link {
+  cursor: pointer;
+}
+.text-link {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent-text) 55%, transparent);
+  cursor: pointer;
+}
+.text-link:hover {
+  text-decoration-color: currentColor;
+}

@@ -629,7 +629,7 @@ function taskRow(t) {
   return `<div class="row task-row check-tile ${t.completedAt ? "complete" : ""} ${started ? "in-progress" : ""}" data-flip="task-${id}" data-search="${esc(search)}" data-row-menu="task:${id}">
     <div class="row-line">
       <button class="row-tick" role="checkbox" aria-label="${controlLabel} ${title}" aria-checked="${!!t.completedAt}" data-toggle="${id}">${control}</button
-      ><div class="row-main"><button class="row-body" aria-label="Edit ${title}" data-edit="${id}"><span class="row-title">${title}</span>${dueChip}${detail ? `<span class="row-detail">${detail}</span>` : ""}</button
+      ><div class="row-main"><button class="row-body" aria-label="Edit ${title}" data-edit="${id}"><span class="row-title">${OrbitLinks.html(t.title)}</span>${dueChip}${detail ? `<span class="row-detail">${detail}</span>` : ""}</button
       >${rowActions(id, title)}</div>${timer}${addToToday}${options}
     </div>
   </div>`;
@@ -898,6 +898,18 @@ async function countUp(id, delta = 1) {
   });
   await put("habit_logs", data);
 }
+// A link in a task title (or anywhere else drawn by OrbitLinks.html) opens in the browser, not the row.
+document.addEventListener(
+  "click",
+  (event) => {
+    const link = event.target.closest?.("[data-open-link]");
+    if (!link || event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void api.openLink(link.dataset.openLink);
+  },
+  true,
+);
 /** A gentle note when a check-in lands a streak on a milestone (7 days, 4 weeks…), with a bigger burst. */
 let celebrationTimer;
 function celebrateStreak(habit, logs) {

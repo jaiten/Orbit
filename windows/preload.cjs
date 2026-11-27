@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld("orbit", {
   copy: (text) => ipcRenderer.invoke("copy", text),
   addToCalendar: (service, task) => ipcRenderer.invoke("add-to-calendar", { service, task }),
   openMap: (location) => ipcRenderer.invoke("open-map", { location }),
+  openLink: (url) => ipcRenderer.invoke("open-link", url),
   addNotePhoto: (bytes) => ipcRenderer.invoke("add-note-photo", bytes),
   copyNotePhoto: (id) => ipcRenderer.invoke("copy-note-photo", id),
   timerDone: (title) => ipcRenderer.invoke("timer-done", title),

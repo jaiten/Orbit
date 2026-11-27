@@ -197,6 +197,10 @@ unfolds into a note card in place — a title above, your text as the body — w
 keyboard or caret moving. Return is then a new line; Save (Ctrl+Enter on Windows) adds it to
 Notes instead of Today.
 
+**Links.** Web addresses (`https://…`, `www.…`) and email addresses in a note's text show as links as you
+type; tap or click one to open it in the browser or mail app. On Windows, a link in a task's title opens
+the same way (clicking the rest of the row still ticks it off).
+
 **Locked notes and sections.** Touch and hold (right-click on Windows) a note to lock it, or a
 note section to lock all of its pages. iPhone unlocks with Face ID, Touch ID or the passcode;
 Windows uses one notes password (set it the first time you lock something, or in Settings →

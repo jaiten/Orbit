@@ -92,8 +92,50 @@ const OrbitNoteDocument = (() => {
     selection.removeAllRanges();
     selection.addRange(range);
   }
+  /**
+   * Links in the note are drawn with a CSS highlight over the text itself, so the text being edited,
+   * the caret and the editor's own undo are never touched. A click on one opens it.
+   */
+  const linkRanges = new WeakMap();
+  function highlightLinks(root) {
+    const found = [];
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) =>
+        node.parentElement.closest("[data-photo-id]") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
+    });
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      for (const link of OrbitLinks.find(node.data)) {
+        const range = document.createRange();
+        range.setStart(node, link.start);
+        range.setEnd(node, link.end);
+        found.push({ range, url: link.url });
+      }
+    }
+    linkRanges.set(root, found);
+    if (typeof Highlight === "function" && CSS.highlights)
+      CSS.highlights.set("note-link", new Highlight(...found.map((link) => link.range)));
+  }
+  function linkAt(root, x, y) {
+    for (const { range, url } of linkRanges.get(root) || [])
+      for (const box of range.getClientRects())
+        if (x >= box.left && x <= box.right && y >= box.top && y <= box.bottom) return url;
+    return null;
+  }
   function bind(root) {
     Object.defineProperty(root, "value", { get: () => read(root).text });
+    highlightLinks(root);
+    root.addEventListener("input", () => highlightLinks(root));
+    root.addEventListener("click", (event) => {
+      if (event.button !== 0 || !getSelection().isCollapsed) return;
+      const url = linkAt(root, event.clientX, event.clientY);
+      if (!url) return;
+      event.preventDefault();
+      void window.orbit.openLink(url);
+    });
+    root.addEventListener("mousemove", (event) =>
+      root.classList.toggle("over-link", !!linkAt(root, event.clientX, event.clientY)),
+    );
     root.setSelectionRange = (start, end) => select(root, start, end);
     root.addEventListener("keydown", (event) => {
       if (event.isComposing || event.ctrlKey || event.metaKey || event.altKey) return;
