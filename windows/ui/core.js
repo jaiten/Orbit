@@ -110,6 +110,7 @@ function planItem(t) {
     day: taskDate(t) || null,
     completedDay: t.completedAt ? plannerDay(t.completedAt) : null,
     someday: t.listID === SOMEDAY,
+    deadline: t.deadline || null,
   };
 }
 /** Saves tasks, creating the built-in Someday list the first time something moves there. */
@@ -360,21 +361,50 @@ function flushSyncStatus() {
 }
 document.addEventListener("focusout", () => setTimeout(flushSyncStatus, 400));
 document.addEventListener("close", () => setTimeout(flushSyncStatus, 400), true);
+/**
+ * The records as of the last read, by key, with the store's change number and generation. A load then
+ * asks only for what changed since (`api.read({ since, generation })`) and merges it in, instead of
+ * reading and comparing every record after every save. A full read comes back when the store can't
+ * answer that way (first load, after the planner is cleared, or a store without change numbers).
+ */
+let readRecords = null,
+  readEdits = -1,
+  readSeq = null,
+  readGeneration = null;
 async function load(force = false) {
   const sequence = ++loadSequence;
   const revision = renderRevision;
   const edits = localEdits;
-  const next = await api.read();
+  const next = await api.read(
+    readRecords && readSeq !== null ? { since: readSeq, generation: readGeneration } : undefined,
+  );
   if (sequence !== loadSequence) return;
   // Something was ticked while this was being read, so it is already out of date; the load that
   // follows that tick's save brings everything in.
   if (edits !== localEdits) return;
-  const signature = JSON.stringify({
-    records: next.records.map((r) => ({ key: r.key, payload: r.payload, deleted: r.deleted, conflict: r.conflict })),
-    email: next.email,
-    configured: next.configured,
-    recoveryReady: next.recoveryReady,
-  });
+  const changed = next.incremental && readRecords ? next.records.length : null;
+  if (changed === null) readRecords = new Map(next.records.map((r) => [r.key, r]));
+  else for (const record of next.records) readRecords.set(record.key, record);
+  readSeq = Number.isInteger(next.seq) ? next.seq : null;
+  readGeneration = next.generation ?? null;
+  // Unchanged records keep the same array, so everything worked out from them stays cached.
+  // (Not if a local edit has added to that array since it was read.)
+  next.records = changed === 0 && readEdits === localEdits ? state.records : [...readRecords.values()];
+  readEdits = localEdits;
+  const signature =
+    readSeq !== null
+      ? JSON.stringify([readGeneration, readSeq, next.email, next.configured, next.recoveryReady])
+      : JSON.stringify({
+          records: next.records.map((r) => ({
+            key: r.key,
+            payload: r.payload,
+            deleted: r.deleted,
+            conflict: r.conflict,
+          })),
+          email: next.email,
+          configured: next.configured,
+          recoveryReady: next.recoveryReady,
+        });
   const notice = next.accountNotice;
   state = next;
   updateSync(next);
@@ -557,7 +587,8 @@ function taskRow(t) {
   const length = time && t.durationMinutes ? `${t.durationMinutes} min` : "";
   const timing = focusTimer?.taskID === t.id;
   // Progress shows in the ring and the row tint, so the title keeps the room (no "In progress" text).
-  const detail = [time, length].filter(Boolean).join(" · ");
+  const repeats = OrbitRepeats.valid(t.repeat) && !t.nextOccurrenceID ? OrbitRepeats.label(t) : "";
+  const detail = [time, length, repeats && `↻ ${repeats}`].filter(Boolean).join(" · ");
   // An open task with a due date says when it is due ("Due Fri"), in red once it has passed.
   const due = !t.completedAt && !t.isNote ? OrbitPlanner.deadlineLabel(t.deadline, today()) : null;
   const dueChip = due ? `<span class="due-chip due-${due.state}">${esc(due.text)}</span>` : "";
@@ -745,16 +776,75 @@ async function toggle(id) {
   poppedID = done && reducedMotion() ? t.id : null;
   if (done && focusTimer?.taskID === t.id) stopTimer();
   if (done) noteCompletion();
+  const now = Date.now();
   const next = {
     ...t,
     startedAt: done ? t.startedAt : null,
-    completedAt: done ? Date.now() : null,
-    updatedAt: Date.now(),
+    completedAt: done ? now : null,
+    updatedAt: now,
   };
+  // A repeating task makes its next copy when it is ticked off; reopening it takes back an untouched copy.
+  const extra = [];
+  if (done && OrbitRepeats.valid(t.repeat) && !t.nextOccurrenceID) {
+    const copy = nextOccurrence(t, plannerDay(now), now);
+    if (copy) {
+      next.nextOccurrenceID = copy.id;
+      if (!rows("tasks").some((task) => task.id === copy.id)) extra.push({ key: "tasks/" + copy.id, payload: copy });
+    }
+  } else if (!done && t.nextOccurrenceID) {
+    const copy = rows("tasks").find((task) => task.id === t.nextOccurrenceID);
+    if (!copy || (!copy.completedAt && copy.updatedAt === t.completedAt)) {
+      if (copy) extra.push({ key: copy._key || "tasks/" + copy.id, payload: clean(copy), deleted: true });
+      next.nextOccurrenceID = null;
+    }
+  }
   applyLocally(t._key || "tasks/" + t.id, clean(next));
   if (showTick(`[data-toggle="${CSS.escape(t.id)}"]`, done, `${done ? "Reopen" : "Complete"} ${t.title}`))
     holdForTick("task-" + t.id);
-  await put("tasks", next);
+  if (extra.length) await saveTasks([next], extra);
+  else await put("tasks", next);
+}
+/**
+ * The next copy of repeating task `t`, finished on `completedDay` (OrbitRepeats.nextDays): same title,
+ * notes, category, length and rule; its planned day, time, due date and reminders move forward; steps
+ * start unticked. Its `updatedAt` is the moment the original was finished, so reopening the original
+ * can tell the copy hasn't been touched since.
+ */
+function nextOccurrence(t, completedDay, now) {
+  const day = taskDate(t);
+  const days = OrbitRepeats.nextDays(
+    { day, deadline: t.deadline || null, repeat: t.repeat, every: OrbitRepeats.every(t) },
+    completedDay,
+  );
+  if (!days) return null;
+  const id = OrbitRepeats.occurrenceID(t.id, days.day || days.deadline);
+  // Times keep their clock time on the new day; reminders keep their distance from it.
+  const moved = (stamp) => {
+    if (!Number.isFinite(stamp) || !day || !days.day) return null;
+    const result = new Date(stamp);
+    result.setDate(result.getDate() + Math.round((localDay(days.day) - localDay(day)) / 86400000));
+    return result.getTime();
+  };
+  const copy = {
+    ...newTask(t.title, days.day),
+    notes: t.notes || "",
+    listID: t.listID ?? null,
+    hasTime: !!(t.hasTime && days.day && t.dueDate),
+    durationMinutes: t.durationMinutes || 60,
+    priority: t.priority || 0,
+    tags: [...(t.tags || [])],
+    subtasks: (t.subtasks || []).map((step) => ({ ...step, completed: false })),
+    reminders: (t.reminders || []).map(moved).filter(Number.isFinite),
+    repeat: t.repeat,
+    repeatEvery: OrbitRepeats.every(t),
+    sortOrder: t.sortOrder || now,
+    updatedAt: now,
+    id,
+  };
+  copy.dueDate = copy.hasTime ? moved(t.dueDate) : null;
+  if (days.deadline) copy.deadline = days.deadline;
+  if (t.progressTracking === true) copy.progressTracking = true;
+  return copy;
 }
 async function log(id, undo, date = today()) {
   const h = rows("habits").find((h) => h.id === id);

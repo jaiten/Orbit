@@ -101,13 +101,14 @@ class ReminderScheduler {
     this.next = null;
     if (!this.enabled()) return null;
     const now = this.clock.now();
-    for (const due of upcoming(this.read(), now, 2, this.options()).filter(
+    const plan = upcoming(this.read(), now, 2, this.options());
+    for (const due of plan.filter(
       (r) => r.at <= now && !this.shown.has(r.id),
     )) {
       this.shown.add(due.id);
       this.show(due);
     }
-    this.next = upcoming(this.read(), now, 2, this.options()).find((r) => r.at > now && !this.shown.has(r.id)) || null;
+    this.next = plan.find((r) => r.at > now && !this.shown.has(r.id)) || null;
     const wait = this.next ? Math.min(this.next.at - now, MAX_WAIT) : MAX_WAIT;
     this.timer = this.clock.setTimeout(() => this.reschedule(), Math.max(1000, wait));
     this.timer?.unref?.();

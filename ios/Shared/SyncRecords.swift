@@ -35,6 +35,7 @@ import SwiftData
         if let icon = t.noteIcon { payload["noteIcon"] = icon }
         if t.locked == true { payload["locked"] = true }
         if let deadline = t.deadline { payload["deadline"] = deadline }
+        if let rule = t.repeats { payload["repeat"] = rule; payload["repeatEvery"] = t.repeatEvery ?? 1 }
         if !t.photos.isEmpty { payload["photos"] = t.photos.map { photo -> [String: String] in
             var value = ["id": photo.id, "contentType": photo.contentType]
             if let position = photo.position { value["position"] = position }
@@ -213,6 +214,8 @@ import SwiftData
             t.noteIcon = p["noteIcon"] as? String
             t.locked = (p["locked"] as? Bool) == true ? true : nil
             t.deadline = (p["deadline"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            t.repeats = (p["repeat"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            t.repeatEvery = t.repeats == nil ? nil : max(1, p["repeatEvery"] as? Int ?? 1)
             t.photos = (p["photos"] as? [[String: String]] ?? []).compactMap { value in
                 guard let id = value["id"], UUID(uuidString: id) != nil else { return nil }
                 return NotePhoto(id: id.lowercased(), position: value["position"], wrap: value["wrap"])

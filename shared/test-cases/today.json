@@ -1,18 +1,44 @@
 {
-  "description": "Which tasks appear on a day. Run by windows/tests/today.test.cjs and ios/Tests/SharedCaseTests.swift. Items use local calendar days; 'today' is the real date, 'day' the day being viewed (defaults to today).",
+  "description": "Which tasks appear on a day. Run by windows/tests/today.test.cjs and ios/Tests/SharedCaseTests.swift. Items use local calendar days (`deadline` is a task's due date); 'today' is the real date, 'day' the day being viewed (defaults to today).",
   "cases": [
     {
       "name": "today shows today's and overdue open items, and items finished today",
       "today": "2026-10-20",
       "items": [
-        { "title": "Due today", "day": "2026-10-20" },
-        { "title": "Overdue", "day": "2026-10-18" },
-        { "title": "Finished today, planned Sunday", "day": "2026-10-18", "completedDay": "2026-10-20" },
-        { "title": "Finished yesterday", "day": "2026-10-19", "completedDay": "2026-10-19" },
-        { "title": "Tomorrow", "day": "2026-10-21" },
-        { "title": "Undated list item" },
-        { "title": "Someday idea", "someday": true },
-        { "title": "Dated but in Someday", "day": "2026-10-20", "someday": true }
+        {
+          "title": "Due today",
+          "day": "2026-10-20"
+        },
+        {
+          "title": "Overdue",
+          "day": "2026-10-18"
+        },
+        {
+          "title": "Finished today, planned Sunday",
+          "day": "2026-10-18",
+          "completedDay": "2026-10-20"
+        },
+        {
+          "title": "Finished yesterday",
+          "day": "2026-10-19",
+          "completedDay": "2026-10-19"
+        },
+        {
+          "title": "Tomorrow",
+          "day": "2026-10-21"
+        },
+        {
+          "title": "Undated list item"
+        },
+        {
+          "title": "Someday idea",
+          "someday": true
+        },
+        {
+          "title": "Dated but in Someday",
+          "day": "2026-10-20",
+          "someday": true
+        }
       ],
       "expect": ["Due today", "Overdue", "Finished today, planned Sunday"],
       "overdue": ["Overdue"]
@@ -22,9 +48,17 @@
       "today": "2026-10-20",
       "day": "2026-10-22",
       "items": [
-        { "title": "Thursday", "day": "2026-10-22" },
-        { "title": "Overdue", "day": "2026-10-18" },
-        { "title": "Undated" }
+        {
+          "title": "Thursday",
+          "day": "2026-10-22"
+        },
+        {
+          "title": "Overdue",
+          "day": "2026-10-18"
+        },
+        {
+          "title": "Undated"
+        }
       ],
       "expect": ["Thursday"],
       "overdue": ["Overdue"]
@@ -34,12 +68,34 @@
       "today": "2026-10-20",
       "day": "2026-10-18",
       "items": [
-        { "title": "Still planned Sunday", "day": "2026-10-18" },
-        { "title": "Finished Sunday, planned Friday", "day": "2026-10-16", "completedDay": "2026-10-18" },
-        { "title": "Planned Sunday, finished Monday", "day": "2026-10-18", "completedDay": "2026-10-19" },
-        { "title": "Still overdue", "day": "2026-10-16" },
-        { "title": "Undated completion", "completedDay": "2026-10-18" },
-        { "title": "Someday completion", "day": "2026-10-18", "completedDay": "2026-10-18", "someday": true }
+        {
+          "title": "Still planned Sunday",
+          "day": "2026-10-18"
+        },
+        {
+          "title": "Finished Sunday, planned Friday",
+          "day": "2026-10-16",
+          "completedDay": "2026-10-18"
+        },
+        {
+          "title": "Planned Sunday, finished Monday",
+          "day": "2026-10-18",
+          "completedDay": "2026-10-19"
+        },
+        {
+          "title": "Still overdue",
+          "day": "2026-10-16"
+        },
+        {
+          "title": "Undated completion",
+          "completedDay": "2026-10-18"
+        },
+        {
+          "title": "Someday completion",
+          "day": "2026-10-18",
+          "completedDay": "2026-10-18",
+          "someday": true
+        }
       ],
       "expect": ["Still planned Sunday", "Finished Sunday, planned Friday"],
       "overdue": ["Still planned Sunday", "Still overdue"]
@@ -47,7 +103,66 @@
     {
       "name": "an empty day stays empty",
       "today": "2026-10-20",
-      "items": [{ "title": "Undated" }, { "title": "Later", "day": "2026-11-01" }],
+      "items": [
+        {
+          "title": "Undated"
+        },
+        {
+          "title": "Later",
+          "day": "2026-11-01"
+        }
+      ],
+      "expect": [],
+      "overdue": []
+    },
+    {
+      "name": "a task due today or overdue is on Today wherever it is planned",
+      "today": "2026-11-27",
+      "items": [
+        {
+          "title": "Planned next week, due today",
+          "day": "2026-12-03",
+          "deadline": "2026-11-27"
+        },
+        {
+          "title": "Undated, overdue",
+          "deadline": "2026-11-20"
+        },
+        {
+          "title": "Someday, due today",
+          "someday": true,
+          "deadline": "2026-11-27"
+        },
+        {
+          "title": "Due tomorrow",
+          "day": "2026-12-01",
+          "deadline": "2026-11-28"
+        },
+        {
+          "title": "Due today but finished yesterday",
+          "day": "2026-11-26",
+          "deadline": "2026-11-27",
+          "completedDay": "2026-11-26"
+        }
+      ],
+      "expect": [
+        "Planned next week, due today",
+        "Undated, overdue",
+        "Someday, due today"
+      ],
+      "overdue": []
+    },
+    {
+      "name": "another day shows a task due then only if planned then",
+      "today": "2026-11-27",
+      "day": "2026-11-28",
+      "items": [
+        {
+          "title": "Due Saturday, planned Monday",
+          "day": "2026-11-30",
+          "deadline": "2026-11-28"
+        }
+      ],
       "expect": [],
       "overdue": []
     }

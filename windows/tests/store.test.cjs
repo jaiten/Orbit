@@ -101,3 +101,38 @@ test("notes preserve a blank title while tasks and habits still require a name",
   assert.throws(() => store.put("habits/empty", { title: "", isNote: true }), /name is required/);
   store.close();
 });
+
+test("every write raises the change number, and changedSince returns just those records", () => {
+  const { Store } = require("../store.cjs");
+  const os = require("node:os"),
+    path = require("node:path"),
+    fs = require("node:fs");
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), "orbit-seq-"));
+  const store = new Store(path.join(folder, "planner.db"));
+  try {
+    store.put("tasks/a", { id: "a", title: "A" });
+    store.put("tasks/b", { id: "b", title: "B" });
+    const after = store.seq();
+    assert.equal(store.changedSince(0).length, 2);
+    assert.deepEqual(store.changedSince(after), []);
+    store.put("tasks/a", { id: "a", title: "A again" });
+    store.put("tasks/b", { id: "b", title: "B" }, true);
+    const changed = store.changedSince(after);
+    assert.deepEqual(changed.map((r) => r.key).sort(), ["tasks/a", "tasks/b"]);
+    assert.equal(changed.find((r) => r.key === "tasks/b").deleted, true);
+    assert.ok(store.seq() > after);
+    // Records accepted from the cloud count as changes too.
+    const before = store.seq();
+    store.accept({ key: "tasks/c", payload: { id: "c", title: "C" }, deleted: false, revision: 1, mutation: "m" });
+    assert.deepEqual(
+      store.changedSince(before).map((r) => r.key),
+      ["tasks/c"],
+    );
+    const generation = store.generation();
+    store.clearPlanner();
+    assert.notEqual(store.generation(), generation);
+  } finally {
+    store.close();
+    fs.rmSync(folder, { recursive: true, force: true });
+  }
+});

@@ -207,7 +207,7 @@ function bindSomedayRules() {
           : `<label>Start date<input name="start" type="date" value="${esc(rule.start)}"></label>
              ${
                rule.trigger === "dates"
-                 ? `<label>End date (optional)<input name="end" type="date" value="${esc(rule.end)}"></label>`
+                 ? `<label>End date (optional)<input name="end" type="date" data-placeholder="No end" value="${esc(rule.end)}"></label>`
                  : `<label>Every (in ${rule.trigger})<input name="interval" type="number" min="1" max="52" value="${rule.interval}"></label>`
              }`;
         return `<fieldset data-rule-index="${index}"><legend>Rule ${index + 1}</legend>

@@ -5,12 +5,14 @@
   const SOMEDAY_LIST_ID = "00000000-0000-4000-8000-000000000001";
 
   /**
-   * `item` is { day, completedDay, someday }: local calendar days ("YYYY-MM-DD") or null.
+   * `item` is { day, completedDay, someday, deadline }: local calendar days ("YYYY-MM-DD") or null.
    * Today shows items dated today or earlier that are still open, plus anything finished today.
    * Another day shows open items dated that day and items completed that day.
    * Undated and Someday items never appear.
    */
   function onDay(item, day, today = day) {
+    // A task due today or overdue is on Today wherever it is planned (even undated or in Someday).
+    if (day === today && !item.completedDay && item.deadline && item.deadline <= today) return true;
     if (item.someday || !item.day) return false;
     if (item.completedDay) return item.completedDay === day;
     return day === today ? item.day <= day : item.day === day;

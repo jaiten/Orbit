@@ -1,10 +1,15 @@
 {
-  "description": "Quick add phrases. Run by windows/tests/planning.test.cjs and ios/Tests/SharedCaseTests.swift. 'now' is local wall-clock time; date is a local calendar day, time is minutes after midnight. defaultDate is the day the user is viewing (omitted on Today). defaultDate 'undated' means the user is adding to a list: without date words the task stays undated. An @word with no Someday visibility rule stays in the title.",
+  "description": "Quick add phrases. Run by windows/tests/planning.test.cjs and ios/Tests/SharedCaseTests.swift. 'now' is local wall-clock time; date is a local calendar day, time is minutes after midnight. defaultDate is the day the user is viewing (omitted on Today). defaultDate 'undated' means the user is adding to a list: without date words the task stays undated. An @word with no Someday visibility rule stays in the title. `deadline` is the task's due date from \"due …\" (null when none).",
   "now": "2026-10-20T12:00:00",
   "cases": [
     {
       "input": "Email @someone",
-      "expect": { "kind": "task", "title": "Email @someone", "date": "2026-10-20", "time": null }
+      "expect": {
+        "kind": "task",
+        "title": "Email @someone",
+        "date": "2026-10-20",
+        "time": null
+      }
     },
     {
       "input": "Buy milk",
@@ -319,6 +324,66 @@
         "title": "call bank",
         "date": "2026-10-20",
         "time": 960
+      }
+    },
+    {
+      "input": "Essay due fri",
+      "expect": {
+        "kind": "task",
+        "title": "Essay",
+        "date": "2026-10-20",
+        "time": null,
+        "deadline": "2026-10-23"
+      }
+    },
+    {
+      "input": "Pay rent due tomorrow",
+      "expect": {
+        "kind": "task",
+        "title": "Pay rent",
+        "date": "2026-10-20",
+        "time": null,
+        "deadline": "2026-10-21"
+      }
+    },
+    {
+      "input": "Start report monday due next week",
+      "expect": {
+        "kind": "task",
+        "title": "Start report",
+        "date": "2026-10-26",
+        "time": null,
+        "deadline": "2026-10-26"
+      }
+    },
+    {
+      "input": "Taxes due in 3 days",
+      "expect": {
+        "kind": "task",
+        "title": "Taxes",
+        "date": "2026-10-20",
+        "time": null,
+        "deadline": "2026-10-23"
+      }
+    },
+    {
+      "input": "Application due on dec 4",
+      "expect": {
+        "kind": "task",
+        "title": "Application",
+        "date": "2026-10-20",
+        "time": null,
+        "deadline": "2026-12-04"
+      }
+    },
+    {
+      "input": "Due diligence call",
+      "expect": {
+        "kind": "task",
+        "title": "Due diligence call",
+        "date": "2026-10-20",
+        "time": null,
+        "deadline": null
       }
     }
   ]

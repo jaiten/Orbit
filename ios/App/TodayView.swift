@@ -61,8 +61,8 @@ struct TodayView: View {
                 if shifted < day || shifted >= end { return false }
             }
             let item = TodayRules.item(task)
-            if item.someday && !activeTags.isEmpty {
-                return !SomedayRules.tags(in: task.title).isDisjoint(with: activeTags)
+            if item.someday && !activeTags.isEmpty && !SomedayRules.tags(in: task.title).isDisjoint(with: activeTags) {
+                return true
             }
             return TodayRules.onDay(item, day: key, today: today)
         }

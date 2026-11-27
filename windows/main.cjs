@@ -390,11 +390,18 @@ app.whenReady().then(async () => {
     if (error) throw error;
     return data;
   });
-  handle("read", async () => {
+  // With `since` (the change number of the window's last read, and the same generation) only the records
+  // written after it come back; otherwise all of them.
+  handle("read", async ({ since, generation } = {}) => {
     const notice = accountNotice;
     accountNotice = null;
+    const current = store.generation();
+    const incremental = Number.isInteger(since) && since >= 0 && generation === current;
     return {
-      records: store.rows(),
+      records: incremental ? store.changedSince(since) : store.rows(),
+      incremental,
+      seq: store.seq(),
+      generation: current,
       undoAvailable: plannerTools.available,
       undoCreatedAt: plannerTools.last?.created,
       undoKind: plannerTools.last?.kind,

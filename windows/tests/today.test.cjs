@@ -5,7 +5,12 @@ const { cases } = require("../../shared/test-cases/today.json");
 
 for (const c of cases) {
   test(c.name, () => {
-    const item = (i) => ({ day: i.day ?? null, completedDay: i.completedDay ?? null, someday: !!i.someday });
+    const item = (i) => ({
+      day: i.day ?? null,
+      completedDay: i.completedDay ?? null,
+      someday: !!i.someday,
+      deadline: i.deadline ?? null,
+    });
     const day = c.day ?? c.today;
     assert.deepEqual(
       c.items.filter((i) => planner.onDay(item(i), day, c.today)).map((i) => i.title),

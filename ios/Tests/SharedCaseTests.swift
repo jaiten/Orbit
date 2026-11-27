@@ -103,12 +103,28 @@ final class SharedCaseTests: XCTestCase {
             let name = c["name"] as! String, today = c["today"] as! String
             let day = c["day"] as? String ?? today
             let items = (c["items"] as! [[String: Any]]).map { i in
-                (title: i["title"] as! String, item: TodayRules.Item(day: i["day"] as? String, completedDay: i["completedDay"] as? String, someday: i["someday"] as? Bool ?? false))
+                (title: i["title"] as! String, item: TodayRules.Item(day: i["day"] as? String, completedDay: i["completedDay"] as? String, someday: i["someday"] as? Bool ?? false, deadline: i["deadline"] as? String))
             }
             XCTAssertEqual(items.filter { TodayRules.onDay($0.item, day: day, today: today) }.map(\.title), c["expect"] as! [String], name)
             XCTAssertEqual(items.filter { TodayRules.isOverdue($0.item, today: today) }.map(\.title), c["overdue"] as! [String], name)
         }
         XCTAssertEqual(TodayRules.overdueLabel("2026-10-20", today: "2026-10-22"), "from Tue")
+    }
+
+    func testRepeatCases() throws {
+        for c in try Self.cases("repeats") {
+            let name = c["name"] as! String, task = c["task"] as! [String: Any], expect = c["expect"] as! [String: Any]
+            let next = try XCTUnwrap(RepeatRules.nextDays(day: task["day"] as? String, deadline: task["deadline"] as? String,
+                                                          rule: task["repeat"] as? String, every: task["repeatEvery"] as? Int ?? 1,
+                                                          completedDay: c["completedDay"] as! String), name)
+            XCTAssertEqual(next.day, expect["day"] as? String, name)
+            XCTAssertEqual(next.deadline, expect["deadline"] as? String, name)
+            let id = RepeatRules.occurrenceID(UUID(uuidString: task["id"] as! String)!, day: (next.day ?? next.deadline)!)
+            XCTAssertEqual(id.uuidString.lowercased(), expect["id"] as? String, name)
+        }
+        XCTAssertEqual(RepeatRules.label(rule: "weekly", every: 2), "Every 2 weeks")
+        XCTAssertEqual(RepeatRules.choice(rule: "monthly", every: nil), "monthly:1")
+        XCTAssertNil(RepeatRules.nextDays(day: "2026-11-27", deadline: nil, rule: "hourly", every: 1, completedDay: "2026-11-27"))
     }
 
     func testDeadlineCases() throws {

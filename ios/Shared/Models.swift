@@ -36,6 +36,10 @@ import SwiftData
     var locked: Bool? = nil
     /// An optional due date ("YYYY-MM-DD"), separate from the day the task is planned for. Nil means none.
     var deadline: String? = nil
+    /// A recurring task's rule ("daily", "weekdays", "weekly", "monthly", "yearly") and how many of them
+    /// apart (`repeatEvery`); synced as `repeat`. Ticking it off makes the next copy (RepeatRules).
+    var repeats: String? = nil
+    var repeatEvery: Int? = nil
     var photoData: String? = nil
     @Attribute(.unique) var id: UUID
     var title: String

@@ -2530,28 +2530,46 @@ body[data-view="calendar"] .cal-more {
   right: 76px;
 }
 
-/* The task editor's due date: a quiet button, and a small calendar that opens beneath it. */
+/* The app's date picker (date-picker.js): a quiet button, and a small calendar in a popover. */
 .deadline-field {
-  display: grid;
-  gap: 6px;
   margin-top: 12px;
 }
-.deadline-field > span {
-  color: var(--muted);
-  font-size: 13px;
-}
-.due-picker {
-  display: grid;
-  grid-template-columns: auto auto 1fr;
+.date-picker {
+  position: relative;
+  display: flex;
   align-items: center;
-  justify-items: start;
   gap: 4px;
+  min-width: 0;
+  width: fit-content;
+  max-width: 100%;
 }
-.due-picker-button {
+/* In a row of fields it fills its column like the fields beside it. */
+.fields .date-picker,
+#event-form .date-picker,
+.rule-fields .date-picker {
+  width: 100%;
+}
+.fields .date-picker-button,
+#event-form .date-picker-button,
+.rule-fields .date-picker-button {
+  flex: 1;
+  min-height: 44px;
+}
+.date-picker-input {
+  position: absolute;
+  inset: 0 auto auto 0;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.date-picker-button {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 34px;
+  min-width: 0;
+  min-height: 38px;
   padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 9px;
@@ -2559,22 +2577,37 @@ body[data-view="calendar"] .cal-more {
   color: var(--ink);
   font-size: 13px;
   font-weight: 500;
+  white-space: nowrap;
 }
-.due-picker-button.empty {
+.date-picker-button > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.date-picker-button.empty {
   color: var(--muted);
   font-weight: 400;
 }
-.due-picker-button .ui-icon {
+.date-picker-button .ui-icon {
+  flex: none;
   width: 16px;
   height: 16px;
   color: var(--accent-text);
 }
-.due-picker-button:hover,
-.due-picker-button[aria-expanded="true"] {
+.date-picker-button:hover,
+.date-picker-button[aria-expanded="true"] {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
 }
-.due-clear {
+/* Clear sits inside the button's right end, so it costs the date no room. */
+.date-picker:has(.date-picker-clear:not([hidden])) .date-picker-button {
+  padding-right: 32px;
+}
+.date-picker-clear {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
   display: grid;
+  flex: none;
   place-items: center;
   width: 28px;
   height: 28px;
@@ -2584,46 +2617,49 @@ body[data-view="calendar"] .cal-more {
   background: transparent;
   color: var(--muted);
 }
-.due-clear[hidden],
-.due-popover[hidden] {
+.date-picker-clear[hidden] {
   display: none;
 }
-.due-clear:hover {
+.date-picker-clear:hover {
+  transform: translateY(-50%);
   background: color-mix(in srgb, var(--ink) 8%, transparent);
   color: var(--ink);
 }
-.due-clear .ui-icon {
+.date-picker-clear .ui-icon {
   width: 14px;
   height: 14px;
 }
-/* It opens in place under the button (the editor scrolls), so it is never cut off by the dialog. */
-.due-popover {
-  grid-column: 1 / -1;
-  width: 320px;
-  margin-top: 4px;
-  display: grid;
-  gap: 10px;
+.date-popover {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  width: 336px;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface);
+  color: var(--ink);
   box-shadow:
     0 0 0 0.5px var(--hair),
     0 12px 32px rgb(0 0 0 / 0.22);
-  animation: due-pop 140ms ease-out;
 }
-@keyframes due-pop {
+.date-popover:popover-open {
+  display: grid;
+  gap: 10px;
+  animation: date-pop 140ms ease-out;
+}
+@keyframes date-pop {
   from {
     opacity: 0;
     transform: translateY(-4px) scale(0.98);
   }
 }
-.due-quick-row {
+.date-quick-row {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
-.due-quick {
+.date-quick {
   min-height: 26px;
   padding: 0 10px;
   border: 0;
@@ -2632,21 +2668,21 @@ body[data-view="calendar"] .cal-more {
   color: var(--ink);
   font-size: 12px;
 }
-.due-quick:hover,
-.due-quick.chosen {
+.date-quick:hover,
+.date-quick.chosen {
   background: color-mix(in srgb, var(--accent) 16%, transparent);
   color: var(--accent-text);
 }
-.due-month {
+.date-month {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-.due-month strong {
+.date-month strong {
   font-size: 13px;
   font-weight: 600;
 }
-.due-arrow {
+.date-arrow {
   display: grid;
   place-items: center;
   width: 26px;
@@ -2657,33 +2693,33 @@ body[data-view="calendar"] .cal-more {
   background: transparent;
   color: var(--muted);
 }
-.due-arrow:hover {
+.date-arrow:hover {
   background: color-mix(in srgb, var(--ink) 7%, transparent);
   color: var(--ink);
 }
-.due-arrow .ui-icon {
+.date-arrow .ui-icon {
   width: 15px;
   height: 15px;
 }
-.due-grid {
+.date-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 2px;
 }
-.due-weekday {
+.date-weekday {
   padding-bottom: 4px;
   color: var(--muted);
   font-size: 11px;
   font-weight: 600;
   text-align: center;
 }
-.due-day {
+.date-day {
   display: grid;
   place-items: center;
+  justify-self: center;
   width: 32px;
   height: 32px;
   min-height: 0;
-  justify-self: center;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -2692,26 +2728,26 @@ body[data-view="calendar"] .cal-more {
   font-size: 12.5px;
   font-variant-numeric: tabular-nums;
 }
-.due-day:hover,
-.due-day:focus-visible {
+.date-day:hover,
+.date-day:focus-visible {
   background: color-mix(in srgb, var(--ink) 7%, transparent);
 }
-.due-day.outside,
-.due-day.past {
+.date-day.outside,
+.date-day.past {
   color: color-mix(in srgb, var(--muted) 75%, transparent);
 }
-.due-day.today {
+.date-day.today {
   box-shadow: inset 0 0 0 1.5px var(--accent);
   font-weight: 600;
 }
-.due-day.chosen,
-.due-day.chosen:hover {
+.date-day.chosen,
+.date-day.chosen:hover {
   background: var(--accent-button);
   color: var(--on-accent);
   font-weight: 600;
 }
 @media (prefers-reduced-motion: reduce) {
-  .due-popover {
+  .date-popover:popover-open {
     animation: none;
   }
 }

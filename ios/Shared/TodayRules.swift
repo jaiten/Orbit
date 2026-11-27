@@ -7,12 +7,14 @@ enum TodayRules {
     /// The built-in Someday list has the same ID on every device, so creating it twice never conflicts.
     static let somedayID = UUID(uuidString: "00000000-0000-4000-8000-000000000001")!
 
-    struct Item { var day: String?; var completedDay: String?; var someday: Bool }
+    struct Item { var day: String?; var completedDay: String?; var someday: Bool; var deadline: String? = nil }
 
     /// Today shows items dated today or earlier that are still open, plus anything finished today.
     /// Another day shows open items dated that day and items completed that day.
     /// Undated and Someday items never appear.
     static func onDay(_ item: Item, day: String, today: String) -> Bool {
+        // A task due today or overdue is on Today wherever it is planned (even undated or in Someday).
+        if day == today, item.completedDay == nil, let due = item.deadline, due <= today { return true }
         guard !item.someday, let date = item.day else { return false }
         if let completed = item.completedDay { return completed == day }
         return day == today ? date <= day : date == day
@@ -21,7 +23,7 @@ enum TodayRules {
         !item.someday && item.completedDay == nil && (item.day.map { $0 < today } ?? false)
     }
     static func item(_ task: PlannerTask) -> Item {
-        Item(day: task.day, completedDay: task.completedAt.map { PlannerLogic.plannerDay($0) }, someday: task.listID == somedayID)
+        Item(day: task.day, completedDay: task.completedAt.map { PlannerLogic.plannerDay($0) }, someday: task.listID == somedayID, deadline: task.deadline)
     }
     /// "from Tue" within the last week, otherwise "from Oct 12".
     static func overdueLabel(_ day: String, today: String) -> String {

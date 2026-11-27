@@ -21,6 +21,8 @@ struct TaskEditor: View {
     @State private var duration = 60
     @State private var priority = 0
     /// An optional due date, apart from the day the task is planned for (PlannerTask.deadline).
+    /// "weekly:2" style, or "" for no repeat (RepeatRules.choices).
+    @State private var repeatChoice = ""
     @State private var hasDeadline = false
     @State private var deadline = Date.now
     @State private var tags = ""
@@ -57,6 +59,13 @@ struct TaskEditor: View {
                 }
                 }
                 }
+                Section {
+                    Picker("Repeat", selection: $repeatChoice) {
+                        ForEach(repeatOptions.indices, id: \.self) { index in
+                            Text(repeatOptions[index].label).tag(repeatOptions[index].value)
+                        }
+                    }
+                } footer: { if !repeatChoice.isEmpty { Text("Ticking it off adds the next one, with its day and due date moved forward.") } }
                 Section {
                     Toggle("Due date", isOn: $hasDeadline.animation())
                     if hasDeadline { DatePicker("Due", selection: $deadline, displayedComponents: .date) }
@@ -123,6 +132,12 @@ struct TaskEditor: View {
             }
         }
     }
+    /// The choices, plus this task's own rule if the list doesn't offer it (every 3 months, from Windows).
+    private var repeatOptions: [(value: String, label: String)] {
+        let own = RepeatRules.choice(rule: task?.repeats, every: task?.repeatEvery)
+        guard !own.isEmpty, !RepeatRules.choices.contains(where: { $0.value == own }) else { return RepeatRules.choices }
+        return RepeatRules.choices + [(own, RepeatRules.label(rule: task?.repeats, every: task?.repeatEvery))]
+    }
     private func populate() {
         guard !populated else { return }
         populated = true
@@ -132,6 +147,7 @@ struct TaskEditor: View {
         date = task.dueDate ?? .now; hasTime = task.hasTime; duration = task.durationMinutes
         priority = task.priority; tags = task.tags.joined(separator: ", ")
         if let due = task.deadline.flatMap({ QuickAdd.start(of: $0, time: nil) }) { hasDeadline = true; deadline = due }
+        repeatChoice = RepeatRules.choice(rule: task.repeats, every: task.repeatEvery)
         subtasks = task.subtasks; reminders = task.reminders
     }
     private func save() {
@@ -147,6 +163,10 @@ struct TaskEditor: View {
         item.schedule(scheduled ? date : nil, hasTime: hasTime); item.durationMinutes = duration
         item.priority = priority; item.recurrenceRule = ""
         item.deadline = hasDeadline ? PlannerLogic.dayKey(deadline) : nil
+        let parts = repeatChoice.split(separator: ":")
+        if let rule = parts.first.map(String.init), RepeatRules.valid(rule) {
+            item.repeats = rule; item.repeatEvery = parts.count > 1 ? Int(parts[1]) ?? 1 : 1
+        } else { item.repeats = nil; item.repeatEvery = nil }
         item.tags = Array(Set(tags.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })).sorted()
         item.subtasks = subtasks.filter { !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         // Keep an unanswered suggestion available when the option was left off.

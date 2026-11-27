@@ -216,19 +216,21 @@ class PlannerTools {
     /** Goes up with every change, undo and redo, so the window knows when to show Undo and Redo. */
     this.version = 0;
   }
-  current() {
-    return new Map(
-      this.store
-        .rows()
-        .filter((r) => !r.deleted)
-        .map((r) => [r.key, r.payload]),
-    );
+  /** The live payloads of `keys` (deleted or missing ones are left out). Only those records are read. */
+  current(keys) {
+    const result = new Map();
+    for (const key of new Set(keys)) {
+      const row = this.store.row(key);
+      if (row && !row.deleted) result.set(key, row.payload);
+    }
+    return result;
   }
   /** Applies changes and records them as a step; `kind` forces a toast (imports are always undoable). */
   change(changes, kind = null) {
-    const before = this.current();
+    const touched = Array.isArray(changes) ? changes.map((c) => c?.key).filter((k) => typeof k === "string") : [];
+    const before = this.current(touched);
     this.store.batch(changes);
-    const after = this.current();
+    const after = this.current(touched);
     const keys = [...new Set([...before.keys(), ...after.keys()])].filter(
       (k) => !isDeepStrictEqual(before.get(k), after.get(k)),
     );
@@ -279,7 +281,7 @@ class PlannerTools {
   }
   /** Writes `to` over records that must still say what `expected` says, or stops if another device changed them. */
   restore(expected, to) {
-    const current = this.current();
+    const current = this.current([...expected.keys(), ...to.keys()]);
     const differs = (now, then) => !now !== !then || (now && !sameContent(now, then));
     if ([...expected].some(([k, p]) => differs(current.get(k), p)))
       throw Error("This item changed on another device. Undo was stopped to preserve those changes.");

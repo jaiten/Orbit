@@ -33,7 +33,8 @@ function setupDesktop({ window, store, iconPath }) {
   });
 
   const scheduler = new ReminderScheduler({
-    read: () => store.rows(),
+    // Reminders only look at tasks, habits, check-ins and the day-start preference.
+    read: () => store.rowsOf(["tasks", "habits", "habit_logs", "preferences"]),
     enabled: () => settings().notifications,
     options: () => ({ eveningMinutes: settings().eveningCheckIn }),
     show: (reminder) => {

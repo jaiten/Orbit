@@ -13,7 +13,7 @@ contextBridge.exposeInMainWorld("orbit", {
   devices: () => ipcRenderer.invoke("devices"),
   removeDevice: (id) => ipcRenderer.invoke("remove-device", id),
   batch: (changes) => ipcRenderer.invoke("batch", changes),
-  read: () => ipcRenderer.invoke("read"),
+  read: (since) => ipcRenderer.invoke("read", since),
   put: (key, payload, deleted) => ipcRenderer.invoke("put", { key, payload, deleted }),
   auth: (mode, email, password) => ipcRenderer.invoke("auth", { mode, email, password }),
   sync: () => ipcRenderer.invoke("sync"),

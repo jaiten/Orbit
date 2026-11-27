@@ -1,0 +1,181 @@
+{
+  "description": "Recurring tasks: the next copy's planned day, due date and ID after a task with a `repeat` rule is ticked off on `completedDay`. Both days move by the same number of steps until the copy lands after the day it was finished. Run by windows/tests/repeats.test.cjs and ios/Tests/SharedCaseTests.swift.",
+  "cases": [
+    {
+      "name": "monthly rent, finished on time",
+      "task": {
+        "id": "3f2b8c1e-5d4a-4c6b-9e7f-0a1b2c3d4e5f",
+        "day": "2026-12-01",
+        "deadline": null,
+        "repeat": "monthly",
+        "repeatEvery": 1
+      },
+      "completedDay": "2026-12-01",
+      "expect": {
+        "day": "2027-01-01",
+        "deadline": null,
+        "id": "ad48b445-601d-5780-b1d8-71fbf7398716"
+      }
+    },
+    {
+      "name": "monthly, finished two days late",
+      "task": {
+        "id": "3f2b8c1e-5d4a-4c6b-9e7f-0a1b2c3d4e5f",
+        "day": "2026-12-01",
+        "deadline": "2026-12-01",
+        "repeat": "monthly",
+        "repeatEvery": 1
+      },
+      "completedDay": "2026-12-03",
+      "expect": {
+        "day": "2027-01-01",
+        "deadline": "2027-01-01",
+        "id": "ad48b445-601d-5780-b1d8-71fbf7398716"
+      }
+    },
+    {
+      "name": "monthly, missed for three months",
+      "task": {
+        "id": "3f2b8c1e-5d4a-4c6b-9e7f-0a1b2c3d4e5f",
+        "day": "2026-09-01",
+        "deadline": null,
+        "repeat": "monthly",
+        "repeatEvery": 1
+      },
+      "completedDay": "2026-12-03",
+      "expect": {
+        "day": "2027-01-01",
+        "deadline": null,
+        "id": "ad48b445-601d-5780-b1d8-71fbf7398716"
+      }
+    },
+    {
+      "name": "monthly on the 31st",
+      "task": {
+        "id": "3f2b8c1e-5d4a-4c6b-9e7f-0a1b2c3d4e5f",
+        "day": "2027-01-31",
+        "deadline": null,
+        "repeat": "monthly",
+        "repeatEvery": 1
+      },
+      "completedDay": "2027-01-31",
+      "expect": {
+        "day": "2027-02-28",
+        "deadline": null,
+        "id": "1c776a0b-f9bd-598a-8bb0-fce1cd707bf0"
+      }
+    },
+    {
+      "name": "weekly, finished early",
+      "task": {
+        "id": "3f2b8c1e-5d4a-4c6b-9e7f-0a1b2c3d4e5f",
+        "day": "2026-12-04",
+        "deadline": null,
+        "repeat": "weekly",
+        "repeatEvery": 1
+      },
+      "completedDay": "2026-11-30",
+      "expect": {
+        "day": "2026-12-11",
+        "deadline": null,
+        "id": "b943360f-f06d-57ea-806c-fef1f42d420c"
+      }
+    },
+    {
+      "name": "every 2 weeks",
+      "task": {
+        "id": "3f2b8c1e-5d4a-4c6b-9e7f-0a1b2c3d4e5f",
+        "day": "2026-11-27",
+        "deadline": "2026-11-30",
+        "repeat": "weekly",
+        "repeatEvery": 2
+      },
+      "completedDay": "2026-11-27",
+      "expect": {
+        "day": "2026-12-11",
+        "deadline": "2026-12-14",
+        "id": "b943360f-f06d-57ea-806c-fef1f42d420c"
+      }
+    },
+    {
+      "name": "weekdays from Friday",
+      "task": {
+        "id": "3f2b8c1e-5d4a-4c6b-9e7f-0a1b2c3d4e5f",
+        "day": "2026-11-27",
+        "deadline": null,
+        "repeat": "weekdays",
+        "repeatEvery": 1
+      },
+      "completedDay": "2026-11-27",
+      "expect": {
+        "day": "2026-11-30",
+        "deadline": null,
+        "id": "4b4b9eed-b890-51ac-9849-f2cf0225d50e"
+      }
+    },
+    {
+      "name": "daily, a week behind",
+      "task": {
+        "id": "3f2b8c1e-5d4a-4c6b-9e7f-0a1b2c3d4e5f",
+        "day": "2026-11-20",
+        "deadline": null,
+        "repeat": "daily",
+        "repeatEvery": 1
+      },
+      "completedDay": "2026-11-27",
+      "expect": {
+        "day": "2026-11-28",
+        "deadline": null,
+        "id": "bd4880cc-c692-564d-9a47-b75e0028107f"
+      }
+    },
+    {
+      "name": "yearly on Feb 29",
+      "task": {
+        "id": "3f2b8c1e-5d4a-4c6b-9e7f-0a1b2c3d4e5f",
+        "day": "2028-02-29",
+        "deadline": null,
+        "repeat": "yearly",
+        "repeatEvery": 1
+      },
+      "completedDay": "2028-02-29",
+      "expect": {
+        "day": "2029-02-28",
+        "deadline": null,
+        "id": "935a6d31-816c-584c-beae-713be2027a16"
+      }
+    },
+    {
+      "name": "due date only",
+      "task": {
+        "id": "3f2b8c1e-5d4a-4c6b-9e7f-0a1b2c3d4e5f",
+        "day": null,
+        "deadline": "2026-12-05",
+        "repeat": "weekly",
+        "repeatEvery": 1
+      },
+      "completedDay": "2026-12-05",
+      "expect": {
+        "day": null,
+        "deadline": "2026-12-12",
+        "id": "ba4337a2-ef6d-5657-bd6c-fa38f72d46c5"
+      }
+    },
+    {
+      "name": "no dates",
+      "task": {
+        "id": "3f2b8c1e-5d4a-4c6b-9e7f-0a1b2c3d4e5f",
+        "day": null,
+        "deadline": null,
+        "repeat": "daily",
+        "repeatEvery": 1
+      },
+      "completedDay": "2026-11-27",
+      "expect": {
+        "day": "2026-11-28",
+        "deadline": null,
+        "id": "bd4880cc-c692-564d-9a47-b75e0028107f"
+      }
+    }
+  ]
+}

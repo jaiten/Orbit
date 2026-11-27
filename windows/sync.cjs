@@ -14,7 +14,8 @@ class Sync {
     let uploaded = 0,
       pulled = 0,
       outcome = "ok";
-    const before = JSON.stringify(this.store.rows());
+    // The store's change number says whether this pass changed anything (no need to compare every record).
+    const before = this.store.seq();
     try {
       const {
         data: { session },
@@ -29,8 +30,8 @@ class Sync {
       if (this.beforeUpload) await this.beforeUpload(session.user.id);
       this.status = "Syncing…";
       this.notify("status");
-      for (const r of this.store.rows().filter((r) => r.conflict)) this.store.accept(r.conflict);
-      for (const row of this.store.rows().filter((r) => r.dirty && !r.conflict)) {
+      for (const r of this.store.conflictRows()) this.store.accept(r.conflict);
+      for (const row of this.store.dirtyRows().filter((r) => !r.conflict)) {
         const { data, error } = await this.client.rpc("orbit_put", {
           p_key: row.key,
           p_payload: row.payload,
@@ -54,12 +55,13 @@ class Sync {
         pulled += data.length;
         if (data.length < 500) break;
       }
-      this.status = this.store.rows().some((r) => r.conflict)
+      const dirty = this.store.dirtyRows();
+      this.status = this.store.conflictRows().length
         ? "A change needs review"
-        : this.store.rows().some((r) => r.dirty)
+        : dirty.length
           ? "Changes waiting to sync"
           : "All changes synced";
-      if (this.store.rows().some((r) => r.dirty && !r.conflict)) this.again = true;
+      if (dirty.some((r) => !r.conflict)) this.again = true;
     } catch (e) {
       outcome = e?.name || "error";
       this.status = `Saved locally · ${e.message}`;
@@ -67,7 +69,7 @@ class Sync {
     } finally {
       this.busy = false;
       this.notify("status");
-      if (before !== JSON.stringify(this.store.rows())) this.notify("data");
+      if (before !== this.store.seq()) this.notify("data");
       console.info("orbit.sync", { durationMs: Date.now() - started, uploaded, pulled, outcome });
       if (this.again) queueMicrotask(() => void this.run());
     }

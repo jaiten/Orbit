@@ -32,10 +32,62 @@ import WidgetKit
 
     /// Tasks are one-off; only habits repeat.
     static func toggle(_ task: PlannerTask, at date: Date = .now, in context: ModelContext) throws {
-        if task.completedAt != nil { task.startedAt = nil }
-        task.completedAt = task.completedAt == nil ? date : nil
+        let finishing = task.completedAt == nil, finishedAt = task.completedAt
+        if !finishing { task.startedAt = nil }
+        task.completedAt = finishing ? date : nil
         task.updatedAt = .now
+        // A repeating task makes its next copy when it is ticked off; reopening it takes back an untouched copy.
+        if finishing && RepeatRules.valid(task.repeats) && task.nextOccurrenceID == nil {
+            try makeNextOccurrence(task, finishedAt: date, in: context)
+        } else if !finishing, let nextID = task.nextOccurrenceID {
+            let copy = try context.fetch(FetchDescriptor<PlannerTask>(predicate: #Predicate { $0.id == nextID })).first
+            var untouched = true
+            if let copy {
+                untouched = copy.completedAt == nil && (finishedAt.map { abs($0.timeIntervalSince(copy.updatedAt)) < 0.5 } ?? false)
+            }
+            if untouched {
+                if let copy { context.delete(copy) }
+                task.nextOccurrenceID = nil
+            }
+        }
         try save(context)
+    }
+
+    /// The next copy of a repeating task (RepeatRules.nextDays): same title, notes, list, length and rule; its
+    /// planned day, time, due date and reminders move forward; steps start unticked. Its `updatedAt` is the
+    /// moment the original was finished, so reopening the original can tell the copy hasn't been touched.
+    static func makeNextOccurrence(_ task: PlannerTask, finishedAt date: Date, in context: ModelContext) throws {
+        guard let days = RepeatRules.nextDays(day: task.day, deadline: task.deadline, rule: task.repeats,
+                                              every: task.repeatEvery ?? 1, completedDay: PlannerLogic.plannerDay(date)),
+              let anchor = days.day ?? days.deadline else { return }
+        let id = RepeatRules.occurrenceID(task.id, day: anchor)
+        task.nextOccurrenceID = id
+        // Another device may have made it already (same ID).
+        guard try context.fetch(FetchDescriptor<PlannerTask>(predicate: #Predicate { $0.id == id })).isEmpty else { return }
+        let copy = PlannerTask(title: task.title, listID: task.listID)
+        copy.id = id
+        copy.notes = task.notes; copy.durationMinutes = task.durationMinutes; copy.priority = task.priority
+        copy.tags = task.tags; copy.subtasks = task.subtasks.map { Subtask(id: $0.id, title: $0.title, completed: false) }
+        copy.repeats = task.repeats; copy.repeatEvery = task.repeatEvery ?? 1
+        copy.deadline = days.deadline
+        if task.progressTracking == true { copy.progressTracking = true }
+        // Times keep their clock time on the new day; reminders keep their distance from it.
+        var shift = 0
+        if let newDay = days.day {
+            if let oldDay = task.day, let from = HabitRules.date(oldDay), let to = HabitRules.date(newDay) {
+                shift = Int((to.timeIntervalSince(from) / 86_400).rounded())
+            }
+            if task.hasTime, let start = task.dueDate, task.day != nil,
+               let moved = Calendar.current.date(byAdding: .day, value: shift, to: start) {
+                copy.schedule(moved, hasTime: true)
+            } else {
+                copy.schedule(day: newDay)
+            }
+        }
+        copy.reminders = task.day == nil || days.day == nil ? [] : task.reminders.compactMap { Calendar.current.date(byAdding: .day, value: shift, to: $0) }
+        copy.sortOrder = task.sortOrder
+        copy.updatedAt = date
+        context.insert(copy)
     }
 
     static func setProgress(_ task: PlannerTask, enabled: Bool, start: Bool = false, in context: ModelContext) throws {

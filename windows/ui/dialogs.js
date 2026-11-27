@@ -28,13 +28,24 @@ function openTask(id, date, draft = null, { expanded = false } = {}) {
   f.elements.duration.value = (editing ?? source)?.durationMinutes || 60;
   f.elements.priority.value = editing?.priority || 0;
   f.elements.deadline.value = source?.deadline || "";
-  refreshDuePicker();
+  f.elements.repeat.innerHTML = OrbitRepeats.CHOICES.map(
+    ([value, label]) => `<option value="${value}">${label}</option>`,
+  ).join("");
+  // A rule this editor doesn't offer (every 3 months, from another device) stays listed as it is.
+  const repeatChoice = OrbitRepeats.choice(editing);
+  if (repeatChoice && !OrbitRepeats.CHOICES.some(([value]) => value === repeatChoice))
+    f.elements.repeat.insertAdjacentHTML(
+      "beforeend",
+      `<option value="${repeatChoice}">${esc(OrbitRepeats.label(editing))}</option>`,
+    );
+  f.elements.repeat.value = repeatChoice;
   $("#editor-title").textContent = editing ? "Edit Task" : "New Task";
   $("#delete-task").hidden = !editing;
   $("#move-task").hidden = !editing;
   $("#task-to-calendar").hidden = !editing || !(editing.localDate || (editing.hasTime && editing.dueDate));
   f.querySelectorAll("details.capture-options").forEach((section, index) => {
-    section.open = expanded || (index === 0 && ((!editing && page === "calendar") || !!source?.deadline));
+    section.open =
+      expanded || (index === 0 && ((!editing && page === "calendar") || !!source?.deadline || !!repeatChoice));
   });
   openDialog($("#editor"));
   focusTitle($("#editor"));
@@ -239,6 +250,15 @@ $("#task-form").onsubmit = (e) => {
     // A due date is optional and separate from the day the task is planned for.
     if (f.elements.deadline.value) saved.deadline = f.elements.deadline.value;
     else delete saved.deadline;
+    // Repeat: "weekly:2" → repeat "weekly", every 2. Never removes both.
+    const [repeat, every] = f.elements.repeat.value.split(":");
+    if (OrbitRepeats.valid(repeat)) {
+      saved.repeat = repeat;
+      saved.repeatEvery = Number(every) || 1;
+    } else {
+      delete saved.repeat;
+      delete saved.repeatEvery;
+    }
     // Someday items have no date and never remind.
     await saveTasks([saved.listID === SOMEDAY ? OrbitPlanner.moveToSomeday(saved) : saved]);
     afterCaptureSave();

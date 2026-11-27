@@ -280,6 +280,8 @@ struct TaskRow: View {
         var parts: [String] = []
         if task.hasTime, let date = task.dueDate { parts.append(date.formatted(date: .omitted, time: .shortened)) }
         if !task.subtasks.isEmpty { parts.append("\(task.subtasks.filter(\.completed).count)/\(task.subtasks.count) steps") }
+        let rule = task.nextOccurrenceID == nil ? RepeatRules.label(rule: task.repeats, every: task.repeatEvery) : ""
+        if !rule.isEmpty { parts.append("↻ " + rule) }
         return parts.joined(separator: " · ")
     }
     /// An open task's due date ("Due Fri"), in red once it has passed (TodayRules.deadlineLabel).
