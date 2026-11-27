@@ -28,6 +28,7 @@ function openTask(id, date, draft = null, { expanded = false } = {}) {
   f.elements.duration.value = (editing ?? source)?.durationMinutes || 60;
   f.elements.priority.value = editing?.priority || 0;
   f.elements.deadline.value = source?.deadline || "";
+  refreshDuePicker();
   $("#editor-title").textContent = editing ? "Edit Task" : "New Task";
   $("#delete-task").hidden = !editing;
   $("#move-task").hidden = !editing;

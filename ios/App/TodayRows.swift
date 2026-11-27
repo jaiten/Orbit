@@ -71,6 +71,9 @@ struct CheckTile: View {
     var allowsToggle = true
     var badge: TileBadge? = nil
     var accessory: TileAccessory? = nil
+    /// Whether the title is struck through; nil follows `done`. A weekly habit ticked today but short of
+    /// its goal for the week shows its tick without being struck through.
+    var struck: Bool? = nil
     /// On Today a tap on the title checks the item off too; editing is a swipe right or in the touch-and-hold menu.
     var tapChecks = false
     @Environment(\.orbitAccent) private var accent
@@ -119,10 +122,7 @@ struct CheckTile: View {
                         .frame(width: 46, height: rowHeight).contentShape(Rectangle())
                 }.buttonStyle(.plain).disabled(!allowsToggle).accessibilityLabel(completionLabel)
                     .accessibilityValue(progress == 2 ? "In progress" : "")
-                Button {
-                    if swipe.takesTap() { return }
-                    if tapChecks { if allowsToggle { toggle() } } else { edit() }
-                } label: {
+                Button { titleTap(swipe) } label: {
                     HStack(spacing: 8) {
                         if let icon { Image(systemName: icon).font(.system(size: 18)).foregroundStyle(color).frame(width: 20).accessibilityHidden(true) }
                         line
@@ -140,11 +140,17 @@ struct CheckTile: View {
                     }.foregroundStyle(accent.text).accessibilityLabel("Progress options for " + title)
                 }
                 if let accessory {
+                    // The button sits before the count ("− 1 of 3"), so counts line up down the list.
                     Button { if !swipe.takesTap() { accessory.action() } } label: {
-                        Image(systemName: accessory.systemImage).font(.system(size: 15, weight: .semibold))
-                            .frame(width: 44, height: rowHeight).contentShape(Rectangle())
+                        Image(systemName: accessory.systemImage).font(.system(size: 14, weight: .semibold))
+                            .frame(width: 36, height: rowHeight).contentShape(Rectangle())
                     }.buttonStyle(.plain).foregroundStyle(.secondary).accessibilityLabel(accessory.label)
-                        .padding(.leading, -10)
+                    if splitsDetail {
+                        Button { titleTap(swipe) } label: {
+                            detailText.padding(.leading, 2).padding(.trailing, 14)
+                                .frame(minHeight: rowHeight).contentShape(Rectangle())
+                        }.buttonStyle(RowPress(pressed: $pressed)).accessibilityHidden(true)
+                    }
                 }
             }
             if !moves.isEmpty {
@@ -154,6 +160,13 @@ struct CheckTile: View {
                 }.padding(.leading, 46).padding(.bottom, 6)
             }
         }
+    }
+
+    /// With a row button, the count moves out of the title so the button can sit just before it.
+    private var splitsDetail: Bool { accessory != nil && !typeSize.isAccessibilitySize }
+    private func titleTap(_ swipe: SwipeRowState) {
+        if swipe.takesTap() { return }
+        if tapChecks { if allowsToggle { toggle() } } else { edit() }
     }
 
     private var moveButtons: some View {
@@ -184,16 +197,16 @@ struct CheckTile: View {
             if typeSize.isAccessibilitySize {
                 VStack(alignment: .leading, spacing: 7) { titleText; badgeText; detailText }
             } else {
-                HStack(spacing: 12) { titleText; Spacer(minLength: 8); badgeText; detailText }
+                HStack(spacing: 12) { titleText; Spacer(minLength: 8); badgeText; if !splitsDetail { detailText } }
             }
-        }.padding(.trailing, 14).padding(.vertical, typeSize.isAccessibilitySize ? 10 : 4)
+        }.padding(.trailing, splitsDetail ? 0 : 14).padding(.vertical, typeSize.isAccessibilitySize ? 10 : 4)
             .frame(maxWidth: .infinity, minHeight: rowHeight, alignment: .leading).contentShape(Rectangle())
     }
     private var titleText: some View {
-        Text(title).font(.body).foregroundStyle(done ? .secondary : .primary)
-            .strikethrough(done, color: .secondary)
+        Text(title).font(.body).foregroundStyle(struck ?? done ? .secondary : .primary)
+            .strikethrough(struck ?? done, color: .secondary)
             .lineLimit(typeSize.isAccessibilitySize ? nil : 2).fixedSize(horizontal: false, vertical: true)
-            .animation(reduceMotion ? nil : .orbit, value: done)
+            .animation(reduceMotion ? nil : .orbit, value: struck ?? done)
     }
     @ViewBuilder private var badgeText: some View {
         if let badge {
@@ -375,11 +388,18 @@ struct HabitRow: View {
         change { try Mutations.undoLog(habit, at: date, in: context) }
     }
     private var holdKey: String { "habit-" + habit.id.uuidString }
+    /// Met for its whole period: a weekly or monthly habit only once the week's or month's goal is reached.
+    private var finished: Bool {
+        guard checked else { return false }
+        guard HabitRules.period(habit.frequencyRule) != nil else { return true }
+        let extra = pending == true && !saved ? 1 : 0
+        return HabitRules.periodProgress(rule: habit.frequencyRule, counts: counts, day: PlannerLogic.dayKey(date), weekStart: HabitRules.weekStart()) + extra >= habit.target
+    }
     var body: some View {
         let _ = RenderCounter.hit("HabitRow")
         CheckTile(title: habit.title, subtitle: PlannerLogic.detail(habit, counts: counts, at: date), done: checked, color: DayTheme.color(habit.color),
                   completionLabel: (checked ? "Undo " : "Log ") + habit.title,
-                  toggle: toggle, edit: edit, remove: remove, met: checked, icon: slipped ? "xmark.circle" : ItemIcons.symbol(habit.icon, title: habit.title), allowsToggle: canLog, accessory: accessory, tapChecks: tapChecks)
+                  toggle: toggle, edit: edit, remove: remove, met: finished, icon: slipped ? "xmark.circle" : ItemIcons.symbol(habit.icon, title: habit.title), allowsToggle: canLog, accessory: accessory, struck: finished, tapChecks: tapChecks)
             .modifier(HabitActions(habit: habit, edit: edit, slipped: slipped, todayCount: isToday && !habit.isAvoid ? todayCount : 0))
             .modifier(MutationErrorModifier(error: $error))
             .sensoryFeedback(.impact(weight: .light), trigger: feedback)

@@ -1088,8 +1088,21 @@ const fs = require("node:fs");
     "Weekly habits follow tasks with just the panel gap",
   );
   const slip = p.getByRole("button", { name: "Mark avoid-action as slipped today", exact: true });
+  // The slip button fades in when its row is hovered.
   await slip.locator("..").hover();
-  assert.equal(await slip.evaluate((button) => getComputedStyle(button).opacity), "1");
+  await slip.evaluate(
+    (button) =>
+      new Promise((resolve, reject) => {
+        const started = performance.now();
+        const check = () =>
+          getComputedStyle(button).opacity === "1"
+            ? resolve()
+            : performance.now() - started > 2000
+              ? reject(Error("Slip button did not appear on hover"))
+              : requestAnimationFrame(check);
+        check();
+      }),
+  );
   await slip.click();
   await p.getByRole("button", { name: "avoid-action: slipped today. Take back the slip", exact: true }).waitFor();
   assert.equal(

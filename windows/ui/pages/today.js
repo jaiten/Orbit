@@ -36,6 +36,7 @@ const todayPanelNames = {
   habits: "Habits",
   "habits-weekly": "Weekly habits",
   "habits-monthly": "Monthly habits",
+  "habits-avoid": "Avoiding",
   counters: "Counters",
   heatmap: "Overall progress",
 };
@@ -51,20 +52,21 @@ function todayPanel(id, content, defaultColumn = "side", tools = "") {
 }
 /** One compact habit card: a title with how many are done, and the habits in fitted columns. */
 function todayHabitCard(title, habits, captions = true) {
-  const done = habits.filter((h) => checked(h)).length;
+  const done = habits.filter((h) => finished(h)).length;
   return `<section class="card habits-compact-card">${sectionLabel(title, `${done} of ${habits.length}`)}<div class="check-list compact-habits">${captions ? compactHabitGroups(habits) : habits.map(compactHabit).join("")}</div></section>`;
 }
 /**
  * Today's habit panels. Together: one Habits card (daily, then weekly and monthly under small captions).
- * Split: Daily, Weekly and Monthly cards, each placed on its own. Counters always have their own card.
+ * Split: Daily, Weekly, Monthly and Avoiding cards, each placed on its own. Counters always have their own card.
  * In Edit layout the Habits card carries the Split / Join button.
  */
 function habitPanels(habits, counters) {
   const split = habitsSplit();
-  const daily = habits.filter((h) => !OrbitHabits.period(h)),
+  const daily = habits.filter((h) => !OrbitHabits.period(h) && !OrbitHabits.isAvoid(h)),
     weekly = habits.filter((h) => OrbitHabits.period(h) === "week"),
-    monthly = habits.filter((h) => OrbitHabits.period(h) === "month");
-  const splitButton = `<button type="button" class="panel-action" data-split-habits="${split ? "off" : "on"}" title="${split ? "Put daily, weekly and monthly habits back in one card" : "Give daily, weekly and monthly habits their own cards, to place separately"}">${split ? "Join" : "Split"}</button>`;
+    monthly = habits.filter((h) => OrbitHabits.period(h) === "month"),
+    avoid = habits.filter((h) => OrbitHabits.isAvoid(h));
+  const splitButton = `<button type="button" class="panel-action" data-split-habits="${split ? "off" : "on"}" title="${split ? "Put daily, weekly, monthly and avoid habits back in one card" : "Give daily, weekly, monthly and avoid habits their own cards, to place separately"}">${split ? "Join" : "Split"}</button>`;
   const panels = [];
   if (!split) {
     if (habits.length || !counters.length)
@@ -73,7 +75,7 @@ function habitPanels(habits, counters) {
       );
   } else {
     // The Habits panel holds the daily ones (and the Join button, so it is never lost).
-    if (daily.length || editingTodayLayout || (!weekly.length && !monthly.length && !counters.length))
+    if (daily.length || editingTodayLayout || (!weekly.length && !monthly.length && !avoid.length && !counters.length))
       panels.push(
         todayPanel(
           "habits",
@@ -84,6 +86,7 @@ function habitPanels(habits, counters) {
       );
     if (weekly.length) panels.push(todayPanel("habits-weekly", todayHabitCard("Weekly habits", weekly, false)));
     if (monthly.length) panels.push(todayPanel("habits-monthly", todayHabitCard("Monthly habits", monthly, false)));
+    if (avoid.length) panels.push(todayPanel("habits-avoid", todayHabitCard("Avoiding", avoid, false)));
   }
   if (counters.length)
     panels.push(
@@ -229,8 +232,9 @@ function compactHabit(h) {
   const done = checked(h),
     id = esc(h.id),
     title = esc(h.title);
-  return `<div class="row habit-row habit-${colorName(h.color)} check-tile ${done ? "complete" : ""}" data-flip="habit-${id}" data-row-menu="habit:${id}">
-    <button class="row-line habit-log" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-day="${today()}" data-habit-menu="${id}">${tick(done, poppedID === h.id)}<span class="row-title">${title}</span><span class="row-detail ${done ? "met" : ""}">${OrbitHabits.isAvoid(h) ? habitDetail(h) : `${progress(h)} of ${h.target}`}</span></button>${avoidSlipButton(h)}${habitMinusButton(h)}
+  const met = finished(h);
+  return `<div class="row habit-row habit-${colorName(h.color)} check-tile ${met ? "complete" : ""}" data-flip="habit-${id}" data-row-menu="habit:${id}">
+    <button class="row-line habit-log" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-day="${today()}" data-habit-menu="${id}">${tick(done, poppedID === h.id)}<span class="row-title">${title}</span><span class="row-detail ${met ? "met" : ""}">${OrbitHabits.isAvoid(h) ? habitDetail(h) : `${progress(h)} of ${h.target}`}</span></button>${avoidSlipButton(h)}${habitMinusButton(h)}
   </div>`;
 }
 /**

@@ -123,14 +123,17 @@ badges. A counter is stored as a habit whose `frequencyRule` is `COUNTER`
 ([case](shared/test-cases/habits.json)).
 
 **Due dates.** Any task can have a due date as well as the day it is planned for: **Due date** in
-the task editor (under Date & time on Windows). Open tasks then show "Due Fri", "Due today" or, in red,
+the task editor (under Date & time on Windows, a small calendar with Today, Tomorrow, Next week and
+In 2 weeks). Open tasks then show "Due Fri", "Due today" or, in red,
 "Overdue · Nov 20" beside the title; the planned day doesn't move. Stored as the task's `deadline`
 day ([cases](shared/test-cases/deadlines.json)).
 
-**Taking a check-in off.** A habit partway through its check-ins (1 of 3) shows a minus at the end of
-its row that takes one off; Take One Off is also in its touch-and-hold (right-click) menu. Habits to
-avoid show a × to mark a slip in one tap (an arrow takes it back on iPhone; on Windows, click the
-slipped row).
+**Taking a check-in off.** A habit partway through its check-ins (1 of 3) has a minus just before its
+count that takes one off (on Windows it slides in when you hover the row); Take One Off is also in its
+touch-and-hold (right-click) menu. Habits to avoid have a × to mark a slip in one tap, the same way (an
+arrow takes it back on iPhone; on Windows, click the slipped row). A weekly or monthly habit ticked
+today shows its tick but is only struck through once the week's or month's goal is met. With habits
+split on Windows Today, habits to avoid get their own Avoiding card.
 
 **Checking off, swipes and the hold menu.** A tick shows the moment you tap or click it. The row
 stays where it is for about a third of a second (longer while you keep ticking others), then folds

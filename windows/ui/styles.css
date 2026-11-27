@@ -5123,54 +5123,76 @@ body[data-view="today"] .today-layout,
   display: none;
 }
 
-/* Separate slip control: always shown beside avoid habits, so a slip is one click away. */
+/* A habit's slip (×) and take-one-off (−) buttons wait out of sight at the end of the row and slide in on
+   hover or keyboard focus, so the habit grid stays calm. They take no room until then. */
 .habit-row {
   position: relative;
 }
-.avoid-slip-action {
-  flex: 0 0 32px;
-  width: 32px;
-  height: 32px;
-  margin-right: 6px;
+.avoid-slip-action,
+.habit-minus-action {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: 7px;
   background: transparent;
   color: var(--muted);
-  opacity: 0.7;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(6px, -50%);
+  transition:
+    opacity 140ms ease,
+    transform 160ms ease,
+    background-color 140ms ease,
+    color 140ms ease;
 }
-.habit-row:hover .avoid-slip-action,
-.habit-row:focus-within .avoid-slip-action {
+.habit-row:hover :is(.avoid-slip-action, .habit-minus-action),
+.habit-row:focus-within :is(.avoid-slip-action, .habit-minus-action) {
   opacity: 1;
+  pointer-events: auto;
+  transform: translate(0, -50%);
 }
 .avoid-slip-action:hover {
-  background: var(--surface);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
   color: var(--danger);
 }
-/* A habit partway through its check-ins (1 of 3) shows a minus to take one off. */
-.habit-minus-action {
-  flex: 0 0 32px;
-  width: 32px;
-  height: 32px;
-  margin-right: 6px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--muted);
-  opacity: 0.7;
-}
-.habit-row:hover .habit-minus-action,
-.habit-minus-action:focus-visible {
-  opacity: 1;
-}
 .habit-minus-action:hover {
-  background: var(--surface);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
   color: var(--ink);
 }
-.compact-habits .habit-row:has(.avoid-slip-action, .habit-minus-action) {
-  display: flex;
-  align-items: center;
+.avoid-slip-action .ui-icon,
+.habit-minus-action .ui-icon {
+  width: 15px;
+  height: 15px;
 }
-.compact-habits .habit-row:has(.avoid-slip-action, .habit-minus-action) .habit-log {
-  flex: 1;
-  min-width: 0;
+/* On Today, the count slides aside to make room for the button while the row is hovered. */
+.compact-habits .habit-log {
+  transition:
+    background-color 160ms ease,
+    padding 160ms ease;
+}
+.compact-habits .habit-row:is(:hover, :focus-within):has(.avoid-slip-action, .habit-minus-action) .habit-log {
+  padding-right: 38px;
+}
+@media (hover: none) {
+  .avoid-slip-action,
+  .habit-minus-action {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate(0, -50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .avoid-slip-action,
+  .habit-minus-action,
+  .compact-habits .habit-log {
+    transition: none;
+  }
 }

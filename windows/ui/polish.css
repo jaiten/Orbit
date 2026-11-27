@@ -818,7 +818,9 @@ body[data-view="today"] .today-layout {
 }
 .compact-habits .habit-log {
   border-radius: 8px;
-  transition: background-color 160ms ease;
+  transition:
+    background-color 160ms ease,
+    padding 160ms ease;
 }
 .compact-habits .habit-log:hover {
   background: color-mix(in srgb, var(--habit-color) 11%, transparent);
@@ -2523,13 +2525,193 @@ body[data-view="calendar"] .cal-more {
   color: var(--danger, #d14b4b);
   background: color-mix(in srgb, var(--danger, #d14b4b) 12%, transparent);
 }
+/* On Habits, the minus or slip button slides in just left of the pencil and bin that float in on hover. */
 .habit-row .row-main > :is(.avoid-slip-action, .habit-minus-action) {
+  right: 76px;
+}
+
+/* The task editor's due date: a quiet button, and a small calendar that opens beneath it. */
+.deadline-field {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+.deadline-field > span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.due-picker {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  justify-items: start;
+  gap: 4px;
+}
+.due-picker-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 500;
+}
+.due-picker-button.empty {
+  color: var(--muted);
+  font-weight: 400;
+}
+.due-picker-button .ui-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--accent-text);
+}
+.due-picker-button:hover,
+.due-picker-button[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+.due-clear {
   display: grid;
   place-items: center;
-  align-self: center;
-  margin: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
 }
-/* On Habits, the pencil and bin that float in on hover sit beside the minus or slip button, not over it. */
-.habit-row:has(.habit-minus-action, .avoid-slip-action) .row-actions {
-  right: 46px;
+.due-clear[hidden],
+.due-popover[hidden] {
+  display: none;
+}
+.due-clear:hover {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--ink);
+}
+.due-clear .ui-icon {
+  width: 14px;
+  height: 14px;
+}
+/* It opens in place under the button (the editor scrolls), so it is never cut off by the dialog. */
+.due-popover {
+  grid-column: 1 / -1;
+  width: 320px;
+  margin-top: 4px;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow:
+    0 0 0 0.5px var(--hair),
+    0 12px 32px rgb(0 0 0 / 0.22);
+  animation: due-pop 140ms ease-out;
+}
+@keyframes due-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+.due-quick-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.due-quick {
+  min-height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  color: var(--ink);
+  font-size: 12px;
+}
+.due-quick:hover,
+.due-quick.chosen {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent-text);
+}
+.due-month {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.due-month strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.due-arrow {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+}
+.due-arrow:hover {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  color: var(--ink);
+}
+.due-arrow .ui-icon {
+  width: 15px;
+  height: 15px;
+}
+.due-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.due-weekday {
+  padding-bottom: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+}
+.due-day {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  min-height: 0;
+  justify-self: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+.due-day:hover,
+.due-day:focus-visible {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+}
+.due-day.outside,
+.due-day.past {
+  color: color-mix(in srgb, var(--muted) 75%, transparent);
+}
+.due-day.today {
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+  font-weight: 600;
+}
+.due-day.chosen,
+.due-day.chosen:hover {
+  background: var(--accent-button);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+@media (prefers-reduced-motion: reduce) {
+  .due-popover {
+    animation: none;
+  }
 }

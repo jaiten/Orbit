@@ -177,7 +177,30 @@
             ><label>Time (optional)<input name="time" type="time" /></label
             ><label>Minutes<input name="duration" type="number" min="5" max="1440" value="30" /></label>
           </div>
-          <label class="deadline-field">Due date (optional)<input name="deadline" type="date" /></label>
+          <div class="deadline-field">
+            <span id="due-label">Due date (optional)</span>
+            <div class="due-picker">
+              <input type="hidden" name="deadline" />
+              <button
+                type="button"
+                id="due-picker-button"
+                class="due-picker-button empty"
+                aria-labelledby="due-label due-picker-button"
+                aria-haspopup="dialog"
+                aria-expanded="false"
+                aria-controls="due-popover"
+              >
+                <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="4" y="5" width="16" height="15" rx="3" />
+                  <path d="M8 3v4M16 3v4M4 10h16" /></svg
+                ><span>No due date</span>
+              </button>
+              <button type="button" id="due-clear" class="due-clear" aria-label="Clear due date" title="Clear" hidden>
+                <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17" /></svg>
+              </button>
+              <div id="due-popover" class="due-popover" role="dialog" aria-label="Choose a due date" hidden></div>
+            </div>
+          </div>
         </details>
         <details class="capture-options">
           <summary>More options</summary>
@@ -394,6 +417,7 @@
     <script src="pages/account.js"></script>
     <script src="pages/review.js"></script>
     <script src="dialogs.js"></script>
+    <script src="due-picker.js"></script>
     <script src="quick-add.js"></script>
     <script src="onboarding.js"></script>
     <script src="nav-order.js"></script>

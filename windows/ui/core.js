@@ -260,7 +260,7 @@ function applyLocally(key, payload) {
  * Draws (or takes back) the tick on every row for an item, with the words a screen reader hears.
  * Returns how many rows it found.
  */
-function showTick(selector, done, label, detail) {
+function showTick(selector, done, label, detail, complete = done) {
   const buttons = document.querySelectorAll(selector);
   buttons.forEach((button) => {
     const mark = button.querySelector(".tick, .progress-tick");
@@ -269,7 +269,7 @@ function showTick(selector, done, label, detail) {
     button.setAttribute("aria-label", label);
     const row = button.closest(".check-tile");
     if (!row) return;
-    row.classList.toggle("complete", done);
+    row.classList.toggle("complete", complete);
     row.classList.remove("in-progress");
     row.querySelectorAll(".row-body, .habit-log").forEach((body) => {
       if (body.getAttribute("aria-label")) body.setAttribute("aria-label", label);
@@ -278,7 +278,7 @@ function showTick(selector, done, label, detail) {
       const text = row.querySelector(".row-detail");
       if (text) {
         text.textContent = detail(row);
-        text.classList.toggle("met", done);
+        text.classList.toggle("met", complete);
       }
     }
   });
@@ -412,6 +412,14 @@ function dailyCount(h, date = today()) {
 }
 function checked(h, date = today()) {
   return OrbitHabits.checkedOn(h, habitLogs(), date);
+}
+/**
+ * A habit whose goal is met: today's check-ins for a daily habit, the week's or month's for a weekly or
+ * monthly one. Only then is its row struck through; a weekly habit ticked today (1 of 3 this week) shows
+ * its tick but stays open.
+ */
+function finished(h, date = today()) {
+  return OrbitHabits.period(h) ? checked(h, date) && progress(h, date) >= (h.target || 1) : checked(h, date);
 }
 function progress(h, date = today()) {
   return OrbitHabits.periodProgress(h, habitLogs(), date, weekStart);
@@ -568,10 +576,10 @@ function habitCard(h, { fullWidth = false } = {}) {
   const done = checked(h, date);
   const id = esc(h.id),
     title = esc(h.title);
-  return `<div class="row habit-row habit-${colorName(h.color)} check-tile ${done ? "complete" : ""} ${fullWidth ? "wide-habit" : ""}" data-flip="habit-${id}" data-row-menu="habit:${id}">
+  return `<div class="row habit-row habit-${colorName(h.color)} check-tile ${finished(h, date) ? "complete" : ""} ${fullWidth ? "wide-habit" : ""}" data-flip="habit-${id}" data-row-menu="habit:${id}">
     <div class="row-line">
       <button class="row-tick" role="checkbox" aria-label="${done ? "Undo" : "Log"} ${title}" aria-checked="${done}" data-habit-toggle="${id}" data-habit-day="${date}" data-habit-menu="${id}">${tick(done, poppedID === h.id)}</button>
-      <div class="row-main"><button class="row-body" aria-label="${done ? "Undo" : "Log"} ${title}" data-habit-toggle="${id}" data-habit-day="${date}"><span class="row-title">${title}</span><span class="dot ${colorName(h.color)}" aria-hidden="true"></span><span class="row-detail ${done ? "met" : ""}">${habitDetail(h, date)}</span></button>
+      <div class="row-main"><button class="row-body" aria-label="${done ? "Undo" : "Log"} ${title}" data-habit-toggle="${id}" data-habit-day="${date}"><span class="row-title">${title}</span><span class="dot ${colorName(h.color)}" aria-hidden="true"></span><span class="row-detail ${finished(h, date) ? "met" : ""}">${habitDetail(h, date)}</span></button>
       ${avoidSlipButton(h)}${habitMinusButton(h, date)}${rowActions(id, title, true)}</div>
     </div>
   </div>`;
@@ -739,6 +747,7 @@ async function log(id, undo, date = today()) {
       row.querySelector(".habit-log") && !OrbitHabits.isAvoid(h)
         ? `${progress(h, date)} of ${h.target}`
         : habitDetail(h, date),
+    finished(h, date),
   );
   if (shown) holdForTick("habit-" + id);
   await put("habit_logs", data);
