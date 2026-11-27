@@ -40,6 +40,8 @@ import SwiftData
     /// apart (`repeatEvery`); synced as `repeat`. Ticking it off makes the next copy (RepeatRules).
     var repeats: String? = nil
     var repeatEvery: Int? = nil
+    /// "Remind me the day before" the due date (9 AM). Nil means off.
+    var remindDue: Bool? = nil
     var photoData: String? = nil
     @Attribute(.unique) var id: UUID
     var title: String

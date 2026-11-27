@@ -127,6 +127,8 @@ function renderCalendar(tasks) {
     [...tasks.filter((task) => taskDate(task) === key), ...ruled(key)].sort(
       (a, b) => !!a.completedAt - !!b.completedAt || (a.dueDate || 0) - (b.dueDate || 0),
     );
+  const dueOn = (key) =>
+    tasks.filter((task) => !task.isNote && !task.completedAt && task.deadline === key && taskDate(task) !== key);
   const shared = calendarEvents();
   const eventsOn = (key) => [
     ...OrbitCalendarEvents.allDayOn(shared, key),
@@ -157,14 +159,17 @@ function renderCalendar(tasks) {
           return `<span class="cal-item cal-event${OrbitCalendarEvents.ended(event) ? " past" : ""}" data-event-color="${calendarColor(event)}" title="${esc(eventTooltip(event))}"><i></i>${time ? `<b>${time}</b>` : ""}<em>${esc(event.title || "Event")}</em></span>`;
         })
         .join("");
-      const total = items.length + dayEvents.length;
+      const total = items.length + dayEvents.length + dueOn(key).length;
       const lines =
         eventLines +
         items
           .slice(0, Math.max(0, CAL_CELL_MOST - dayEvents.length))
           .map((task) => {
             const time = task.hasTime ? calendarTime(task.dueDate) : "";
-            return `<span class="cal-item ${task.completedAt ? "done" : ""} ${task.listID === SOMEDAY ? "ruled" : ""}"><i></i>${
+            // Open tasks can be dragged to another day.
+            const drag =
+              task.completedAt || task.listID === SOMEDAY ? "" : ` draggable="true" data-drag-task="${esc(task.id)}"`;
+            return `<span class="cal-item ${task.completedAt ? "done" : ""} ${task.listID === SOMEDAY ? "ruled" : ""}"${drag}><i></i>${
               time
                 ? `<b>${time
                     .replace(/:00(?= )/, "")
@@ -174,8 +179,15 @@ function renderCalendar(tasks) {
             }<em>${esc(task.title)}</em></span>`;
           })
           .join("");
+      // A flag on the day an open task is due (when it isn't planned that same day).
+      const dueLines = dueOn(key)
+        .map(
+          (task) =>
+            `<span class="cal-item cal-due" draggable="true" data-drag-task="${esc(task.id)}" title="${esc(task.title)} is due"><i></i><b>Due</b><em>${esc(task.title)}</em></span>`,
+        )
+        .join("");
       const label = date.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
-      return `<button class="day-tile cal-cell ${key === calendarDay ? "selected" : ""} ${key === current ? "today" : ""} ${date.getMonth() !== first.getMonth() ? "outside" : ""}" data-day="${key}" aria-pressed="${key === calendarDay}" aria-label="${label}${total ? `, ${total} ${total === 1 ? "item" : "items"}` : ""}"><span class="cal-date">${date.getDate()}</span>${lines}<span class="cal-more" data-total="${total}" ${total > CAL_CELL_MOST ? "" : "hidden"}>${Math.max(0, total - CAL_CELL_MOST)} more</span></button>`;
+      return `<button class="day-tile cal-cell ${key === calendarDay ? "selected" : ""} ${key === current ? "today" : ""} ${date.getMonth() !== first.getMonth() ? "outside" : ""}" data-day="${key}" aria-pressed="${key === calendarDay}" aria-label="${label}${total ? `, ${total} ${total === 1 ? "item" : "items"}` : ""}"><span class="cal-date">${date.getDate()}</span>${dueLines}${lines}<span class="cal-more" data-total="${total}" ${total > CAL_CELL_MOST ? "" : "hidden"}>${Math.max(0, total - CAL_CELL_MOST)} more</span></button>`;
     })
     .join("");
   const chosen = localDay(calendarDay),
@@ -289,8 +301,12 @@ function bindCalendar() {
     };
   });
   document.querySelectorAll("[data-day]").forEach((button) => {
-    button.onclick = () => {
+    button.onclick = (event) => {
       calendarDay = button.dataset.day;
+      // "3 more" opens that day on its own, with everything in it.
+      if (event.target.closest?.(".cal-more")) {
+        calendarView = "day";
+      }
       calendarCompletedOpen = false;
       calendarStart = monthOf(calendarDay);
       render();
@@ -512,6 +528,25 @@ function bindCalendar() {
       calendarDay = key;
     });
   };
+  // Month: drop a task on another day to move it there (a timed task keeps its time).
+  document.querySelectorAll(".cal-grid .cal-cell").forEach((cell) => {
+    cell.ondragover = (event) => {
+      if (!event.dataTransfer.types.includes("text/orbit-task")) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      cell.classList.add("drop-target");
+    };
+    cell.ondragleave = (event) => {
+      if (!cell.contains(event.relatedTarget)) cell.classList.remove("drop-target");
+    };
+    cell.ondrop = (event) => {
+      const task = rows("tasks").find((item) => item.id === event.dataTransfer.getData("text/orbit-task"));
+      endTaskDrag();
+      if (!task) return;
+      const time = task.hasTime && task.dueDate ? new Date(task.dueDate).toTimeString().slice(0, 5) : null;
+      void reschedule(event, cell.dataset.day, time);
+    };
+  });
   document.querySelectorAll("[data-time-slot], .schedule-all-day-column").forEach((target) => {
     target.ondragover = (event) => {
       if (!event.dataTransfer.types.includes("text/orbit-task")) return;

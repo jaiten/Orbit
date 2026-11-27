@@ -1,3 +1,4 @@
+/* global holdingTicks, pendingRender: writable, actionBusy */
 const { chromium } = require("playwright");
 const assert = require("node:assert/strict");
 const path = require("node:path");
@@ -270,7 +271,6 @@ const fs = require("node:fs");
   await p.evaluate(() => {
     window.holdRead = true;
     // This variable belongs to the renderer’s classic-script scope.
-    // eslint-disable-next-line no-undef
     pendingRender = true;
     document.activeElement.blur();
   });
@@ -420,6 +420,10 @@ const fs = require("node:fs");
   assert.ok(dock.x + dock.width < panel.x, "Calendar capture overlaps the day panel");
   // Calendar uses the same overlay controls, without moving text in its day panel.
   const calendarRow = p.locator(".cal-day .task-row").filter({ hasText: "Second selection" });
+  // The tick above folds its row away after a short pause and the page redraws then; measure after that,
+  // or the rows can be replaced between the two measurements.
+  await p.waitForFunction(() => !holdingTicks() && !pendingRender && !actionBusy);
+  await p.waitForTimeout(100);
   await p.mouse.move(0, 0);
   await p.waitForTimeout(160);
   const calendarTitle = await calendarRow.locator(".row-title").boundingBox();

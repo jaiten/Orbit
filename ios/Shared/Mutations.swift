@@ -70,6 +70,7 @@ import WidgetKit
         copy.tags = task.tags; copy.subtasks = task.subtasks.map { Subtask(id: $0.id, title: $0.title, completed: false) }
         copy.repeats = task.repeats; copy.repeatEvery = task.repeatEvery ?? 1
         copy.deadline = days.deadline
+        if days.deadline != nil && task.remindDue == true { copy.remindDue = true }
         if task.progressTracking == true { copy.progressTracking = true }
         // Times keep their clock time on the new day; reminders keep their distance from it.
         var shift = 0

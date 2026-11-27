@@ -157,10 +157,12 @@ final class SharedCaseTests: XCTestCase {
             XCTAssertEqual(result.someday, expect["someday"] as? Bool ?? false, input)
             XCTAssertEqual(result.list, expect["list"] as? String, input)
             if result.kind == .task { XCTAssertEqual(result.date, expect["date"] as? String, input) }
+            if expect.keys.contains("deadline") { XCTAssertEqual(result.deadline, expect["deadline"] as? String, input) }
         }
         XCTAssertEqual(QuickAdd.describe(QuickAdd.parse("stretch weekdays 7am", now: now), now: now), "Habit · Weekdays · 7:00 AM")
         XCTAssertEqual(QuickAdd.describe(QuickAdd.parse("gym tomorrow 6pm #health", now: now), now: now), "Task · Tomorrow · 6:00 PM · List: health")
         XCTAssertEqual(QuickAdd.describe(QuickAdd.parse("learn piano someday", now: now), now: now), "Someday")
+        XCTAssertEqual(QuickAdd.describe(QuickAdd.parse("pay rent due tomorrow", now: now), now: now), "Task · Today · Due tomorrow")
     }
 
     func testAbbreviationCases() throws {

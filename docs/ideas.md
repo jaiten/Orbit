@@ -3,7 +3,7 @@
 A running list of features and polish to consider, with notes on how each would be built.
 Items move to the README once they ship. Last updated 27 November 2026.
 
-## Building now
+## Shipped (27 November 2026)
 
 - **Recurring tasks** — "Pay rent, monthly, due the 1st". Ticking one off creates the next one with its
   planned day and due date moved forward, so missed ones don't pile up. Stored as a `repeat` rule on
@@ -14,6 +14,9 @@ Items move to the README once they ship. Last updated 27 November 2026.
   sidebar collapses to icons instead of disappearing.
 - **One date picker on Windows**: the custom calendar replaces every native date field (task editor,
   event editor, quick add rules).
+- **Incremental reads on Windows**: each record carries a change number; after a save the window asks
+  only for records changed since its last read, and the main process no longer re-reads the whole
+  table for undo, sync, reminders or migrations.
 
 ## Habits — planned
 
@@ -69,6 +72,8 @@ Items move to the README once they ship. Last updated 27 November 2026.
 
 - **Incremental reads on iPhone** like Windows now has: track a change counter per record so sync and
   widgets only look at what changed. (Sync already downloads only newer records.)
+- **Due flags on iPhone's Calendar** and drag between days in its month view, as on Windows.
+- **More repeat choices**: every 3 months, specific weekdays ("Mon and Thu"), the last day of the month.
 - **Render only visible rows** in Tasks when there are thousands (Windows), keeping the row animations.
 - **Encrypted locked notes** end to end, not only hidden on the device.
 - **Leaked-password protection** in Supabase Auth (a setting in the Supabase dashboard).

@@ -128,6 +128,22 @@ In 2 weeks). Open tasks then show "Due Fri", "Due today" or, in red,
 "Overdue · Nov 20" beside the title; the planned day doesn't move. Stored as the task's `deadline`
 day ([cases](shared/test-cases/deadlines.json)).
 
+Tasks due today or overdue appear on Today wherever they are planned (even undated or in Someday).
+Type `due fri`, `due tomorrow`, `due in 3 days` or `due dec 4` in quick add to set it. **Remind me
+the day before** (in the editor, once a due date is set) sends a reminder at 9 AM the day before. On
+Windows, Calendar's month shows a red **Due** flag on the day a task is due.
+
+**Recurring tasks.** Set **Repeat** in the task editor (every day, weekday, week, 2 weeks, month or
+year). Ticking one off adds the next with its planned day, time, due date and reminders moved forward,
+skipping dates already past, so missed ones don't pile up; unticking it by mistake takes back the
+untouched copy. Both devices make the same copy, so finishing it on both while offline doesn't double
+it ([cases](shared/test-cases/repeats.json)). Older repeating tasks stay habits, as before.
+
+**Calendar on Windows.** Month, Week and Day fit the window without a scrollbar; drag a task from one
+day to another in Month, and click "3 more" to open that day. Drag the main sidebar's edge in to leave
+just its icons (further hides it). Every date field uses the same small calendar, with Today, Tomorrow,
+Next week and In 2 weeks.
+
 **Taking a check-in off.** A habit partway through its check-ins (1 of 3) has a minus just before its
 count that takes one off (on Windows it slides in when you hover the row); Take One Off is also in its
 touch-and-hold (right-click) menu. Habits to avoid have a × to mark a slip in one tap, the same way (an

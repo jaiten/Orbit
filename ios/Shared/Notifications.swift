@@ -51,6 +51,12 @@ actor NotificationScheduler {
                 Reminder(id: "orbit.task.\(task.id).\(index)", title: task.title, body: "Reminder", date: date)
             }
         }
+        // "Remind me the day before" a due date: 9 AM local time the day before.
+        for task in tasks where task.completedAt == nil && !task.note && task.remindDue == true {
+            guard let due = task.deadline, let start = QuickAdd.start(of: due, time: 9 * 60),
+                  let date = Calendar.current.date(byAdding: .day, value: -1, to: start) else { continue }
+            result.append(Reminder(id: "orbit.due.\(task.id).\(due)", title: task.title, body: "Due tomorrow", date: date, floating: true))
+        }
         for habit in habits {
             for offset in 0..<7 {
                 let day = Calendar.current.date(byAdding: .day, value: offset, to: now)!

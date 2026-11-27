@@ -843,6 +843,7 @@ function nextOccurrence(t, completedDay, now) {
   };
   copy.dueDate = copy.hasTime ? moved(t.dueDate) : null;
   if (days.deadline) copy.deadline = days.deadline;
+  if (days.deadline && t.remindDue === true) copy.remindDue = true;
   if (t.progressTracking === true) copy.progressTracking = true;
   return copy;
 }

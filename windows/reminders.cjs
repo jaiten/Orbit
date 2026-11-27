@@ -33,6 +33,13 @@ function upcoming(records, now = Date.now(), days = 2, { eveningMinutes = null }
       if (Number.isFinite(at)) result.push({ id: `task:${t.id}:${index}`, title: t.title, body: "Reminder", at });
     });
   }
+  // "Remind me the day before" a due date: 9 AM local time the day before.
+  for (const t of of("tasks")) {
+    if (t.completedAt || t.isNote || t.remindDue !== true || !/^\d{4}-\d{2}-\d{2}$/.test(t.deadline || "")) continue;
+    const [y, m, d] = t.deadline.split("-").map(Number);
+    const at = new Date(y, m - 1, d - 1, 9, 0).getTime();
+    result.push({ id: `due:${t.id}:${t.deadline}`, title: t.title, body: "Due tomorrow", at });
+  }
   const start = new Date(now);
   for (let offset = 0; offset < days; offset++) {
     const day = new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset);
@@ -102,9 +109,7 @@ class ReminderScheduler {
     if (!this.enabled()) return null;
     const now = this.clock.now();
     const plan = upcoming(this.read(), now, 2, this.options());
-    for (const due of plan.filter(
-      (r) => r.at <= now && !this.shown.has(r.id),
-    )) {
+    for (const due of plan.filter((r) => r.at <= now && !this.shown.has(r.id))) {
       this.shown.add(due.id);
       this.show(due);
     }

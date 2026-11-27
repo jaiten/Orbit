@@ -11,6 +11,8 @@ struct QuickAddResult: Equatable {
     var schedule: String?
     var someday = false
     var list: String?
+    /// The task's due date from "due friday" (YYYY-MM-DD), apart from the day it is planned for.
+    var deadline: String? = nil
 }
 
 /// Which day plain text lands on: today, the day being viewed, or no day when adding to a list.
@@ -54,6 +56,44 @@ enum QuickAdd {
         let conditional = !SomedayRules.tags(in: input).isDisjoint(with: visibilityRules.map(\.tag))
         let list = text.take(#"\s#([\p{L}\p{N}_-]+)(?=\s)"#)?[1] ?? nil
 
+        let today = calendar.startOfDay(for: now)
+        func adding(_ component: Calendar.Component, _ value: Int) -> Date { calendar.date(byAdding: component, value: value, to: today)! }
+        func nextWeekday(_ weekday: Int, skipToday: Bool) -> Date {
+            var offset = (weekday - (calendar.component(.weekday, from: today) - 1) + 7) % 7
+            if offset == 0 && skipToday { offset = 7 }
+            return adding(.day, offset)
+        }
+        /// A date phrase after `lead` (a pattern): today, tomorrow, in 3 days, next week, friday, dec 4.
+        /// `bare` is what may stand before "in 3 days" and "next week" (no "on").
+        func readDate(_ lead: String, bare: String) -> Date? {
+            if text.take(lead + #"(today|tonight)(?=\s)"#) != nil { return today }
+            if text.take(lead + #"(tomorrow|tmrw|tmr)(?=\s)"#) != nil { return adding(.day, 1) }
+            if let m = text.take(bare + #"in\s+(\d+|an?|one|two|three|four|five|six)\s+(day|week|month)s?(?=\s)"#) {
+                let n = numbers[m[1]!.lowercased()] ?? Int(m[1]!) ?? 1
+                switch m[2]!.lowercased() {
+                case "month": return adding(.month, n)
+                case "week": return adding(.day, n * 7)
+                default: return adding(.day, n)
+                }
+            }
+            if text.take(bare + #"next\s+week(?=\s)"#) != nil { return nextWeekday(1, skipToday: true) }
+            if let m = text.take(lead + #"(next\s+|this\s+)?"# + day + #"(?=\s)"#) {
+                let word = m[2]!.lowercased()
+                return nextWeekday(weekdays[String(word.prefix(3))] ?? 0, skipToday: m[1]?.lowercased().hasPrefix("next") == true)
+            }
+            if let m = text.take(lead + month + #"\s+(\d{1,2})(?:st|nd|rd|th)?(?=\s)"#) ?? text.take(lead + #"(\d{1,2})(?:st|nd|rd|th)?\s+"# + month + #"(?=\s)"#) {
+                let (monthWord, dayNumber) = m[1]!.first!.isNumber ? (m[2]!, m[1]!) : (m[1]!, m[2]!)
+                let monthIndex = (months.firstIndex(of: String(monthWord.lowercased().prefix(3))) ?? 0) + 1
+                let year = calendar.component(.year, from: today)
+                var found = calendar.date(from: DateComponents(year: year, month: monthIndex, day: Int(dayNumber)!))
+                if let date = found, date < today { found = calendar.date(from: DateComponents(year: year + 1, month: monthIndex, day: Int(dayNumber)!)) }
+                return found
+            }
+            return nil
+        }
+        // "due friday": the task's due date (its planned day still comes from the other date words, if any).
+        let deadline = readDate(#"\sdue\s+(?:on\s+)?"#, bare: #"\sdue\s+(?:on\s+)?"#).map { PlannerLogic.dayKey($0, calendar: calendar) }
+
         var schedule: String?
         for (pattern, value) in [(#"\s(?:every\s*day|daily)(?=\s)"#, "DAILY"), (#"\s(?:every\s+weekday|weekdays)(?=\s)"#, "WEEKDAYS"),
                                  (#"\s(?:every\s+weekend|weekends)(?=\s)"#, "WEEKENDS"), (#"\s(?:every\s+week|weekly)(?=\s)"#, "WEEKLY"),
@@ -68,56 +108,28 @@ enum QuickAdd {
             time = Int(m[1]!)! * 60 + Int(m[2]!)!
         } else if text.take(#"\s(?:at\s+)?noon(?=\s)"#) != nil { time = 720 }
 
-        let today = calendar.startOfDay(for: now)
-        func adding(_ component: Calendar.Component, _ value: Int) -> Date { calendar.date(byAdding: component, value: value, to: today)! }
-        func nextWeekday(_ weekday: Int, skipToday: Bool) -> Date {
-            var offset = (weekday - (calendar.component(.weekday, from: today) - 1) + 7) % 7
-            if offset == 0 && skipToday { offset = 7 }
-            return adding(.day, offset)
-        }
         var date: Date?
-        if schedule == nil {
-            if text.take(#"\s(?:on\s+)?(today|tonight)(?=\s)"#) != nil { date = today }
-            else if text.take(#"\s(?:on\s+)?(tomorrow|tmrw|tmr)(?=\s)"#) != nil { date = adding(.day, 1) }
-            else if let m = text.take(#"\sin\s+(\d+|an?|one|two|three|four|five|six)\s+(day|week|month)s?(?=\s)"#) {
-                let n = numbers[m[1]!.lowercased()] ?? Int(m[1]!) ?? 1
-                switch m[2]!.lowercased() {
-                case "month": date = adding(.month, n)
-                case "week": date = adding(.day, n * 7)
-                default: date = adding(.day, n)
-                }
-            } else if text.take(#"\snext\s+week(?=\s)"#) != nil { date = nextWeekday(1, skipToday: true) }
-            else if let m = text.take(#"\s(?:on\s+)?(next\s+|this\s+)?"# + day + #"(?=\s)"#) {
-                let word = m[2]!.lowercased()
-                date = nextWeekday(weekdays[String(word.prefix(3))] ?? 0, skipToday: m[1]?.lowercased().hasPrefix("next") == true)
-            } else if let m = text.take(#"\s(?:on\s+)?"# + month + #"\s+(\d{1,2})(?:st|nd|rd|th)?(?=\s)"#) ?? text.take(#"\s(?:on\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+"# + month + #"(?=\s)"#) {
-                let (monthWord, dayNumber) = m[1]!.first!.isNumber ? (m[2]!, m[1]!) : (m[1]!, m[2]!)
-                let monthIndex = (months.firstIndex(of: String(monthWord.lowercased().prefix(3))) ?? 0) + 1
-                let year = calendar.component(.year, from: today)
-                date = calendar.date(from: DateComponents(year: year, month: monthIndex, day: Int(dayNumber)!))
-                if let found = date, found < today { date = calendar.date(from: DateComponents(year: year + 1, month: monthIndex, day: Int(dayNumber)!)) }
-            }
-        }
+        if schedule == nil { date = readDate(#"\s(?:on\s+)?"#, bare: #"\s"#) }
 
         let title = text.value.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespaces)
             .replacingOccurrences(of: #"\s(?:on|at|by)$"#, with: "", options: [.regularExpression, .caseInsensitive])
         if let schedule { return QuickAddResult(kind: .habit, title: title, date: nil, time: time, schedule: schedule, list: list) }
-        if someday || conditional { return QuickAddResult(kind: .task, title: title, date: nil, time: nil, someday: true, list: list) }
+        if someday || conditional { return QuickAddResult(kind: .task, title: title, date: nil, time: nil, someday: true, list: list, deadline: deadline) }
         if date == nil {
             var fallback = defaultDay
             // Adding to a list: without date words the task stays in the list, undated.
             if fallback == .undated {
-                if time == nil { return QuickAddResult(kind: .task, title: title, date: nil, time: nil, list: list) }
+                if time == nil { return QuickAddResult(kind: .task, title: title, date: nil, time: nil, list: list, deadline: deadline) }
                 fallback = .today
             }
-            if case .day(let key) = fallback { return QuickAddResult(kind: .task, title: title, date: key, time: time, list: list) }
+            if case .day(let key) = fallback { return QuickAddResult(kind: .task, title: title, date: key, time: time, list: list, deadline: deadline) }
             date = today
             // A bare time that has already passed today means tomorrow.
             let minutes = calendar.component(.hour, from: now) * 60 + calendar.component(.minute, from: now)
             if let time, time < minutes { date = adding(.day, 1) }
         }
-        return QuickAddResult(kind: .task, title: title, date: PlannerLogic.dayKey(date!, calendar: calendar), time: time, list: list)
+        return QuickAddResult(kind: .task, title: title, date: PlannerLogic.dayKey(date!, calendar: calendar), time: time, list: list, deadline: deadline)
     }
 
     /// Text for the preview chip, e.g. "Habit · Weekdays · 7:00 AM" or "Task · Tomorrow · 6:00 PM · List: Personal".
@@ -136,7 +148,11 @@ enum QuickAdd {
         let tomorrow = PlannerLogic.dayKey(calendar.date(byAdding: .day, value: 1, to: now)!, calendar: calendar)
         let label = day == today ? "Today" : day == tomorrow ? "Tomorrow"
             : (HabitRules.date(day).map { $0.formatted(Date.FormatStyle(timeZone: TimeZone(identifier: "UTC")!).weekday(.abbreviated).month(.abbreviated).day()) } ?? day)
-        return (["Task", label] + [clock, list].compactMap { $0 }).joined(separator: " · ")
+        let due = result.deadline.map { key in
+            "Due " + (key == today ? "today" : key == tomorrow ? "tomorrow"
+                : (HabitRules.date(key).map { $0.formatted(Date.FormatStyle(timeZone: TimeZone(identifier: "UTC")!).weekday(.abbreviated).month(.abbreviated).day()) } ?? key))
+        }
+        return (["Task", label] + [clock, due, list].compactMap { $0 }).joined(separator: " · ")
     }
 
     /// The local start of a parsed day, plus its time when there is one.

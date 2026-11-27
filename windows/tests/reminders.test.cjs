@@ -112,3 +112,22 @@ test("the evening check-in comes only on days with something left, and says what
   assert.equal(eveningText(0, 0), null);
   assert.equal(eveningText(1, 2), "1 habit and 2 tasks left today. Even one small one counts.");
 });
+
+test("a task with Remind me the day before gets a 9 AM reminder the day before it is due", () => {
+  const { upcoming: plan } = require("../reminders.cjs");
+  const now = new Date(2026, 10, 26, 8, 0).getTime();
+  const task = (id, extra) => ({
+    key: `tasks/${id}`,
+    payload: { id, title: "Essay " + id, deadline: "2026-11-27", reminders: [], ...extra },
+  });
+  const result = plan(
+    [task("a", { remindDue: true }), task("b", {}), task("c", { remindDue: true, completedAt: 1 })],
+    now,
+    2,
+  );
+  const due = result.filter((r) => r.id.startsWith("due:"));
+  assert.deepEqual(
+    due.map((r) => [r.id, r.title, r.body, r.at]),
+    [["due:a:2026-11-27", "Essay a", "Due tomorrow", new Date(2026, 10, 26, 9, 0).getTime()]],
+  );
+});

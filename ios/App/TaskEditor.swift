@@ -24,6 +24,7 @@ struct TaskEditor: View {
     /// "weekly:2" style, or "" for no repeat (RepeatRules.choices).
     @State private var repeatChoice = ""
     @State private var hasDeadline = false
+    @State private var remindDue = false
     @State private var deadline = Date.now
     @State private var tags = ""
     @State private var subtasks: [Subtask] = []
@@ -68,7 +69,10 @@ struct TaskEditor: View {
                 } footer: { if !repeatChoice.isEmpty { Text("Ticking it off adds the next one, with its day and due date moved forward.") } }
                 Section {
                     Toggle("Due date", isOn: $hasDeadline.animation())
-                    if hasDeadline { DatePicker("Due", selection: $deadline, displayedComponents: .date) }
+                    if hasDeadline {
+                        DatePicker("Due", selection: $deadline, displayedComponents: .date)
+                        Toggle("Remind me the day before", isOn: $remindDue)
+                    }
                 } footer: { if hasDeadline { Text("When it needs to be done by. The day it's planned for stays the same.") } }
                 Section {
                     Toggle("Track start & finish", isOn: $progressTracking)
@@ -147,6 +151,7 @@ struct TaskEditor: View {
         date = task.dueDate ?? .now; hasTime = task.hasTime; duration = task.durationMinutes
         priority = task.priority; tags = task.tags.joined(separator: ", ")
         if let due = task.deadline.flatMap({ QuickAdd.start(of: $0, time: nil) }) { hasDeadline = true; deadline = due }
+        remindDue = task.remindDue == true
         repeatChoice = RepeatRules.choice(rule: task.repeats, every: task.repeatEvery)
         subtasks = task.subtasks; reminders = task.reminders
     }
@@ -163,6 +168,7 @@ struct TaskEditor: View {
         item.schedule(scheduled ? date : nil, hasTime: hasTime); item.durationMinutes = duration
         item.priority = priority; item.recurrenceRule = ""
         item.deadline = hasDeadline ? PlannerLogic.dayKey(deadline) : nil
+        item.remindDue = hasDeadline && remindDue ? true : nil
         let parts = repeatChoice.split(separator: ":")
         if let rule = parts.first.map(String.init), RepeatRules.valid(rule) {
             item.repeats = rule; item.repeatEvery = parts.count > 1 ? Int(parts[1]) ?? 1 : 1

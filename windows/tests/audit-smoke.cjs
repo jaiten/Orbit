@@ -126,11 +126,14 @@ const path = require("node:path");
     await rule.locator('[name="tag"]').fill("@Home");
     await rule.locator('[name="trigger"]').selectOption("weeks");
     // Dates are chosen in the app's own date picker; set the field it keeps behind the button.
-    await rule.locator('[name="start"]').evaluate((input, day) => {
-      input.value = day;
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-    }, await p.evaluate(() => window.ruleDays.later));
+    await rule.locator('[name="start"]').evaluate(
+      (input, day) => {
+        input.value = day;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      },
+      await p.evaluate(() => window.ruleDays.later),
+    );
     await rule.locator('[name="interval"]').fill("1");
     await p.locator("#someday-rule-save").click();
     await p.locator("#notice .notice-action").click();

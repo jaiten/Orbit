@@ -3,6 +3,8 @@ const paneState = {
   main: {
     width: Number(localStorage.getItem("mainSidebarWidth")) || 216,
     open: localStorage.getItem("mainSidebarOpen") !== "false",
+    // Icons only: a narrow strip that keeps the pages one click away.
+    compact: localStorage.getItem("mainSidebarCompact") === "true",
   },
   notes: {
     width: Number(localStorage.getItem("notesSidebarWidth")) || 248,
@@ -19,10 +21,17 @@ const sidebarIcon =
   '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>';
 function applyPaneLayout() {
   const root = document.documentElement;
+  const compact = paneState.main.open && paneState.main.compact;
   root.style.setProperty(
     "--sidebar-width",
-    paneState.main.open ? Math.max(180, Math.min(360, paneState.main.width)) + "px" : "0px",
+    !paneState.main.open ? "0px" : compact ? "64px" : Math.max(180, Math.min(360, paneState.main.width)) + "px",
   );
+  root.dataset.sidebarCompact = String(compact);
+  // Icon-only buttons say their page in a tooltip.
+  document.querySelectorAll(".sidebar nav [data-page], #sidebar-search").forEach((button) => {
+    if (compact) button.title = button.querySelector("span")?.textContent || "";
+    else button.removeAttribute("title");
+  });
   root.style.setProperty(
     "--notes-width",
     Math.max(180, Math.min(notesWidth(), 400, innerWidth - (paneState.main.open ? paneState.main.width : 0) - 320)) +
@@ -46,6 +55,7 @@ function savePanes() {
     localStorage.setItem(name + "SidebarWidth", String(pane.width));
     localStorage.setItem(name + "SidebarOpen", String(pane.open));
   }
+  localStorage.setItem("mainSidebarCompact", String(paneState.main.compact));
   localStorage.setItem("notesSidebarCustom", String(paneState.notes.custom));
   resizeNoteFields();
 }
@@ -66,9 +76,12 @@ function bindPaneGrip(grip, name) {
     document.body.classList.add("resizing-pane");
     // Dragging well past the narrowest width closes the sidebar (its show button then appears).
     let closing = false;
+    if (name === "main" && pane.compact) pane.compact = false;
     grip.onpointermove = (move) => {
       const raw = width + move.clientX - x;
-      closing = raw < min - 70;
+      // The main sidebar first narrows to icons, then closes if dragged further.
+      closing = raw < (name === "main" ? 40 : min - 70);
+      if (name === "main") pane.compact = !closing && raw < min - 40;
       document.body.classList.toggle("closing-pane", closing);
       pane.width = Math.max(min, Math.min(max, raw));
       grip.setAttribute("aria-valuenow", String(pane.width));
@@ -126,7 +139,12 @@ function togglePane(name) {
   savePanes();
 }
 $("#toggle-sidebar").innerHTML = sidebarIcon;
-$("#toggle-sidebar").onclick = () => togglePane("main");
+// Shown only while the sidebar is hidden: brings it back at full width.
+$("#toggle-sidebar").onclick = () => {
+  Object.assign(paneState.main, { open: true, compact: false });
+  applyPaneLayout();
+  savePanes();
+};
 window.addEventListener("resize", () => {
   applyPaneLayout();
   resizeNoteFields();

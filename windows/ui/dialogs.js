@@ -28,6 +28,11 @@ function openTask(id, date, draft = null, { expanded = false } = {}) {
   f.elements.duration.value = (editing ?? source)?.durationMinutes || 60;
   f.elements.priority.value = editing?.priority || 0;
   f.elements.deadline.value = source?.deadline || "";
+  f.elements.remindDue.checked = source?.remindDue === true;
+  // The day-before reminder only makes sense with a due date.
+  const syncRemindDue = () => ($(".remind-due-field").hidden = !f.elements.deadline.value);
+  f.elements.deadline.onchange = syncRemindDue;
+  syncRemindDue();
   f.elements.repeat.innerHTML = OrbitRepeats.CHOICES.map(
     ([value, label]) => `<option value="${value}">${label}</option>`,
   ).join("");
@@ -250,6 +255,8 @@ $("#task-form").onsubmit = (e) => {
     // A due date is optional and separate from the day the task is planned for.
     if (f.elements.deadline.value) saved.deadline = f.elements.deadline.value;
     else delete saved.deadline;
+    if (f.elements.deadline.value && f.elements.remindDue.checked) saved.remindDue = true;
+    else delete saved.remindDue;
     // Repeat: "weekly:2" → repeat "weekly", every 2. Never removes both.
     const [repeat, every] = f.elements.repeat.value.split(":");
     if (OrbitRepeats.valid(repeat)) {

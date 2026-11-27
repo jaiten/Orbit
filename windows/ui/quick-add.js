@@ -195,6 +195,7 @@ function quickRecords(result) {
   if (result.someday) listID = SOMEDAY;
   if (listID === SOMEDAY && result.date) listID = null;
   const task = { ...newTask(result.title, result.date), listID };
+  if (result.deadline) task.deadline = result.deadline;
   // Start & finish, learned from similar earlier tasks (or a rule word): on from the second time.
   if (learnedProgress(result.title) === "auto") task.progressTracking = true;
   if (result.time !== null && result.date) {
