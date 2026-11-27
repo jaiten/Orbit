@@ -564,8 +564,17 @@ function keepCaretAboveChin() {
   range.collapse(false);
   let rect = range.getClientRects()[0] || range.getBoundingClientRect();
   if (!rect || (!rect.bottom && !rect.top)) {
-    const node = selection.anchorNode;
-    rect = (node.nodeType === 1 ? node : node.parentElement)?.getBoundingClientRect();
+    // A caret on a new, empty line has no box of its own. Measure the line it sits on (the <br> or
+    // paragraph at the caret), never the whole note body: that sent Return to the end of the note.
+    const node = selection.anchorNode,
+      offset = selection.anchorOffset;
+    const target = node.nodeType === 1 ? node.childNodes[offset] || node.childNodes[offset - 1] || node : node;
+    const line = document.createRange();
+    if (target.nodeType === 1 && target.nodeName !== "BR") line.selectNodeContents(target);
+    else line.selectNode(target);
+    rect = line.getClientRects()[0] || line.getBoundingClientRect();
+    if ((!rect || (!rect.bottom && !rect.top)) && target !== body)
+      rect = (target.nodeType === 1 ? target : target.parentElement)?.getBoundingClientRect();
   }
   if (!rect) return;
   const over = rect.bottom - (innerHeight - chin);

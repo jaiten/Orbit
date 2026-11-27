@@ -444,15 +444,36 @@ struct CaptureTextField: UIViewRepresentable {
         func styleLinks() {
             guard detectsLinks, markedTextRange == nil else { return }
             let storage = textStorage, full = NSRange(location: 0, length: storage.length)
-            storage.beginEditing()
-            storage.removeAttribute(.link, range: full)
+            var wanted: [(NSRange, URL)] = []
             Self.linkDetector?.enumerateMatches(in: storage.string, range: full) { match, _, _ in
                 guard let match, let url = match.url, Self.linkSchemes.contains(url.scheme?.lowercased() ?? "") else { return }
-                storage.addAttribute(.link, value: url, range: match.range)
+                wanted.append((match.range, url))
             }
+            var current: [(NSRange, URL)] = []
+            storage.enumerateAttribute(.link, in: full) { value, range, _ in
+                if let url = value as? URL { current.append((range, url)) }
+            }
+            // Leave the text alone unless the links changed: rewriting it on every key (Return after a
+            // link included) made the page scroll to the caret.
+            guard wanted.map({ $0.0 }) != current.map({ $0.0 }) || wanted.map({ $0.1 }) != current.map({ $0.1 }) else {
+                typingAttributes[.link] = nil
+                return
+            }
+            let offset = enclosingScrollView?.contentOffset
+            storage.beginEditing()
+            storage.removeAttribute(.link, range: full)
+            for (range, url) in wanted { storage.addAttribute(.link, value: url, range: range) }
             storage.endEditing()
+            // The page around the note stays where it was.
+            if let offset, let scroller = enclosingScrollView, scroller.contentOffset != offset { scroller.contentOffset = offset }
             // Typing right after a link starts plain text, not more link.
             typingAttributes[.link] = nil
+        }
+        /// The scroll view the note sits in (SwiftUI's ScrollView), not this text view itself.
+        private var enclosingScrollView: UIScrollView? {
+            var view = superview
+            while let current = view { if let scroller = current as? UIScrollView { return scroller }; view = current.superview }
+            return nil
         }
         @objc private func openTappedLink(_ tap: UITapGestureRecognizer) {
             let point = tap.location(in: self)

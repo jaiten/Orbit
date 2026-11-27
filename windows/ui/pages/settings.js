@@ -9,9 +9,34 @@ function applyAppearance(name) {
     /* Storage can be unavailable; the choice still applies for this session. */
   }
   void window.orbit?.setAppearance?.(name)?.catch?.(() => {});
+  // After the theme changes, once styles have settled.
+  setTimeout(() => typeof syncTitleBar === "function" && syncTitleBar(), 0);
 }
 // On Windows 11 the sidebar shows the window's Mica material (see polish.css).
 if (window.orbit?.mica) document.documentElement.dataset.mica = "";
+// The window buttons sit over the page: they take its background and text colours.
+if (window.orbit?.titleOverlay) document.documentElement.dataset.titleBar = "overlay";
+function syncTitleBar() {
+  if (!window.orbit?.titleOverlay) return;
+  const hex = (css) => {
+    const [r, g, b] = (css.match(/\d+(\.\d+)?/g) || []).map(Number);
+    return (
+      "#" +
+      [r, g, b]
+        .map((n) =>
+          Math.round(n || 0)
+            .toString(16)
+            .padStart(2, "0"),
+        )
+        .join("")
+    );
+  };
+  const style = getComputedStyle(document.querySelector("main") || document.body);
+  void window.orbit
+    .setTitleBar({ color: hex(style.backgroundColor), symbolColor: hex(style.color) })
+    ?.catch?.(() => {});
+}
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => setTimeout(syncTitleBar, 0));
 applyAppearance(localStorage.getItem("appearance") || "system");
 
 function choiceButtons(attribute, values, current) {

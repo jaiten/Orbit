@@ -2842,3 +2842,73 @@ body[data-view="calendar"] .cal-more {
 .text-link:hover {
   text-decoration-color: currentColor;
 }
+/* No scroll anchoring inside note text: Return after a long, wrapped line (a link) made Chromium move
+   the page by that line's height to keep its chosen anchor still. The chin scroll handles the caret. */
+.note-document,
+.note-page {
+  overflow-anchor: none;
+}
+
+/* Today's To-dos card matches the cards beside it (a sand well with a hairline), instead of the
+   lighter list colour. Its row overlays (pencil and bin, hover) use the same colour. */
+.today-board [data-today-panel="tasks"] {
+  --surface: var(--well);
+  --list-bg: var(--well);
+}
+.today-board [data-today-panel="tasks"] .check-list {
+  background: var(--well);
+  box-shadow: none;
+  border: 1px solid var(--line);
+}
+
+/* No separate title bar on Windows: the page reaches the top, the window buttons sit over its top
+   right, and a strip along the top drags the window. Controls in that strip stay clickable, and
+   anything pinned to the top starts below it. */
+:root {
+  --title-inset: 0px;
+}
+:root[data-title-bar="overlay"] {
+  --title-inset: 32px;
+}
+#drag-strip {
+  display: none;
+}
+:root[data-title-bar="overlay"] #drag-strip {
+  display: block;
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: var(--title-inset);
+  z-index: 1;
+  pointer-events: none;
+  -webkit-app-region: drag;
+}
+:root[data-title-bar="overlay"]
+  :is(
+    button,
+    a,
+    input,
+    textarea,
+    select,
+    summary,
+    label,
+    dialog,
+    [contenteditable="true"],
+    [role="button"],
+    [tabindex],
+    .pane-grip,
+    .date-popover
+  ) {
+  -webkit-app-region: no-drag;
+}
+:root[data-title-bar="overlay"] main {
+  padding-top: var(--title-inset);
+}
+:root[data-title-bar="overlay"] :is(.note-toolbar, .notes-nav) {
+  top: var(--title-inset);
+}
+:root[data-title-bar="overlay"] .notes-nav {
+  height: calc(100vh - var(--title-inset));
+}
+:root[data-title-bar="overlay"] body[data-view="calendar"] .page {
+  height: calc(100vh - var(--title-inset));
+}

@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld("orbit", {
   finishOnboarding: () => ipcRenderer.invoke("onboarded"),
   reschedule: (zone) => ipcRenderer.invoke("reschedule", zone),
   mica: process.argv.includes("--orbit-mica"),
+  titleOverlay: process.argv.includes("--orbit-title-overlay"),
+  setTitleBar: (colors) => ipcRenderer.invoke("title-bar", colors),
   setAppearance: (name) => ipcRenderer.invoke("appearance", name),
   // Windows' own spell checker, for autocorrect: is the word misspelled, and what would it suggest.
   spell: (word) => {

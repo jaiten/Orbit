@@ -23,6 +23,13 @@ const os = require("node:os");
  */
 const mica =
   process.env.ORBIT_MICA === "1" && process.platform === "win32" && Number(os.release().split(".")[2]) >= 22621;
+/**
+ * No separate title bar: the page runs to the top of the window and Windows draws only the minimise,
+ * maximise and close buttons over it, in the page's own colours (set from the page, so they follow
+ * light and dark). The top strip of the page drags the window. ORBIT_TITLEBAR=overlay tries it elsewhere.
+ */
+const overlayTitleBar = !mica && (process.platform === "win32" || process.env.ORBIT_TITLEBAR === "overlay");
+const TITLE_BAR_HEIGHT = 32;
 const calendarExport = require("./calendar-export.cjs");
 const { CalendarAccounts } = require("./calendar-accounts.cjs");
 const { correctedZone, parseWindowsZone, WINDOWS_ZONE_SCRIPT } = require("./time-zone.cjs");
@@ -258,10 +265,20 @@ app.whenReady().then(async () => {
     show: false,
     backgroundColor: mica ? "#00000000" : nativeTheme.shouldUseDarkColors ? "#1E1E20" : "#EBEBEE",
     ...(mica ? { backgroundMaterial: "mica" } : {}),
+    ...(overlayTitleBar
+      ? {
+          titleBarStyle: "hidden",
+          titleBarOverlay: {
+            color: nativeTheme.shouldUseDarkColors ? "#1b1a19" : "#fbf8f2",
+            symbolColor: nativeTheme.shouldUseDarkColors ? "#f3eee6" : "#26221d",
+            height: TITLE_BAR_HEIGHT,
+          },
+        }
+      : {}),
     icon: path.join(__dirname, "assets", "orbit.png"),
     autoHideMenuBar: true,
     webPreferences: {
-      additionalArguments: mica ? ["--orbit-mica"] : [],
+      additionalArguments: [...(mica ? ["--orbit-mica"] : []), ...(overlayTitleBar ? ["--orbit-title-overlay"] : [])],
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
@@ -353,6 +370,12 @@ app.whenReady().then(async () => {
   // Settings → Appearance also sets the window's own theme, so Mica and the title bar match it.
   handle("appearance", async (name) => {
     nativeTheme.themeSource = ["light", "dark"].includes(name) ? name : "system";
+  });
+  // The window buttons take the page's background and text colours (sent by the page as it themes).
+  handle("title-bar", ({ color, symbolColor } = {}) => {
+    const hex = (value) => typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value);
+    if (!overlayTitleBar || !hex(color) || !hex(symbolColor) || window.isDestroyed()) return;
+    window.setTitleBarOverlay({ color, symbolColor, height: TITLE_BAR_HEIGHT });
   });
   handle("copy", async (text) => {
     if (typeof text !== "string" || text.length > 200000) throw Error("Invalid text");
