@@ -390,9 +390,8 @@ struct HabitRow: View {
     private var holdKey: String { "habit-" + habit.id.uuidString }
     /// Met for its whole period: a weekly or monthly habit only once the week's or month's goal is reached.
     private var finished: Bool {
-        guard checked else { return false }
-        guard HabitRules.period(habit.frequencyRule) != nil else { return true }
-        let extra = pending == true && !saved ? 1 : 0
+        guard HabitRules.period(habit.frequencyRule) != nil else { return checked }
+        let extra = pending == true && !saved ? 1 : pending == false && saved ? -1 : 0
         return HabitRules.periodProgress(rule: habit.frequencyRule, counts: counts, day: PlannerLogic.dayKey(date), weekStart: HabitRules.weekStart()) + extra >= habit.target
     }
     var body: some View {

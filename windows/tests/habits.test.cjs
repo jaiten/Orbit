@@ -76,3 +76,14 @@ test("counter goals: at least is met once reached, at most is fine until passed"
   assert.equal(habits.goalState(counter(2, "atMost"), 3), "over");
   assert.equal(habits.goalState({ frequencyRule: "DAILY", goal: 3 }, 5), null);
 });
+
+test("check-in counts follow a list that grows, and periods sum their days", () => {
+  const H = require("../ui/habits.js");
+  const habit = { id: "h", frequencyRule: "WEEKLY", target: 3 };
+  const logs = [{ habitID: "h", dayKey: "2026-11-23", count: 1 }];
+  assert.equal(H.dayCount(habit, logs, "2026-11-23"), 1);
+  logs.push({ habitID: "h", dayKey: "2026-11-25", count: 1 }, { habitID: "x", dayKey: "2026-11-25", count: 4 });
+  assert.equal(H.dayCount(habit, logs, "2026-11-25"), 1);
+  assert.equal(H.periodProgress(habit, logs, "2026-11-26", 0), 2);
+  assert.equal(H.countOver(habit, logs, "2026-11-26", 7), 2);
+});

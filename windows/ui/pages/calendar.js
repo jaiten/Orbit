@@ -48,25 +48,40 @@ const CAL_CELL_MOST = 12;
  * fits the window without a scrollbar: a tall window shows more per day, a short one fewer.
  */
 function fitCalendarCells() {
-  document.querySelectorAll(".cal-grid .cal-cell").forEach((cell) => {
-    const items = [...cell.querySelectorAll(".cal-item")],
-      more = cell.querySelector(".cal-more");
-    if (!more) return;
-    const total = Number(more.dataset.total) || 0;
-    items.forEach((item) => (item.hidden = false));
-    more.hidden = total <= items.length;
-    let shown = items.length;
-    const fits = () => cell.scrollHeight <= cell.clientHeight + 1;
-    while (shown > 0 && !fits()) {
-      items[--shown].hidden = true;
-      more.hidden = false;
-    }
-    more.textContent = `${total - shown} more`;
-    // A narrow day says "+2" instead of cutting "2 more" short.
-    if (!more.hidden && more.scrollWidth > more.clientWidth + 1) more.textContent = `+${total - shown}`;
-    // With nothing left to hide, "N more" alone still says the day has something on.
-    if (!fits() && shown === 0) more.hidden = false;
+  const cells = [...document.querySelectorAll(".cal-grid .cal-cell")];
+  // Show everything, then read every position in one layout pass, then hide what doesn't fit.
+  // (Hiding one item at a time and re-measuring forced a layout per item: slow on a busy month.)
+  for (const cell of cells) {
+    cell.querySelectorAll(".cal-item").forEach((item) => (item.hidden = false));
+    const more = cell.querySelector(".cal-more");
+    if (more) more.hidden = true;
+  }
+  const plans = cells.map((cell) => {
+    const more = cell.querySelector(".cal-more");
+    const items = [...cell.querySelectorAll(".cal-item")];
+    if (!more) return null;
+    const box = cell.getBoundingClientRect();
+    const limit = box.bottom - (parseFloat(getComputedStyle(cell).paddingBottom) || 0);
+    return { more, items, limit, bottoms: items.map((item) => item.getBoundingClientRect().bottom) };
   });
+  // "N more" needs a line of its own (about 17px with the gap).
+  const MORE_LINE = 17;
+  for (const plan of plans) {
+    if (!plan) continue;
+    const { more, items, limit, bottoms } = plan;
+    const total = Number(more.dataset.total) || 0;
+    let shown = items.length;
+    if (bottoms.length && bottoms[bottoms.length - 1] > limit + 0.5) {
+      shown = 0;
+      while (shown < items.length && bottoms[shown] + MORE_LINE <= limit + 0.5) shown++;
+    }
+    items.slice(shown).forEach((item) => (item.hidden = true));
+    more.hidden = total <= shown;
+    more.textContent = `${total - shown} more`;
+  }
+  // A narrow day says "+2" instead of cutting "2 more" short (one more read pass).
+  const narrow = plans.filter((plan) => plan && !plan.more.hidden && plan.more.scrollWidth > plan.more.clientWidth + 1);
+  for (const plan of narrow) plan.more.textContent = plan.more.textContent.replace(/^(\d+) more$/, "+$1");
 }
 let calendarCellsObserver = null;
 function bindCalendarCells() {

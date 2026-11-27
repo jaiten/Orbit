@@ -78,8 +78,24 @@
     if (schedule(habit) === "WEEKENDS") return day === 0 || day === 6;
     return true;
   }
+  /**
+   * Check-ins summed by habit and day, worked out once per list of logs (and again if it grows), so a
+   * streak or a year of history doesn't scan every check-in for every day it looks at.
+   */
+  const logIndexes = new WeakMap();
+  function logIndex(logs) {
+    const cached = logIndexes.get(logs);
+    if (cached && cached.length === logs.length) return cached.counts;
+    const counts = new Map();
+    for (const l of logs) {
+      const key = l.habitID + "|" + l.dayKey;
+      counts.set(key, (counts.get(key) || 0) + l.count);
+    }
+    logIndexes.set(logs, { length: logs.length, counts });
+    return counts;
+  }
   function dayCount(habit, logs, key) {
-    return logs.filter((l) => l.habitID === habit.id && l.dayKey === key).reduce((sum, l) => sum + l.count, 0);
+    return logIndex(logs).get(habit.id + "|" + key) || 0;
   }
   function checkedOn(habit, logs, key) {
     return !isCounter(habit) && dayCount(habit, logs, key) >= dailyTarget(habit);
@@ -96,10 +112,9 @@
   }
   /** How many times in the `days` days ending with `key` (for a counter's "12 this week"). */
   function countOver(habit, logs, key, days = 7) {
-    const start = addDays(key, 1 - days);
-    return logs
-      .filter((l) => l.habitID === habit.id && l.dayKey >= start && l.dayKey <= key)
-      .reduce((sum, l) => sum + l.count, 0);
+    let sum = 0;
+    for (let i = 0; i < days; i++) sum += dayCount(habit, logs, addDays(key, -i));
+    return sum;
   }
   /** Check-ins in the habit's period: the day, the week for weekly habits, the month for monthly ones. */
   function periodProgress(habit, logs, key, weekStart = 0) {
@@ -107,9 +122,9 @@
     const monthly = period(habit) === "month";
     const start = monthly ? monthStartKey(key) : weekStartKey(key, weekStart),
       end = monthly ? nextMonthKey(key) : addDays(start, 7);
-    return logs
-      .filter((l) => l.habitID === habit.id && l.dayKey >= start && l.dayKey < end)
-      .reduce((sum, l) => sum + l.count, 0);
+    let sum = 0;
+    for (let day = start; day < end; day = addDays(day, 1)) sum += dayCount(habit, logs, day);
+    return sum;
   }
   /**
    * A habit is shown on a day it is scheduled. A weekly or monthly habit stops asking once its target

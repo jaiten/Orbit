@@ -56,11 +56,33 @@ function withRenderRows(build) {
     renderRows = previous;
   }
 }
+/**
+ * Records grouped by entity ("tasks", "habit_logs"…), rebuilt only when the records change (a load
+ * replaces `state`, a local edit bumps `localEdits`). Without it every `rows()` call scanned every
+ * record, and helpers such as `dayStart()` run once per task, so large plans took seconds to redraw.
+ */
+let entityIndex = null,
+  entityIndexRecords = null,
+  entityIndexEdits = -1;
+function recordsOf(entity) {
+  if (entityIndexRecords !== state.records || entityIndexEdits !== localEdits) {
+    entityIndex = new Map();
+    for (const record of state.records) {
+      if (record.deleted) continue;
+      const slash = record.key.indexOf("/");
+      const name = slash < 0 ? record.key : record.key.slice(0, slash);
+      if (!entityIndex.has(name)) entityIndex.set(name, []);
+      entityIndex.get(name).push(record);
+    }
+    entityIndexRecords = state.records;
+    entityIndexEdits = localEdits;
+  }
+  return entityIndex.get(entity) || [];
+}
 const rows = (entity) => {
   if (renderRows?.has(entity)) return renderRows.get(entity).slice();
-  const result = state.records
-    .filter((r) => r.key.startsWith(entity + "/") && !r.deleted)
-    .map((r) => ({ ...r.payload, _key: r.key }));
+  // Fresh objects each time: callers may change what they get back before saving it.
+  const result = recordsOf(entity).map((r) => ({ ...r.payload, _key: r.key }));
   renderRows?.set(entity, result);
   return result.slice();
 };
@@ -406,7 +428,20 @@ const weekStart = (() => {
     return 0;
   }
 })();
-const habitLogs = () => rows("habit_logs");
+/**
+ * All check-ins, one shared list until the records change, so OrbitHabits can index it once (see
+ * logIndex) instead of scanning it for every day of every habit. Read it; don't change it.
+ */
+let habitLogsCache = null,
+  habitLogsSource = null;
+const habitLogs = () => {
+  const source = recordsOf("habit_logs");
+  if (source !== habitLogsSource) {
+    habitLogsCache = source.map((r) => ({ ...r.payload, _key: r.key }));
+    habitLogsSource = source;
+  }
+  return habitLogsCache;
+};
 function dailyCount(h, date = today()) {
   return OrbitHabits.dayCount(h, habitLogs(), date);
 }
@@ -419,7 +454,7 @@ function checked(h, date = today()) {
  * its tick but stays open.
  */
 function finished(h, date = today()) {
-  return OrbitHabits.period(h) ? checked(h, date) && progress(h, date) >= (h.target || 1) : checked(h, date);
+  return OrbitHabits.period(h) ? progress(h, date) >= (h.target || 1) : checked(h, date);
 }
 function progress(h, date = today()) {
   return OrbitHabits.periodProgress(h, habitLogs(), date, weekStart);

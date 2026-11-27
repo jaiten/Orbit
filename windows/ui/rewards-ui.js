@@ -124,12 +124,14 @@ function todayProgress() {
     done: tasks.filter((t) => t.completedAt).length + habits.filter((h) => checked(h)).length,
   };
 }
-const rewardValues = () =>
-  OrbitRewards.metrics(
+const rewardValues = () => {
+  // A counter's taps are not achievements, so they stay out of badges. (Worked out once, not per check-in.)
+  const counters = counterIDs();
+  return OrbitRewards.metrics(
     rows("tasks").map((t) => ({ completedDay: t.completedAt ? plannerDay(t.completedAt) : null, isNote: t.isNote })),
-    // A counter's taps are not achievements, so they stay out of badges.
-    rows("habit_logs").filter((l) => !counterIDs().has(l.habitID)),
+    rows("habit_logs").filter((l) => !counters.has(l.habitID)),
   );
+};
 const counterIDs = () =>
   new Set(
     rows("habits")

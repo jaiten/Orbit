@@ -11,6 +11,13 @@ const dueAddDays = (key, days) => {
   return dueKeyOf(date);
 };
 
+/** The same day a month away, kept inside that month (January 31 → February 28, not March 3). */
+function dueShiftMonth(key, months) {
+  const date = dueDateOf(key);
+  const last = new Date(date.getFullYear(), date.getMonth() + months + 1, 0).getDate();
+  return dueKeyOf(new Date(date.getFullYear(), date.getMonth() + months, Math.min(date.getDate(), last), 12));
+}
+
 /** Shows the field's current value on the button (call after the editor fills or resets the form). */
 function refreshDuePicker() {
   const input = $("#task-form").elements.deadline,
@@ -132,9 +139,7 @@ $("#due-popover").addEventListener("keydown", (event) => {
   const months = { PageUp: -1, PageDown: 1 }[event.key];
   if (!step && !months) return;
   event.preventDefault();
-  const next = step
-    ? dueAddDays(day, step)
-    : dueKeyOf(new Date(dueDateOf(day).setMonth(dueDateOf(day).getMonth() + months)));
+  const next = step ? dueAddDays(day, step) : dueShiftMonth(day, months);
   if (next.slice(0, 8) !== duePickerMonth.slice(0, 8)) {
     const target = dueDateOf(next),
       shown = dueDateOf(duePickerMonth);
