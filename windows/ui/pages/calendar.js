@@ -272,7 +272,25 @@ function renderSchedule(tasks) {
  * The red line at the current time in today's column: 48px an hour, like the time axis. Its place is set
  * from here (inline styles are blocked) and moves on with the clock while the week or day is open.
  */
-let nowLineTimer = null;
+let nowLineTimer = null,
+  calendarScrollFor = null;
+/**
+ * Where a week or day opens: the current-time line a third of the way down when today is shown, else
+ * the earliest event or timed task a little below the top, else 8 AM.
+ */
+function defaultScheduleScroll(timeline) {
+  const top = timeline.getBoundingClientRect().top - timeline.scrollTop;
+  const offsetOf = (element) => element.getBoundingClientRect().top - top;
+  // The hours start below the sticky day headers and Any time row.
+  const hours = timeline.querySelector(".schedule-hours");
+  const covered = hours ? offsetOf(hours) : 0;
+  const line = timeline.querySelector(".now-line");
+  if (line) return Math.max(0, offsetOf(line) - covered - (timeline.clientHeight - covered) / 3);
+  const blocks = [...timeline.querySelectorAll(".schedule-hours [data-event-start]")];
+  if (blocks.length) return Math.max(0, Math.min(...blocks.map(offsetOf)) - covered - 24);
+  const eight = timeline.querySelector('[data-time-slot$="T08:00"]');
+  return eight ? Math.max(0, offsetOf(eight) - covered) : 8 * 48;
+}
 function placeNowLine(root = document) {
   const now = new Date();
   root.querySelectorAll(".now-line").forEach((line) => {
@@ -595,11 +613,18 @@ function bindCalendar() {
       block.style.left = `calc(${(Number(block.dataset.lane) / Number(block.dataset.lanes)) * 100}% + 2px)`;
       block.style.width = `calc(${100 / Number(block.dataset.lanes)}% - 4px)`;
     });
+    // Opening a week or day (or coming back to Calendar) starts at the current time when today is shown,
+    // otherwise at the first event; redraws of the same week or day keep where you scrolled.
+    const shown = calendarView + "|" + (timeline.querySelector("[data-anytime-day]")?.dataset.anytimeDay || "");
+    if (shown !== calendarScrollFor) {
+      calendarScrollFor = shown;
+      calendarScrollTop = defaultScheduleScroll(timeline);
+    }
     timeline.scrollTop = calendarScrollTop;
     timeline.onscroll = () => {
       calendarScrollTop = timeline.scrollTop;
     };
-  }
+  } else calendarScrollFor = null;
   document.querySelectorAll("[data-month]").forEach(
     (button) =>
       (button.onclick = () => {
