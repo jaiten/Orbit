@@ -47,13 +47,15 @@ enum SomedayRules {
             guard day >= start else { return false }
             if trigger == .dates { return day <= (end.isEmpty ? start : end) }
             guard let anchor = HabitRules.date(start), let target = HabitRules.date(day) else { return false }
-            if trigger == .weeks { return Int(target.timeIntervalSince(anchor) / 86400) % (7 * interval) == 0 }
+            // Every few weeks: the whole week (seven days from the start's weekday) of every Nth week.
+            if trigger == .weeks { return (Int((target.timeIntervalSince(anchor) / 86400).rounded()) / 7) % interval == 0 }
             var calendar = Calendar(identifier: .gregorian)
             calendar.timeZone = TimeZone(secondsFromGMT: 0)!
             let a = calendar.dateComponents([.year, .month, .day], from: anchor)
             let b = calendar.dateComponents([.year, .month, .day], from: target)
             guard let ay = a.year, let by = b.year, let am = a.month, let bm = b.month else { return false }
-            return a.day == b.day && ((by - ay) * 12 + bm - am) % interval == 0
+            // Every few months: the whole month of every Nth month (from the start date on).
+            return ((by - ay) * 12 + bm - am) % interval == 0
         }
 
     }

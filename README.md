@@ -164,8 +164,9 @@ land on, and it can be dropped on a time that already has something.
 **Quick add rules** (Settings, synced) hold three things. *Someday visibility rules*: type an
 @tag that has a rule (`water plants @home`) and the task stays in Someday, showing on Today, in
 Calendar and in Coming up on the days a rule matches (a calendar event, no matching event, a date
-range, or every few weeks or months). Saving a rule offers to hand over open tasks that already
-carry its tag. *Abbreviations*: `gs = grocery shopping #errands` per line; in quick add the word
+range, or every few weeks or months: the whole week or month of each one). Saving a rule offers to hand over open tasks that already
+carry its tag. While a rule is on, its tasks are listed under **Showing today** in Tasks, and adding
+one says "Showing on Today" instead of "Added to Someday". *Abbreviations*: `gs = grocery shopping #errands` per line; in quick add the word
 expands as soon as you type a space after it, and the text can use quick add words
 ([cases](shared/test-cases/shortcuts.json)). *Start & finish* is learned: after you track it on a
 task, a similar new task suggests it, and from the second time on it starts tracked (turning it off

@@ -28,7 +28,13 @@ function renderTasks(tasks) {
           : (taskDate(a) || "9999").localeCompare(taskDate(b) || "9999")),
   );
   // Grouped as on iPhone: Someday, tasks with no category by day, then each category.
-  const entries = filtered.map((task) => ({ ...planItem(task), listID: task.listID, task }));
+  const active = activeSomedayTags(current);
+  const entries = filtered.map((task) => ({
+    ...planItem(task),
+    listID: task.listID,
+    task,
+    showing: task.listID === SOMEDAY && [...OrbitSomedayRules.tags(task.title || "")].some((tag) => active.has(tag)),
+  }));
   const groups = OrbitPlanner.taskGroups(entries, orderedLists("tasks"), current)
     .map(({ id, name, items }) => {
       const tasks = items.map((entry) => entry.task);

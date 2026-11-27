@@ -94,8 +94,10 @@
     const uncategorized = (e) => !e.listID || (e.listID !== SOMEDAY_LIST_ID && !known.has(e.listID));
     const open = entries.filter((e) => !e.completedDay);
     const someday = (e) => e.listID === SOMEDAY_LIST_ID || (uncategorized(e) && !e.day);
+    // Someday tasks whose @rule is on today (`showing`) are listed apart, above Someday.
     return [
-      { id: "someday", name: "Someday", items: open.filter(someday) },
+      { id: "showing", name: "Showing today", items: open.filter((e) => someday(e) && e.showing) },
+      { id: "someday", name: "Someday", items: open.filter((e) => someday(e) && !e.showing) },
       ...["Today", "Upcoming"].map((name) => ({
         id: name.toLowerCase(),
         name,

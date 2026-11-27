@@ -265,7 +265,11 @@ struct TasksView: View {
                     }.pickerStyle(.menu)
                     if visible.isEmpty { ContentUnavailableView("No tasks in this view", systemImage: "checklist") }
                     let open = visible.filter { $0.completedAt == nil }
-                    category("Someday", id: TodayRules.somedayID.uuidString, items: open.filter { someday($0) })
+                    // Someday tasks whose @rule is on today are listed apart, above Someday.
+                    let active = SomedayRules.activeTags(on: PlannerLogic.todayDate, rules: SomedayRules.rules, bridge: CalendarBridge.shared)
+                    let showing = { (task: PlannerTask) in task.listID == TodayRules.somedayID && SomedayRules.isSomedayShown(task.title, active: active) }
+                    category("Showing today", id: "showing-today", items: open.filter { someday($0) && showing($0) })
+                    category("Someday", id: TodayRules.somedayID.uuidString, items: open.filter { someday($0) && !showing($0) })
                     ForEach([TaskDateGroup.today, .upcoming]) { group in
                         category(group.rawValue, id: group.rawValue, items: open.filter { !someday($0) && dateGroup($0) == group })
                     }

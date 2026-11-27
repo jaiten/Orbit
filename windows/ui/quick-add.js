@@ -58,7 +58,13 @@ function forcedTaskParse(text, date) {
 function captureReceipt(task) {
   if (!task) return "";
   const day = taskDate(task);
-  if (task.listID === SOMEDAY && !day) return page === "tasks" ? "" : "Added to Someday";
+  if (task.listID === SOMEDAY && !day) {
+    // A tag whose rule is on today brings it straight to Today: say so (on Today itself it just appears).
+    const active = activeSomedayTags(today());
+    if ([...OrbitSomedayRules.tags(task.title || "")].some((tag) => active.has(tag)))
+      return page === "today" ? "" : "Showing on Today";
+    return page === "tasks" ? "" : "Added to Someday";
+  }
   if (!day) return "";
   const visible =
     page === "today" ? OrbitPlanner.onDay(planItem(task), today()) : page === "calendar" ? day === calendarDay : true;

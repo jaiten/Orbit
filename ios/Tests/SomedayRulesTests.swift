@@ -18,6 +18,12 @@ final class SomedayRulesTests: XCTestCase {
         let monthly = SomedayRules.Rule(tag: "school", trigger: .months, start: "2026-01-31", interval: 2)
         XCTAssertFalse(monthly.matches("2026-02-28", eventTitles: nil))
         XCTAssertTrue(monthly.matches("2026-03-31", eventTitles: nil))
+        // The whole week of an on-week, the whole month of an on-month.
+        XCTAssertTrue(weekly.matches("2026-03-18", eventTitles: nil))
+        XCTAssertTrue(weekly.matches("2026-03-07", eventTitles: nil))
+        XCTAssertFalse(weekly.matches("2026-03-10", eventTitles: nil))
+        XCTAssertTrue(monthly.matches("2026-03-02", eventTitles: nil))
+        XCTAssertFalse(monthly.matches("2026-01-30", eventTitles: nil))
         let range = SomedayRules.Rule(tag: "school", trigger: .dates, start: "2026-03-01", end: "2026-03-08")
         XCTAssertTrue(range.matches("2026-03-08", eventTitles: nil))
         XCTAssertFalse(range.matches("2026-03-09", eventTitles: nil))

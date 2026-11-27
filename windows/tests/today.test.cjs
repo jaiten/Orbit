@@ -61,6 +61,7 @@ test("Tasks groups match iPhone: Someday first, uncategorized by day, then categ
     { id: "soon", day: "2026-11-05", listID: null },
     { id: "loose", day: null, listID: null },
     { id: "someday", day: null, listID: S },
+    { id: "ruled", day: null, listID: S, showing: true },
     { id: "errand", day: "2026-11-02", listID: "errands" },
     { id: "noteSection", day: null, listID: "personal-notes" },
     { id: "done", day: "2026-11-02", listID: null, completedDay: "2026-11-02" },
@@ -69,6 +70,7 @@ test("Tasks groups match iPhone: Someday first, uncategorized by day, then categ
   assert.deepEqual(
     groups.map((g) => [g.name, g.items.map((e) => e.id)]),
     [
+      ["Showing today", ["ruled"]],
       ["Someday", ["loose", "someday", "noteSection"]],
       ["Today", ["late", "now"]],
       ["Upcoming", ["soon"]],

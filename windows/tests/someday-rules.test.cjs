@@ -18,13 +18,19 @@ test("calendar absence only triggers a no-event rule when calendar data is avail
   }
 });
 
-test("recurrence follows calendar days, explicit month dates, and inclusive ranges", () => {
+test("every few weeks covers whole weeks, every few months whole months, and ranges are inclusive", () => {
   const weekly = { tag: "school", trigger: "weeks", start: "2026-03-01", interval: 2 };
   assert.equal(rules.matches(weekly, "2026-03-15"), true);
   assert.equal(rules.matches(weekly, "2026-03-08"), false);
   const monthly = { ...weekly, trigger: "months", start: "2026-01-31" };
   assert.equal(rules.matches(monthly, "2026-02-28"), false);
   assert.equal(rules.matches(monthly, "2026-03-31"), true);
+  // The whole week of an on-week, the whole month of an on-month.
+  assert.equal(rules.matches(weekly, "2026-03-18"), true);
+  assert.equal(rules.matches(weekly, "2026-03-07"), true);
+  assert.equal(rules.matches(weekly, "2026-03-10"), false);
+  assert.equal(rules.matches(monthly, "2026-03-02"), true);
+  assert.equal(rules.matches(monthly, "2026-01-30"), false);
   assert.equal(rules.matches({ ...weekly, trigger: "dates", end: "2026-03-08" }, "2026-03-08"), true);
 });
 

@@ -276,7 +276,13 @@ struct InlineCapture: View {
         let shownDay: String? = switch defaultDay { case .today: PlannerLogic.today; case .day(let key): key; case .undated: nil }
         var message: String?
         if draft.kind == .habit, !habitsOnly { message = "Added to Habits" }
-        else if draft.kind == .task, draft.someday, listID != TodayRules.somedayID { message = "Added to Someday" }
+        else if draft.kind == .task, draft.someday, listID != TodayRules.somedayID {
+            // A tag whose rule is on today brings it straight to Today: say so (on Today itself it just appears).
+            let active = SomedayRules.activeTags(on: PlannerLogic.todayDate, rules: SomedayRules.rules, bridge: CalendarBridge.shared)
+            if SomedayRules.isSomedayShown(draft.title, active: active) {
+                if shownDay != PlannerLogic.today { message = "Showing on Today" }
+            } else { message = "Added to Someday" }
+        }
         else if draft.kind == .task, let day = draft.date, let shownDay, day != shownDay,
                 !(shownDay == PlannerLogic.today && day < shownDay), let date = CalendarShare.day(day) {
             let tomorrow = PlannerLogic.dayKey(Calendar.current.date(byAdding: .day, value: 1, to: PlannerLogic.todayDate) ?? .now)

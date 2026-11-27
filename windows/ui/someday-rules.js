@@ -42,10 +42,12 @@
     const target = keyDate(day);
     if (!target) return false;
     const anchor = keyDate(rule.start);
-    if (rule.trigger === "weeks") return (target - anchor) % (86400000 * 7 * rule.interval) === 0;
+    // Every few weeks: the whole week (seven days from the start's weekday) of every Nth week.
+    if (rule.trigger === "weeks") return Math.floor(Math.round((target - anchor) / 86400000) / 7) % rule.interval === 0;
+    // Every few months: the whole month of every Nth month (from the start date on).
     const months =
       (target.getUTCFullYear() - anchor.getUTCFullYear()) * 12 + target.getUTCMonth() - anchor.getUTCMonth();
-    return target.getUTCDate() === anchor.getUTCDate() && months % rule.interval === 0;
+    return months % rule.interval === 0;
   }
   function onToday(task, day, active, plannerDay) {
     if (task.completedAt && plannerDay(task.completedAt) !== day) return false;
