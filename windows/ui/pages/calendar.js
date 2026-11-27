@@ -268,6 +268,23 @@ function renderSchedule(tasks) {
     .join("");
   return `<div class="calendar-page timeline-page">${calendarHeader(title, subtitle)}<div id="calendar-timeline" class="calendar-timeline${dayView ? " day-view" : ""}" data-anytime-height="${anytimeHeight}"><div class="schedule-header time-grid"><span></span>${headings}</div><div class="schedule-all-day time-grid"><span class="time-axis-label">Any time</span>${untimed}</div><div class="anytime-resizer" aria-hidden="true"></div><div class="schedule-hours time-grid"><div class="time-axis">${axis}</div>${columns}</div></div><div class="capture-dock">${addField("Add a task for " + date.toLocaleDateString([], { month: "short", day: "numeric" }))}</div></div>`;
 }
+/**
+ * The red line at the current time in today's column: 48px an hour, like the time axis. Its place is set
+ * from here (inline styles are blocked) and moves on with the clock while the week or day is open.
+ */
+let nowLineTimer = null;
+function placeNowLine(root = document) {
+  const now = new Date();
+  root.querySelectorAll(".now-line").forEach((line) => {
+    line.style.top = `${((now.getHours() * 60 + now.getMinutes()) * 48) / 60}px`;
+  });
+  clearTimeout(nowLineTimer);
+  if (root.querySelector?.(".now-line"))
+    nowLineTimer = setTimeout(
+      () => $("#calendar-timeline") && placeNowLine($("#calendar-timeline")),
+      60000 - (now.getSeconds() * 1000 + now.getMilliseconds()),
+    );
+}
 /** Inline styles are blocked by the page's security policy, so colours and sizes are set from here. */
 function applyCalendarStyles(root = document) {
   root
@@ -571,6 +588,7 @@ function bindCalendar() {
     timeline
       .querySelectorAll(".time-grid")
       .forEach((grid) => grid.style.setProperty("--schedule-days", calendarView === "day" ? 1 : 7));
+    placeNowLine(timeline);
     timeline.querySelectorAll("[data-event-start]").forEach((block) => {
       block.style.top = `${(Number(block.dataset.eventStart) * 48) / 60}px`;
       block.style.height = `${Math.max(20, ((Number(block.dataset.eventEnd) - Number(block.dataset.eventStart)) * 48) / 60 - 2)}px`;
