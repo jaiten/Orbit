@@ -173,7 +173,8 @@ struct CaptureTextField: UIViewRepresentable {
     var identifier = "task-title-input"
     var placeholder = "What do you need to do?"
     var minimumHeight: CGFloat = 0
-    /// Grows up to this many lines, then scrolls.
+    /// Grows up to this many lines, then scrolls. 0 grows without limit, so the page around it scrolls
+    /// instead (a note's text: the title and details scroll away with it).
     var maximumLines = 6
     var allowsNewlines = false
     var onPasteImage: ((UIImage) -> Void)? = nil
@@ -240,7 +241,8 @@ struct CaptureTextField: UIViewRepresentable {
         let width = proposal.width ?? 200
         let fitting = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude)).height
         let lineHeight = uiView.font?.lineHeight ?? 24
-        let limit = lineHeight * CGFloat(maximumLines) + uiView.textContainerInset.top + uiView.textContainerInset.bottom
+        let limit = maximumLines <= 0 ? CGFloat.greatestFiniteMagnitude
+            : lineHeight * CGFloat(maximumLines) + uiView.textContainerInset.top + uiView.textContainerInset.bottom
         let scrolls = fitting > limit
         if uiView.isScrollEnabled != scrolls { uiView.isScrollEnabled = scrolls }
         return CGSize(width: width, height: max(minimumHeight, min(fitting, limit)))
@@ -470,6 +472,14 @@ struct CaptureTextField: UIViewRepresentable {
             typingAttributes[.link] = nil
         }
         /// The scroll view the note sits in (SwiftUI's ScrollView), not this text view itself.
+        /// A text that grows without limit doesn't scroll itself, so the page keeps the caret in view
+        /// (above the keyboard) as you type or move it.
+        func revealCaret() {
+            guard !isScrollEnabled, isFirstResponder, let end = selectedTextRange?.end, let scroller = enclosingScrollView else { return }
+            let caret = convert(caretRect(for: end), to: scroller)
+            guard caret.origin.y.isFinite, caret.height > 0 else { return }
+            scroller.scrollRectToVisible(caret.insetBy(dx: 0, dy: -32), animated: false)
+        }
         private var enclosingScrollView: UIScrollView? {
             var view = superview
             while let current = view { if let scroller = current as? UIScrollView { return scroller }; view = current.superview }
@@ -523,6 +533,10 @@ struct CaptureTextField: UIViewRepresentable {
         var parent: CaptureTextField
         var recentEdits: [String] = []
         init(parent: CaptureTextField) { self.parent = parent }
+        func textViewDidChangeSelection(_ textView: UITextView) {
+            guard parent.maximumLines <= 0 else { return }
+            DispatchQueue.main.async { (textView as? Input)?.revealCaret() }
+        }
         func textViewDidChange(_ textView: UITextView) {
             (textView as? Input)?.textChanged()
             let value = textView.text ?? ""

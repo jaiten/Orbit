@@ -494,7 +494,7 @@ struct NoteEditor: View {
                 Divider().padding(.vertical, 4)
                 CaptureTextField(text: $text, focused: Binding(get: { focus == .body }, set: { editing in
                     if editing { focus = .body } else if focus == .body { focus = nil }
-                }), identifier: "note-body", placeholder: "Start writing…", minimumHeight: 240, maximumLines: 24,
+                }), identifier: "note-body", placeholder: "Start writing…", minimumHeight: 240, maximumLines: 0,
                    allowsNewlines: true, onPasteImage: addPhoto, textStyle: .body, detectsLinks: true) {}
                 ForEach(photos) { photo in
                     NotePhotoView(photo: photo) {
