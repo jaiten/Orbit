@@ -2873,13 +2873,24 @@ body[data-view="calendar"] .cal-more {
 #drag-strip {
   display: none;
 }
+/* Over the page it is a band in the page's colour, the same as the window buttons, so content scrolls
+   under it cleanly instead of being cut off by the buttons. The sidebar keeps its own colour. */
 :root[data-title-bar="overlay"] #drag-strip {
   display: block;
   position: fixed;
+  inset: 0 0 auto var(--sidebar-width);
+  height: var(--title-inset);
+  z-index: 20;
+  pointer-events: none;
+  background: var(--pane);
+  -webkit-app-region: drag;
+}
+/* The sidebar's top is part of the drag area too (its controls stay clickable). */
+:root[data-title-bar="overlay"] .sidebar::before {
+  content: "";
+  position: absolute;
   inset: 0 0 auto 0;
   height: var(--title-inset);
-  z-index: 1;
-  pointer-events: none;
   -webkit-app-region: drag;
 }
 :root[data-title-bar="overlay"]
